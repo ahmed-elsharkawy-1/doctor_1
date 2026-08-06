@@ -89,5 +89,9 @@ php artisan migrate:fresh --seed
 
 ## Status
 
-Phase 0 complete: schema, auth, roles, admin panel, API skeleton.
-Next: Phase 1 — clinic settings endpoints (visit types, hours, holidays).
+- **Phase 0** ✅ schema, auth, roles, admin panel, API skeleton
+- **Phase 1** ✅ clinic settings API — visit types, weekly hours, holidays, bootstrap
+
+Next: Phase 2 — patients, slot availability, new booking.
+
+The API contract for the Flutter team lives in [docs/api/v1/README.md](docs/api/v1/README.md).
