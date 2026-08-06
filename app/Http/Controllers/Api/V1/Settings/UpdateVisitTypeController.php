@@ -1,0 +1,32 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1\Settings;
+
+use App\DTOs\V1\Settings\VisitTypeData;
+use App\Http\Controllers\Api\V1\V1Controller;
+use App\Http\Requests\Api\V1\Settings\UpdateVisitTypeRequest;
+use App\Services\Results\V1\Settings\VisitTypeResult;
+use App\Services\V1\Settings\VisitTypeService;
+use App\Support\ApiResponse;
+use Illuminate\Http\JsonResponse;
+
+class UpdateVisitTypeController extends V1Controller
+{
+    public function __construct(private readonly VisitTypeService $visitTypeService) {}
+
+    public function __invoke(UpdateVisitTypeRequest $request, int $visitType): JsonResponse
+    {
+        $canSetPrice = $request->canSetPrice();
+
+        $updated = $this->visitTypeService->update(
+            $this->clinic($request),
+            $visitType,
+            VisitTypeData::fromArray($request->validated(), $canSetPrice),
+        );
+
+        return ApiResponse::success(
+            (new VisitTypeResult($updated, $canSetPrice))->toArray(),
+            __('settings.visit_type.updated'),
+        );
+    }
+}

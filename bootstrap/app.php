@@ -2,6 +2,7 @@
 
 use App\Enums\ApiErrorCode;
 use App\Enums\AuthErrorCode;
+use App\Http\Middleware\EnsureAbility;
 use App\Http\Middleware\ResolveClinic;
 use App\Http\Middleware\SetApiLocale;
 use App\Support\ApiResponse;
@@ -31,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'clinic' => ResolveClinic::class,
+            'ability' => EnsureAbility::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

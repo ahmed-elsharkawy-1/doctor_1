@@ -55,12 +55,15 @@ final class Wire
     }
 
     /**
-     * @return array{value: string, display: string}
+     * Keeps the enum's native backing type — DayOfWeek stays numeric on the
+     * wire because the client passes it back as a path segment.
+     *
+     * @return array{value: int|string, display: string}
      */
     public static function enum(BackedEnum $enum, string $display): array
     {
         return [
-            'value' => (string) $enum->value,
+            'value' => $enum->value,
             'display' => $display,
         ];
     }

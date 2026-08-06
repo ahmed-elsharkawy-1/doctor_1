@@ -65,6 +65,13 @@ class ResolveClinic
 
         $request->attributes->set('clinic', $clinic);
 
+        // The client's explicit Accept-Language always wins; the account's
+        // stored preference only fills in when it sent none.
+        if (! $request->attributes->get(SetApiLocale::FROM_HEADER)
+            && in_array($user->locale, config('clinic.api.locales'), true)) {
+            app()->setLocale($user->locale);
+        }
+
         return $next($request);
     }
 }
