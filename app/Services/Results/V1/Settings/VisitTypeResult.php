@@ -27,6 +27,9 @@ final class VisitTypeResult extends ServiceResult
             'name' => $this->visitType->name,
             'duration_minutes' => $this->visitType->duration_minutes,
             'is_active' => $this->visitType->is_active,
+            // Booking a returning patient under this type triggers the
+            // mismatch warning (SPEC 4.3).
+            'is_new_patient_type' => $this->visitType->is_new_patient_type,
             'sort_order' => $this->visitType->sort_order,
         ];
 

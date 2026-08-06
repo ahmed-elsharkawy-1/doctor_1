@@ -21,6 +21,7 @@ class VisitTypeFactory extends Factory
             'duration_minutes' => 20,
             'price' => 300.00,
             'is_active' => true,
+            'is_new_patient_type' => false,
             'sort_order' => 0,
         ];
     }

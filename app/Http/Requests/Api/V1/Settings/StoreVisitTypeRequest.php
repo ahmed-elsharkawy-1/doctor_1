@@ -21,6 +21,7 @@ class StoreVisitTypeRequest extends FormRequest
             'duration_minutes' => ['required', 'integer', 'min:5', 'max:480'],
             // Accepted only from callers with prices.view; ignored otherwise.
             'price' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
+            'is_new_patient_type' => ['nullable', 'boolean'],
         ];
     }
 

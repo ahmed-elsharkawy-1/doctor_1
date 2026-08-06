@@ -14,6 +14,7 @@ final class VisitTypeData
         public readonly string $name,
         public readonly int $durationMinutes,
         public readonly ?string $price = null,
+        public readonly ?bool $isNewPatientType = null,
     ) {}
 
     /**
@@ -26,6 +27,9 @@ final class VisitTypeData
             durationMinutes: (int) $validated['duration_minutes'],
             price: $canSetPrice && isset($validated['price'])
                 ? (string) $validated['price']
+                : null,
+            isNewPatientType: isset($validated['is_new_patient_type'])
+                ? (bool) $validated['is_new_patient_type']
                 : null,
         );
     }
@@ -42,6 +46,10 @@ final class VisitTypeData
 
         if ($this->price !== null) {
             $attributes['price'] = $this->price;
+        }
+
+        if ($this->isNewPatientType !== null) {
+            $attributes['is_new_patient_type'] = $this->isNewPatientType;
         }
 
         return $attributes;

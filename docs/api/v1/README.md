@@ -2,8 +2,8 @@
 
 Base URL: `{host}/api/v1`
 
-Covers **Phase 0 (auth)** and **Phase 1 (clinic settings)**. Later phases append
-to this document.
+Covers **Phase 0 (auth)**, **Phase 1 (clinic settings)** and **Phase 2
+(booking)**. Later phases append to this document.
 
 ---
 
@@ -198,11 +198,17 @@ One call on launch. Everything the settings and booking screens need.
   "name": "كشف",
   "duration_minutes": 20,
   "is_active": true,
+  "is_new_patient_type": true,
   "sort_order": 0,
   "price": { "value": "300.00", "display": "300.00 ج.م" },
   "needs_price": false
 }
 ```
+
+`is_new_patient_type` marks the clinic's "this is a new concern" visit type —
+usually كشف. Booking a **returning** patient under it is what raises the
+visit-type mismatch warning (§9). Exactly one visit type per clinic carries the
+flag; setting it on another moves it rather than duplicating it.
 
 `needs_price` is `true` while the price is still zero — a newly provisioned
 clinic starts this way, and revenue is meaningless until it's set.
@@ -345,7 +351,196 @@ Returns the full clinic object (same shape as `bootstrap.clinic`).
 
 ---
 
-## 8. Error code index
+## 8. Booking
+
+### `GET /booking-days` — the day strip
+
+One entry per day of the rolling window, starting today.
+
+```json
+{
+  "days": [
+    {
+      "date": { "value": "2026-08-08", "display": "8 أغسطس 2026" },
+      "day_of_week": { "value": 0, "display": "السبت" },
+      "day_number": 8,
+      "is_open": true,
+      "is_holiday": false,
+      "is_today": true,
+      "bookings_count": 4,
+      "pending_count": 2
+    }
+  ]
+}
+```
+
+- `is_open` is already false on a holiday — check `is_holiday` only to show
+  "إجازة" rather than a date.
+- `pending_count` is the "X لسه ماخلصوش" number: booked + arrived.
+- `bookings_count` excludes cancelled bookings.
+
+### `GET /slots?date=&visit_type_id=`
+
+**Both parameters are required, and the slot list changes with the visit
+type** — a 30-minute procedure offers fewer start times than a 10-minute
+follow-up. Re-fetch whenever the secretary changes the type.
+
+```json
+{
+  "date": { "value": "2026-08-08", "display": "8 أغسطس 2026" },
+  "is_open": true,
+  "closed_reason": null,
+  "visit_type": { "id": 3, "name": "كشف", "duration_minutes": 20 },
+  "available_count": 9,
+  "slots": [
+    {
+      "start_time": { "value": "09:00", "display": "9:00 ص" },
+      "end_time":   { "value": "09:20", "display": "9:20 ص" },
+      "is_available": false
+    }
+  ]
+}
+```
+
+**Unavailable slots are returned, not omitted** — render them greyed and struck
+through, as in the mockup.
+
+When the day yields nothing, `is_open` is `false`, `slots` is `[]`, and
+`closed_reason` explains it:
+
+| `closed_reason.value` | Meaning |
+|---|---|
+| `weekly_closed` | Not a working day |
+| `holiday` | One-off closure |
+| `outside_window` | Past, or beyond `booking_window_days` |
+
+Rules the server applies, so the app doesn't have to:
+
+- Start times step by the clinic's `slot_step_minutes` (default 10).
+- A visit must **finish** inside the period — 11:50 is not offered for a
+  20-minute visit when the clinic closes at 12:00.
+- A slot is unavailable if it overlaps any existing booking of **any** visit
+  type. Cancelled bookings free their slot; completed ones do not.
+- Touching is fine: a visit starting exactly when another ends is available.
+
+### `POST /patients/lookup`
+
+Call as soon as the phone is complete. `name` and `visit_type_id` are optional,
+so it can be called again as the form fills in.
+
+```json
+{ "phone": "01012225521", "name": "سارة أحمد", "visit_type_id": 3 }
+```
+
+**200**
+
+```json
+{
+  "found": true,
+  "phone": { "value": "+201012225521", "display": "01012225521" },
+  "patient": { "id": 12, "code": "SAAH5521", "name": "سارة أحمد", "visits_count": 3 },
+  "is_returning": true,
+  "name_conflict": false,
+  "visit_type_mismatch": true,
+  "last_visit": {
+    "date": { "value": "2026-07-02", "display": "2 يوليو 2026" },
+    "visit_type": { "id": 4, "name": "إعادة" }
+  }
+}
+```
+
+Three flags drive the UI:
+
+| Flag | Meaning | What to show |
+|---|---|---|
+| `found` | The phone is already on file | Prefill the name |
+| `name_conflict` | The typed name differs from the stored one | Ask: keep the stored name, or correct it — then send `update_patient_name: true` |
+| `visit_type_mismatch` | A returning patient is being booked under the "new concern" type | The inline warning with "تصحيح" / "تأكيد" |
+
+Patients are matched on the **normalised phone only**, never on name — `01012225521`,
+`+201012225521` and `00201012225521` are the same person. A patient belongs to
+one clinic; another clinic's patient is never returned.
+
+`INVALID_PHONE_NUMBER` (422) when the number cannot be parsed.
+
+### `POST /bookings`
+
+```json
+{
+  "patient_name": "سارة أحمد",
+  "phone": "01012225521",
+  "visit_type_id": 3,
+  "date": "2026-08-08",
+  "start_time": "09:00",
+  "notes": null,
+  "force": false,
+  "update_patient_name": false
+}
+```
+
+- The patient is created if the phone is new, and reused if it is known — the
+  ID code is generated once and never changes.
+- `update_patient_name: true` replaces the stored name. Without it a differing
+  name is ignored, so a typo cannot quietly rewrite the record.
+- `force: true` books anyway — past a taken slot, outside working hours, or on
+  a closed day — and sets `is_overbooked` on the result. Use it only after the
+  secretary confirms.
+
+**201 → `data`**
+
+```json
+{
+  "id": 88,
+  "status": { "value": "booked", "display": "محجوزة" },
+  "cancel_reason": null,
+  "patient": {
+    "id": 12, "code": "SAAH5521", "name": "سارة أحمد",
+    "phone": { "value": "+201012225521", "display": "01012225521" }
+  },
+  "visit_type": { "id": 3, "name": "كشف", "duration_minutes": 20 },
+  "date": { "value": "2026-08-08", "display": "8 أغسطس 2026" },
+  "start_time": { "value": "09:00", "display": "9:00 ص" },
+  "end_time": { "value": "09:20", "display": "9:20 ص" },
+  "is_overbooked": false,
+  "notes": null,
+  "price": { "value": "300.00", "display": "300.00 ج.م" }
+}
+```
+
+`price` appears only for callers with `prices.view`. `visit_type.duration_minutes`
+is the value **snapshotted at booking time**, not the visit type's current one.
+
+| Code | HTTP | When |
+|---|---|---|
+| `SLOT_UNAVAILABLE` | 409 | Overlaps an existing booking |
+| `SLOT_OUTSIDE_WORKING_HOURS` | 409 | Not an offered start time, or the visit would run past closing |
+| `CLINIC_CLOSED_THAT_DAY` | 409 | Weekly closed, or a holiday. `details.reason` distinguishes them |
+| `SLOT_OUTSIDE_WINDOW` | 409 | Past, or beyond the booking window |
+| `VISIT_TYPE_NOT_FOUND` | 404 | Unknown, or another clinic's |
+| `VISIT_TYPE_INACTIVE` | 400 | Hidden visit type |
+| `INVALID_PHONE_NUMBER` | 422 | |
+
+All of these are cleared by `force: true` except the visit-type errors.
+
+### `GET /bookings/{id}` · `PUT /bookings/{id}`
+
+`PUT` takes the **same body as create** — it is a full replacement, and it
+re-runs the whole availability check. The booking never conflicts with itself.
+
+Editable while `booked` or `arrived` only. Once the patient is with the doctor
+it must be completed, not edited:
+
+| Code | HTTP | When |
+|---|---|---|
+| `BOOKING_NOT_FOUND` | 404 | Unknown, or another clinic's |
+| `BOOKING_NOT_EDITABLE` | 400 | Status is `with_doctor`, `done` or `cancelled`. `details.status` says which |
+
+Changing the visit type re-snapshots price and duration, and moves `end_time`.
+Changing the phone moves the booking to a different patient.
+
+---
+
+## 9. Error code index
 
 | Code | HTTP |
 |---|---|
@@ -366,6 +561,14 @@ Returns the full clinic object (same shape as `bootstrap.clinic`).
 | `HOLIDAY_ALREADY_EXISTS` | 409 |
 | `HOLIDAY_HAS_BOOKINGS` | 409 |
 | `HOLIDAY_NOT_FOUND` | 404 |
+| `SLOT_UNAVAILABLE` | 409 |
+| `SLOT_OUTSIDE_WORKING_HOURS` | 409 |
+| `SLOT_OUTSIDE_WINDOW` | 409 |
+| `CLINIC_CLOSED_THAT_DAY` | 409 |
+| `VISIT_TYPE_INACTIVE` | 400 |
+| `BOOKING_NOT_FOUND` | 404 |
+| `BOOKING_NOT_EDITABLE` | 400 |
+| `INVALID_PHONE_NUMBER` | 422 |
 | `INTERNAL_SERVER_ERROR` | 500 |
 
 Codes are only ever added, never renamed. Treat an unrecognised code as a

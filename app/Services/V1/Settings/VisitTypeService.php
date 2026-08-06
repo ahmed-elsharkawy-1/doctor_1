@@ -27,11 +27,15 @@ class VisitTypeService
     {
         $this->guardAgainstDuplicateName($clinic, $data->name);
 
-        return $clinic->visitTypes()->create($data->toAttributes() + [
+        $visitType = $clinic->visitTypes()->create($data->toAttributes() + [
             'price' => $data->price ?? 0,
             'is_active' => true,
             'sort_order' => (int) $clinic->visitTypes()->max('sort_order') + 1,
         ]);
+
+        $this->keepOneNewPatientType($clinic, $visitType);
+
+        return $visitType->refresh();
     }
 
     public function update(Clinic $clinic, int $visitTypeId, VisitTypeData $data): VisitType
@@ -42,7 +46,25 @@ class VisitTypeService
 
         $visitType->update($data->toAttributes());
 
+        $this->keepOneNewPatientType($clinic, $visitType);
+
         return $visitType->refresh();
+    }
+
+    /**
+     * Exactly one visit type per clinic may be the "new concern" type —
+     * flagging a second one moves the flag rather than duplicating it.
+     */
+    private function keepOneNewPatientType(Clinic $clinic, VisitType $visitType): void
+    {
+        if (! $visitType->is_new_patient_type) {
+            return;
+        }
+
+        $clinic->visitTypes()
+            ->whereKeyNot($visitType->id)
+            ->where('is_new_patient_type', true)
+            ->update(['is_new_patient_type' => false]);
     }
 
     /**

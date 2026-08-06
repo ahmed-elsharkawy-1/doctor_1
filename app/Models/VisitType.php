@@ -20,6 +20,7 @@ class VisitType extends Model
         'duration_minutes',
         'price',
         'is_active',
+        'is_new_patient_type',
         'sort_order',
     ];
 
@@ -29,6 +30,7 @@ class VisitType extends Model
             'duration_minutes' => 'integer',
             'price' => 'decimal:2',
             'is_active' => 'boolean',
+            'is_new_patient_type' => 'boolean',
             'sort_order' => 'integer',
         ];
     }

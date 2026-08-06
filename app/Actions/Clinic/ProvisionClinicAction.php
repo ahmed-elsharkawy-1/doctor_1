@@ -36,12 +36,15 @@ class ProvisionClinicAction
 
         $defaults = $clinic->specialty?->defaultVisitTypes ?? collect();
 
-        foreach ($defaults as $default) {
+        foreach ($defaults as $index => $default) {
             $clinic->visitTypes()->create([
                 'name' => $default->name_ar,
                 'duration_minutes' => $default->duration_minutes,
                 'price' => 0,
                 'is_active' => true,
+                // Every specialty lists its new-concern visit type first; the
+                // owner can move the flag afterwards.
+                'is_new_patient_type' => $index === 0,
                 'sort_order' => $default->sort_order,
             ]);
         }

@@ -3,6 +3,12 @@
 use App\Http\Controllers\Api\V1\Auth\CurrentUserController;
 use App\Http\Controllers\Api\V1\Auth\LoginController;
 use App\Http\Controllers\Api\V1\Auth\LogoutController;
+use App\Http\Controllers\Api\V1\Booking\BookingDaysController;
+use App\Http\Controllers\Api\V1\Booking\CreateBookingController;
+use App\Http\Controllers\Api\V1\Booking\PatientLookupController;
+use App\Http\Controllers\Api\V1\Booking\ShowBookingController;
+use App\Http\Controllers\Api\V1\Booking\SlotsController;
+use App\Http\Controllers\Api\V1\Booking\UpdateBookingController;
 use App\Http\Controllers\Api\V1\Settings\BootstrapController;
 use App\Http\Controllers\Api\V1\Settings\CreateHolidayController;
 use App\Http\Controllers\Api\V1\Settings\CreateVisitTypeController;
@@ -85,7 +91,30 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
     });
 
     /*
-    | Phase 2+ endpoints mount here: booking-days, slots, patients, bookings,
-    | queue, postpone.
+    | Booking — the New Booking screen and the day strip.
+    */
+    Route::middleware('ability:bookings.manage')->group(function (): void {
+
+        Route::get('booking-days', BookingDaysController::class)->name('api.v1.booking-days');
+        Route::get('slots', SlotsController::class)->name('api.v1.slots');
+
+        // Recognises a returning patient and flags a visit-type mismatch
+        // while the secretary is still filling the form.
+        Route::post('patients/lookup', PatientLookupController::class)->name('api.v1.patients.lookup');
+
+        Route::prefix('bookings')->group(function (): void {
+            Route::post('/', CreateBookingController::class)->name('api.v1.bookings.store');
+            Route::get('{booking}', ShowBookingController::class)
+                ->whereNumber('booking')
+                ->name('api.v1.bookings.show');
+            Route::put('{booking}', UpdateBookingController::class)
+                ->whereNumber('booking')
+                ->name('api.v1.bookings.update');
+        });
+    });
+
+    /*
+    | Phase 3+ endpoints mount here: queue, status transitions, postpone,
+    | call list.
     */
 });
