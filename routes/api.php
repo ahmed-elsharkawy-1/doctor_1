@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\V1\Booking\PatientLookupController;
 use App\Http\Controllers\Api\V1\Booking\ShowBookingController;
 use App\Http\Controllers\Api\V1\Booking\SlotsController;
 use App\Http\Controllers\Api\V1\Booking\UpdateBookingController;
+use App\Http\Controllers\Api\V1\Patients\SearchPatientsController;
+use App\Http\Controllers\Api\V1\Patients\ShowPatientController;
 use App\Http\Controllers\Api\V1\Queue\ArriveController;
 use App\Http\Controllers\Api\V1\Queue\CallInController;
 use App\Http\Controllers\Api\V1\Queue\CancelBookingController;
@@ -148,5 +150,18 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
         Route::post('postpone', PostponeController::class)->name('api.v1.postpone');
 
         Route::get('rebooking-list', RebookingListController::class)->name('api.v1.rebooking-list');
+    });
+
+    /*
+    | Patient search and visit history (SPEC 4.4).
+    |
+    | Phones are masked in search results and shown in full on a patient's
+    | own page, which is where the call action lives.
+    */
+    Route::middleware('ability:patients.view')->group(function (): void {
+        Route::get('patients', SearchPatientsController::class)->name('api.v1.patients.index');
+        Route::get('patients/{patient}', ShowPatientController::class)
+            ->whereNumber('patient')
+            ->name('api.v1.patients.show');
     });
 });

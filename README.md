@@ -93,7 +93,8 @@ php artisan migrate:fresh --seed
 - **Phase 1** ✅ clinic settings API — visit types, weekly hours, holidays, bootstrap
 - **Phase 2** ✅ booking API — patients, ID codes, slot availability, new booking
 - **Phase 3** ✅ queue API — arrival ordering, status transitions, postpone + call list, end-of-day job
+- **Phase 4** ✅ patient search and visit history — **the mobile API is complete**
 
-Next: Phase 4 — patient search and visit history.
+Next: Phase 5 — revenue and retention dashboards in Filament (both still need design).
 
 The API contract for the Flutter team lives in [docs/api/v1/README.md](docs/api/v1/README.md).

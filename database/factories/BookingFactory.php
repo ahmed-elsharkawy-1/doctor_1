@@ -56,7 +56,10 @@ class BookingFactory extends Factory
                 'visit_type_id' => $visitType->id,
                 'duration_minutes' => $visitType->duration_minutes,
                 'price' => $visitType->price,
-                'patient_id' => Patient::factory()->create(['clinic_id' => $clinic->id])->id,
+                // A pending factory, not a created record: when the caller
+                // passes their own patient_id this is never resolved, so no
+                // stray patient is left behind.
+                'patient_id' => Patient::factory()->state(['clinic_id' => $clinic->id]),
             ];
         });
     }

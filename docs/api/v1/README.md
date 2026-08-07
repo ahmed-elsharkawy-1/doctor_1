@@ -2,8 +2,8 @@
 
 Base URL: `{host}/api/v1`
 
-Covers **Phase 0 (auth)**, **Phase 1 (clinic settings)**, **Phase 2 (booking)**
-and **Phase 3 (queue & postpone)**. Later phases append to this document.
+Covers **Phase 0 (auth)**, **Phase 1 (clinic settings)**, **Phase 2 (booking)**,
+**Phase 3 (queue & postpone)** and **Phase 4 (patients)** — the complete v1 API.
 
 ---
 
@@ -720,7 +720,85 @@ The app needs no handling for this beyond re-reading the queue.
 
 ---
 
-## 12. Error code index
+## 12. Patients
+
+### `GET /patients?q=&per_page=`
+
+`q` is optional — an empty search lists everyone. It matches:
+
+- part of a **name**
+- the start of an **ID code**
+- the **last digits of a phone** (4 or more), since the secretary usually has
+  the number in front of her
+
+Paginated (§6.5), default 15 per page, capped at 50.
+
+```json
+{
+  "items": [
+    {
+      "id": 12,
+      "code": "SAAH5521",
+      "name": "سارة أحمد",
+      "phone": { "value": "+201012225521", "display": "0101***5521" },
+      "visits_count": 3
+    }
+  ],
+  "meta": { "current_page": 1, "last_page": 2, "per_page": 15, "total": 18 }
+}
+```
+
+**Phones are masked here** — there is no call action on a search result.
+`visits_count` counts real visits only; cancellations and no-shows are excluded.
+
+### `GET /patients/{id}`
+
+The patient's page: who she is, a summary, and every visit newest first.
+
+```json
+{
+  "patient": {
+    "id": 12,
+    "code": "SAAH5521",
+    "name": "سارة أحمد",
+    "phone": { "value": "+201012225521", "display": "01012225521" },
+    "registered_at": { "value": "2026-05-10", "display": "10 مايو 2026" }
+  },
+  "summary": {
+    "visits_count": 3,
+    "no_show_count": 1,
+    "cancelled_count": 2,
+    "first_visit": { "value": "2026-05-10", "display": "10 مايو 2026" },
+    "last_visit":  { "value": "2026-07-02", "display": "2 يوليو 2026" }
+  },
+  "visits": [
+    {
+      "booking_id": 88,
+      "date": { "value": "2026-07-02", "display": "2 يوليو 2026" },
+      "start_time": { "value": "09:00", "display": "9:00 ص" },
+      "visit_type": { "id": 4, "name": "إعادة", "duration_minutes": 10 },
+      "status": { "value": "done", "display": "تم" },
+      "cancel_reason": null,
+      "notes": null,
+      "price": { "value": "150.00", "display": "150.00 ج.م" }
+    }
+  ]
+}
+```
+
+- **The phone is unmasked here** — this screen has a call action.
+- `visits` includes **cancellations and no-shows**, each with its
+  `cancel_reason`. A pattern of them is exactly what the secretary wants to
+  see; distinguish them by `status`.
+- `visit_type.duration_minutes` is the **snapshot** from when the visit was
+  booked, so an old visit reads as it was, not as the visit type reads now.
+- `price` appears only for callers with `prices.view`.
+
+`PATIENT_NOT_FOUND` (404) for an unknown id, or another clinic's patient.
+
+---
+
+## 13. Error code index
 
 | Code | HTTP |
 |---|---|
@@ -752,6 +830,7 @@ The app needs no handling for this beyond re-reading the queue.
 | `INVALID_STATUS_TRANSITION` | 409 |
 | `BOOKING_NOT_CANCELLABLE` | 400 |
 | `NOTHING_TO_POSTPONE` | 400 |
+| `PATIENT_NOT_FOUND` | 404 |
 | `INTERNAL_SERVER_ERROR` | 500 |
 
 Codes are only ever added, never renamed. Treat an unrecognised code as a
