@@ -16,6 +16,8 @@ final class BookingData
         public readonly ?string $notes = null,
         public readonly bool $force = false,
         public readonly bool $updatePatientName = false,
+        /** The postponed booking this one replaces, when booked from the call list. */
+        public readonly ?int $rebookingForBookingId = null,
     ) {}
 
     /**
@@ -34,6 +36,9 @@ final class BookingData
             // secretary's explicit confirmation (SPEC decision #16).
             force: (bool) ($validated['force'] ?? false),
             updatePatientName: (bool) ($validated['update_patient_name'] ?? false),
+            rebookingForBookingId: isset($validated['rebooking_for_booking_id'])
+                ? (int) $validated['rebooking_for_booking_id']
+                : null,
         );
     }
 }

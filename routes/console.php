@@ -1,8 +1,13 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+/*
+| Runs hourly rather than once at midnight: each clinic is closed out when its
+| own local day has rolled over, so clinics in different timezones stay correct
+| without a schedule entry each. The command is idempotent.
+*/
+Schedule::command('clinic:close-day')
+    ->hourly()
+    ->withoutOverlapping()
+    ->runInBackground();

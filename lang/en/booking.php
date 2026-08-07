@@ -1,6 +1,19 @@
 <?php
 
 return [
+    'queue_loaded' => 'Queue loaded',
+    'arrived' => 'Patient checked in',
+    'called_in' => 'Patient called in',
+    'completed' => 'Visit completed',
+    'cancelled_ok' => 'Booking cancelled',
+    'not_cancellable' => 'A booking with status ":status" cannot be cancelled',
+    'invalid_transition' => 'A booking cannot move from ":from" straight to ":to"',
+    'postpone_candidates_loaded' => 'Affected patients loaded',
+    'postponed' => ':count bookings postponed',
+    'nothing_to_postpone' => 'There are no bookings to postpone on that day',
+    'rebooking_list_loaded' => 'Rebooking list loaded',
+    'marked_contacted' => 'Marked as contacted',
+    'not_awaiting_rebooking' => 'That booking is not on the rebooking list',
     'days_loaded' => 'Available days loaded',
     'slots_loaded' => 'Time slots loaded',
     'created' => 'Booking saved',

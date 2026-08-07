@@ -1,6 +1,19 @@
 <?php
 
 return [
+    'queue_loaded' => 'تم تحميل قائمة اليوم',
+    'arrived' => 'تم تسجيل وصول المريضة',
+    'called_in' => 'تم استدعاء المريضة للداخل',
+    'completed' => 'تم إنهاء الزيارة',
+    'cancelled_ok' => 'تم إلغاء الحجز',
+    'not_cancellable' => 'مينفعش تلغي حجز حالته ":status"',
+    'invalid_transition' => 'مينفعش تنقلي الحجز من ":from" لـ ":to" مباشرة',
+    'postpone_candidates_loaded' => 'تم تحميل المريضات اللي هيتأثروا',
+    'postponed' => 'تم تأجيل :count حجز',
+    'nothing_to_postpone' => 'مفيش حجوزات تتأجل في اليوم ده',
+    'rebooking_list_loaded' => 'تم تحميل قائمة إعادة الحجز',
+    'marked_contacted' => 'تم تسجيل الاتصال',
+    'not_awaiting_rebooking' => 'الحجز ده مش في قائمة إعادة الحجز',
     'days_loaded' => 'تم تحميل الأيام المتاحة',
     'slots_loaded' => 'تم تحميل المواعيد',
     'created' => 'تم حفظ الحجز',

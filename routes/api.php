@@ -9,6 +9,15 @@ use App\Http\Controllers\Api\V1\Booking\PatientLookupController;
 use App\Http\Controllers\Api\V1\Booking\ShowBookingController;
 use App\Http\Controllers\Api\V1\Booking\SlotsController;
 use App\Http\Controllers\Api\V1\Booking\UpdateBookingController;
+use App\Http\Controllers\Api\V1\Queue\ArriveController;
+use App\Http\Controllers\Api\V1\Queue\CallInController;
+use App\Http\Controllers\Api\V1\Queue\CancelBookingController;
+use App\Http\Controllers\Api\V1\Queue\CompleteController;
+use App\Http\Controllers\Api\V1\Queue\MarkContactedController;
+use App\Http\Controllers\Api\V1\Queue\PostponeCandidatesController;
+use App\Http\Controllers\Api\V1\Queue\PostponeController;
+use App\Http\Controllers\Api\V1\Queue\QueueController;
+use App\Http\Controllers\Api\V1\Queue\RebookingListController;
 use App\Http\Controllers\Api\V1\Settings\BootstrapController;
 use App\Http\Controllers\Api\V1\Settings\CreateHolidayController;
 use App\Http\Controllers\Api\V1\Settings\CreateVisitTypeController;
@@ -114,7 +123,30 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
     });
 
     /*
-    | Phase 3+ endpoints mount here: queue, status transitions, postpone,
-    | call list.
+    | Today's queue — SPEC §4.2, §4.5.
+    |
+    | Ordered by arrival, not appointment time. Every transition is a separate
+    | endpoint because the app confirms each one with its own dialog.
     */
+    Route::middleware('ability:queue.manage')->group(function (): void {
+
+        Route::get('queue', QueueController::class)->name('api.v1.queue');
+
+        Route::prefix('bookings/{booking}')->whereNumber('booking')->group(function (): void {
+            Route::post('arrive', ArriveController::class)->name('api.v1.bookings.arrive');
+            Route::post('call-in', CallInController::class)->name('api.v1.bookings.call-in');
+            Route::post('complete', CompleteController::class)->name('api.v1.bookings.complete');
+            Route::post('cancel', CancelBookingController::class)->name('api.v1.bookings.cancel');
+            // "تم الاتصال" on the call list.
+            Route::post('contacted', MarkContactedController::class)->name('api.v1.bookings.contacted');
+        });
+
+        // Postpone today: cancels the selected bookings, freeing their slots,
+        // and hands back the call list. Nothing is messaged — WhatsApp is v2.
+        Route::get('postpone/candidates', PostponeCandidatesController::class)
+            ->name('api.v1.postpone.candidates');
+        Route::post('postpone', PostponeController::class)->name('api.v1.postpone');
+
+        Route::get('rebooking-list', RebookingListController::class)->name('api.v1.rebooking-list');
+    });
 });

@@ -43,7 +43,7 @@ class BookingService
                 $data->updatePatientName,
             );
 
-            return $clinic->bookings()->create([
+            $booking = $clinic->bookings()->create([
                 'doctor_id' => $doctor->id,
                 'patient_id' => $patient->id,
                 'visit_type_id' => $visitType->id,
@@ -59,6 +59,10 @@ class BookingService
                 'notes' => $data->notes,
                 'created_by' => $actor->id,
             ]);
+
+            $this->linkRebooking($clinic, $data->rebookingForBookingId, $booking);
+
+            return $booking;
         });
     }
 
@@ -218,6 +222,29 @@ class BookingService
         }
 
         return $visitType;
+    }
+
+    /**
+     * Booked from the call list: point the postponed booking at its
+     * replacement so the patient drops off the rebooking worklist (SPEC §4.5).
+     */
+    private function linkRebooking(Clinic $clinic, ?int $originalId, Booking $replacement): void
+    {
+        if ($originalId === null) {
+            return;
+        }
+
+        $original = $clinic->bookings()->awaitingRebooking()->whereKey($originalId)->first();
+
+        if ($original === null) {
+            throw ApiException::make(
+                ApiErrorCode::BOOKING_NOT_FOUND,
+                __('booking.not_awaiting_rebooking'),
+                http: 404,
+            );
+        }
+
+        $original->update(['rebooked_booking_id' => $replacement->id]);
     }
 
     private function doctor(Clinic $clinic): Doctor

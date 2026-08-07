@@ -2,8 +2,8 @@
 
 Base URL: `{host}/api/v1`
 
-Covers **Phase 0 (auth)**, **Phase 1 (clinic settings)** and **Phase 2
-(booking)**. Later phases append to this document.
+Covers **Phase 0 (auth)**, **Phase 1 (clinic settings)**, **Phase 2 (booking)**
+and **Phase 3 (queue & postpone)**. Later phases append to this document.
 
 ---
 
@@ -540,7 +540,187 @@ Changing the phone moves the booking to a different patient.
 
 ---
 
-## 9. Error code index
+## 9. Today's queue
+
+### `GET /queue?date=&include_cancelled=`
+
+`date` defaults to today in the clinic's timezone. Cancelled bookings are
+excluded unless `include_cancelled=1` (the "الملغية" toggle).
+
+```json
+{
+  "date": { "value": "2026-08-08", "display": "8 أغسطس 2026" },
+  "is_open": true,
+  "is_holiday": false,
+  "counts": { "pending": 2, "done": 1, "cancelled": 0, "total": 3 },
+  "awaiting_rebooking_count": 0,
+  "items": [
+    {
+      "id": 88,
+      "status": { "value": "with_doctor", "display": "مع الدكتورة" },
+      "queue_position": 1,
+      "available_actions": ["complete"],
+      "arrived_at": "09:05",
+      "contacted_at": null,
+      "patient": { "id": 12, "code": "SAAH5521", "name": "سارة أحمد",
+                   "phone": { "value": "+201012225521", "display": "01012225521" } },
+      "visit_type": { "id": 3, "name": "كشف", "duration_minutes": 20 },
+      "date": { "value": "2026-08-08", "display": "8 أغسطس 2026" },
+      "start_time": { "value": "09:00", "display": "9:00 ص" },
+      "end_time": { "value": "09:20", "display": "9:20 ص" },
+      "is_overbooked": false,
+      "notes": null
+    }
+  ]
+}
+```
+
+### Ordering — by arrival, not appointment time
+
+The list is already sorted. Render it in the order given:
+
+1. `with_doctor`
+2. `arrived`, earliest check-in first
+3. `booked`, by appointment time
+4. `done`
+5. `cancelled` (only when requested)
+
+**The list re-sorts during the day** — a patient who checks in moves above
+people booked earlier, and someone booked at 09:00 who arrives at 10:30 goes
+behind everyone already waiting. This is intended; tell the secretary so it
+isn't reported as a bug.
+
+### `queue_position`
+
+Only patients physically in the clinic hold a number — `arrived` and
+`with_doctor`. For everyone else it is `null`:
+
+| Status | Badge to show |
+|---|---|
+| `with_doctor`, `arrived` | `queue_position` |
+| `booked` | The appointment time — no number |
+| `done` | ✓ |
+| `cancelled` | ✗ |
+
+Positions renumber as the day moves; re-read them from every response rather
+than caching.
+
+### `available_actions`
+
+The server tells you which buttons the card may show, so the transition rules
+live in one place:
+
+| Action | Endpoint | Label |
+|---|---|---|
+| `arrive` | `POST /bookings/{id}/arrive` | تسجيل الوصول |
+| `call_in` | `POST /bookings/{id}/call-in` | استدعاء للداخل |
+| `complete` | `POST /bookings/{id}/complete` | إنهاء الزيارة |
+| `call` | `tel:` link | (phone icon) |
+| `edit` | `PUT /bookings/{id}` | تعديل |
+| `no_show` | `POST /bookings/{id}/cancel` `{"reason":"no_show"}` | لم تحضر |
+| `cancel` | `POST /bookings/{id}/cancel` `{"reason":"patient_cancelled"}` | إلغاء |
+
+**Confirm every one of these with a dialog before calling it** — that is a rule
+across the whole app, not a per-screen choice.
+
+### Transitions
+
+Each returns the updated card (same shape as a queue item).
+
+```
+booked --arrive--> arrived --call_in--> with_doctor --complete--> done
+```
+
+| Code | HTTP | When |
+|---|---|---|
+| `INVALID_STATUS_TRANSITION` | 409 | Skipping a step, or advancing a finished booking. `details.from`, `details.to`, `details.expected` |
+| `BOOKING_NOT_CANCELLABLE` | 400 | Cancelling a patient who is already with the doctor — complete her instead |
+| `BOOKING_NOT_FOUND` | 404 | |
+
+`POST /bookings/{id}/cancel` takes `reason`: **`no_show`** or
+**`patient_cancelled`** only. `emergency` and `incomplete` are system-set and
+rejected with `VALIDATION_FAILED`.
+
+Cancelling **frees the slot immediately**, whatever the reason.
+
+---
+
+## 10. Postpone & the call list
+
+Replaces the PRD's WhatsApp emergency broadcast, which is deferred to v2.
+**Nothing is messaged** — the bookings are cancelled and you get a worklist.
+
+### `GET /postpone/candidates?date=`
+
+Today's patients still in play (`booked` + `arrived`) — the multi-select list
+behind "مريضات محددة". Same row shape as the call list below.
+
+### `POST /postpone`
+
+```json
+{ "date": "2026-08-08", "booking_ids": [88, 91] }
+```
+
+Omit `booking_ids` entirely for "كل المريضات". `date` defaults to today.
+
+Cancels them with reason `emergency`, frees their slots, and returns the call
+list plus `postponed_count`.
+
+`NOTHING_TO_POSTPONE` (400) when the selection is empty — including when the
+only patient left is already with the doctor, who is never postponed.
+
+### `GET /rebooking-list`
+
+Everyone postponed and not yet rebooked. Reachable any time from the
+home-screen banner — `awaiting_rebooking_count` on the queue drives it.
+
+```json
+{
+  "items": [
+    {
+      "booking_id": 88,
+      "patient": { "id": 12, "code": "SAAH5521", "name": "سارة أحمد",
+                   "phone": { "value": "+201012225521", "display": "01012225521" } },
+      "visit_type": { "id": 3, "name": "كشف" },
+      "original_date": { "value": "2026-08-08", "display": "8 أغسطس 2026" },
+      "original_start_time": { "value": "09:00", "display": "9:00 ص" },
+      "contacted": false,
+      "contacted_at": null
+    }
+  ]
+}
+```
+
+Phones are **unmasked** here — every row has a call action.
+
+### Working the list
+
+1. **`POST /bookings/{id}/contacted`** — ticks "تم الاتصال" so the secretary
+   keeps her place. It does not rebook anyone.
+2. **`POST /bookings`** with **`rebooking_for_booking_id`** set to the old
+   booking's id. That links the replacement and drops the patient off the list.
+   Without it she stays on the list forever.
+
+`BOOKING_NOT_FOUND` (404) if that booking isn't actually awaiting rebooking.
+
+---
+
+## 11. End of day
+
+A scheduled job closes out days that have finished, on **each clinic's own
+clock**:
+
+| Left in status | Becomes |
+|---|---|
+| `booked` | `cancelled` / `no_show` |
+| `arrived`, `with_doctor` | `cancelled` / `incomplete` |
+
+Neither counts toward revenue. Nothing today or in the future is ever touched.
+The app needs no handling for this beyond re-reading the queue.
+
+---
+
+## 12. Error code index
 
 | Code | HTTP |
 |---|---|
@@ -569,6 +749,9 @@ Changing the phone moves the booking to a different patient.
 | `BOOKING_NOT_FOUND` | 404 |
 | `BOOKING_NOT_EDITABLE` | 400 |
 | `INVALID_PHONE_NUMBER` | 422 |
+| `INVALID_STATUS_TRANSITION` | 409 |
+| `BOOKING_NOT_CANCELLABLE` | 400 |
+| `NOTHING_TO_POSTPONE` | 400 |
 | `INTERNAL_SERVER_ERROR` | 500 |
 
 Codes are only ever added, never renamed. Treat an unrecognised code as a

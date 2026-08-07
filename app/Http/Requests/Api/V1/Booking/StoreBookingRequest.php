@@ -27,6 +27,9 @@ class StoreBookingRequest extends FormRequest
             'force' => ['nullable', 'boolean'],
             // Confirms replacing the stored name when the phone is known.
             'update_patient_name' => ['nullable', 'boolean'],
+            // Set when booking from the call list, so the postponed booking is
+            // linked to its replacement and drops off the worklist.
+            'rebooking_for_booking_id' => ['nullable', 'integer'],
         ];
     }
 }
