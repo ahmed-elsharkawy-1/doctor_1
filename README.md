@@ -37,13 +37,14 @@ app/
   DTOs/V1/          typed input crossing layer boundaries
   Enums/            backed enums — no magic strings anywhere
   Exceptions/       ApiException: renders itself as the error envelope
-  Filament/         admin panel resources
+  Filament/Admin/   panel resources, report pages and widgets
   Http/
     Controllers/Api/V1/   single-action (__invoke) controllers
     Middleware/           SetApiLocale, ResolveClinic
     Requests/Api/V1/      Form Requests
   Models/
-  Services/V1/            business logic
+  Services/V1/            business logic (API)
+  Services/Reports/       revenue and retention maths (panel)
   Services/Results/V1/    response payload shaping
   Support/                ApiResponse, Wire, PhoneNumber
 config/clinic.php    every system default lives here
@@ -94,7 +95,9 @@ php artisan migrate:fresh --seed
 - **Phase 2** ✅ booking API — patients, ID codes, slot availability, new booking
 - **Phase 3** ✅ queue API — arrival ordering, status transitions, postpone + call list, end-of-day job
 - **Phase 4** ✅ patient search and visit history — **the mobile API is complete**
+- **Phase 5** ✅ revenue and retention dashboards in the Filament panel
 
-Next: Phase 5 — revenue and retention dashboards in Filament (both still need design).
+**v1 is feature-complete.** Remaining before launch: pricing each clinic's visit
+types, and mobile designs for the call list and patient history detail.
 
 The API contract for the Flutter team lives in [docs/api/v1/README.md](docs/api/v1/README.md).

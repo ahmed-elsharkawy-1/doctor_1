@@ -41,7 +41,11 @@ class Booking extends Model
     protected function casts(): array
     {
         return [
-            'visit_date' => 'date',
+            // Stored as a bare date. Without the explicit format it is written
+            // as "2026-08-11 00:00:00" on SQLite but as a pure DATE on MySQL,
+            // so a single-day whereBetween would match on one driver and not
+            // the other.
+            'visit_date' => 'date:Y-m-d',
             'start_at' => 'datetime',
             'end_at' => 'datetime',
             'duration_minutes' => 'integer',

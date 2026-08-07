@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Filament;
 
-use App\Filament\Resources\Clinics\ClinicResource;
-use App\Filament\Resources\Users\UserResource;
+use App\Filament\Admin\Resources\Clinics\ClinicResource;
+use App\Filament\Admin\Resources\Users\UserResource;
 use App\Models\Clinic;
 use App\Models\User;
 use Filament\Facades\Filament;
