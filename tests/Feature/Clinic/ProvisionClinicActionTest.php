@@ -4,6 +4,7 @@ namespace Tests\Feature\Clinic;
 
 use App\Actions\Clinic\ProvisionClinicAction;
 use App\Enums\DayOfWeek;
+use App\Enums\UserRole;
 use App\Models\Clinic;
 use App\Models\Specialty;
 use Database\Seeders\SpecialtySeeder;
@@ -97,5 +98,47 @@ class ProvisionClinicActionTest extends TestCase
         $visitType = $clinic->visitTypes()->first();
         $this->assertEquals(350, (float) $visitType->price);
         $this->assertSame(25, $visitType->duration_minutes);
+    }
+
+    public function test_it_creates_the_shared_owner_login_when_password_is_given(): void
+    {
+        $clinic = Clinic::factory()->create([
+            'name' => 'عيادة د. سارة',
+            'phone' => '+201001234567',
+        ]);
+
+        $this->action()->execute($clinic, 'secret-password');
+
+        $owner = $clinic->staff()->first();
+
+        $this->assertNotNull($owner);
+        $this->assertSame('عيادة د. سارة', $owner->name);
+        $this->assertSame(UserRole::OWNER, $owner->role);
+        $this->assertSame('+201001234567', $owner->phone);
+        $this->assertTrue($owner->is_active);
+        $this->assertTrue($owner->belongsToClinic($clinic->id));
+    }
+
+    public function test_it_syncs_the_shared_owner_login_without_requiring_a_new_password(): void
+    {
+        $clinic = Clinic::factory()->create(['phone' => '+201001234567']);
+
+        $this->action()->execute($clinic, 'secret-password');
+        $ownerId = $clinic->staff()->first()->id;
+
+        $clinic->update([
+            'name' => 'عيادة جديدة',
+            'phone' => '+201009876543',
+            'is_active' => false,
+        ]);
+
+        $this->action()->execute($clinic);
+
+        $owner = $clinic->staff()->first();
+
+        $this->assertSame($ownerId, $owner->id);
+        $this->assertSame('عيادة جديدة', $owner->name);
+        $this->assertSame('+201009876543', $owner->phone);
+        $this->assertFalse($owner->is_active);
     }
 }

@@ -11,22 +11,22 @@ class LoginTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_a_secretary_can_sign_in_and_receives_a_token(): void
+    public function test_an_owner_can_sign_in_with_the_clinic_phone_and_receives_a_token(): void
     {
-        $clinic = Clinic::factory()->create();
-        $user = User::factory()->secretary()->inClinic($clinic)->create([
-            'email' => 'nour@clinic.test',
+        $clinic = Clinic::factory()->create(['phone' => '+201001234567']);
+        $user = User::factory()->owner()->inClinic($clinic)->create([
+            'phone' => '+201001234567',
         ]);
 
         $response = $this->postJson(route('api.v1.auth.login'), [
-            'email' => 'nour@clinic.test',
+            'phone' => '01001234567',
             'password' => 'password',
         ]);
 
         $response->assertOk()
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('data.user.id', $user->id)
-            ->assertJsonPath('data.user.role.value', 'secretary')
+            ->assertJsonPath('data.user.role.value', 'owner')
             ->assertJsonPath('data.clinic.id', $clinic->id)
             ->assertJsonPath('data.token_type', 'Bearer')
             ->assertJsonStructure([
@@ -38,24 +38,26 @@ class LoginTest extends TestCase
         $this->assertNotEmpty($response->json('data.token'));
     }
 
-    public function test_email_is_matched_case_insensitively(): void
+    public function test_phone_is_matched_after_normalisation(): void
     {
         $clinic = Clinic::factory()->create();
-        User::factory()->secretary()->inClinic($clinic)->create(['email' => 'nour@clinic.test']);
+        User::factory()->owner()->inClinic($clinic)->create(['phone' => '+201001234567']);
 
-        $this->postJson(route('api.v1.auth.login'), [
-            'email' => 'NOUR@CLINIC.TEST',
-            'password' => 'password',
-        ])->assertOk();
+        foreach (['01001234567', '+20 100 123 4567', '00201001234567'] as $phone) {
+            $this->postJson(route('api.v1.auth.login'), [
+                'phone' => $phone,
+                'password' => 'password',
+            ])->assertOk();
+        }
     }
 
     public function test_wrong_password_returns_the_standard_error_envelope(): void
     {
         $clinic = Clinic::factory()->create();
-        User::factory()->secretary()->inClinic($clinic)->create(['email' => 'nour@clinic.test']);
+        User::factory()->owner()->inClinic($clinic)->create(['phone' => '+201001234567']);
 
         $this->postJson(route('api.v1.auth.login'), [
-            'email' => 'nour@clinic.test',
+            'phone' => '01001234567',
             'password' => 'wrong-password',
         ])
             ->assertStatus(401)
@@ -72,20 +74,20 @@ class LoginTest extends TestCase
     public function test_a_short_wrong_password_is_still_a_credentials_failure(): void
     {
         $clinic = Clinic::factory()->create();
-        User::factory()->secretary()->inClinic($clinic)->create(['email' => 'nour@clinic.test']);
+        User::factory()->owner()->inClinic($clinic)->create(['phone' => '+201001234567']);
 
         $this->postJson(route('api.v1.auth.login'), [
-            'email' => 'nour@clinic.test',
+            'phone' => '01001234567',
             'password' => 'x',
         ])
             ->assertStatus(401)
             ->assertJsonPath('error.code', 'INVALID_CREDENTIALS');
     }
 
-    public function test_an_unknown_email_reports_the_same_code_as_a_wrong_password(): void
+    public function test_an_unknown_phone_reports_the_same_code_as_a_wrong_password(): void
     {
         $this->postJson(route('api.v1.auth.login'), [
-            'email' => 'nobody@clinic.test',
+            'phone' => '01009999999',
             'password' => 'password',
         ])
             ->assertStatus(401)
@@ -96,11 +98,11 @@ class LoginTest extends TestCase
     {
         $clinic = Clinic::factory()->create();
         User::factory()->secretary()->inactive()->inClinic($clinic)->create([
-            'email' => 'nour@clinic.test',
+            'phone' => '+201001234567',
         ]);
 
         $this->postJson(route('api.v1.auth.login'), [
-            'email' => 'nour@clinic.test',
+            'phone' => '01001234567',
             'password' => 'password',
         ])
             ->assertStatus(403)
@@ -109,10 +111,10 @@ class LoginTest extends TestCase
 
     public function test_a_super_admin_cannot_sign_in_to_the_mobile_app(): void
     {
-        User::factory()->superAdmin()->create(['email' => 'admin@clinic.test']);
+        User::factory()->superAdmin()->create(['phone' => '+201001234567']);
 
         $this->postJson(route('api.v1.auth.login'), [
-            'email' => 'admin@clinic.test',
+            'phone' => '01001234567',
             'password' => 'password',
         ])
             ->assertStatus(403)
@@ -122,13 +124,13 @@ class LoginTest extends TestCase
     public function test_validation_failures_use_the_fields_envelope(): void
     {
         $this->postJson(route('api.v1.auth.login'), [
-            'email' => 'not-an-email',
+            'phone' => '123',
         ])
             ->assertStatus(422)
             ->assertJsonPath('status', 'error')
             ->assertJsonPath('error.code', 'VALIDATION_FAILED')
             ->assertJsonStructure([
-                'error' => ['code', 'details', 'fields' => ['email', 'password']],
+                'error' => ['code', 'details', 'fields' => ['phone', 'password']],
             ]);
     }
 }

@@ -3,7 +3,10 @@
 namespace App\Actions\Clinic;
 
 use App\Enums\DayOfWeek;
+use App\Enums\UserRole;
 use App\Models\Clinic;
+use App\Models\User;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -14,11 +17,12 @@ use Illuminate\Support\Facades\DB;
  */
 class ProvisionClinicAction
 {
-    public function execute(Clinic $clinic): Clinic
+    public function execute(Clinic $clinic, ?string $ownerPassword = null): Clinic
     {
-        return DB::transaction(function () use ($clinic) {
+        return DB::transaction(function () use ($clinic, $ownerPassword) {
             $this->seedVisitTypes($clinic);
             $this->seedWeek($clinic);
+            $this->ensureSharedOwner($clinic, $ownerPassword);
 
             return $clinic->refresh();
         });
@@ -68,5 +72,47 @@ class ProvisionClinicAction
                 'is_open' => false,
             ]);
         }
+    }
+
+    /**
+     * V1 uses one shared clinic login. It is still stored as a User so
+     * Sanctum tokens, abilities and audit columns keep using the normal path.
+     */
+    private function ensureSharedOwner(Clinic $clinic, ?string $password): void
+    {
+        $phone = $clinic->phone === null
+            ? null
+            : PhoneNumber::tryParse($clinic->phone, $clinic->country_code)?->e164;
+
+        if ($phone === null) {
+            return;
+        }
+
+        /** @var User|null $owner */
+        $owner = $clinic->staff()->role(UserRole::OWNER)->first();
+
+        if ($owner === null && blank($password)) {
+            return;
+        }
+
+        $attributes = [
+            'name' => $clinic->name,
+            'email' => 'clinic-'.$clinic->id.'@doctor1.local',
+            'role' => UserRole::OWNER,
+            'phone' => $phone,
+            'locale' => config('clinic.api.default_locale'),
+            'is_active' => $clinic->is_active,
+        ];
+
+        if (filled($password)) {
+            $attributes['password'] = $password;
+        }
+
+        $owner ??= new User;
+        $owner->fill($attributes);
+        $owner->email_verified_at ??= now();
+        $owner->save();
+
+        $owner->clinics()->syncWithoutDetaching([$clinic->id]);
     }
 }

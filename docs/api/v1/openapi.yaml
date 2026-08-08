@@ -81,9 +81,12 @@ paths:
           application/json:
             schema:
               type: object
-              required: [email, password]
+              required: [phone, password]
               properties:
-                email: { type: string, format: email, example: nour@doctor1.test }
+                phone:
+                  type: string
+                  example: "01001234567"
+                  description: Clinic login phone. National, E.164 and spaced forms are accepted.
                 password: { type: string, example: password }
                 device_name:
                   type: string
@@ -103,7 +106,7 @@ paths:
                       data: { $ref: "#/components/schemas/AuthPayload" }
         "401":
           description: |
-            `INVALID_CREDENTIALS` — a wrong email and a wrong password are
+            `INVALID_CREDENTIALS` — a wrong phone and a wrong password are
             deliberately indistinguishable.
           content:
             application/json:

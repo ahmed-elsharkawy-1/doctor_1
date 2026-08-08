@@ -40,7 +40,20 @@ class ClinicForm
                     TextInput::make('phone')
                         ->label(__('filament.clinic.phone'))
                         ->tel()
+                        ->required()
                         ->maxLength(20),
+
+                    TextInput::make('owner_password')
+                        ->label(__('filament.clinic.owner_password'))
+                        ->password()
+                        ->revealable()
+                        ->minLength(8)
+                        ->maxLength(255)
+                        ->required(fn (string $operation): bool => $operation === 'create')
+                        ->dehydrated(fn (?string $state): bool => filled($state))
+                        ->helperText(fn (string $operation): ?string => $operation === 'edit'
+                            ? __('filament.clinic.owner_password_hint')
+                            : __('filament.clinic.owner_password_create_hint')),
 
                     Toggle::make('is_active')
                         ->label(__('filament.clinic.is_active'))

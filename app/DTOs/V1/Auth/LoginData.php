@@ -8,7 +8,7 @@ namespace App\DTOs\V1\Auth;
 final class LoginData
 {
     public function __construct(
-        public readonly string $email,
+        public readonly string $phone,
         public readonly string $password,
         public readonly ?string $deviceName = null,
     ) {}
@@ -19,7 +19,7 @@ final class LoginData
     public static function fromArray(array $validated): self
     {
         return new self(
-            email: strtolower(trim((string) $validated['email'])),
+            phone: (string) $validated['phone'],
             password: (string) $validated['password'],
             deviceName: isset($validated['device_name']) ? (string) $validated['device_name'] : null,
         );

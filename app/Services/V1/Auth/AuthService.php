@@ -7,6 +7,7 @@ use App\Enums\AuthErrorCode;
 use App\Exceptions\ApiException;
 use App\Models\User;
 use App\Services\Results\V1\Auth\AuthenticatedUserResult;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\Hash;
 
 class AuthService
@@ -17,7 +18,8 @@ class AuthService
      */
     public function login(LoginData $data): AuthenticatedUserResult
     {
-        $user = User::with(['clinics.specialty'])->where('email', $data->email)->first();
+        $phone = PhoneNumber::parse($data->phone)->e164;
+        $user = User::with(['clinics.specialty'])->where('phone', $phone)->first();
 
         if ($user === null || ! Hash::check($data->password, $user->password)) {
             throw ApiException::make(

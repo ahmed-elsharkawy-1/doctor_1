@@ -151,11 +151,13 @@ record belonging to another clinic returns `404`, never someone else's data.
 Rate limited to 10/minute. No token required.
 
 ```json
-{ "email": "nour@clinic.test", "password": "secret", "device_name": "pixel-8" }
+{ "phone": "01001234567", "password": "secret", "device_name": "pixel-8" }
 ```
 
 `device_name` is optional and labels the token so one device can be signed out
 alone.
+`phone` is the clinic login phone; national, E.164 and spaced forms are
+normalised before matching.
 
 **200**
 
@@ -166,13 +168,13 @@ alone.
   "data": {
     "user": {
       "id": 4,
-      "name": "نور محمد",
-      "email": "nour@clinic.test",
-      "phone": { "value": "+201012345678", "display": "01012345678" },
-      "role": { "value": "secretary", "display": "سكرتيرة" },
+      "name": "عيادة د. سارة",
+      "email": "clinic-1@doctor1.local",
+      "phone": { "value": "+201001234567", "display": "01001234567" },
+      "role": { "value": "owner", "display": "صاحب العيادة" },
       "locale": "ar"
     },
-    "abilities": ["bookings.manage", "queue.manage", "patients.view", "settings.manage"],
+    "abilities": ["bookings.manage", "queue.manage", "patients.view", "settings.manage", "prices.view", "reports.view"],
     "clinic": {
       "id": 1,
       "name": "عيادة د. سارة",
