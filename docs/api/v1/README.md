@@ -2,6 +2,20 @@
 
 Base URL: `{host}/api/v1`
 
+## Reading it in the browser
+
+With the app running:
+
+```
+http://127.0.0.1:8000/docs/api
+```
+
+Rendered from `openapi.yaml` on every refresh — edit the spec and reload.
+The raw JSON is at `/docs/api/openapi.json`.
+
+Off in production unless `API_DOCS_ENABLED=true`. Needs no login, so keep it
+that way on a public host.
+
 ## Machine-readable spec
 
 | File | What it is |

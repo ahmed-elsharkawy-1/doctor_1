@@ -101,6 +101,18 @@ return [
     ],
 
     /*
+    | Browsable API reference, rendered from docs/api/v1/openapi.yaml.
+    |
+    | Off in production by default: the spec is not secret, but publishing a
+    | full map of the API is not something to do by accident.
+    */
+    'docs' => [
+        'enabled' => (bool) env('API_DOCS_ENABLED', env('APP_ENV') !== 'production'),
+        'path' => 'docs/api',
+        'spec' => 'docs/api/v1/openapi.yaml',
+    ],
+
+    /*
     | Wire formats returned by the API (SPEC §6.4).
     */
     'formats' => [
