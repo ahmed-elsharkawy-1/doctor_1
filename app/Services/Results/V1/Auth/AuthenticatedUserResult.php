@@ -42,6 +42,7 @@ final class AuthenticatedUserResult extends ServiceResult
                 'timezone' => $clinic->timezone,
                 'booking_window_days' => $clinic->booking_window_days,
                 'slot_step_minutes' => $clinic->slot_step_minutes,
+                'patient_arrival_lead_minutes' => $clinic->patient_arrival_lead_minutes,
             ],
         ];
 

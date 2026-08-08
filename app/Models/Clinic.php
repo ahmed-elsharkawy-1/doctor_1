@@ -27,6 +27,7 @@ class Clinic extends Model
         'booking_window_days',
         'first_visit_only_days',
         'slot_step_minutes',
+        'patient_arrival_lead_minutes',
         'is_active',
     ];
 
@@ -37,6 +38,7 @@ class Clinic extends Model
             'booking_window_days' => 'integer',
             'first_visit_only_days' => 'integer',
             'slot_step_minutes' => 'integer',
+            'patient_arrival_lead_minutes' => 'integer',
         ];
     }
 

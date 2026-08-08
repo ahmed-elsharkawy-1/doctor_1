@@ -30,6 +30,14 @@ return [
         'booking_window_days' => 7,
         'first_visit_only_days' => 60,
         'slot_step_minutes' => 10,
+        'patient_arrival_lead_minutes' => 30,
+    ],
+
+    /*
+    | Owner-editable app settings with fixed option sets.
+    */
+    'settings' => [
+        'patient_arrival_lead_minute_options' => [15, 20, 30, 45, 60],
     ],
 
     /*

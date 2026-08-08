@@ -36,6 +36,7 @@ class BootstrapTest extends TestCase
                     'clinic' => [
                         'id', 'name', 'specialty', 'timezone',
                         'booking_window_days', 'first_visit_only_days', 'slot_step_minutes',
+                        'patient_arrival_lead_minutes', 'patient_arrival_lead_minute_options',
                     ],
                     'visit_types',
                     'schedule',
@@ -53,14 +54,20 @@ class BootstrapTest extends TestCase
 
     public function test_it_reflects_the_clinics_own_settings_not_the_system_defaults(): void
     {
-        $this->clinic->update(['booking_window_days' => 14, 'first_visit_only_days' => 90]);
+        $this->clinic->update([
+            'booking_window_days' => 14,
+            'first_visit_only_days' => 90,
+            'patient_arrival_lead_minutes' => 45,
+        ]);
 
         Sanctum::actingAs($this->owner);
 
         $this->getJson(route('api.v1.bootstrap'))
             ->assertOk()
             ->assertJsonPath('data.clinic.booking_window_days', 14)
-            ->assertJsonPath('data.clinic.first_visit_only_days', 90);
+            ->assertJsonPath('data.clinic.first_visit_only_days', 90)
+            ->assertJsonPath('data.clinic.patient_arrival_lead_minutes', 45)
+            ->assertJsonPath('data.clinic.patient_arrival_lead_minute_options', [15, 20, 30, 45, 60]);
     }
 
     public function test_the_schedule_comes_back_saturday_first_with_its_periods(): void

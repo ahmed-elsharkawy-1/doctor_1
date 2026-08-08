@@ -3,7 +3,7 @@
 namespace App\DTOs\V1\Settings;
 
 /**
- * The two clinic-level numbers exposed on the settings screen (SPEC §4.6).
+ * Clinic-level numbers exposed on the settings screen (SPEC §4.6).
  *
  * slot_step_minutes and timezone stay in the admin panel — they are set up
  * once and are not day-to-day settings.
@@ -13,6 +13,7 @@ final class GeneralSettingsData
     public function __construct(
         public readonly ?int $bookingWindowDays = null,
         public readonly ?int $firstVisitOnlyDays = null,
+        public readonly ?int $patientArrivalLeadMinutes = null,
     ) {}
 
     /**
@@ -26,6 +27,9 @@ final class GeneralSettingsData
                 : null,
             firstVisitOnlyDays: isset($validated['first_visit_only_days'])
                 ? (int) $validated['first_visit_only_days']
+                : null,
+            patientArrivalLeadMinutes: isset($validated['patient_arrival_lead_minutes'])
+                ? (int) $validated['patient_arrival_lead_minutes']
                 : null,
         );
     }
@@ -42,6 +46,7 @@ final class GeneralSettingsData
             [
                 'booking_window_days' => $this->bookingWindowDays,
                 'first_visit_only_days' => $this->firstVisitOnlyDays,
+                'patient_arrival_lead_minutes' => $this->patientArrivalLeadMinutes,
             ],
             static fn (?int $value): bool => $value !== null,
         );

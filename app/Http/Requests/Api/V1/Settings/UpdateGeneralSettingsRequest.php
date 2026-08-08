@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\V1\Settings;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateGeneralSettingsRequest extends FormRequest
 {
@@ -22,6 +23,11 @@ class UpdateGeneralSettingsRequest extends FormRequest
         return [
             'booking_window_days' => ['sometimes', 'integer', 'min:1', 'max:90'],
             'first_visit_only_days' => ['sometimes', 'integer', 'min:1', 'max:730'],
+            'patient_arrival_lead_minutes' => [
+                'sometimes',
+                'integer',
+                Rule::in(config('clinic.settings.patient_arrival_lead_minute_options')),
+            ],
         ];
     }
 }

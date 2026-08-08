@@ -30,6 +30,8 @@ final class ClinicSettingsResult extends ServiceResult
             'booking_window_days' => $this->clinic->booking_window_days,
             'first_visit_only_days' => $this->clinic->first_visit_only_days,
             'slot_step_minutes' => $this->clinic->slot_step_minutes,
+            'patient_arrival_lead_minutes' => $this->clinic->patient_arrival_lead_minutes,
+            'patient_arrival_lead_minute_options' => config('clinic.settings.patient_arrival_lead_minute_options'),
         ];
     }
 }

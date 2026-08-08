@@ -27,6 +27,7 @@ class ClinicFactory extends Factory
             'booking_window_days' => $defaults['booking_window_days'],
             'first_visit_only_days' => $defaults['first_visit_only_days'],
             'slot_step_minutes' => $defaults['slot_step_minutes'],
+            'patient_arrival_lead_minutes' => $defaults['patient_arrival_lead_minutes'],
             'is_active' => true,
         ];
     }

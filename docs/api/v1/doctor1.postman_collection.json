@@ -540,7 +540,7 @@
                     "response": []
                 },
                 {
-                    "name": "Booking window and retention threshold",
+                    "name": "Booking window, arrival lead and retention threshold",
                     "request": {
                         "method": "PUT",
                         "header": [
@@ -569,10 +569,10 @@
                                 "general"
                             ]
                         },
-                        "description": "Both optional — send only what changed.",
+                        "description": "All fields optional — send only what changed.",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"booking_window_days\": 7,\n    \"first_visit_only_days\": 60\n}\n",
+                            "raw": "{\n    \"booking_window_days\": 7,\n    \"first_visit_only_days\": 60,\n    \"patient_arrival_lead_minutes\": 30\n}\n",
                             "options": {
                                 "raw": {
                                     "language": "json"

@@ -104,6 +104,7 @@ class DemoClinicSeeder extends Seeder
             'booking_window_days' => config('clinic.defaults.booking_window_days'),
             'first_visit_only_days' => config('clinic.defaults.first_visit_only_days'),
             'slot_step_minutes' => config('clinic.defaults.slot_step_minutes'),
+            'patient_arrival_lead_minutes' => config('clinic.defaults.patient_arrival_lead_minutes'),
             'is_active' => true,
         ]);
 

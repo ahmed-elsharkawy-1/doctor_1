@@ -179,7 +179,8 @@ alone.
       "specialty": "نساء وتوليد",
       "timezone": "Africa/Cairo",
       "booking_window_days": 7,
-      "slot_step_minutes": 10
+      "slot_step_minutes": 10,
+      "patient_arrival_lead_minutes": 30
     },
     "token": "3|xxxxxxxx",
     "token_type": "Bearer"
@@ -233,7 +234,9 @@ One call on launch. Everything the settings and booking screens need.
     "phone": { "value": "+201012345678", "display": "01012345678" },
     "specialty": "نساء وتوليد",
     "timezone": "Africa/Cairo", "country_code": "EG",
-    "booking_window_days": 7, "first_visit_only_days": 60, "slot_step_minutes": 10
+    "booking_window_days": 7, "first_visit_only_days": 60, "slot_step_minutes": 10,
+    "patient_arrival_lead_minutes": 30,
+    "patient_arrival_lead_minute_options": [15, 20, 30, 45, 60]
   },
   "visit_types": [ /* §4 */ ],
   "schedule":    [ /* §5, always 7 entries, Saturday first */ ],
@@ -395,10 +398,10 @@ Cancelled and completed bookings never block a holiday.
 
 ### `PUT /settings/general`
 
-Both fields optional; send only what changed.
+All fields optional; send only what changed.
 
 ```json
-{ "booking_window_days": 7, "first_visit_only_days": 60 }
+{ "booking_window_days": 7, "first_visit_only_days": 60, "patient_arrival_lead_minutes": 30 }
 ```
 
 Returns the full clinic object (same shape as `bootstrap.clinic`).
@@ -406,6 +409,8 @@ Returns the full clinic object (same shape as `bootstrap.clinic`).
 - `booking_window_days` — 1–90. How far ahead booking opens.
 - `first_visit_only_days` — 1–730. A patient with one visit older than this
   counts as "never returned" in retention.
+- `patient_arrival_lead_minutes` — one of `15`, `20`, `30`, `45`, `60`.
+  How many minutes before appointment time the patient is asked to arrive.
 
 ---
 

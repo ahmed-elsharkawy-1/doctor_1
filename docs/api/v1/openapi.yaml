@@ -490,8 +490,8 @@ paths:
   /settings/general:
     put:
       tags: [Settings]
-      summary: Booking window and retention threshold
-      description: Both optional — send only what changed.
+      summary: Booking window, arrival lead and retention threshold
+      description: All fields optional — send only what changed.
       operationId: updateGeneralSettings
       requestBody:
         required: true
@@ -512,6 +512,11 @@ paths:
                   maximum: 730
                   description: A single visit older than this counts as never returned.
                   example: 60
+                patient_arrival_lead_minutes:
+                  type: integer
+                  enum: [15, 20, 30, 45, 60]
+                  description: How many minutes before her appointment the patient is asked to arrive.
+                  example: 30
       responses:
         "200":
           description: Saved
@@ -1251,6 +1256,7 @@ components:
             timezone: { type: string }
             booking_window_days: { type: integer }
             slot_step_minutes: { type: integer }
+            patient_arrival_lead_minutes: { type: integer, enum: [15, 20, 30, 45, 60] }
         token:
           type: string
           description: Login only — absent from `/auth/me`.
@@ -1269,6 +1275,14 @@ components:
         booking_window_days: { type: integer }
         first_visit_only_days: { type: integer }
         slot_step_minutes: { type: integer }
+        patient_arrival_lead_minutes:
+          type: integer
+          enum: [15, 20, 30, 45, 60]
+          description: How many minutes before her appointment the patient is asked to arrive.
+        patient_arrival_lead_minute_options:
+          type: array
+          items: { type: integer, enum: [15, 20, 30, 45, 60] }
+          example: [15, 20, 30, 45, 60]
 
     VisitType:
       type: object

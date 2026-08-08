@@ -24,6 +24,7 @@ class SessionTest extends TestCase
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('data.user.id', $user->id)
             ->assertJsonPath('data.clinic.id', $clinic->id)
+            ->assertJsonPath('data.clinic.patient_arrival_lead_minutes', 30)
             ->assertJsonPath('data.abilities', $user->role->abilities())
             // No token is minted on /me, only on login.
             ->assertJsonMissingPath('data.token');
