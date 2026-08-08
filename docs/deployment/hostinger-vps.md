@@ -89,8 +89,15 @@ cd /docker/doctor_1
 git pull
 docker compose -f compose.prod.yml up -d --build
 docker compose -f compose.prod.yml exec app php artisan migrate --force
-docker compose -f compose.prod.yml exec app php artisan optimize
+docker compose -f compose.prod.yml exec app php artisan optimize:clear
 docker compose -f compose.prod.yml exec app php artisan filament:optimize
+```
+
+If the server was deployed before the bootstrap cache volume was removed, the
+old unused volume can be deleted after the updated containers are running:
+
+```bash
+docker volume rm doctor_1_app_bootstrap_cache
 ```
 
 ## Runtime Services

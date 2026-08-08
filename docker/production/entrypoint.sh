@@ -16,6 +16,8 @@ if [ "$(id -u)" = "0" ]; then
     chown -R www-data:www-data storage bootstrap/cache
 fi
 
+find bootstrap/cache -type f -delete
+
 php artisan package:discover --ansi
 php artisan optimize --ansi
 

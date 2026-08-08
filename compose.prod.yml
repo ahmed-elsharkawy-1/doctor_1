@@ -68,7 +68,6 @@ services:
         condition: service_healthy
     volumes:
       - app_storage:/app/storage
-      - app_bootstrap_cache:/app/bootstrap/cache
     networks:
       - app
     healthcheck:
@@ -112,7 +111,6 @@ services:
     command: ["php", "artisan", "schedule:work"]
     volumes:
       - app_storage:/app/storage
-      - app_bootstrap_cache:/app/bootstrap/cache
     networks:
       - app
 
@@ -143,5 +141,4 @@ networks:
 
 volumes:
   app_storage:
-  app_bootstrap_cache:
   mysql_data:
