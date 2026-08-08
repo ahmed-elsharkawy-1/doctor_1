@@ -23,5 +23,6 @@ storage/framework/views/*
 bootstrap/cache/*
 
 tests
-docs
-
+docs/*
+!docs/api
+!docs/api/**
