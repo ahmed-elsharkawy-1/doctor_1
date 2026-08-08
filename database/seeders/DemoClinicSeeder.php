@@ -69,7 +69,9 @@ class DemoClinicSeeder extends Seeder
 
     public function run(): void
     {
-        $this->call(SpecialtySeeder::class);
+        // Self-sufficient on purpose: this seeder alone leaves a usable system,
+        // including the super admin needed to reach the panel.
+        $this->call(DatabaseSeeder::class);
 
         $clinic = $this->freshClinic();
         $doctor = $this->doctor($clinic);
