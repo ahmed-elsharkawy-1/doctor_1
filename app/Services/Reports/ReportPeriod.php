@@ -87,13 +87,16 @@ final class ReportPeriod
 
     /**
      * An explicit range, used by the retention screen's period filter.
+     *
+     * The key is passed in so a named range such as `last_90_days` still
+     * reports itself by that name rather than as an anonymous custom span.
      */
-    public static function between(Carbon $from, Carbon $to): self
+    public static function between(Carbon $from, Carbon $to, string $key = 'custom'): self
     {
         $length = $from->diffInDays($to);
 
         return new self(
-            key: 'custom',
+            key: $key,
             from: $from->copy()->startOfDay(),
             to: $to->copy()->startOfDay(),
             previousFrom: $from->copy()->startOfDay()->subDays($length + 1),

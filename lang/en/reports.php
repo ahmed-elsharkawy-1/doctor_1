@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'revenue_loaded' => 'Revenue loaded',
+    'retention_loaded' => 'Retention loaded',
+    'unknown_period' => 'That period is not recognised',
     'period' => [
         'label' => 'Period',
         'today' => 'Today',

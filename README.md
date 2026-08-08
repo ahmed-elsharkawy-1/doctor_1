@@ -3,9 +3,10 @@
 Backend for a clinic booking and queue system. One Laravel application serving
 two surfaces:
 
-- **Mobile API** (`/api/v1`) — consumed by the Flutter app the secretary uses
-- **Filament panel** (`/admin`) — clinic/doctor/staff management and, later, the
-  revenue and retention dashboards
+- **Mobile API** (`/api/v1`) — the whole clinic: bookings, queue, patients,
+  settings and reports. Used by the doctor and the secretary.
+- **Filament panel** (`/admin`) — the **platform operator only**: creating
+  clinics, doctors and staff accounts. No clinic ever signs in here.
 
 Patients never sign in. See the full specification for scope and rules:
 `../../../clinic-booking-system/SPEC-v1.md`.
@@ -38,7 +39,7 @@ snapshot against your actual database.
 |---|---|
 | `doctor@doctor1.test` (owner) | `password` |
 | `nour@doctor1.test` (secretary) | `password` |
-| `admin@doctor1.test` (super admin, panel only) | `password` |
+| `admin@doctor1.test` (super admin — **the only panel login**) | `password` |
 
 ## Layout
 
@@ -50,14 +51,14 @@ app/
   DTOs/V1/          typed input crossing layer boundaries
   Enums/            backed enums — no magic strings anywhere
   Exceptions/       ApiException: renders itself as the error envelope
-  Filament/Admin/   panel resources, report pages and widgets
+  Filament/Admin/   panel resources (platform operator only)
   Http/
     Controllers/Api/V1/   single-action (__invoke) controllers
     Middleware/           SetApiLocale, ResolveClinic
     Requests/Api/V1/      Form Requests
   Models/
   Services/V1/            business logic (API)
-  Services/Reports/       revenue and retention maths (panel)
+  Services/Reports/       revenue and retention maths
   Services/Results/V1/    response payload shaping
   Support/                ApiResponse, Wire, PhoneNumber
 config/clinic.php    every system default lives here
@@ -121,7 +122,7 @@ one and not the other).
 - **Phase 2** ✅ booking API — patients, ID codes, slot availability, new booking
 - **Phase 3** ✅ queue API — arrival ordering, status transitions, postpone + call list, end-of-day job
 - **Phase 4** ✅ patient search and visit history — **the mobile API is complete**
-- **Phase 5** ✅ revenue and retention dashboards in the Filament panel
+- **Phase 5** ✅ revenue and retention — served by the API, owner only
 
 **v1 is feature-complete.** Remaining before launch: pricing each clinic's visit
 types, and mobile designs for the call list and patient history detail.

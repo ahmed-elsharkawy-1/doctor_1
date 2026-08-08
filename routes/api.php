@@ -20,6 +20,8 @@ use App\Http\Controllers\Api\V1\Queue\PostponeCandidatesController;
 use App\Http\Controllers\Api\V1\Queue\PostponeController;
 use App\Http\Controllers\Api\V1\Queue\QueueController;
 use App\Http\Controllers\Api\V1\Queue\RebookingListController;
+use App\Http\Controllers\Api\V1\Reports\RetentionReportController;
+use App\Http\Controllers\Api\V1\Reports\RevenueReportController;
 use App\Http\Controllers\Api\V1\Settings\BootstrapController;
 use App\Http\Controllers\Api\V1\Settings\CreateHolidayController;
 use App\Http\Controllers\Api\V1\Settings\CreateVisitTypeController;
@@ -163,5 +165,16 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
         Route::get('patients/{patient}', ShowPatientController::class)
             ->whereNumber('patient')
             ->name('api.v1.patients.show');
+    });
+
+    /*
+    | Reports (SPEC 5.5, 5.6) - owner only.
+    |
+    | The doctor runs the clinic entirely from the app, panel included: there
+    | is no web dashboard for a clinic, only for the platform operator.
+    */
+    Route::middleware('ability:reports.view')->prefix('reports')->group(function (): void {
+        Route::get('revenue', RevenueReportController::class)->name('api.v1.reports.revenue');
+        Route::get('retention', RetentionReportController::class)->name('api.v1.reports.retention');
     });
 });

@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'revenue_loaded' => 'تم تحميل الإيرادات',
+    'retention_loaded' => 'تم تحميل بيانات الرجوع',
+    'unknown_period' => 'الفترة دي مش معروفة',
     'period' => [
         'label' => 'الفترة',
         'today' => 'النهارده',

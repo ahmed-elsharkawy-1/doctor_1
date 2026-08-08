@@ -10,10 +10,16 @@ namespace App\Enums;
  */
 enum UserRole: string
 {
-    /** Platform operator. Manages clinics, doctors and staff. No clinical screens. */
+    /**
+     * Platform operator. The only role that reaches the admin panel: creates
+     * clinics, doctors and staff accounts, and nothing clinical.
+     */
     case SUPER_ADMIN = 'super_admin';
 
-    /** The doctor. Everything inside their own clinic, including money. */
+    /**
+     * The doctor. Everything inside their own clinic, including money and
+     * reports — all of it through the mobile app, never the panel.
+     */
     case OWNER = 'owner';
 
     /** Front desk. Bookings, queue, patients. No revenue, no retention, no prices. */
@@ -41,7 +47,6 @@ enum UserRole: string
                 'settings.manage',
                 'prices.view',
                 'reports.view',
-                'staff.manage',
             ],
             self::SECRETARY => [
                 'bookings.manage',
@@ -63,10 +68,15 @@ enum UserRole: string
         return $this !== self::SUPER_ADMIN;
     }
 
-    /** Roles that sign in to the Filament panel. */
+    /**
+     * Roles that sign in to the Filament panel.
+     *
+     * Only the platform operator. A doctor runs their clinic entirely from the
+     * app — including revenue and retention — and never sees the panel.
+     */
     public function usesPanel(): bool
     {
-        return in_array($this, [self::SUPER_ADMIN, self::OWNER], true);
+        return $this === self::SUPER_ADMIN;
     }
 
     /** Whether the account is scoped to one or more clinics. */

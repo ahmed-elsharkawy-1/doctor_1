@@ -3,7 +3,8 @@
 Base URL: `{host}/api/v1`
 
 Covers **Phase 0 (auth)**, **Phase 1 (clinic settings)**, **Phase 2 (booking)**,
-**Phase 3 (queue & postpone)** and **Phase 4 (patients)** — the complete v1 API.
+**Phase 3 (queue & postpone)**, **Phase 4 (patients)** and **reports** — the
+complete v1 API.
 
 ---
 
@@ -156,7 +157,7 @@ Drives what the app shows. Present values:
 | `patients.view` | Search and history |
 | `settings.manage` | Settings screen |
 | `prices.view` | **Owner only** — see and set prices |
-| `reports.view` | Owner only — revenue and retention (web panel in v1) |
+| `reports.view` | **Owner only** — revenue and retention (§13) |
 
 ---
 
@@ -798,7 +799,111 @@ The patient's page: who she is, a summary, and every visit newest first.
 
 ---
 
-## 13. Error code index
+## 13. Reports *(owner only)*
+
+Both require `reports.view`; a secretary gets `403 FORBIDDEN_ROLE`.
+
+There is no web dashboard for a clinic — the doctor runs everything from the
+app. The admin panel belongs to the platform operator alone.
+
+### `GET /reports/revenue`
+
+Three periods, each already compared against **the same span** of the previous
+one: on the 8th, `this_month` covers 8 days and is compared against the first 8
+days of last month. Never a partial period against a complete one.
+
+```json
+{
+  "currency": "ج.م",
+  "periods": {
+    "today": {
+      "total": { "value": "400.00", "display": "400.00 ج.م" },
+      "completed_visits": 1,
+      "from": { "value": "2026-08-08", "display": "8 أغسطس 2026" },
+      "to":   { "value": "2026-08-08", "display": "8 أغسطس 2026" },
+      "comparison": {
+        "label": "مقارنة بإمبارح",
+        "previous_total": { "value": "200.00", "display": "200.00 ج.م" },
+        "previous_visits": 1,
+        "difference": { "value": "200.00", "display": "200.00 ج.م" },
+        "change_percent": 100,
+        "direction": "up"
+      }
+    },
+    "this_week":  { },
+    "this_month": { }
+  },
+  "daily": [
+    { "date": { "value": "2026-08-01", "display": "1 أغسطس 2026" },
+      "total": { "value": "0.00", "display": "0.00 ج.م" } }
+  ]
+}
+```
+
+- `change_percent` is **`null`** when the previous period earned nothing —
+  growth from zero is not a percentage. Show the previous total instead.
+- `direction` is `up` / `down` / `flat`, for the arrow and colour.
+- `daily` covers this month day by day **with no gaps**, zeros included, so it
+  can be plotted directly.
+- Counts **completed visits only**, at the price recorded when each was booked.
+  Cancellations and no-shows are worth nothing, and a later price change never
+  rewrites a past total.
+
+> With fixed prices and no payment tracking in v1, this is *expected* revenue
+> from completed visits, not cash collected. Label the screen accordingly.
+
+### `GET /reports/retention?period=`
+
+`period` is one of `this_week`, `this_month` (default), `last_90_days`,
+`last_365_days`. The response echoes the list, so the app can build its own
+selector without hardcoding it.
+
+```json
+{
+  "period": {
+    "value": "last_365_days",
+    "display": "آخر سنة",
+    "from": { "value": "2025-08-09", "display": "9 أغسطس 2025" },
+    "to":   { "value": "2026-08-08", "display": "8 أغسطس 2026" }
+  },
+  "available_periods": [
+    { "value": "this_week", "display": "الأسبوع ده" }
+  ],
+
+  "cohort_size": 14,
+  "returned_count": 4,
+  "return_rate": 28.6,
+
+  "first_visit_only_count": 3,
+  "maturing_count": 7,
+  "maturity_days": 60,
+
+  "visits_in_period": 21,
+  "total_patients": 16
+}
+```
+
+Read it this way:
+
+| Field | Meaning |
+|---|---|
+| `cohort_size` | Patients whose **first** completed visit fell in the period |
+| `returned_count` | How many of them came back at least once |
+| `return_rate` | Percentage, or **`null`** when the cohort is empty — not `0` |
+| `first_visit_only_count` | Seen once, and their visit was more than `maturity_days` ago |
+| `maturing_count` | Seen once, but still recent enough that they might return |
+| `visits_in_period` | Completed visits in the window, all patients |
+
+`maturing_count` matters: a patient seen last week has not "never returned",
+she just has not returned **yet**. Counting her as churn would make the first
+month's number meaningless. Show the two separately.
+
+`UNKNOWN_REPORT_PERIOD` (422) for anything else, with `details.allowed`
+listing the valid values.
+
+---
+
+## 14. Error code index
 
 | Code | HTTP |
 |---|---|
@@ -831,6 +936,7 @@ The patient's page: who she is, a summary, and every visit newest first.
 | `BOOKING_NOT_CANCELLABLE` | 400 |
 | `NOTHING_TO_POSTPONE` | 400 |
 | `PATIENT_NOT_FOUND` | 404 |
+| `UNKNOWN_REPORT_PERIOD` | 422 |
 | `INTERNAL_SERVER_ERROR` | 500 |
 
 Codes are only ever added, never renamed. Treat an unrecognised code as a
