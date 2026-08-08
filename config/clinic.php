@@ -110,6 +110,7 @@ return [
         'enabled' => (bool) env('API_DOCS_ENABLED', env('APP_ENV') !== 'production'),
         'path' => 'docs/api',
         'spec' => 'docs/api/v1/openapi.yaml',
+        'hidden_tags' => ['Postpone', 'Patients', 'Reports'],
     ],
 
     /*

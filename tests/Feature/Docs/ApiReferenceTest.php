@@ -26,6 +26,26 @@ class ApiReferenceTest extends TestCase
         $this->assertNotEmpty($spec['paths']);
     }
 
+    public function test_configured_tags_are_hidden_from_the_public_spec(): void
+    {
+        $spec = $this->getJson(route('docs.api.spec'))
+            ->assertOk()
+            ->json();
+
+        $this->assertNotContains('Postpone', array_column($spec['tags'], 'name'));
+        $this->assertNotContains('Patients', array_column($spec['tags'], 'name'));
+        $this->assertNotContains('Reports', array_column($spec['tags'], 'name'));
+
+        $this->assertArrayNotHasKey('/postpone/candidates', $spec['paths']);
+        $this->assertArrayNotHasKey('/postpone', $spec['paths']);
+        $this->assertArrayNotHasKey('/rebooking-list', $spec['paths']);
+        $this->assertArrayNotHasKey('/patients', $spec['paths']);
+        $this->assertArrayNotHasKey('/patients/{patient}', $spec['paths']);
+        $this->assertArrayNotHasKey('/reports/revenue', $spec['paths']);
+        $this->assertArrayNotHasKey('/reports/retention', $spec['paths']);
+        $this->assertArrayHasKey('/queue', $spec['paths']);
+    }
+
     /**
      * Arabic lives throughout the descriptions and examples; escaping it would
      * make the rendered page unreadable.
