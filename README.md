@@ -18,14 +18,27 @@ PHP 8.3 · Laravel 12 · Filament 4 · Sanctum · MySQL (SQLite for tests)
 
 ```bash
 composer install
-cp .env.example .env
+cp .env.example .env          # then set DB_DATABASE to an empty schema
 php artisan key:generate
-php artisan migrate --seed
+php artisan migrate --seed    # specialties + super admin
+php artisan db:seed --class=DemoClinicSeeder
 php artisan serve
 ```
 
-The seeder creates the specialties with their default visit types and a
-super-admin account from `SUPER_ADMIN_*` in `.env`.
+`DemoClinicSeeder` builds a working clinic to develop and demo against: priced
+visit types, a real week of hours, a holiday, 16 patients with five months of
+history, today's queue in every state, and two patients awaiting rebooking.
+It is safe to re-run — it rebuilds the demo clinic each time.
+
+Today's queue is created through the **real** `BookingService`, so seeding also
+exercises slot availability, the write lock, patient codes and the price
+snapshot against your actual database.
+
+| Login | Password |
+|---|---|
+| `doctor@doctor1.test` (owner) | `password` |
+| `nour@doctor1.test` (secretary) | `password` |
+| `admin@doctor1.test` (super admin, panel only) | `password` |
 
 ## Layout
 
@@ -83,10 +96,23 @@ onto each booking so history cannot be rewritten.
 ## Commands
 
 ```bash
-php artisan test           # full suite
-vendor/bin/pint            # code style
-php artisan migrate:fresh --seed
+php artisan test                       # full suite (SQLite, in-memory)
+php artisan test -c phpunit.mysql.xml  # same suite against MySQL
+vendor/bin/pint                        # code style
 ```
+
+**The suite drops every table in the database it is given.** `phpunit.xml`
+pins it to in-memory SQLite with `force="true"`, so it cannot inherit `DB_*`
+from your shell or `.env` and wipe a real database. The MySQL run is a separate
+config pointing at a dedicated `prac_doctor_app_test` schema — create it first:
+
+```sql
+CREATE DATABASE prac_doctor_app_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+Run both before shipping: SQLite is fast, MySQL is what production uses, and
+they have already disagreed once (a `date` cast that stored a time component on
+one and not the other).
 
 ## Status
 

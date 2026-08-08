@@ -65,6 +65,23 @@ class LoginTest extends TestCase
             ->assertJsonMissingPath('data');
     }
 
+    /**
+     * A short guess is a wrong password, not invalid input — answering with
+     * VALIDATION_FAILED would tell the caller it was too short to be anyone's.
+     */
+    public function test_a_short_wrong_password_is_still_a_credentials_failure(): void
+    {
+        $clinic = Clinic::factory()->create();
+        User::factory()->secretary()->inClinic($clinic)->create(['email' => 'nour@clinic.test']);
+
+        $this->postJson(route('api.v1.auth.login'), [
+            'email' => 'nour@clinic.test',
+            'password' => 'x',
+        ])
+            ->assertStatus(401)
+            ->assertJsonPath('error.code', 'INVALID_CREDENTIALS');
+    }
+
     public function test_an_unknown_email_reports_the_same_code_as_a_wrong_password(): void
     {
         $this->postJson(route('api.v1.auth.login'), [

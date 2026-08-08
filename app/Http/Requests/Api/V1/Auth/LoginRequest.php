@@ -18,7 +18,11 @@ class LoginRequest extends FormRequest
     {
         return [
             'email' => ['required', 'email', 'max:255'],
-            'password' => ['required', 'string', 'min:6', 'max:255'],
+            // No minimum length: on login, any wrong password is simply wrong.
+            // A length rule here would answer with VALIDATION_FAILED instead of
+            // INVALID_CREDENTIALS, telling the caller their guess was too short
+            // to be anyone's password.
+            'password' => ['required', 'string', 'max:255'],
             'device_name' => ['nullable', 'string', 'max:100'],
         ];
     }
