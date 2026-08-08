@@ -75,4 +75,22 @@ class ApiReferenceTest extends TestCase
 
         $this->get(route('docs.api'))->assertOk();
     }
+
+    public function test_the_handoff_page_renders_test_access_details(): void
+    {
+        $this->get(route('docs.api.handoff'))
+            ->assertOk()
+            ->assertSee('Doctor 1 Developer Handoff')
+            ->assertSee('admin@doctor1.test')
+            ->assertSee('01001234567')
+            ->assertSee(route('docs.api'), escape: false)
+            ->assertSee(url('/api/v1'), escape: false);
+    }
+
+    public function test_the_handoff_page_is_hidden_when_docs_are_disabled(): void
+    {
+        config()->set('clinic.docs.enabled', false);
+
+        $this->get(route('docs.api.handoff'))->assertNotFound();
+    }
 }

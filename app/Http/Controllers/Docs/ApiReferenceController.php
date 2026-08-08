@@ -26,6 +26,19 @@ class ApiReferenceController
         ]);
     }
 
+    public function handoff(): View
+    {
+        $this->guard();
+
+        return view('docs.handoff', [
+            'appUrl' => url('/'),
+            'adminUrl' => url('/admin'),
+            'apiBaseUrl' => url('/api/v1'),
+            'apiDocsUrl' => route('docs.api'),
+            'openApiUrl' => route('docs.api.spec'),
+        ]);
+    }
+
     /**
      * The spec itself, as JSON — what the renderer fetches.
      */
