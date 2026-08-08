@@ -1,0 +1,1309 @@
+{
+    "info": {
+        "_postman_id": "9d4ca40a-7a1c-7679-63d2-be8dd64c665c",
+        "name": "Doctor 1 — Clinic Booking & Queue API — v1.0.0",
+        "description": "The complete v1 API, consumed by the Flutter app.\n\n**This file is the source of truth.** The Postman collection is generated\nfrom it (`php artisan api:postman`), and a test fails if a registered route\nis missing here — so it cannot drift from the code.\n\n## The envelope\n\nEvery response is one of three shapes, including 404s and 500s:\n\n```\n{ \"status\": \"success\", \"message\": \"...\", \"data\": { } }\n{ \"status\": \"error\",   \"message\": \"...\", \"error\": { code, details, fields } }\n```\n\nBranch on `error.code` — a stable UPPER_SNAKE string — never on `message`,\nwhich is localised prose meant to be shown to the user as-is.\n\n## value + display\n\nAnything rendered as text arrives pre-formatted, driven by\n`Accept-Language`, so the client never re-implements Arabic formatting.\nUse `value` for logic, show `display`.\n\n## Clinic scope\n\nThe clinic comes from the token. **No endpoint accepts `clinic_id`.**\nAnother clinic's record returns 404, never its data.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://127.0.0.1:8000",
+            "type": "string"
+        },
+        {
+            "key": "token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "locale",
+            "value": "ar",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "Auth",
+            "description": "Sign in, sign out, and who am I",
+            "item": [
+                {
+                    "name": "Sign in and receive a token",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/auth/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "description": "Rate limited to 10 per minute. The only unauthenticated endpoint.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"nour@doctor1.test\",\n    \"password\": \"password\",\n    \"device_name\": \"pixel-8\"\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": [],
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "// Saves the token so every other request just works.",
+                                    "const body = pm.response.json();",
+                                    "",
+                                    "if (pm.response.code === 200 && body.data && body.data.token) {",
+                                    "    pm.collectionVariables.set('token', body.data.token);",
+                                    "    console.log('Token saved for ' + body.data.user.email);",
+                                    "}",
+                                    "",
+                                    "pm.test('signed in', function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "    pm.expect(body.status).to.eql('success');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Revoke the calling token only",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/auth/logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "auth",
+                                "logout"
+                            ]
+                        },
+                        "description": "Other devices stay signed in. `data` is null."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "The signed-in user, their abilities and clinic",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/auth/me",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "auth",
+                                "me"
+                            ]
+                        },
+                        "description": "Same payload as login without `token`. Use it to refresh abilities after a role change."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Bootstrap",
+            "description": "One launch call",
+            "item": [
+                {
+                    "name": "Everything the app needs on launch",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/bootstrap",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "bootstrap"
+                            ]
+                        },
+                        "description": "Clinic config, visit types, the full week and holidays, in one round trip."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Settings",
+            "description": "Visit types, weekly hours, holidays",
+            "item": [
+                {
+                    "name": "List visit types",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/visit-types?include_hidden=",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "visit-types"
+                            ],
+                            "query": [
+                                {
+                                    "key": "include_hidden",
+                                    "value": "",
+                                    "description": "Also return hidden types.",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "List visit types"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Add a visit type",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/visit-types",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "visit-types"
+                            ]
+                        },
+                        "description": "A secretary may create one; any `price` she submits is silently ignored.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"سونار\",\n    \"duration_minutes\": 15,\n    \"price\": 250\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Replace a visit type",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/visit-types/{visitType}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "visit-types",
+                                "{visitType}"
+                            ]
+                        },
+                        "description": "Full replacement, not a patch.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"سونار\",\n    \"duration_minutes\": 15,\n    \"price\": 250\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Hide a visit type",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/visit-types/{visitType}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "visit-types",
+                                "{visitType}"
+                            ]
+                        },
+                        "description": "**Hides, never deletes** — bookings reference this row forever and carry\nits snapshotted price and duration. Returns the updated record with\n`is_active: false`."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "The weekly hours",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/schedule",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "schedule"
+                            ]
+                        },
+                        "description": "Always all seven days, Saturday first, open or not."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Replace one day",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/schedule/{day}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "schedule",
+                                "{day}"
+                            ]
+                        },
+                        "description": "Replaces the whole day — send every period you want kept. Period ids are\n**not stable** across a save; never hold onto one. Closing a day drops\nits periods whatever you send.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"is_open\": true,\n    \"periods\": [\n        {\n            \"start_time\": \"13:00\",\n            \"end_time\": \"15:00\"\n        },\n        {\n            \"start_time\": \"17:00\",\n            \"end_time\": \"21:00\"\n        }\n    ]\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "One-off closures",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/holidays?include_past=",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "holidays"
+                            ],
+                            "query": [
+                                {
+                                    "key": "include_past",
+                                    "value": "",
+                                    "description": "Include holidays before today.",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "One-off closures"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Close a day",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/holidays",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "holidays"
+                            ]
+                        },
+                        "description": "Refused when patients are still booked that day, with the count in\n`error.details.bookings_count`. Send the patients to the postpone flow,\nor retry with `force: true` — which marks the holiday but **cancels\nnothing**.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"date\": \"2026-08-20\",\n    \"note\": \"سفر\"\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Remove a holiday",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/holidays/{holiday}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "holidays",
+                                "{holiday}"
+                            ]
+                        },
+                        "description": "Remove a holiday"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Booking window and retention threshold",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/settings/general",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "settings",
+                                "general"
+                            ]
+                        },
+                        "description": "Both optional — send only what changed.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"booking_window_days\": 7,\n    \"first_visit_only_days\": 60\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Booking",
+            "description": "The day strip, slots and the New Booking screen",
+            "item": [
+                {
+                    "name": "The day strip",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/booking-days",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "booking-days"
+                            ]
+                        },
+                        "description": "One entry per day of the rolling window, starting today."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Start times for a day and visit type",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/slots?date=2026-08-08&visit_type_id=1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "slots"
+                            ],
+                            "query": [
+                                {
+                                    "key": "date",
+                                    "value": "2026-08-08",
+                                    "description": "",
+                                    "disabled": false
+                                },
+                                {
+                                    "key": "visit_type_id",
+                                    "value": "1",
+                                    "description": "",
+                                    "disabled": false
+                                }
+                            ]
+                        },
+                        "description": "**The list changes with the visit type** — a 30-minute procedure offers\nfewer start times than a 10-minute follow-up. Re-fetch whenever the\nsecretary changes the type.\n\nUnavailable slots are **returned, not omitted**: render them greyed and\nstruck through.\n\nServer-side rules: start times step by the clinic's `slot_step_minutes`;\na visit must *finish* inside its period; a slot is blocked by any\noverlapping booking of any visit type; cancelled bookings free their\nslot; touching intervals do not collide."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Recognise a returning patient",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/patients/lookup",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "patients",
+                                "lookup"
+                            ]
+                        },
+                        "description": "Call as soon as the phone is complete; `name` and `visit_type_id` are\noptional so it can be called again as the form fills in.\n\nMatching is on the **normalised phone only**, never the name — a typo\nwould otherwise split a patient's history.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"phone\": \"01012225521\",\n    \"name\": \"سارة أحمد\",\n    \"visit_type_id\": 1\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create a booking",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/bookings",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "bookings"
+                            ]
+                        },
+                        "description": "The patient is created if the phone is new and reused if known — her ID\ncode is generated once and never changes.\n\n`update_patient_name: true` replaces the stored name; without it a\ndiffering name is ignored, so a typo cannot quietly rewrite the record.\n\n`force: true` books anyway — past a taken slot, outside hours, or on a\nclosed day — and flags the booking `is_overbooked`.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"patient_name\": \"سارة أحمد\",\n    \"phone\": \"01012225521\",\n    \"visit_type_id\": 1,\n    \"date\": \"2026-08-08\",\n    \"start_time\": \"13:40\"\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "One booking",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/bookings/{booking}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "bookings",
+                                "{booking}"
+                            ]
+                        },
+                        "description": "One booking"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Edit a booking",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/bookings/{booking}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "bookings",
+                                "{booking}"
+                            ]
+                        },
+                        "description": "Same body as create — a full replacement that re-runs the whole\navailability check. The booking never conflicts with itself.\n\nEditable while `booked` or `arrived` only. Changing the visit type\nre-snapshots price and duration; changing the phone moves the booking to\na different patient.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"patient_name\": \"سارة أحمد\",\n    \"phone\": \"01012225521\",\n    \"visit_type_id\": 1,\n    \"date\": \"2026-08-08\",\n    \"start_time\": \"13:40\"\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Queue",
+            "description": "Today's queue and its transitions",
+            "item": [
+                {
+                    "name": "Today's queue",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/queue?date=&include_cancelled=",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "queue"
+                            ],
+                            "query": [
+                                {
+                                    "key": "date",
+                                    "value": "",
+                                    "description": "Defaults to today in the clinic's timezone.",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "include_cancelled",
+                                    "value": "",
+                                    "description": "The \"الملغية\" toggle.",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "**Already sorted — render in the order given:** with_doctor, then\narrived by check-in time, then booked by appointment, then done, then\ncancelled.\n\nThe list re-sorts during the day: checking in moves a patient above\npeople booked earlier, and someone booked at 09:00 who arrives at 10:30\ngoes behind everyone already waiting. That is intended."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "تسجيل الوصول — the patient is in the clinic",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/bookings/{booking}/arrive",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "bookings",
+                                "{booking}",
+                                "arrive"
+                            ]
+                        },
+                        "description": "This is the moment that gives her a queue position and stamps the wait-time clock."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "استدعاء للداخل — she goes in to the doctor",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/bookings/{booking}/call-in",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "bookings",
+                                "{booking}",
+                                "call-in"
+                            ]
+                        },
+                        "description": "استدعاء للداخل — she goes in to the doctor"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "إنهاء الزيارة — the visit is done",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/bookings/{booking}/complete",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "bookings",
+                                "{booking}",
+                                "complete"
+                            ]
+                        },
+                        "description": "The only status revenue counts."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "إلغاء / لم تحضر",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/bookings/{booking}/cancel",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "bookings",
+                                "{booking}",
+                                "cancel"
+                            ]
+                        },
+                        "description": "Both are a cancellation, distinguished by reason. Either way the slot is\n**freed immediately**.\n\nA patient already with the doctor cannot be cancelled — complete her.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"reason\": \"no_show\"\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Postpone",
+            "description": "Postponing a day and the call list",
+            "item": [
+                {
+                    "name": "تم الاتصال — tick a row on the call list",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/bookings/{booking}/contacted",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "bookings",
+                                "{booking}",
+                                "contacted"
+                            ]
+                        },
+                        "description": "Keeps the secretary's place in a long list. It does not rebook anyone."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Who a postponement would affect",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/postpone/candidates?date=",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "postpone",
+                                "candidates"
+                            ],
+                            "query": [
+                                {
+                                    "key": "date",
+                                    "value": "",
+                                    "description": "",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "Today's `booked` + `arrived` — the multi-select behind \"مريضات محددة\"."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Postpone today",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/postpone",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "postpone"
+                            ]
+                        },
+                        "description": "Cancels the selected bookings with reason `emergency`, **frees their\nslots**, and returns the call list.\n\n**Nothing is messaged** — WhatsApp is v2. Omit `booking_ids` entirely\nfor \"كل المريضات\".",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"booking_ids\": [\n        88,\n        91\n    ]\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Patients awaiting a new appointment",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/rebooking-list",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "rebooking-list"
+                            ]
+                        },
+                        "description": "Reachable any time from the home-screen banner, which is driven by\n`awaiting_rebooking_count` on the queue.\n\nPhones are **unmasked** — every row has a call action. To take a patient\noff this list, create a booking with `rebooking_for_booking_id` set."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Patients",
+            "description": "Search and visit history",
+            "item": [
+                {
+                    "name": "Search patients",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/patients?q=سارة&per_page=",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "patients"
+                            ],
+                            "query": [
+                                {
+                                    "key": "q",
+                                    "value": "سارة",
+                                    "description": "Optional — an empty search lists everyone.",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "",
+                                    "description": "",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "Matches part of a name, the start of an ID code, or the last 4+ digits\nof a phone.\n\n**Phones are masked here** — there is no call action on a search result."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "A patient's file",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/patients/{patient}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "patients",
+                                "{patient}"
+                            ]
+                        },
+                        "description": "Summary plus every visit, newest first — **cancellations and no-shows\nincluded**, each with its reason. A pattern of them is exactly what the\nsecretary wants to see.\n\nThe phone is **unmasked** here; this screen has a call action."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Reports",
+            "description": "Revenue and retention — owner only",
+            "item": [
+                {
+                    "name": "Revenue — owner only",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/reports/revenue",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "reports",
+                                "revenue"
+                            ]
+                        },
+                        "description": "Three periods, each already compared against **the same span** of the\nprevious one: on the 8th, `this_month` covers 8 days and is compared\nagainst the first 8 days of last month.\n\nCounts completed visits only, at the price recorded when each was\nbooked. With fixed prices and no payment tracking in v1 this is\n*expected* revenue, not cash collected — label the screen accordingly."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Retention — owner only",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/reports/retention?period=this_month",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "reports",
+                                "retention"
+                            ],
+                            "query": [
+                                {
+                                    "key": "period",
+                                    "value": "this_month",
+                                    "description": "",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "Cohort-based: the cohort is patients whose **first** completed visit\nfell in the period, and the rate is how many came back.\n\n`maturing_count` matters — a patient seen last week has not \"never\nreturned\", she just has not returned *yet*. Show it separately from\n`first_visit_only_count` or the first month's number is meaningless."
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ]
+}

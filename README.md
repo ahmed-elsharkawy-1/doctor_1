@@ -127,4 +127,6 @@ one and not the other).
 **v1 is feature-complete.** Remaining before launch: pricing each clinic's visit
 types, and mobile designs for the call list and patient history detail.
 
-The API contract for the Flutter team lives in [docs/api/v1/README.md](docs/api/v1/README.md).
+The API contract for the Flutter team lives in [docs/api/v1/README.md](docs/api/v1/README.md),
+with the machine-readable spec in [openapi.yaml](docs/api/v1/openapi.yaml) and a
+generated Postman collection alongside it (`php artisan api:postman`).

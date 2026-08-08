@@ -2,6 +2,49 @@
 
 Base URL: `{host}/api/v1`
 
+## Machine-readable spec
+
+| File | What it is |
+|---|---|
+| [`openapi.yaml`](openapi.yaml) | **The source of truth.** OpenAPI 3.1, all 33 endpoints. |
+| [`doctor1.postman_collection.json`](doctor1.postman_collection.json) | Generated. Import into Postman. |
+| [`doctor1.postman_environment.json`](doctor1.postman_environment.json) | Generated. `base_url`, `token`, `locale`. |
+
+### Using it in Postman
+
+1. **Import** → drag both JSON files in.
+2. Pick the **"Doctor 1 — local"** environment, set `base_url`.
+3. Run **Auth → Sign in**. A test script saves the token into the collection,
+   so every other request is authenticated from then on — nothing to paste.
+
+Every request arrives with a filled-in body and example query values.
+
+> Postman can also import `openapi.yaml` directly, but you lose the token
+> capture and the environment. Import the generated files instead.
+
+### Regenerating
+
+```bash
+php artisan api:postman
+```
+
+Edit `openapi.yaml`, never the collection — it is overwritten. A test fails if
+a route is missing from the spec, if the spec documents a route that no longer
+exists, or if the committed collection is stale.
+
+### For the Flutter team
+
+`openapi.yaml` generates a typed Dart client:
+
+```bash
+npx @openapitools/openapi-generator-cli generate \
+  -i docs/api/v1/openapi.yaml -g dart-dio -o ../doctor1_app/lib/api
+```
+
+Worth doing — the envelope and the `value`/`display` pairs are tedious to hand-write.
+
+---
+
 Covers **Phase 0 (auth)**, **Phase 1 (clinic settings)**, **Phase 2 (booking)**,
 **Phase 3 (queue & postpone)**, **Phase 4 (patients)** and **reports** — the
 complete v1 API.

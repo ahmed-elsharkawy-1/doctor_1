@@ -1,0 +1,1664 @@
+openapi: 3.1.0
+
+info:
+  title: Doctor 1 — Clinic Booking & Queue API
+  version: "1.0.0"
+  description: |
+    The complete v1 API, consumed by the Flutter app.
+
+    **This file is the source of truth.** The Postman collection is generated
+    from it (`php artisan api:postman`), and a test fails if a registered route
+    is missing here — so it cannot drift from the code.
+
+    ## The envelope
+
+    Every response is one of three shapes, including 404s and 500s:
+
+    ```
+    { "status": "success", "message": "...", "data": { } }
+    { "status": "error",   "message": "...", "error": { code, details, fields } }
+    ```
+
+    Branch on `error.code` — a stable UPPER_SNAKE string — never on `message`,
+    which is localised prose meant to be shown to the user as-is.
+
+    ## value + display
+
+    Anything rendered as text arrives pre-formatted, driven by
+    `Accept-Language`, so the client never re-implements Arabic formatting.
+    Use `value` for logic, show `display`.
+
+    ## Clinic scope
+
+    The clinic comes from the token. **No endpoint accepts `clinic_id`.**
+    Another clinic's record returns 404, never its data.
+  contact:
+    name: Backend
+    url: https://github.com/
+
+servers:
+  - url: "{base_url}/api/v1"
+    variables:
+      base_url:
+        default: http://127.0.0.1:8000
+        description: Host without a trailing slash
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Sign in, sign out, and who am I
+  - name: Bootstrap
+    description: One launch call
+  - name: Settings
+    description: Visit types, weekly hours, holidays
+  - name: Booking
+    description: The day strip, slots and the New Booking screen
+  - name: Queue
+    description: Today's queue and its transitions
+  - name: Postpone
+    description: Postponing a day and the call list
+  - name: Patients
+    description: Search and visit history
+  - name: Reports
+    description: Revenue and retention — owner only
+
+paths:
+
+  # ---------------------------------------------------------------- Auth ----
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Sign in and receive a token
+      description: Rate limited to 10 per minute. The only unauthenticated endpoint.
+      security: []
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, example: nour@doctor1.test }
+                password: { type: string, example: password }
+                device_name:
+                  type: string
+                  maxLength: 100
+                  description: Labels the token so one device can be signed out alone.
+                  example: pixel-8
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/AuthPayload" }
+        "401":
+          description: |
+            `INVALID_CREDENTIALS` — a wrong email and a wrong password are
+            deliberately indistinguishable.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "403":
+          description: "`ACCOUNT_INACTIVE`, or `FORBIDDEN_ROLE` for a super admin (panel only)"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+        "429":
+          description: Too many attempts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the calling token only
+      description: Other devices stay signed in. `data` is null.
+      operationId: logout
+      responses:
+        "200": { $ref: "#/components/responses/EmptySuccess" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: The signed-in user, their abilities and clinic
+      description: Same payload as login without `token`. Use it to refresh abilities after a role change.
+      operationId: me
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/AuthPayload" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  # ----------------------------------------------------------- Bootstrap ----
+
+  /bootstrap:
+    get:
+      tags: [Bootstrap]
+      summary: Everything the app needs on launch
+      description: Clinic config, visit types, the full week and holidays, in one round trip.
+      operationId: bootstrap
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          clinic: { $ref: "#/components/schemas/Clinic" }
+                          visit_types:
+                            type: array
+                            items: { $ref: "#/components/schemas/VisitType" }
+                          schedule:
+                            type: array
+                            description: Always seven entries, Saturday first.
+                            items: { $ref: "#/components/schemas/ScheduleDay" }
+                          holidays:
+                            type: array
+                            items: { $ref: "#/components/schemas/Holiday" }
+                          abilities: { $ref: "#/components/schemas/Abilities" }
+                          user:
+                            type: object
+                            properties:
+                              id: { type: integer }
+                              name: { type: string }
+                              role: { type: string }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/ClinicScope" }
+
+  # ------------------------------------------------------------ Settings ----
+
+  /visit-types:
+    get:
+      tags: [Settings]
+      summary: List visit types
+      operationId: listVisitTypes
+      parameters:
+        - name: include_hidden
+          in: query
+          schema: { type: boolean }
+          description: Also return hidden types.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: "#/components/schemas/VisitType" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Settings]
+      summary: Add a visit type
+      description: A secretary may create one; any `price` she submits is silently ignored.
+      operationId: createVisitType
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VisitTypeInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/VisitType" }
+        "400":
+          description: "`VISIT_TYPE_DUPLICATE_NAME` — another *active* type has this name"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /visit-types/{visitType}:
+    parameters:
+      - $ref: "#/components/parameters/VisitTypeId"
+    put:
+      tags: [Settings]
+      summary: Replace a visit type
+      description: Full replacement, not a patch.
+      operationId: updateVisitType
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VisitTypeInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/VisitType" }
+        "400":
+          description: "`VISIT_TYPE_DUPLICATE_NAME`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    delete:
+      tags: [Settings]
+      summary: Hide a visit type
+      description: |
+        **Hides, never deletes** — bookings reference this row forever and carry
+        its snapshotted price and duration. Returns the updated record with
+        `is_active: false`.
+      operationId: hideVisitType
+      responses:
+        "200":
+          description: Hidden
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/VisitType" }
+        "400":
+          description: "`VISIT_TYPE_LAST_ACTIVE` — at least one must remain or booking becomes impossible"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /schedule:
+    get:
+      tags: [Settings]
+      summary: The weekly hours
+      description: Always all seven days, Saturday first, open or not.
+      operationId: getSchedule
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          days:
+                            type: array
+                            items: { $ref: "#/components/schemas/ScheduleDay" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /schedule/{day}:
+    parameters:
+      - name: day
+        in: path
+        required: true
+        schema: { type: integer, minimum: 0, maximum: 6 }
+        description: "0 = السبت (Saturday) … 6 = الجمعة (Friday). Saturday-first."
+        example: 0
+    put:
+      tags: [Settings]
+      summary: Replace one day
+      description: |
+        Replaces the whole day — send every period you want kept. Period ids are
+        **not stable** across a save; never hold onto one. Closing a day drops
+        its periods whatever you send.
+      operationId: updateScheduleDay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_open]
+              properties:
+                is_open: { type: boolean, example: true }
+                periods:
+                  type: array
+                  maxItems: 6
+                  items:
+                    type: object
+                    required: [start_time, end_time]
+                    properties:
+                      start_time: { type: string, pattern: '^\d{2}:\d{2}$', example: "13:00" }
+                      end_time: { type: string, pattern: '^\d{2}:\d{2}$', example: "15:00" }
+                  example:
+                    - { start_time: "13:00", end_time: "15:00" }
+                    - { start_time: "17:00", end_time: "21:00" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/ScheduleDay" }
+        "400":
+          description: |
+            `SCHEDULE_PERIOD_INVALID` — an open day with no periods, or an end
+            at or before its start. `SCHEDULE_PERIOD_OVERLAP` — two periods
+            overlap; `details.first` and `details.second` name them.
+            Back-to-back periods are fine.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`SCHEDULE_DAY_NOT_FOUND` — day outside 0–6"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /holidays:
+    get:
+      tags: [Settings]
+      summary: One-off closures
+      operationId: listHolidays
+      parameters:
+        - name: include_past
+          in: query
+          schema: { type: boolean }
+          description: Include holidays before today.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: "#/components/schemas/Holiday" }
+    post:
+      tags: [Settings]
+      summary: Close a day
+      description: |
+        Refused when patients are still booked that day, with the count in
+        `error.details.bookings_count`. Send the patients to the postpone flow,
+        or retry with `force: true` — which marks the holiday but **cancels
+        nothing**.
+      operationId: createHoliday
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date]
+              properties:
+                date: { type: string, format: date, example: "2026-08-20" }
+                note: { type: string, maxLength: 255, example: سفر }
+                force:
+                  type: boolean
+                  description: Confirms closing a day that already has bookings.
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/Holiday" }
+        "409":
+          description: "`HOLIDAY_ALREADY_EXISTS` or `HOLIDAY_HAS_BOOKINGS`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+              examples:
+                hasBookings:
+                  value:
+                    status: error
+                    message: في 3 حجز في اليوم ده. أجّلي المريضات الأول أو أكّدي إضافة الإجازة.
+                    error:
+                      code: HOLIDAY_HAS_BOOKINGS
+                      details: { bookings_count: 3, date: "2026-08-12" }
+                      fields: null
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /holidays/{holiday}:
+    parameters:
+      - name: holiday
+        in: path
+        required: true
+        schema: { type: integer }
+    delete:
+      tags: [Settings]
+      summary: Remove a holiday
+      operationId: deleteHoliday
+      responses:
+        "200": { $ref: "#/components/responses/EmptySuccess" }
+        "404":
+          description: "`HOLIDAY_NOT_FOUND`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  /settings/general:
+    put:
+      tags: [Settings]
+      summary: Booking window and retention threshold
+      description: Both optional — send only what changed.
+      operationId: updateGeneralSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                booking_window_days:
+                  type: integer
+                  minimum: 1
+                  maximum: 90
+                  description: How far ahead booking opens.
+                  example: 7
+                first_visit_only_days:
+                  type: integer
+                  minimum: 1
+                  maximum: 730
+                  description: A single visit older than this counts as never returned.
+                  example: 60
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/Clinic" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  # ------------------------------------------------------------- Booking ----
+
+  /booking-days:
+    get:
+      tags: [Booking]
+      summary: The day strip
+      description: One entry per day of the rolling window, starting today.
+      operationId: bookingDays
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          days:
+                            type: array
+                            items: { $ref: "#/components/schemas/BookingDay" }
+
+  /slots:
+    get:
+      tags: [Booking]
+      summary: Start times for a day and visit type
+      description: |
+        **The list changes with the visit type** — a 30-minute procedure offers
+        fewer start times than a 10-minute follow-up. Re-fetch whenever the
+        secretary changes the type.
+
+        Unavailable slots are **returned, not omitted**: render them greyed and
+        struck through.
+
+        Server-side rules: start times step by the clinic's `slot_step_minutes`;
+        a visit must *finish* inside its period; a slot is blocked by any
+        overlapping booking of any visit type; cancelled bookings free their
+        slot; touching intervals do not collide.
+      operationId: slots
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema: { type: string, format: date }
+          example: "2026-08-08"
+        - name: visit_type_id
+          in: query
+          required: true
+          schema: { type: integer }
+          example: 1
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/SlotDay" }
+        "404":
+          description: "`VISIT_TYPE_NOT_FOUND`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /patients/lookup:
+    post:
+      tags: [Booking]
+      summary: Recognise a returning patient
+      description: |
+        Call as soon as the phone is complete; `name` and `visit_type_id` are
+        optional so it can be called again as the form fills in.
+
+        Matching is on the **normalised phone only**, never the name — a typo
+        would otherwise split a patient's history.
+      operationId: lookupPatient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: { type: string, example: "01012225521" }
+                name: { type: string, example: سارة أحمد }
+                visit_type_id:
+                  type: integer
+                  description: Supply it to get `visit_type_mismatch`.
+                  example: 1
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/PatientLookup" }
+        "422":
+          description: "`INVALID_PHONE_NUMBER`, or validation"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  /bookings:
+    post:
+      tags: [Booking]
+      summary: Create a booking
+      description: |
+        The patient is created if the phone is new and reused if known — her ID
+        code is generated once and never changes.
+
+        `update_patient_name: true` replaces the stored name; without it a
+        differing name is ignored, so a typo cannot quietly rewrite the record.
+
+        `force: true` books anyway — past a taken slot, outside hours, or on a
+        closed day — and flags the booking `is_overbooked`.
+      operationId: createBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookingInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/Booking" }
+        "400":
+          description: "`VISIT_TYPE_INACTIVE`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`VISIT_TYPE_NOT_FOUND`, or `BOOKING_NOT_FOUND` when `rebooking_for_booking_id` is not awaiting rebooking"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: |
+            `SLOT_UNAVAILABLE`, `SLOT_OUTSIDE_WORKING_HOURS`,
+            `CLINIC_CLOSED_THAT_DAY` or `SLOT_OUTSIDE_WINDOW`. All are cleared
+            by `force: true`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /bookings/{booking}:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+    get:
+      tags: [Booking]
+      summary: One booking
+      operationId: showBooking
+      responses:
+        "200": { $ref: "#/components/responses/BookingResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Booking]
+      summary: Edit a booking
+      description: |
+        Same body as create — a full replacement that re-runs the whole
+        availability check. The booking never conflicts with itself.
+
+        Editable while `booked` or `arrived` only. Changing the visit type
+        re-snapshots price and duration; changing the phone moves the booking to
+        a different patient.
+      operationId: updateBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookingInput" }
+      responses:
+        "200": { $ref: "#/components/responses/BookingResponse" }
+        "400":
+          description: "`BOOKING_NOT_EDITABLE` — `details.status` says which status blocked it"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`SLOT_UNAVAILABLE` and friends"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  # --------------------------------------------------------------- Queue ----
+
+  /queue:
+    get:
+      tags: [Queue]
+      summary: Today's queue
+      description: |
+        **Already sorted — render in the order given:** with_doctor, then
+        arrived by check-in time, then booked by appointment, then done, then
+        cancelled.
+
+        The list re-sorts during the day: checking in moves a patient above
+        people booked earlier, and someone booked at 09:00 who arrives at 10:30
+        goes behind everyone already waiting. That is intended.
+      operationId: queue
+      parameters:
+        - name: date
+          in: query
+          schema: { type: string, format: date }
+          description: Defaults to today in the clinic's timezone.
+        - name: include_cancelled
+          in: query
+          schema: { type: boolean }
+          description: The "الملغية" toggle.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/Queue" }
+
+  /bookings/{booking}/arrive:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+    post:
+      tags: [Queue]
+      summary: "تسجيل الوصول — the patient is in the clinic"
+      description: This is the moment that gives her a queue position and stamps the wait-time clock.
+      operationId: arrive
+      responses:
+        "200": { $ref: "#/components/responses/QueueItemResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/InvalidTransition" }
+
+  /bookings/{booking}/call-in:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+    post:
+      tags: [Queue]
+      summary: "استدعاء للداخل — she goes in to the doctor"
+      operationId: callIn
+      responses:
+        "200": { $ref: "#/components/responses/QueueItemResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/InvalidTransition" }
+
+  /bookings/{booking}/complete:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+    post:
+      tags: [Queue]
+      summary: "إنهاء الزيارة — the visit is done"
+      description: The only status revenue counts.
+      operationId: complete
+      responses:
+        "200": { $ref: "#/components/responses/QueueItemResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/InvalidTransition" }
+
+  /bookings/{booking}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+    post:
+      tags: [Queue]
+      summary: "إلغاء / لم تحضر"
+      description: |
+        Both are a cancellation, distinguished by reason. Either way the slot is
+        **freed immediately**.
+
+        A patient already with the doctor cannot be cancelled — complete her.
+      operationId: cancelBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  enum: [no_show, patient_cancelled]
+                  description: |
+                    Only these two. `emergency` is set by the postpone flow and
+                    `incomplete` by the nightly job; both are rejected here.
+                  example: no_show
+      responses:
+        "200": { $ref: "#/components/responses/QueueItemResponse" }
+        "400":
+          description: "`BOOKING_NOT_CANCELLABLE`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /bookings/{booking}/contacted:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+    post:
+      tags: [Postpone]
+      summary: "تم الاتصال — tick a row on the call list"
+      description: Keeps the secretary's place in a long list. It does not rebook anyone.
+      operationId: markContacted
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          booking_id: { type: integer }
+                          contacted_at: { type: [string, "null"], format: date-time }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ------------------------------------------------------------ Postpone ----
+
+  /postpone/candidates:
+    get:
+      tags: [Postpone]
+      summary: Who a postponement would affect
+      description: Today's `booked` + `arrived` — the multi-select behind "مريضات محددة".
+      operationId: postponeCandidates
+      parameters:
+        - name: date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200": { $ref: "#/components/responses/CallListResponse" }
+
+  /postpone:
+    post:
+      tags: [Postpone]
+      summary: Postpone today
+      description: |
+        Cancels the selected bookings with reason `emergency`, **frees their
+        slots**, and returns the call list.
+
+        **Nothing is messaged** — WhatsApp is v2. Omit `booking_ids` entirely
+        for "كل المريضات".
+      operationId: postpone
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date: { type: string, format: date }
+                booking_ids:
+                  type: array
+                  items: { type: integer }
+                  description: Omit for everyone still pending.
+                  example: [88, 91]
+      responses:
+        "200":
+          description: Postponed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: "#/components/schemas/CallListRow" }
+                          postponed_count: { type: integer }
+        "400":
+          description: "`NOTHING_TO_POSTPONE` — including when the only patient left is with the doctor"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  /rebooking-list:
+    get:
+      tags: [Postpone]
+      summary: Patients awaiting a new appointment
+      description: |
+        Reachable any time from the home-screen banner, which is driven by
+        `awaiting_rebooking_count` on the queue.
+
+        Phones are **unmasked** — every row has a call action. To take a patient
+        off this list, create a booking with `rebooking_for_booking_id` set.
+      operationId: rebookingList
+      responses:
+        "200": { $ref: "#/components/responses/CallListResponse" }
+
+  # ------------------------------------------------------------ Patients ----
+
+  /patients:
+    get:
+      tags: [Patients]
+      summary: Search patients
+      description: |
+        Matches part of a name, the start of an ID code, or the last 4+ digits
+        of a phone.
+
+        **Phones are masked here** — there is no call action on a search result.
+      operationId: searchPatients
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 100 }
+          description: Optional — an empty search lists everyone.
+          example: سارة
+        - name: per_page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: "#/components/schemas/PatientListItem" }
+                          meta: { $ref: "#/components/schemas/PaginationMeta" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /patients/{patient}:
+    parameters:
+      - name: patient
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Patients]
+      summary: A patient's file
+      description: |
+        Summary plus every visit, newest first — **cancellations and no-shows
+        included**, each with its reason. A pattern of them is exactly what the
+        secretary wants to see.
+
+        The phone is **unmasked** here; this screen has a call action.
+      operationId: showPatient
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/PatientFile" }
+        "404":
+          description: "`PATIENT_NOT_FOUND`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  # ------------------------------------------------------------- Reports ----
+
+  /reports/revenue:
+    get:
+      tags: [Reports]
+      summary: Revenue — owner only
+      description: |
+        Three periods, each already compared against **the same span** of the
+        previous one: on the 8th, `this_month` covers 8 days and is compared
+        against the first 8 days of last month.
+
+        Counts completed visits only, at the price recorded when each was
+        booked. With fixed prices and no payment tracking in v1 this is
+        *expected* revenue, not cash collected — label the screen accordingly.
+      operationId: revenueReport
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/RevenueReport" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /reports/retention:
+    get:
+      tags: [Reports]
+      summary: Retention — owner only
+      description: |
+        Cohort-based: the cohort is patients whose **first** completed visit
+        fell in the period, and the rate is how many came back.
+
+        `maturing_count` matters — a patient seen last week has not "never
+        returned", she just has not returned *yet*. Show it separately from
+        `first_visit_only_count` or the first month's number is meaningless.
+      operationId: retentionReport
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [this_week, this_month, last_90_days, last_365_days]
+            default: this_month
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/RetentionReport" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422":
+          description: "`UNKNOWN_REPORT_PERIOD` — `details.allowed` lists the valid values"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: The Sanctum token from `POST /auth/login`.
+
+  parameters:
+    BookingId:
+      name: booking
+      in: path
+      required: true
+      schema: { type: integer }
+    VisitTypeId:
+      name: visitType
+      in: path
+      required: true
+      schema: { type: integer }
+
+  responses:
+    EmptySuccess:
+      description: OK, no payload
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/SuccessEnvelope"
+              - type: object
+                properties:
+                  data: { type: "null" }
+    Unauthenticated:
+      description: "`ACCESS_TOKEN_MISSING` — missing, invalid or revoked token"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    Forbidden:
+      description: "`FORBIDDEN_ROLE` — the account lacks the ability for this endpoint"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    ClinicScope:
+      description: "`CLINIC_NOT_ASSIGNED`, `CLINIC_INACTIVE` or `ACCOUNT_INACTIVE`"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    NotFound:
+      description: Unknown id, or another clinic's record — never its data
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    ValidationFailed:
+      description: "`VALIDATION_FAILED` — `error.fields` maps each field to its messages"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    BookingResponse:
+      description: OK
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/SuccessEnvelope"
+              - type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Booking" }
+    QueueItemResponse:
+      description: The updated card
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/SuccessEnvelope"
+              - type: object
+                properties:
+                  data: { $ref: "#/components/schemas/QueueItem" }
+    CallListResponse:
+      description: OK
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/SuccessEnvelope"
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/CallListRow" }
+    InvalidTransition:
+      description: |
+        `INVALID_STATUS_TRANSITION` — skipping a step or advancing a finished
+        booking. `details.expected` names the status that was required.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  schemas:
+
+    SuccessEnvelope:
+      type: object
+      required: [status, message, data]
+      properties:
+        status: { type: string, enum: [success] }
+        message: { type: string, description: Localised; safe to show as-is. }
+
+    ErrorEnvelope:
+      type: object
+      required: [status, message, error]
+      properties:
+        status: { type: string, enum: [error] }
+        message: { type: string }
+        error:
+          type: object
+          required: [code, details, fields]
+          properties:
+            code:
+              type: string
+              description: Stable UPPER_SNAKE. **Branch on this, never on `message`.**
+            details:
+              type: [object, "null"]
+              description: Structured context for a few errors.
+            fields:
+              type: [object, "null"]
+              description: Present on 422 only — field name to messages.
+              additionalProperties:
+                type: array
+                items: { type: string }
+
+    Display:
+      type: object
+      description: Machine value plus a ready-to-render string.
+      required: [value, display]
+      properties:
+        value: { type: [string, integer] }
+        display: { type: string }
+
+    Money:
+      allOf:
+        - $ref: "#/components/schemas/Display"
+      example: { value: "300.00", display: "300.00 ج.م" }
+
+    Abilities:
+      type: array
+      description: |
+        Drives what the app shows: `bookings.manage`, `queue.manage`,
+        `patients.view`, `settings.manage`, and owner-only `prices.view` and
+        `reports.view`.
+      items: { type: string }
+
+    AuthPayload:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            email: { type: string }
+            phone: { $ref: "#/components/schemas/Display" }
+            role: { $ref: "#/components/schemas/Display" }
+            locale: { type: string, enum: [ar, en] }
+        abilities: { $ref: "#/components/schemas/Abilities" }
+        clinic:
+          type: [object, "null"]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            specialty: { type: string }
+            timezone: { type: string }
+            booking_window_days: { type: integer }
+            slot_step_minutes: { type: integer }
+        token:
+          type: string
+          description: Login only — absent from `/auth/me`.
+        token_type: { type: string, enum: [Bearer] }
+
+    Clinic:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        address: { type: [string, "null"] }
+        phone: { oneOf: [{ $ref: "#/components/schemas/Display" }, { type: "null" }] }
+        specialty: { type: [string, "null"] }
+        timezone: { type: string, example: Africa/Cairo }
+        country_code: { type: string, example: EG }
+        booking_window_days: { type: integer }
+        first_visit_only_days: { type: integer }
+        slot_step_minutes: { type: integer }
+
+    VisitType:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string, example: كشف }
+        duration_minutes: { type: integer }
+        is_active: { type: boolean }
+        is_new_patient_type:
+          type: boolean
+          description: |
+            The clinic's "new concern" type. Booking a **returning** patient
+            under it raises the visit-type mismatch warning. Exactly one per
+            clinic; setting it elsewhere moves it.
+        sort_order: { type: integer }
+        price:
+          allOf: [{ $ref: "#/components/schemas/Money" }]
+          description: "**Absent entirely** without `prices.view` — check for the key, not for null."
+        needs_price:
+          type: boolean
+          description: True while the price is still zero. Owner only.
+
+    VisitTypeInput:
+      type: object
+      required: [name, duration_minutes]
+      properties:
+        name: { type: string, maxLength: 100, example: سونار }
+        duration_minutes: { type: integer, minimum: 5, maximum: 480, example: 15 }
+        price:
+          type: number
+          description: Accepted only from callers with `prices.view`; silently ignored otherwise.
+          example: 250
+        is_new_patient_type: { type: boolean }
+
+    ScheduleDay:
+      type: object
+      properties:
+        day_of_week:
+          allOf: [{ $ref: "#/components/schemas/Display" }]
+          description: "0 = Saturday … 6 = Friday."
+        is_open: { type: boolean }
+        periods:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                description: "**Not stable** across a save — never hold onto it."
+              start_time: { $ref: "#/components/schemas/Display" }
+              end_time: { $ref: "#/components/schemas/Display" }
+
+    Holiday:
+      type: object
+      properties:
+        id: { type: integer }
+        date: { $ref: "#/components/schemas/Display" }
+        note: { type: [string, "null"] }
+
+    BookingDay:
+      type: object
+      properties:
+        date: { $ref: "#/components/schemas/Display" }
+        day_of_week: { $ref: "#/components/schemas/Display" }
+        day_number: { type: integer }
+        is_open:
+          type: boolean
+          description: Already false on a holiday.
+        is_holiday:
+          type: boolean
+          description: Check this only to show "إجازة" instead of a date.
+        is_today: { type: boolean }
+        bookings_count:
+          type: integer
+          description: Excludes cancelled.
+        pending_count:
+          type: integer
+          description: The "X لسه ماخلصوش" number — booked plus arrived.
+
+    SlotDay:
+      type: object
+      properties:
+        date: { $ref: "#/components/schemas/Display" }
+        is_open: { type: boolean }
+        closed_reason:
+          oneOf:
+            - allOf: [{ $ref: "#/components/schemas/Display" }]
+            - type: "null"
+          description: "`weekly_closed`, `holiday` or `outside_window`."
+        visit_type:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            duration_minutes: { type: integer }
+        available_count: { type: integer }
+        slots:
+          type: array
+          items:
+            type: object
+            properties:
+              start_time: { $ref: "#/components/schemas/Display" }
+              end_time: { $ref: "#/components/schemas/Display" }
+              is_available: { type: boolean }
+
+    PatientLookup:
+      type: object
+      properties:
+        found: { type: boolean }
+        phone: { $ref: "#/components/schemas/Display" }
+        patient:
+          type: [object, "null"]
+          properties:
+            id: { type: integer }
+            code: { type: string, example: SAAH5521 }
+            name: { type: string }
+            visits_count: { type: integer }
+        is_returning: { type: boolean }
+        name_conflict:
+          type: boolean
+          description: The typed name differs from the stored one — ask before overwriting.
+        visit_type_mismatch:
+          type: boolean
+          description: A returning patient booked under the "new concern" type. Show the inline warning.
+        last_visit:
+          type: [object, "null"]
+          properties:
+            date: { $ref: "#/components/schemas/Display" }
+            visit_type:
+              type: object
+              properties:
+                id: { type: integer }
+                name: { type: string }
+
+    BookingInput:
+      type: object
+      required: [patient_name, phone, visit_type_id, date, start_time]
+      properties:
+        patient_name: { type: string, maxLength: 255, example: سارة أحمد }
+        phone: { type: string, maxLength: 32, example: "01012225521" }
+        visit_type_id: { type: integer, example: 1 }
+        date: { type: string, format: date, example: "2026-08-08" }
+        start_time: { type: string, pattern: '^\d{2}:\d{2}$', example: "13:40" }
+        notes: { type: [string, "null"], maxLength: 2000 }
+        force:
+          type: boolean
+          description: Book past a taken slot, closed day or off-hours time. Flags `is_overbooked`.
+        update_patient_name:
+          type: boolean
+          description: Confirms replacing the stored name for a known phone.
+        rebooking_for_booking_id:
+          type: integer
+          description: The postponed booking this replaces — takes her off the call list.
+
+    Booking:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { $ref: "#/components/schemas/Display" }
+        cancel_reason:
+          oneOf:
+            - allOf: [{ $ref: "#/components/schemas/Display" }]
+            - type: "null"
+        patient:
+          type: [object, "null"]
+          properties:
+            id: { type: integer }
+            code: { type: string }
+            name: { type: string }
+            phone:
+              allOf: [{ $ref: "#/components/schemas/Display" }]
+              description: Unmasked — the card has a call action.
+        visit_type:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            duration_minutes:
+              type: integer
+              description: The snapshot from booking time, not the type's current value.
+        date: { $ref: "#/components/schemas/Display" }
+        start_time: { $ref: "#/components/schemas/Display" }
+        end_time: { $ref: "#/components/schemas/Display" }
+        is_overbooked: { type: boolean }
+        notes: { type: [string, "null"] }
+        price:
+          allOf: [{ $ref: "#/components/schemas/Money" }]
+          description: Owner only — absent otherwise.
+
+    QueueItem:
+      allOf:
+        - $ref: "#/components/schemas/Booking"
+        - type: object
+          properties:
+            queue_position:
+              type: [integer, "null"]
+              description: |
+                Only patients physically in the clinic hold one. Null for
+                `booked` (show her appointment time), `done` (✓) and
+                `cancelled` (✗). Renumbers as the day moves — re-read it.
+            available_actions:
+              type: array
+              description: |
+                Which buttons the card may show: `arrive`, `call_in`,
+                `complete`, `call`, `edit`, `no_show`, `cancel`. Confirm every
+                one with a dialog before calling it.
+              items: { type: string }
+            arrived_at: { type: [string, "null"], example: "09:05" }
+            contacted_at: { type: [string, "null"], format: date-time }
+
+    Queue:
+      type: object
+      properties:
+        date: { $ref: "#/components/schemas/Display" }
+        is_open: { type: boolean }
+        is_holiday: { type: boolean }
+        counts:
+          type: object
+          properties:
+            pending: { type: integer }
+            done: { type: integer }
+            cancelled: { type: integer }
+            total: { type: integer }
+        awaiting_rebooking_count:
+          type: integer
+          description: Drives the "N مريضة محتاجة معاد جديد" banner.
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/QueueItem" }
+
+    CallListRow:
+      type: object
+      properties:
+        booking_id: { type: integer }
+        patient:
+          type: [object, "null"]
+          properties:
+            id: { type: integer }
+            code: { type: string }
+            name: { type: string }
+            phone:
+              allOf: [{ $ref: "#/components/schemas/Display" }]
+              description: Unmasked — every row has a call action.
+        visit_type:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+        original_date: { $ref: "#/components/schemas/Display" }
+        original_start_time: { $ref: "#/components/schemas/Display" }
+        contacted: { type: boolean }
+        contacted_at: { type: [string, "null"], format: date-time }
+
+    PatientListItem:
+      type: object
+      properties:
+        id: { type: integer }
+        code: { type: string, example: SAAH5521 }
+        name: { type: string }
+        phone:
+          allOf: [{ $ref: "#/components/schemas/Display" }]
+          description: "**Masked** — `0101***5521`. No call action on a search result."
+        visits_count:
+          type: integer
+          description: Real visits only; cancellations and no-shows excluded.
+
+    PatientFile:
+      type: object
+      properties:
+        patient:
+          type: object
+          properties:
+            id: { type: integer }
+            code: { type: string }
+            name: { type: string }
+            phone:
+              allOf: [{ $ref: "#/components/schemas/Display" }]
+              description: Unmasked — this screen has a call action.
+            registered_at: { $ref: "#/components/schemas/Display" }
+        summary:
+          type: object
+          properties:
+            visits_count: { type: integer }
+            no_show_count: { type: integer }
+            cancelled_count: { type: integer }
+            first_visit: { oneOf: [{ $ref: "#/components/schemas/Display" }, { type: "null" }] }
+            last_visit: { oneOf: [{ $ref: "#/components/schemas/Display" }, { type: "null" }] }
+        visits:
+          type: array
+          description: Newest first, cancellations and no-shows included.
+          items:
+            type: object
+            properties:
+              booking_id: { type: integer }
+              date: { $ref: "#/components/schemas/Display" }
+              start_time: { $ref: "#/components/schemas/Display" }
+              visit_type:
+                type: object
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  duration_minutes:
+                    type: integer
+                    description: The snapshot, so an old visit reads as it was booked.
+              status: { $ref: "#/components/schemas/Display" }
+              cancel_reason:
+                oneOf:
+                  - allOf: [{ $ref: "#/components/schemas/Display" }]
+                  - type: "null"
+              notes: { type: [string, "null"] }
+              price:
+                allOf: [{ $ref: "#/components/schemas/Money" }]
+                description: Owner only.
+
+    PaginationMeta:
+      type: object
+      properties:
+        current_page: { type: integer }
+        last_page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
+
+    RevenuePeriod:
+      type: object
+      properties:
+        total: { $ref: "#/components/schemas/Money" }
+        completed_visits: { type: integer }
+        from: { $ref: "#/components/schemas/Display" }
+        to: { $ref: "#/components/schemas/Display" }
+        comparison:
+          type: object
+          properties:
+            label: { type: string, example: مقارنة بإمبارح }
+            previous_total: { $ref: "#/components/schemas/Money" }
+            previous_visits: { type: integer }
+            difference: { $ref: "#/components/schemas/Money" }
+            change_percent:
+              type: [number, "null"]
+              description: Null when the previous period earned nothing — growth from zero is not a percentage.
+            direction: { type: string, enum: [up, down, flat] }
+
+    RevenueReport:
+      type: object
+      properties:
+        currency: { type: string, example: ج.م }
+        periods:
+          type: object
+          properties:
+            today: { $ref: "#/components/schemas/RevenuePeriod" }
+            this_week: { $ref: "#/components/schemas/RevenuePeriod" }
+            this_month: { $ref: "#/components/schemas/RevenuePeriod" }
+        daily:
+          type: array
+          description: This month day by day, zeros included so it plots directly.
+          items:
+            type: object
+            properties:
+              date: { $ref: "#/components/schemas/Display" }
+              total: { $ref: "#/components/schemas/Money" }
+
+    RetentionReport:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            value: { type: string }
+            display: { type: string }
+            from: { $ref: "#/components/schemas/Display" }
+            to: { $ref: "#/components/schemas/Display" }
+        available_periods:
+          type: array
+          items:
+            type: object
+            properties:
+              value: { type: string }
+              display: { type: string }
+        cohort_size:
+          type: integer
+          description: Patients whose **first** completed visit fell in the period.
+        returned_count: { type: integer }
+        return_rate:
+          type: [number, "null"]
+          description: Percentage, or null when the cohort is empty — not 0.
+        first_visit_only_count:
+          type: integer
+          description: Seen once, more than `maturity_days` ago.
+        maturing_count:
+          type: integer
+          description: Seen once, but still recent enough that she might return.
+        maturity_days: { type: integer }
+        visits_in_period: { type: integer }
+        total_patients: { type: integer }
