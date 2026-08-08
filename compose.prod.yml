@@ -1,20 +1,63 @@
 name: doctor_1
 
 services:
+  web:
+    image: doctor_1-web:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+    volumes:
+      - app_storage:/app/storage:ro
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=n8n_default
+      - traefik.http.routers.doctor1.rule=Host(`${APP_HOST:?Set APP_HOST in .env}`)
+      - traefik.http.routers.doctor1.entrypoints=web,websecure
+      - traefik.http.routers.doctor1.tls=true
+      - traefik.http.routers.doctor1.tls.certresolver=mytlschallenge
+      - traefik.http.services.doctor1.loadbalancer.server.port=80
+      - traefik.http.middlewares.doctor1-headers.headers.STSSeconds=31536000
+      - traefik.http.middlewares.doctor1-headers.headers.browserXSSFilter=true
+      - traefik.http.middlewares.doctor1-headers.headers.contentTypeNosniff=true
+      - traefik.http.middlewares.doctor1-headers.headers.forceSTSHeader=true
+      - traefik.http.middlewares.doctor1-headers.headers.STSIncludeSubdomains=true
+      - traefik.http.routers.doctor1.middlewares=doctor1-headers@docker
+    networks:
+      - app
+      - traefik
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/up >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
   app:
     image: doctor_1-app:latest
     build:
       context: .
       dockerfile: Dockerfile
+      target: app
     restart: unless-stopped
     env_file:
       - ${APP_ENV_FILE:-.env}
     environment:
+      APP_KEY: ${APP_KEY:?Set APP_KEY in .env}
+      APP_URL: https://${APP_HOST:?Set APP_HOST in .env}
+      APP_HOST: ${APP_HOST:?Set APP_HOST in .env}
       APP_ENV: production
       APP_DEBUG: "false"
       DB_CONNECTION: mysql
       DB_HOST: mysql
       DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:?Set DB_DATABASE in .env}
+      DB_USERNAME: ${DB_USERNAME:?Set DB_USERNAME in .env}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
       CACHE_STORE: database
       SESSION_DRIVER: database
       QUEUE_CONNECTION: database
@@ -26,25 +69,10 @@ services:
     volumes:
       - app_storage:/app/storage
       - app_bootstrap_cache:/app/bootstrap/cache
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=n8n_default
-      - traefik.http.routers.doctor1.rule=Host(`${APP_HOST}`)
-      - traefik.http.routers.doctor1.entrypoints=web,websecure
-      - traefik.http.routers.doctor1.tls=true
-      - traefik.http.routers.doctor1.tls.certresolver=mytlschallenge
-      - traefik.http.services.doctor1.loadbalancer.server.port=8000
-      - traefik.http.middlewares.doctor1-headers.headers.STSSeconds=31536000
-      - traefik.http.middlewares.doctor1-headers.headers.browserXSSFilter=true
-      - traefik.http.middlewares.doctor1-headers.headers.contentTypeNosniff=true
-      - traefik.http.middlewares.doctor1-headers.headers.forceSTSHeader=true
-      - traefik.http.middlewares.doctor1-headers.headers.STSIncludeSubdomains=true
-      - traefik.http.routers.doctor1.middlewares=doctor1-headers@docker
     networks:
       - app
-      - traefik
     healthcheck:
-      test: ["CMD-SHELL", "php -r 'exit(@file_get_contents(\"http://127.0.0.1:8000/up\") === false ? 1 : 0);'"]
+      test: ["CMD-SHELL", "php-fpm -t >/dev/null 2>&1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -52,15 +80,25 @@ services:
 
   scheduler:
     image: doctor_1-app:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: app
     restart: unless-stopped
     env_file:
       - ${APP_ENV_FILE:-.env}
     environment:
+      APP_KEY: ${APP_KEY:?Set APP_KEY in .env}
+      APP_URL: https://${APP_HOST:?Set APP_HOST in .env}
+      APP_HOST: ${APP_HOST:?Set APP_HOST in .env}
       APP_ENV: production
       APP_DEBUG: "false"
       DB_CONNECTION: mysql
       DB_HOST: mysql
       DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:?Set DB_DATABASE in .env}
+      DB_USERNAME: ${DB_USERNAME:?Set DB_USERNAME in .env}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
       CACHE_STORE: database
       SESSION_DRIVER: database
       QUEUE_CONNECTION: database

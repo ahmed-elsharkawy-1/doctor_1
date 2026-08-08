@@ -10,6 +10,8 @@ mkdir -p \
     storage/logs \
     bootstrap/cache
 
+ln -sf /app/storage/app/public public/storage
+
 if [ "$(id -u)" = "0" ]; then
     chown -R www-data:www-data storage bootstrap/cache
 fi

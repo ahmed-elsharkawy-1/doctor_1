@@ -23,6 +23,17 @@ remain independent:
 The Laravel web container joins the existing external Docker network
 `n8n_default` so Traefik can route to it.
 
+Production request flow:
+
+```text
+Internet
+  -> existing Traefik container on ports 80/443
+  -> doctor_1 Nginx container on the Docker network
+  -> doctor_1 PHP-FPM container
+  -> Laravel
+  -> private MySQL container
+```
+
 ## First Deploy
 
 From the VPS:
@@ -66,7 +77,6 @@ Run the database setup:
 ```bash
 docker compose -f compose.prod.yml exec app php artisan migrate --force
 docker compose -f compose.prod.yml exec app php artisan db:seed --class=SpecialtySeeder --force
-docker compose -f compose.prod.yml exec app php artisan storage:link
 docker compose -f compose.prod.yml exec app php artisan filament:optimize
 ```
 
@@ -87,7 +97,8 @@ docker compose -f compose.prod.yml exec app php artisan filament:optimize
 
 The production Compose file starts:
 
-- `app`: Laravel HTTP runtime, routed internally by Traefik.
+- `web`: Nginx web server, routed internally by Traefik.
+- `app`: Laravel PHP-FPM runtime, reachable only by Nginx.
 - `mysql`: private MySQL database, no host port.
 - `scheduler`: runs `php artisan schedule:work` for the hourly
   `clinic:close-day` task.
