@@ -77,5 +77,11 @@ jobs:
           DEPLOY
 
           if [ -n "${DEPLOY_URL:-}" ]; then
-            curl --fail --silent --show-error "${DEPLOY_URL%/}/up" > /dev/null
+            HEALTH_URL="${DEPLOY_URL%/}"
+            if [[ "$HEALTH_URL" != */up ]]; then
+              HEALTH_URL="${HEALTH_URL}/up"
+            fi
+
+            echo "Checking deployed application health endpoint..."
+            curl --fail --silent --show-error --location --retry 5 --retry-delay 3 "$HEALTH_URL" > /dev/null
           fi
