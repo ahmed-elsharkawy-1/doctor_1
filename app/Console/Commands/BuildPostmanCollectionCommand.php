@@ -298,7 +298,7 @@ class BuildPostmanCollectionCommand extends Command
                     '',
                     'if (pm.response.code === 200 && body.data && body.data.token) {',
                     "    pm.collectionVariables.set('token', body.data.token);",
-                    "    console.log('Token saved for ' + body.data.user.email);",
+                    "    console.log('Token saved for ' + body.data.title);",
                     '}',
                     '',
                     "pm.test('signed in', function () {",

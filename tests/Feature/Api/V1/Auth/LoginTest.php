@@ -14,7 +14,7 @@ class LoginTest extends TestCase
     public function test_an_owner_can_sign_in_with_the_clinic_phone_and_receives_a_token(): void
     {
         $clinic = Clinic::factory()->create(['phone' => '+201001234567']);
-        $user = User::factory()->owner()->inClinic($clinic)->create([
+        User::factory()->owner()->inClinic($clinic)->create([
             'phone' => '+201001234567',
         ]);
 
@@ -25,14 +25,15 @@ class LoginTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('status', 'success')
-            ->assertJsonPath('data.user.id', $user->id)
-            ->assertJsonPath('data.user.role.value', 'owner')
-            ->assertJsonPath('data.clinic.id', $clinic->id)
-            ->assertJsonPath('data.token_type', 'Bearer')
+            ->assertJsonPath('data.title', $clinic->name)
+            ->assertJsonMissingPath('data.user')
+            ->assertJsonMissingPath('data.abilities')
+            ->assertJsonMissingPath('data.clinic')
+            ->assertJsonMissingPath('data.token_type')
             ->assertJsonStructure([
                 'status',
                 'message',
-                'data' => ['user', 'abilities', 'clinic', 'token'],
+                'data' => ['title', 'token'],
             ]);
 
         $this->assertNotEmpty($response->json('data.token'));

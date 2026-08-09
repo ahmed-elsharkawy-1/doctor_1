@@ -17,6 +17,6 @@ class LoginController extends V1Controller
     {
         $result = $this->authService->login(LoginData::fromArray($request->validated()));
 
-        return ApiResponse::success($result->toArray(), __('auth.logged_in'));
+        return ApiResponse::success($result->toLoginArray(), __('auth.logged_in'));
     }
 }

@@ -103,7 +103,7 @@ paths:
                   - $ref: "#/components/schemas/SuccessEnvelope"
                   - type: object
                     properties:
-                      data: { $ref: "#/components/schemas/AuthPayload" }
+                      data: { $ref: "#/components/schemas/LoginPayload" }
         "401":
           description: |
             `INVALID_CREDENTIALS` — a wrong phone and a wrong password are
@@ -131,25 +131,6 @@ paths:
       operationId: logout
       responses:
         "200": { $ref: "#/components/responses/EmptySuccess" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-
-  /auth/me:
-    get:
-      tags: [Auth]
-      summary: The signed-in user, their abilities and clinic
-      description: Same payload as login without `token`. Use it to refresh abilities after a role change.
-      operationId: me
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: "#/components/schemas/SuccessEnvelope"
-                  - type: object
-                    properties:
-                      data: { $ref: "#/components/schemas/AuthPayload" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
 
   # ----------------------------------------------------------- Bootstrap ----
@@ -1237,33 +1218,18 @@ components:
         `reports.view`.
       items: { type: string }
 
-    AuthPayload:
+    LoginPayload:
       type: object
+      required: [title, token]
       properties:
-        user:
-          type: object
-          properties:
-            id: { type: integer }
-            name: { type: string }
-            email: { type: string }
-            phone: { $ref: "#/components/schemas/Display" }
-            role: { $ref: "#/components/schemas/Display" }
-            locale: { type: string, enum: [ar, en] }
-        abilities: { $ref: "#/components/schemas/Abilities" }
-        clinic:
-          type: [object, "null"]
-          properties:
-            id: { type: integer }
-            name: { type: string }
-            specialty: { type: string }
-            timezone: { type: string }
-            booking_window_days: { type: integer }
-            slot_step_minutes: { type: integer }
-            patient_arrival_lead_minutes: { type: integer, enum: [15, 20, 30, 45, 60] }
+        title:
+          type: string
+          description: Clinic name shown after login.
+          example: عيادة د. سارة النجار
         token:
           type: string
-          description: Login only — absent from `/auth/me`.
-        token_type: { type: string, enum: [Bearer] }
+          description: "Bearer token value. Send it as `Authorization: Bearer <token>`."
+          example: 2|Jl8zwWnI4slugy2ieM5UyUROCjRkXcYOcjFxR0Aga18a36f0
 
     Clinic:
       type: object

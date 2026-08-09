@@ -17,6 +17,15 @@ use Tests\TestCase;
 class OpenApiCoverageTest extends TestCase
 {
     /**
+     * Routed intentionally, but withheld from the mobile handoff docs.
+     *
+     * @var list<string>
+     */
+    private const HIDDEN_OPERATIONS = [
+        'GET /auth/me',
+    ];
+
+    /**
      * @return array<string, mixed>
      */
     private function spec(): array
@@ -81,7 +90,11 @@ class OpenApiCoverageTest extends TestCase
 
     public function test_every_route_is_documented(): void
     {
-        $missing = array_diff($this->registeredOperations(), $this->documentedOperations());
+        $missing = array_diff(
+            $this->registeredOperations(),
+            $this->documentedOperations(),
+            self::HIDDEN_OPERATIONS,
+        );
 
         $this->assertSame(
             [],

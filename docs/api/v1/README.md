@@ -20,7 +20,7 @@ that way on a public host.
 
 | File | What it is |
 |---|---|
-| [`openapi.yaml`](openapi.yaml) | **The source of truth.** OpenAPI 3.1, all 33 endpoints. |
+| [`openapi.yaml`](openapi.yaml) | **The source of truth.** OpenAPI 3.1, all 32 public endpoints. |
 | [`doctor1.postman_collection.json`](doctor1.postman_collection.json) | Generated. Import into Postman. |
 | [`doctor1.postman_environment.json`](doctor1.postman_environment.json) | Generated. `base_url`, `token`, `locale`. |
 
@@ -166,33 +166,15 @@ normalised before matching.
   "status": "success",
   "message": "تم تسجيل الدخول",
   "data": {
-    "user": {
-      "id": 4,
-      "name": "عيادة د. سارة",
-      "email": "clinic-1@doctor1.local",
-      "phone": { "value": "+201001234567", "display": "01001234567" },
-      "role": { "value": "owner", "display": "صاحب العيادة" },
-      "locale": "ar"
-    },
-    "abilities": ["bookings.manage", "queue.manage", "patients.view", "settings.manage", "prices.view", "reports.view"],
-    "clinic": {
-      "id": 1,
-      "name": "عيادة د. سارة",
-      "specialty": "نساء وتوليد",
-      "timezone": "Africa/Cairo",
-      "booking_window_days": 7,
-      "slot_step_minutes": 10,
-      "patient_arrival_lead_minutes": 30
-    },
-    "token": "3|xxxxxxxx",
-    "token_type": "Bearer"
+    "title": "عيادة د. سارة",
+    "token": "3|xxxxxxxx"
   }
 }
 ```
 
 | Code | HTTP | When |
 |---|---|---|
-| `INVALID_CREDENTIALS` | 401 | Wrong email **or** wrong password — deliberately indistinguishable |
+| `INVALID_CREDENTIALS` | 401 | Wrong phone **or** wrong password — deliberately indistinguishable |
 | `ACCOUNT_INACTIVE` | 403 | Account deactivated |
 | `FORBIDDEN_ROLE` | 403 | A super-admin account; they use the web panel, not the app |
 | `VALIDATION_FAILED` | 422 | |
@@ -200,11 +182,6 @@ normalised before matching.
 ### `POST /auth/logout`
 
 Revokes **only the calling token**. Other devices stay signed in. `data` is `null`.
-
-### `GET /auth/me`
-
-Same `data` as login, without `token`. Use it to refresh abilities after a role
-change.
 
 ### `abilities`
 

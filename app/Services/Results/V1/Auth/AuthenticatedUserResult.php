@@ -8,10 +8,7 @@ use App\Support\PhoneNumber;
 use App\Support\Wire;
 
 /**
- * The payload returned by login and by GET /auth/me.
- *
- * Everything the app needs to render its shell: who is signed in, what they
- * are allowed to do, and which clinic they are working in.
+ * The full signed-in profile payload returned by GET /auth/me.
  */
 final class AuthenticatedUserResult extends ServiceResult
 {
@@ -52,5 +49,15 @@ final class AuthenticatedUserResult extends ServiceResult
         }
 
         return $body;
+    }
+
+    public function toLoginArray(): array
+    {
+        $clinic = $this->user->activeClinic();
+
+        return [
+            'title' => $clinic?->name ?? $this->user->name,
+            'token' => $this->token,
+        ];
     }
 }
