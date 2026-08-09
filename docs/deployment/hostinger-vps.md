@@ -100,6 +100,51 @@ old unused volume can be deleted after the updated containers are running:
 docker volume rm doctor_1_app_bootstrap_cache
 ```
 
+## Automatic Deploys
+
+GitHub Actions can deploy every push to `main` through SSH. The workflow lives
+at `.github/workflows/deploy-production.yml` and runs the same production update
+commands:
+
+```bash
+cd /docker/doctor_1
+git fetch origin main
+git pull --ff-only origin main
+docker compose -f compose.prod.yml up -d --build --force-recreate
+docker compose -f compose.prod.yml exec -T app php artisan migrate --force
+docker compose -f compose.prod.yml exec -T app php artisan optimize:clear
+docker compose -f compose.prod.yml exec -T app php artisan filament:optimize
+```
+
+The VPS must already be able to pull the private GitHub repository from
+`/docker/doctor_1`. The GitHub Actions deploy key below is only for
+GitHub Actions to SSH into the VPS; it does not replace the VPS-to-GitHub key
+used by `git pull`.
+
+Create a dedicated deploy key on your local machine:
+
+```bash
+ssh-keygen -t ed25519 -C "doctor-1-github-deploy" -f ~/.ssh/doctor_1_github_deploy
+```
+
+Add the public key to the VPS:
+
+```bash
+ssh-copy-id -i ~/.ssh/doctor_1_github_deploy.pub root@doctor1.srv1362420.hstgr.cloud
+```
+
+Add these GitHub repository secrets:
+
+```text
+VPS_HOST=doctor1.srv1362420.hstgr.cloud
+VPS_PORT=22
+VPS_USER=root
+VPS_SSH_KEY=<contents of ~/.ssh/doctor_1_github_deploy>
+DEPLOY_URL=https://doctor1.srv1362420.hstgr.cloud
+```
+
+`DEPLOY_URL` is optional. When present, the workflow checks `/up` after deploy.
+
 ## Runtime Services
 
 The production Compose file starts:
