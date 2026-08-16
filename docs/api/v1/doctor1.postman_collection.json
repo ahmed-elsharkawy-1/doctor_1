@@ -70,7 +70,7 @@
                         "description": "Rate limited to 10 per minute. The only unauthenticated endpoint.",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"email\": \"clinic@example.test\",\n    \"password\": \"password\",\n    \"device_name\": \"pixel-8\"\n}\n",
+                            "raw": "{\n    \"email\": \"doctor@doctor1.test\",\n    \"password\": \"password\",\n    \"device_name\": \"pixel-8\"\n}\n",
                             "options": {
                                 "raw": {
                                     "language": "json"

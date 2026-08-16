@@ -151,7 +151,7 @@ record belonging to another clinic returns `404`, never someone else's data.
 Rate limited to 10/minute. No token required.
 
 ```json
-{ "email": "clinic@example.test", "password": "secret", "device_name": "pixel-8" }
+{ "email": "doctor@doctor1.test", "password": "password", "device_name": "pixel-8" }
 ```
 
 `device_name` is optional and labels the token so one device can be signed out

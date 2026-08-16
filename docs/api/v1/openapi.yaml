@@ -88,7 +88,7 @@ paths:
                 email:
                   type: string
                   format: email
-                  example: "clinic@example.test"
+                  example: "doctor@doctor1.test"
                   description: Shared clinic login email.
                 password: { type: string, example: password }
                 device_name:

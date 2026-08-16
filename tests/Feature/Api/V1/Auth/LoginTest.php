@@ -15,11 +15,11 @@ class LoginTest extends TestCase
     {
         $clinic = Clinic::factory()->create();
         User::factory()->owner()->inClinic($clinic)->create([
-            'email' => 'clinic@example.test',
+            'email' => 'doctor@doctor1.test',
         ]);
 
         $response = $this->postJson(route('api.v1.auth.login'), [
-            'email' => 'clinic@example.test',
+            'email' => 'doctor@doctor1.test',
             'password' => 'password',
         ]);
 
@@ -42,10 +42,10 @@ class LoginTest extends TestCase
     public function test_email_is_matched_case_insensitively(): void
     {
         $clinic = Clinic::factory()->create();
-        User::factory()->owner()->inClinic($clinic)->create(['email' => 'clinic@example.test']);
+        User::factory()->owner()->inClinic($clinic)->create(['email' => 'doctor@doctor1.test']);
 
         $this->postJson(route('api.v1.auth.login'), [
-            'email' => 'CLINIC@example.test',
+            'email' => 'DOCTOR@doctor1.test',
             'password' => 'password',
         ])->assertOk();
     }
@@ -53,10 +53,10 @@ class LoginTest extends TestCase
     public function test_wrong_password_returns_the_standard_error_envelope(): void
     {
         $clinic = Clinic::factory()->create();
-        User::factory()->owner()->inClinic($clinic)->create(['email' => 'clinic@example.test']);
+        User::factory()->owner()->inClinic($clinic)->create(['email' => 'doctor@doctor1.test']);
 
         $this->postJson(route('api.v1.auth.login'), [
-            'email' => 'clinic@example.test',
+            'email' => 'doctor@doctor1.test',
             'password' => 'wrong-password',
         ])
             ->assertStatus(401)
@@ -73,10 +73,10 @@ class LoginTest extends TestCase
     public function test_a_short_wrong_password_is_still_a_credentials_failure(): void
     {
         $clinic = Clinic::factory()->create();
-        User::factory()->owner()->inClinic($clinic)->create(['email' => 'clinic@example.test']);
+        User::factory()->owner()->inClinic($clinic)->create(['email' => 'doctor@doctor1.test']);
 
         $this->postJson(route('api.v1.auth.login'), [
-            'email' => 'clinic@example.test',
+            'email' => 'doctor@doctor1.test',
             'password' => 'x',
         ])
             ->assertStatus(401)
@@ -97,11 +97,11 @@ class LoginTest extends TestCase
     {
         $clinic = Clinic::factory()->create();
         User::factory()->secretary()->inactive()->inClinic($clinic)->create([
-            'email' => 'clinic@example.test',
+            'email' => 'doctor@doctor1.test',
         ]);
 
         $this->postJson(route('api.v1.auth.login'), [
-            'email' => 'clinic@example.test',
+            'email' => 'doctor@doctor1.test',
             'password' => 'password',
         ])
             ->assertStatus(403)
