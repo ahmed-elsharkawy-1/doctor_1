@@ -40,6 +40,10 @@ return [
         'patient_arrival_lead_minute_options' => [15, 20, 30, 45, 60],
     ],
 
+    'messaging' => [
+        'driver' => env('CLINIC_MESSAGING_DRIVER', 'log'),
+    ],
+
     /*
     | Phone normalisation. Numbers are stored E.164 and displayed nationally.
     */
@@ -60,15 +64,12 @@ return [
 
     /*
     | Patient ID code generation — see SPEC §5.3.
-    | e.g. "سارة أحمد" + 01012225521 -> SAAH5521
+    | Derived from the database id and assigned once after insert.
     */
     'patient_code' => [
-        'words' => 2,
-        'letters_per_word' => 2,
-        'phone_digits' => 4,
-        'padding_letter' => 'X',
-        'fallback_letters' => 'PT',
-        'max_collision_attempts' => 99,
+        'start_at' => 60000,
+        'step' => 1,
+        'min_length' => 5,
     ],
 
     /*

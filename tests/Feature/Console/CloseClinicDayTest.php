@@ -48,8 +48,8 @@ class CloseClinicDayTest extends TestCase
 
         $booking->refresh();
 
-        $this->assertSame(BookingStatus::CANCELLED, $booking->status);
-        $this->assertSame(CancelReason::NO_SHOW, $booking->cancel_reason);
+        $this->assertSame(BookingStatus::NO_SHOW, $booking->status);
+        $this->assertNull($booking->cancel_reason);
         $this->assertNotNull($booking->cancelled_at);
     }
 
@@ -143,7 +143,7 @@ class CloseClinicDayTest extends TestCase
         $this->artisan('clinic:close-day', ['--clinic' => $other->id])->assertSuccessful();
 
         $this->assertSame(BookingStatus::BOOKED, $mine->refresh()->status);
-        $this->assertSame(BookingStatus::CANCELLED, $theirs->refresh()->status);
+        $this->assertSame(BookingStatus::NO_SHOW, $theirs->refresh()->status);
     }
 
     public function test_an_inactive_clinic_is_skipped(): void

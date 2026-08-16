@@ -70,7 +70,7 @@
                         "description": "Rate limited to 10 per minute. The only unauthenticated endpoint.",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"phone\": \"01001234567\",\n    \"password\": \"password\",\n    \"device_name\": \"pixel-8\"\n}\n",
+                            "raw": "{\n    \"email\": \"clinic@example.test\",\n    \"password\": \"password\",\n    \"device_name\": \"pixel-8\"\n}\n",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -169,6 +169,35 @@
                         "description": "Clinic config, visit types, the full week and holidays, in one round trip."
                     },
                     "response": []
+                },
+                {
+                    "name": "Home screen summary",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/home",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "home"
+                            ]
+                        },
+                        "description": "Today's status counts plus the next upcoming appointments."
+                    },
+                    "response": []
                 }
             ]
         },
@@ -242,7 +271,7 @@
                                 "visit-types"
                             ]
                         },
-                        "description": "A secretary may create one; any `price` she submits is silently ignored.",
+                        "description": "Clinic accounts can manage visit type duration, visibility and price.",
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"name\": \"سونار\",\n    \"duration_minutes\": 15,\n    \"price\": 250\n}\n",
@@ -559,7 +588,7 @@
             "description": "The day strip, slots and the New Booking screen",
             "item": [
                 {
-                    "name": "The day strip",
+                    "name": "Booking calendar",
                     "request": {
                         "method": "GET",
                         "header": [
@@ -573,17 +602,38 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/booking-days",
+                            "raw": "{{base_url}}/api/v1/bookings/calendar?from=2026-08-08&to=2026-08-14&status=",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
                                 "v1",
-                                "booking-days"
+                                "bookings",
+                                "calendar"
+                            ],
+                            "query": [
+                                {
+                                    "key": "from",
+                                    "value": "2026-08-08",
+                                    "description": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "to",
+                                    "value": "2026-08-14",
+                                    "description": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "status",
+                                    "value": "",
+                                    "description": "",
+                                    "disabled": true
+                                }
                             ]
                         },
-                        "description": "One entry per day of the rolling window, starting today."
+                        "description": "Dense day strip plus sparse date-keyed booking cards. `status` filters\ncards only; counts always describe the whole day."
                     },
                     "response": []
                 },
@@ -792,12 +842,12 @@
         },
         {
             "name": "Queue",
-            "description": "Today's queue and its transitions",
+            "description": "Booking status changes",
             "item": [
                 {
-                    "name": "Today's queue",
+                    "name": "Change booking status",
                     "request": {
-                        "method": "GET",
+                        "method": "POST",
                         "header": [
                             {
                                 "key": "Accept",
@@ -806,132 +856,40 @@
                             {
                                 "key": "Accept-Language",
                                 "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/queue?date=&include_cancelled=",
+                            "raw": "{{base_url}}/api/v1/bookings/{booking}/status",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
                                 "v1",
-                                "queue"
-                            ],
-                            "query": [
-                                {
-                                    "key": "date",
-                                    "value": "",
-                                    "description": "Defaults to today in the clinic's timezone.",
-                                    "disabled": true
-                                },
-                                {
-                                    "key": "include_cancelled",
-                                    "value": "",
-                                    "description": "The \"الملغية\" toggle.",
-                                    "disabled": true
+                                "bookings",
+                                "{booking}",
+                                "status"
+                            ]
+                        },
+                        "description": "Sends the intended target explicitly. A double tap repeats the same\ntarget and returns `INVALID_STATUS_TRANSITION`; it never advances twice.\n`cancelled` stays on the separate cancel endpoint because it carries a\nreason.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"to\": \"arrived\"\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
                                 }
-                            ]
-                        },
-                        "description": "**Already sorted — render in the order given:** with_doctor, then\narrived by check-in time, then booked by appointment, then done, then\ncancelled.\n\nThe list re-sorts during the day: checking in moves a patient above\npeople booked earlier, and someone booked at 09:00 who arrives at 10:30\ngoes behind everyone already waiting. That is intended."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "تسجيل الوصول — the patient is in the clinic",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json"
-                            },
-                            {
-                                "key": "Accept-Language",
-                                "value": "{{locale}}"
                             }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/api/v1/bookings/{booking}/arrive",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "api",
-                                "v1",
-                                "bookings",
-                                "{booking}",
-                                "arrive"
-                            ]
-                        },
-                        "description": "This is the moment that gives her a queue position and stamps the wait-time clock."
+                        }
                     },
                     "response": []
                 },
                 {
-                    "name": "استدعاء للداخل — she goes in to the doctor",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json"
-                            },
-                            {
-                                "key": "Accept-Language",
-                                "value": "{{locale}}"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/api/v1/bookings/{booking}/call-in",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "api",
-                                "v1",
-                                "bookings",
-                                "{booking}",
-                                "call-in"
-                            ]
-                        },
-                        "description": "استدعاء للداخل — she goes in to the doctor"
-                    },
-                    "response": []
-                },
-                {
-                    "name": "إنهاء الزيارة — the visit is done",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json"
-                            },
-                            {
-                                "key": "Accept-Language",
-                                "value": "{{locale}}"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/api/v1/bookings/{booking}/complete",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "api",
-                                "v1",
-                                "bookings",
-                                "{booking}",
-                                "complete"
-                            ]
-                        },
-                        "description": "The only status revenue counts."
-                    },
-                    "response": []
-                },
-                {
-                    "name": "إلغاء / لم تحضر",
+                    "name": "Cancel a booking",
                     "request": {
                         "method": "POST",
                         "header": [
@@ -961,10 +919,10 @@
                                 "cancel"
                             ]
                         },
-                        "description": "Both are a cancellation, distinguished by reason. Either way the slot is\n**freed immediately**.\n\nA patient already with the doctor cannot be cancelled — complete her.",
+                        "description": "Patient cancellation only. No-show is a status transition to\n`no_show`; emergency cancellation comes from postpone/broadcast flows.\n\nA booking can be cancelled until it is completed.",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"reason\": \"no_show\"\n}\n",
+                            "raw": "{\n    \"reason\": \"patient_cancelled\"\n}\n",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -1078,7 +1036,7 @@
                                 "postpone"
                             ]
                         },
-                        "description": "Cancels the selected bookings with reason `emergency`, **frees their\nslots**, and returns the call list.\n\n**Nothing is messaged** — WhatsApp is v2. Omit `booking_ids` entirely\nfor \"كل المريضات\".",
+                        "description": "Cancels the selected bookings with reason `emergency`, **frees their\nslots**, and returns the call list.\n\nWhatsApp template broadcasts are handled separately through\n`/broadcasts`. Omit `booking_ids` entirely for \"كل المريضات\".",
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"booking_ids\": [\n        88,\n        91\n    ]\n}\n",
@@ -1117,6 +1075,127 @@
                             ]
                         },
                         "description": "Reachable any time from the home-screen banner, which is driven by\n`awaiting_rebooking_count` on the queue.\n\nPhones are **unmasked** — every row has a call action. To take a patient\noff this list, create a booking with `rebooking_for_booking_id` set."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Messaging",
+            "description": "WhatsApp template previews and log-driver sends",
+            "item": [
+                {
+                    "name": "List active WhatsApp templates",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/message-templates",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "message-templates"
+                            ]
+                        },
+                        "description": "Template bodies are previews; the app never sends free-form patient messages."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Send a template to many bookings",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/broadcasts",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "broadcasts"
+                            ]
+                        },
+                        "description": "Uses the configured messaging driver. The shipped `log` driver records\nand marks messages sent without calling Meta. `day_cancelled` also\ncancels selected pending bookings with reason `emergency`.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"template_key\": \"day_cancelled\"\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Send a template for one booking",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/bookings/{booking}/message",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "bookings",
+                                "{booking}",
+                                "message"
+                            ]
+                        },
+                        "description": "Send a template for one booking",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"template_key\": \"appointment_delayed\"\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
                     },
                     "response": []
                 }
@@ -1203,10 +1282,10 @@
         },
         {
             "name": "Reports",
-            "description": "Revenue and retention — owner only",
+            "description": "Revenue and retention",
             "item": [
                 {
-                    "name": "Revenue — owner only",
+                    "name": "Revenue",
                     "request": {
                         "method": "GET",
                         "header": [
@@ -1236,7 +1315,7 @@
                     "response": []
                 },
                 {
-                    "name": "Retention — owner only",
+                    "name": "Retention",
                     "request": {
                         "method": "GET",
                         "header": [

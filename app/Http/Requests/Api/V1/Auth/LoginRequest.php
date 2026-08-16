@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Api\V1\Auth;
 
-use App\Support\PhoneNumber;
 use Illuminate\Foundation\Http\FormRequest;
 
 class LoginRequest extends FormRequest
@@ -18,15 +17,11 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'phone' => [
+            'email' => [
                 'required',
                 'string',
-                'max:32',
-                function (string $attribute, mixed $value, \Closure $fail): void {
-                    if (PhoneNumber::tryParse((string) $value) === null) {
-                        $fail(__('patients.invalid_phone'));
-                    }
-                },
+                'email',
+                'max:255',
             ],
             // No minimum length: on login, any wrong password is simply wrong.
             // A length rule here would answer with VALIDATION_FAILED instead of

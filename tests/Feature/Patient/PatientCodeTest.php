@@ -2,11 +2,8 @@
 
 namespace Tests\Feature\Patient;
 
-use App\Actions\Patient\GeneratePatientCodeAction;
 use App\Models\Clinic;
 use App\Models\Patient;
-use App\Support\ArabicTransliterator;
-use App\Support\PhoneNumber;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -14,102 +11,47 @@ class PatientCodeTest extends TestCase
 {
     use RefreshDatabase;
 
-    private Clinic $clinic;
-
-    protected function setUp(): void
+    public function test_a_numeric_code_is_assigned_after_insert_from_the_row_id(): void
     {
-        parent::setUp();
-
-        $this->clinic = Clinic::factory()->create();
-    }
-
-    private function code(string $name, string $phone): string
-    {
-        return app(GeneratePatientCodeAction::class)->execute(
-            $this->clinic,
-            $name,
-            PhoneNumber::parse($phone),
-        );
-    }
-
-    public function test_it_builds_the_code_from_the_name_and_the_last_four_digits(): void
-    {
-        $this->assertSame('SAAH5521', $this->code('سارة أحمد', '01012225521'));
-    }
-
-    public function test_it_handles_a_latin_name(): void
-    {
-        $this->assertSame('SAAH5521', $this->code('Sara Ahmed', '01012225521'));
-    }
-
-    public function test_it_ignores_words_beyond_the_first_two(): void
-    {
-        $this->assertSame(
-            $this->code('سارة أحمد', '01012225521'),
-            $this->code('سارة أحمد محمد علي', '01012225521'),
-        );
-    }
-
-    public function test_a_single_word_name_is_padded(): void
-    {
-        $code = $this->code('سارة', '01012225521');
-
-        $this->assertSame(8, strlen($code));
-        $this->assertStringEndsWith('5521', $code);
-    }
-
-    public function test_a_name_with_no_transliterable_letters_still_gets_a_code(): void
-    {
-        $code = $this->code('...', '01012225521');
-
-        $this->assertNotSame('', $code);
-        $this->assertStringEndsWith('5521', $code);
-    }
-
-    /**
-     * Two patients can legitimately produce the same base.
-     */
-    public function test_a_colliding_code_gets_a_suffix(): void
-    {
-        $first = $this->code('سارة أحمد', '01012225521');
-
-        Patient::factory()->create([
-            'clinic_id' => $this->clinic->id,
-            'code' => $first,
-            'phone' => '+201012225521',
-        ]);
-
-        $second = $this->code('سارة أحمد', '01099995521');
-
-        $this->assertNotSame($first, $second);
-        $this->assertStringStartsWith($first, $second);
-    }
-
-    public function test_codes_only_collide_within_a_clinic(): void
-    {
-        $code = $this->code('سارة أحمد', '01012225521');
-
-        Patient::factory()->create([
+        $patient = Patient::factory()->create([
             'clinic_id' => Clinic::factory()->create()->id,
-            'code' => $code,
+            'code' => null,
         ]);
 
-        $this->assertSame($code, $this->code('سارة أحمد', '01012225521'));
+        $this->assertSame(Patient::codeForId($patient->id), $patient->refresh()->code);
     }
 
-    public function test_the_same_input_always_produces_the_same_code(): void
+    public function test_codes_are_numeric_and_padded_to_the_configured_length(): void
     {
-        $this->assertSame(
-            $this->code('منى عبد الله', '01012345678'),
-            $this->code('منى عبد الله', '01012345678'),
-        );
+        config()->set('clinic.patient_code.start_at', 60000);
+        config()->set('clinic.patient_code.step', 1);
+        config()->set('clinic.patient_code.min_length', 7);
+
+        $patient = Patient::factory()->create([
+            'clinic_id' => Clinic::factory()->create()->id,
+            'code' => null,
+        ]);
+
+        $this->assertSame(str_pad((string) (60000 + $patient->id), 7, '0', STR_PAD_LEFT), $patient->code);
     }
 
-    public function test_transliteration_drops_anything_that_is_not_a_letter(): void
+    public function test_the_code_is_immutable_after_assignment(): void
     {
-        $this->assertSame('SARA', ArabicTransliterator::toLatin('سارة'));
-        $this->assertSame('AHMD', ArabicTransliterator::toLatin('أحمد'));
-        $this->assertSame('SARA', ArabicTransliterator::toLatin('سارة ١٢٣!'));
-        $this->assertSame('', ArabicTransliterator::toLatin('١٢٣ !!'));
+        $patient = Patient::factory()->create(['clinic_id' => Clinic::factory()->create()->id]);
+        $original = $patient->code;
+
+        $patient->update(['code' => '99999']);
+
+        $this->assertSame($original, $patient->refresh()->code);
+    }
+
+    public function test_existing_manual_code_is_respected_on_create(): void
+    {
+        $patient = Patient::factory()->create([
+            'clinic_id' => Clinic::factory()->create()->id,
+            'code' => '70000',
+        ]);
+
+        $this->assertSame('70000', $patient->refresh()->code);
     }
 }

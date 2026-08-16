@@ -13,7 +13,7 @@ use Illuminate\Support\Carbon;
 
 /**
  * Cancels the affected bookings and returns the call list to work through.
- * Nothing is messaged — WhatsApp is v2.
+ * WhatsApp template broadcasts are handled by the messaging endpoints.
  */
 class PostponeController extends V1Controller
 {

@@ -12,8 +12,8 @@ use Illuminate\Support\Carbon;
  * Closes out days that have finished — SPEC §5.4.
  *
  * Without this, a patient booked at 09:00 who never turned up is still
- * "not finished" at 6pm, keeps her slot blocked, and keeps appearing in the
- * postpone list. The secretary should not have to tidy up by hand.
+ * "not finished" at 6pm and keeps appearing in the postpone list. The
+ * secretary should not have to tidy up by hand.
  *
  * Runs hourly and is idempotent: each clinic is closed out only once its own
  * local day has rolled over, which is what makes this correct for clinics in
@@ -54,8 +54,8 @@ class CloseClinicDayCommand extends Command
             ->whereDate('visit_date', '<', $today)
             ->where('status', BookingStatus::BOOKED)
             ->update([
-                'status' => BookingStatus::CANCELLED,
-                'cancel_reason' => CancelReason::NO_SHOW,
+                'status' => BookingStatus::NO_SHOW,
+                'cancel_reason' => null,
                 'cancelled_at' => $now,
                 'updated_at' => $now,
             ]);

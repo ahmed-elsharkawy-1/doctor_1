@@ -71,12 +71,55 @@ class CreateBookingTest extends TestCase
             ->assertJsonPath('data.end_time.value', '09:20')
             ->assertJsonPath('data.patient.name', 'سارة أحمد');
 
-        $this->assertSame('SAAH5521', $response->json('data.patient.code'));
+        $this->assertSame(
+            Patient::codeForId($response->json('data.patient.id')),
+            $response->json('data.patient.code'),
+        );
 
         $this->assertDatabaseHas('patients', [
             'clinic_id' => $this->clinic->id,
             'phone' => '+201012225521',
+            'age' => null,
         ]);
+    }
+
+    public function test_it_records_age_and_whatsapp_opt_in_for_a_new_patient(): void
+    {
+        $this->postJson(route('api.v1.bookings.store'), $this->payload([
+            'age' => 37,
+            'whatsapp_opt_in' => true,
+        ]))->assertCreated();
+
+        $patient = Patient::first();
+
+        $this->assertSame(37, $patient->age);
+        $this->assertNotNull($patient->whatsapp_opt_in_at);
+    }
+
+    public function test_it_can_book_an_existing_patient_by_id(): void
+    {
+        $patient = Patient::factory()->create(['clinic_id' => $this->clinic->id]);
+
+        $this->postJson(route('api.v1.bookings.store'), $this->payload([
+            'patient_id' => $patient->id,
+            'patient_name' => 'اسم يتجاهله السيرفر',
+            'phone' => '01099999999',
+        ]))
+            ->assertCreated()
+            ->assertJsonPath('data.patient.id', $patient->id);
+
+        $this->assertSame(1, Patient::count());
+    }
+
+    public function test_a_patient_id_from_another_clinic_is_not_found(): void
+    {
+        $patient = Patient::factory()->create(['clinic_id' => $this->otherClinic()->id]);
+
+        $this->postJson(route('api.v1.bookings.store'), $this->payload([
+            'patient_id' => $patient->id,
+        ]))
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'PATIENT_NOT_FOUND');
     }
 
     public function test_the_price_and_duration_are_snapshotted_onto_the_booking(): void
@@ -102,7 +145,10 @@ class CreateBookingTest extends TestCase
         ]))->assertCreated();
 
         $this->assertSame(1, Patient::count());
-        $this->assertSame('SAAH5521', $second->json('data.patient.code'));
+        $this->assertSame(
+            Patient::firstOrFail()->code,
+            $second->json('data.patient.code'),
+        );
     }
 
     public function test_a_taken_slot_is_refused(): void
@@ -249,13 +295,13 @@ class CreateBookingTest extends TestCase
         $this->assertSame($this->owner->id, Booking::find($id)->created_by);
     }
 
-    public function test_a_secretary_does_not_see_the_price(): void
+    public function test_the_clinic_account_sees_the_price(): void
     {
         Sanctum::actingAs($this->secretary);
 
         $data = $this->postJson(route('api.v1.bookings.store'), $this->payload())->json('data');
 
-        $this->assertArrayNotHasKey('price', $data);
+        $this->assertSame('300.00', $data['price']['value']);
     }
 
     public function test_the_owner_sees_the_price(): void

@@ -20,7 +20,46 @@ class Patient extends Model
         'code',
         'name',
         'phone',
+        'age',
+        'whatsapp_opt_in_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'age' => 'integer',
+            'whatsapp_opt_in_at' => 'datetime',
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        static::created(function (Patient $patient): void {
+            if (filled($patient->code)) {
+                return;
+            }
+
+            $patient->forceFill(['code' => self::codeForId($patient->id)])->saveQuietly();
+        });
+
+        static::updating(function (Patient $patient): void {
+            if ($patient->isDirty('code') && filled($patient->getOriginal('code'))) {
+                $patient->code = $patient->getOriginal('code');
+            }
+        });
+    }
+
+    public static function codeForId(int $id): string
+    {
+        $config = config('clinic.patient_code');
+
+        return str_pad(
+            (string) ((int) $config['start_at'] + ($id * (int) $config['step'])),
+            (int) $config['min_length'],
+            '0',
+            STR_PAD_LEFT,
+        );
+    }
 
     /** @return BelongsTo<Clinic, $this> */
     public function clinic(): BelongsTo

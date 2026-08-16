@@ -9,9 +9,11 @@ use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\Doctor;
+use App\Models\Patient;
 use App\Models\User;
 use App\Models\VisitType;
 use App\Services\V1\Patients\PatientService;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -29,19 +31,14 @@ class BookingService
         $startAt = $this->startAt($clinic, $data->date, $data->startTime);
         $doctor = $this->doctor($clinic);
 
-        $phone = $this->patients->parsePhone($clinic, $data->phone);
+        $phone = $data->phone === null ? null : $this->patients->parsePhone($clinic, $data->phone);
 
         return $this->claimingTheDay($clinic, $startAt, function () use (
             $clinic, $data, $visitType, $startAt, $doctor, $actor, $phone
         ) {
             $this->guardSlot($clinic, $startAt, $visitType, $data->force);
 
-            $patient = $this->patients->findOrCreate(
-                $clinic,
-                $data->patientName,
-                $phone,
-                $data->updatePatientName,
-            );
+            $patient = $this->patientFor($clinic, $data, $phone);
 
             $booking = $clinic->bookings()->create([
                 'doctor_id' => $doctor->id,
@@ -80,7 +77,7 @@ class BookingService
 
         $visitType = $this->activeVisitType($clinic, $data->visitTypeId);
         $startAt = $this->startAt($clinic, $data->date, $data->startTime);
-        $phone = $this->patients->parsePhone($clinic, $data->phone);
+        $phone = $data->phone === null ? null : $this->patients->parsePhone($clinic, $data->phone);
 
         return $this->claimingTheDay($clinic, $startAt, function () use (
             $clinic, $booking, $data, $visitType, $startAt, $phone
@@ -88,12 +85,7 @@ class BookingService
             // The booking must not collide with itself.
             $this->guardSlot($clinic, $startAt, $visitType, $data->force, $booking->id);
 
-            $patient = $this->patients->findOrCreate(
-                $clinic,
-                $data->patientName,
-                $phone,
-                $data->updatePatientName,
-            );
+            $patient = $this->patientFor($clinic, $data, $phone);
 
             $booking->update([
                 'patient_id' => $patient->id,
@@ -222,6 +214,30 @@ class BookingService
         }
 
         return $visitType;
+    }
+
+    private function patientFor(Clinic $clinic, BookingData $data, ?PhoneNumber $phone): Patient
+    {
+        if ($data->patientId !== null) {
+            return $this->patients->findById($clinic, $data->patientId);
+        }
+
+        if ($phone === null || $data->patientName === null) {
+            throw ApiException::make(
+                ApiErrorCode::PATIENT_NOT_FOUND,
+                __('patient.not_found'),
+                http: 404,
+            );
+        }
+
+        return $this->patients->findOrCreate(
+            $clinic,
+            (string) $data->patientName,
+            $phone,
+            $data->age,
+            $data->whatsappOptIn,
+            $data->updatePatientName,
+        );
     }
 
     /**

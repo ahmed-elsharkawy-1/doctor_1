@@ -208,16 +208,15 @@ class ReportEndpointsTest extends TestCase
     |--------------------------------------------------------------------------
     */
 
-    public function test_a_secretary_cannot_see_either_report(): void
+    public function test_the_clinic_account_can_see_reports(): void
     {
         Sanctum::actingAs($this->secretary);
 
         $this->getJson(route('api.v1.reports.revenue'))
-            ->assertStatus(403)
-            ->assertJsonPath('error.code', 'FORBIDDEN_ROLE');
+            ->assertOk();
 
         $this->getJson(route('api.v1.reports.retention'))
-            ->assertStatus(403);
+            ->assertOk();
     }
 
     public function test_reports_require_a_token(): void

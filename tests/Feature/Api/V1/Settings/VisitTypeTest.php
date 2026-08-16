@@ -50,22 +50,15 @@ class VisitTypeTest extends TestCase
         );
     }
 
-    public function test_an_owner_sees_prices_and_a_secretary_does_not(): void
+    public function test_the_clinic_account_sees_prices(): void
     {
         $this->clinic->visitTypes()->first()->update(['price' => 300]);
 
-        Sanctum::actingAs($this->owner);
-        $ownerItem = $this->getJson(route('api.v1.visit-types.index'))->json('data.items.0');
-
-        $this->assertSame('300.00', $ownerItem['price']['value']);
-        $this->assertFalse($ownerItem['needs_price']);
-
         Sanctum::actingAs($this->secretary);
-        $secretaryItem = $this->getJson(route('api.v1.visit-types.index'))->json('data.items.0');
+        $item = $this->getJson(route('api.v1.visit-types.index'))->json('data.items.0');
 
-        // Omitted entirely, not nulled.
-        $this->assertArrayNotHasKey('price', $secretaryItem);
-        $this->assertArrayNotHasKey('needs_price', $secretaryItem);
+        $this->assertSame('300.00', $item['price']['value']);
+        $this->assertFalse($item['needs_price']);
     }
 
     public function test_a_provisioned_type_is_flagged_as_needing_a_price(): void
@@ -98,7 +91,7 @@ class VisitTypeTest extends TestCase
         ]);
     }
 
-    public function test_a_secretary_can_create_a_type_but_cannot_set_its_price(): void
+    public function test_the_clinic_account_can_create_a_type_with_a_price(): void
     {
         Sanctum::actingAs($this->secretary);
 
@@ -108,15 +101,14 @@ class VisitTypeTest extends TestCase
             'price' => 250,
         ])->assertCreated();
 
-        // The submitted price is ignored, not honoured.
         $this->assertDatabaseHas('visit_types', [
             'clinic_id' => $this->clinic->id,
             'name' => 'سونار',
-            'price' => 0,
+            'price' => 250,
         ]);
     }
 
-    public function test_a_secretary_cannot_change_a_price_through_an_update(): void
+    public function test_the_clinic_account_can_change_a_price_through_an_update(): void
     {
         $visitType = $this->clinic->visitTypes()->first();
         $visitType->update(['price' => 300]);
@@ -132,7 +124,7 @@ class VisitTypeTest extends TestCase
         $visitType->refresh();
 
         $this->assertSame(25, $visitType->duration_minutes);
-        $this->assertEquals(300, (float) $visitType->price);
+        $this->assertEquals(1, (float) $visitType->price);
     }
 
     public function test_duplicate_active_names_are_rejected(): void

@@ -15,10 +15,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * "تأجيل مواعيد اليوم" — SPEC §4.5.
  *
- * Replaces the PRD's WhatsApp emergency broadcast, which is deferred to v2.
- * Instead of messaging, it cancels the affected bookings — freeing their slots
- * so they can actually be rebooked — and hands the secretary a call list to
- * work through.
+ * Cancels the affected bookings — freeing their slots so they can actually be
+ * rebooked — and hands the secretary a call list to work through. WhatsApp
+ * template broadcasts are handled by the messaging service.
  */
 class PostponeService
 {

@@ -62,12 +62,17 @@ class RevenueServiceTest extends TestCase
     {
         $this->completedVisit('2026-08-11', 300);
 
-        foreach ([CancelReason::NO_SHOW, CancelReason::PATIENT_CANCELLED, CancelReason::EMERGENCY, CancelReason::INCOMPLETE] as $reason) {
+        foreach ([CancelReason::PATIENT_CANCELLED, CancelReason::EMERGENCY, CancelReason::INCOMPLETE] as $reason) {
             Booking::factory()->forClinic($this->clinic)
                 ->at(Carbon::parse('2026-08-11 10:00', 'Africa/Cairo'))
                 ->cancelled($reason)
                 ->create(['price' => 999]);
         }
+
+        Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-08-11 11:00', 'Africa/Cairo'))
+            ->noShow()
+            ->create(['price' => 999]);
 
         $this->assertSame(
             300.0,

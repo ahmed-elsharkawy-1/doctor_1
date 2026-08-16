@@ -23,7 +23,7 @@ class PostponeTest extends TestCase
     {
         parent::setUp();
 
-        Carbon::setTestNow(Carbon::parse('2026-08-08 10:00:00', 'Africa/Cairo'));
+        Carbon::setTestNow(Carbon::parse('2026-08-08 08:00:00', 'Africa/Cairo'));
 
         $this->setUpClinic();
         $this->today = Carbon::parse('2026-08-08');
@@ -61,7 +61,7 @@ class PostponeTest extends TestCase
         $arrived = $this->booking('10:00', 'وصلت');
         $done = $this->booking('11:00', 'خلصت');
 
-        $this->postJson(route('api.v1.bookings.arrive', $arrived))->assertOk();
+        $this->postJson(route('api.v1.bookings.status', $arrived), ['to' => 'arrived'])->assertOk();
         $done->update(['status' => BookingStatus::DONE]);
 
         $items = $this->getJson(route('api.v1.postpone.candidates'))->assertOk()->json('data.items');
@@ -121,8 +121,8 @@ class PostponeTest extends TestCase
     {
         $inRoom = $this->booking('09:00', 'جوه');
 
-        $this->postJson(route('api.v1.bookings.arrive', $inRoom))->assertOk();
-        $this->postJson(route('api.v1.bookings.call-in', $inRoom))->assertOk();
+        $this->postJson(route('api.v1.bookings.status', $inRoom), ['to' => 'arrived'])->assertOk();
+        $this->postJson(route('api.v1.bookings.status', $inRoom), ['to' => 'with_doctor'])->assertOk();
 
         $this->postJson(route('api.v1.postpone'), [])
             ->assertStatus(400)
@@ -198,16 +198,16 @@ class PostponeTest extends TestCase
         $this->assertNotNull($booking->refresh()->rebooked_booking_id);
     }
 
-    public function test_the_queue_reports_how_many_still_need_rebooking(): void
+    public function test_the_rebooking_list_reports_who_still_needs_rebooking(): void
     {
         $this->booking('09:00');
         $this->booking('10:00');
 
         $this->postJson(route('api.v1.postpone'), [])->assertOk();
 
-        $this->getJson(route('api.v1.queue'))
+        $this->getJson(route('api.v1.rebooking-list'))
             ->assertOk()
-            ->assertJsonPath('data.awaiting_rebooking_count', 2);
+            ->assertJsonCount(2, 'data.items');
     }
 
     public function test_a_booking_that_is_not_awaiting_rebooking_cannot_be_linked(): void

@@ -197,7 +197,7 @@ class UpdateBookingTest extends TestCase
         $this->getJson(route('api.v1.bookings.show', $this->booking))
             ->assertOk()
             ->assertJsonPath('data.id', $this->booking->id)
-            ->assertJsonPath('data.patient.code', 'SAAH5521')
+            ->assertJsonPath('data.patient.code', $this->booking->patient->code)
             ->assertJsonPath('data.status.value', 'booked');
     }
 

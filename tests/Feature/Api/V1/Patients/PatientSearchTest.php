@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Api\V1\Patients;
 
-use App\Enums\CancelReason;
 use App\Models\Booking;
 use App\Models\Patient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -124,9 +123,10 @@ class PatientSearchTest extends TestCase
 
         Booking::factory()->forClinic($this->clinic)
             ->at(Carbon::parse('2026-08-02 09:00', 'Africa/Cairo'))
-            ->cancelled(CancelReason::NO_SHOW)->create(['patient_id' => $patient->id]);
+            ->noShow()->create(['patient_id' => $patient->id]);
 
         $this->assertSame(2, $this->search()['items'][0]['visits_count']);
+        $this->assertSame('2026-08-01', $this->search()['items'][0]['last_visit']['value']);
     }
 
     public function test_results_are_paginated(): void

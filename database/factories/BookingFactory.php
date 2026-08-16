@@ -113,4 +113,13 @@ class BookingFactory extends Factory
             'cancelled_at' => now(),
         ]);
     }
+
+    public function noShow(): static
+    {
+        return $this->state(fn () => [
+            'status' => BookingStatus::NO_SHOW,
+            'cancel_reason' => null,
+            'cancelled_at' => now(),
+        ]);
+    }
 }

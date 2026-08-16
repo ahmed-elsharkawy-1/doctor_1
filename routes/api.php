@@ -3,23 +3,24 @@
 use App\Http\Controllers\Api\V1\Auth\CurrentUserController;
 use App\Http\Controllers\Api\V1\Auth\LoginController;
 use App\Http\Controllers\Api\V1\Auth\LogoutController;
-use App\Http\Controllers\Api\V1\Booking\BookingDaysController;
+use App\Http\Controllers\Api\V1\Booking\BookingCalendarController;
 use App\Http\Controllers\Api\V1\Booking\CreateBookingController;
 use App\Http\Controllers\Api\V1\Booking\PatientLookupController;
 use App\Http\Controllers\Api\V1\Booking\ShowBookingController;
 use App\Http\Controllers\Api\V1\Booking\SlotsController;
 use App\Http\Controllers\Api\V1\Booking\UpdateBookingController;
+use App\Http\Controllers\Api\V1\HomeController;
+use App\Http\Controllers\Api\V1\Messaging\CreateBroadcastController;
+use App\Http\Controllers\Api\V1\Messaging\ListMessageTemplatesController;
+use App\Http\Controllers\Api\V1\Messaging\SendBookingMessageController;
 use App\Http\Controllers\Api\V1\Patients\SearchPatientsController;
 use App\Http\Controllers\Api\V1\Patients\ShowPatientController;
-use App\Http\Controllers\Api\V1\Queue\ArriveController;
-use App\Http\Controllers\Api\V1\Queue\CallInController;
 use App\Http\Controllers\Api\V1\Queue\CancelBookingController;
-use App\Http\Controllers\Api\V1\Queue\CompleteController;
 use App\Http\Controllers\Api\V1\Queue\MarkContactedController;
 use App\Http\Controllers\Api\V1\Queue\PostponeCandidatesController;
 use App\Http\Controllers\Api\V1\Queue\PostponeController;
-use App\Http\Controllers\Api\V1\Queue\QueueController;
 use App\Http\Controllers\Api\V1\Queue\RebookingListController;
+use App\Http\Controllers\Api\V1\Queue\UpdateBookingStatusController;
 use App\Http\Controllers\Api\V1\Reports\RetentionReportController;
 use App\Http\Controllers\Api\V1\Reports\RevenueReportController;
 use App\Http\Controllers\Api\V1\Settings\BootstrapController;
@@ -64,6 +65,7 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
 
     // One launch call: clinic config, visit types, the week, holidays.
     Route::get('bootstrap', BootstrapController::class)->name('api.v1.bootstrap');
+    Route::get('home', HomeController::class)->name('api.v1.home');
 
     /*
     | Settings — editable by the secretary and the owner alike. The price
@@ -108,7 +110,7 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
     */
     Route::middleware('ability:bookings.manage')->group(function (): void {
 
-        Route::get('booking-days', BookingDaysController::class)->name('api.v1.booking-days');
+        Route::get('bookings/calendar', BookingCalendarController::class)->name('api.v1.bookings.calendar');
         Route::get('slots', SlotsController::class)->name('api.v1.slots');
 
         // Recognises a returning patient and flags a visit-type mismatch
@@ -123,30 +125,34 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
             Route::put('{booking}', UpdateBookingController::class)
                 ->whereNumber('booking')
                 ->name('api.v1.bookings.update');
+            Route::post('{booking}/message', SendBookingMessageController::class)
+                ->whereNumber('booking')
+                ->name('api.v1.bookings.message');
         });
+
+        Route::get('message-templates', ListMessageTemplatesController::class)
+            ->name('api.v1.message-templates.index');
+        Route::post('broadcasts', CreateBroadcastController::class)->name('api.v1.broadcasts.store');
     });
 
     /*
-    | Today's queue — SPEC §4.2, §4.5.
+    | Booking status and rebooking worklists — SPEC §4.2, §4.5.
     |
-    | Ordered by arrival, not appointment time. Every transition is a separate
-    | endpoint because the app confirms each one with its own dialog.
+    | Calendar cards are ordered by appointment time. Every transition is sent
+    | explicitly because the app confirms each one with its own dialog.
     */
     Route::middleware('ability:queue.manage')->group(function (): void {
 
-        Route::get('queue', QueueController::class)->name('api.v1.queue');
-
         Route::prefix('bookings/{booking}')->whereNumber('booking')->group(function (): void {
-            Route::post('arrive', ArriveController::class)->name('api.v1.bookings.arrive');
-            Route::post('call-in', CallInController::class)->name('api.v1.bookings.call-in');
-            Route::post('complete', CompleteController::class)->name('api.v1.bookings.complete');
+            Route::post('status', UpdateBookingStatusController::class)->name('api.v1.bookings.status');
             Route::post('cancel', CancelBookingController::class)->name('api.v1.bookings.cancel');
             // "تم الاتصال" on the call list.
             Route::post('contacted', MarkContactedController::class)->name('api.v1.bookings.contacted');
         });
 
         // Postpone today: cancels the selected bookings, freeing their slots,
-        // and hands back the call list. Nothing is messaged — WhatsApp is v2.
+        // and hands back the call list. Broadcast messaging lives under the
+        // template endpoints above.
         Route::get('postpone/candidates', PostponeCandidatesController::class)
             ->name('api.v1.postpone.candidates');
         Route::post('postpone', PostponeController::class)->name('api.v1.postpone');

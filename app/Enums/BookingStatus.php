@@ -6,7 +6,7 @@ namespace App\Enums;
  * Booking lifecycle — see SPEC §5.4.
  *
  *   booked -> arrived -> with_doctor -> done
- *      \_________/ -> cancelled
+ *      \_________/ -> cancelled | no_show
  */
 enum BookingStatus: string
 {
@@ -15,6 +15,7 @@ enum BookingStatus: string
     case WITH_DOCTOR = 'with_doctor';
     case DONE = 'done';
     case CANCELLED = 'cancelled';
+    case NO_SHOW = 'no_show';
 
     public function label(): string
     {
@@ -30,22 +31,27 @@ enum BookingStatus: string
             self::BOOKED => self::ARRIVED,
             self::ARRIVED => self::WITH_DOCTOR,
             self::WITH_DOCTOR => self::DONE,
-            self::DONE, self::CANCELLED => null,
+            self::DONE, self::CANCELLED, self::NO_SHOW => null,
         };
     }
 
     public function canAdvanceTo(self $target): bool
     {
+        if ($target === self::NO_SHOW) {
+            return in_array($this, [self::BOOKED, self::ARRIVED], true);
+        }
+
         return $this->next() === $target;
     }
 
     /**
-     * Cancellation is allowed from `booked` and `arrived` only. A patient who
-     * is already with the doctor must be completed.
+     * Cancellation is allowed until the visit is completed. No-show remains a
+     * separate status transition and is not valid once the patient is with the
+     * doctor.
      */
     public function canBeCancelled(): bool
     {
-        return in_array($this, [self::BOOKED, self::ARRIVED], true);
+        return in_array($this, [self::BOOKED, self::ARRIVED, self::WITH_DOCTOR], true);
     }
 
     public function isEditable(): bool
@@ -55,11 +61,12 @@ enum BookingStatus: string
 
     public function isTerminal(): bool
     {
-        return in_array($this, [self::DONE, self::CANCELLED], true);
+        return in_array($this, [self::DONE, self::CANCELLED, self::NO_SHOW], true);
     }
 
     /**
-     * Statuses that occupy a time slot. Cancelled bookings free their slot.
+     * Statuses that occupy a time slot. Cancelled and no-show bookings free
+     * their slot.
      *
      * @return list<self>
      */
@@ -76,28 +83,6 @@ enum BookingStatus: string
     public static function pending(): array
     {
         return [self::BOOKED, self::ARRIVED];
-    }
-
-    /**
-     * Sort weight for the queue list — see SPEC §4.2. Lower sorts first.
-     */
-    public function queueWeight(): int
-    {
-        return match ($this) {
-            self::WITH_DOCTOR => 0,
-            self::ARRIVED => 1,
-            self::BOOKED => 2,
-            self::DONE => 3,
-            self::CANCELLED => 4,
-        };
-    }
-
-    /**
-     * Only patients physically in the clinic hold a queue position.
-     */
-    public function holdsQueuePosition(): bool
-    {
-        return in_array($this, [self::WITH_DOCTOR, self::ARRIVED], true);
     }
 
     /**

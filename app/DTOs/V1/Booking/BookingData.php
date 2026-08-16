@@ -8,8 +8,11 @@ namespace App\DTOs\V1\Booking;
 final class BookingData
 {
     public function __construct(
-        public readonly string $patientName,
-        public readonly string $phone,
+        public readonly ?int $patientId,
+        public readonly ?string $patientName,
+        public readonly ?string $phone,
+        public readonly ?int $age,
+        public readonly bool $whatsappOptIn,
         public readonly int $visitTypeId,
         public readonly string $date,
         public readonly string $startTime,
@@ -26,8 +29,11 @@ final class BookingData
     public static function fromArray(array $validated): self
     {
         return new self(
-            patientName: trim((string) $validated['patient_name']),
-            phone: (string) $validated['phone'],
+            patientId: isset($validated['patient_id']) ? (int) $validated['patient_id'] : null,
+            patientName: isset($validated['patient_name']) ? trim((string) $validated['patient_name']) : null,
+            phone: isset($validated['phone']) ? (string) $validated['phone'] : null,
+            age: isset($validated['age']) ? (int) $validated['age'] : null,
+            whatsappOptIn: (bool) ($validated['whatsapp_opt_in'] ?? true),
             visitTypeId: (int) $validated['visit_type_id'],
             date: (string) $validated['date'],
             startTime: substr((string) $validated['start_time'], 0, 5),

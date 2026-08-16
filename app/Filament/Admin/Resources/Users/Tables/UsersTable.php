@@ -32,8 +32,7 @@ class UsersTable
                     ->formatStateUsing(fn (UserRole $state): string => $state->label())
                     ->color(fn (UserRole $state): string => match ($state) {
                         UserRole::SUPER_ADMIN => 'danger',
-                        UserRole::OWNER => 'warning',
-                        UserRole::SECRETARY => 'info',
+                        UserRole::CLINIC => 'info',
                     }),
 
                 TextColumn::make('clinics.name')

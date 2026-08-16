@@ -2,7 +2,6 @@
 
 namespace App\Services\V1\Patients;
 
-use App\Actions\Patient\GeneratePatientCodeAction;
 use App\Enums\ApiErrorCode;
 use App\Enums\BookingStatus;
 use App\Exceptions\ApiException;
@@ -14,8 +13,6 @@ use InvalidArgumentException;
 
 class PatientService
 {
-    public function __construct(private readonly GeneratePatientCodeAction $generateCode) {}
-
     /**
      * Patients are matched on normalised phone alone, never on name — a typo
      * in the name would otherwise create a duplicate record and split the
@@ -24,6 +21,21 @@ class PatientService
     public function findByPhone(Clinic $clinic, PhoneNumber $phone): ?Patient
     {
         return $clinic->patients()->where('phone', $phone->e164)->first();
+    }
+
+    public function findById(Clinic $clinic, int $patientId): Patient
+    {
+        $patient = $clinic->patients()->whereKey($patientId)->first();
+
+        if ($patient === null) {
+            throw ApiException::make(
+                ApiErrorCode::PATIENT_NOT_FOUND,
+                __('patient.not_found'),
+                http: 404,
+            );
+        }
+
+        return $patient;
     }
 
     public function parsePhone(Clinic $clinic, string $input): PhoneNumber
@@ -48,15 +60,18 @@ class PatientService
         Clinic $clinic,
         string $name,
         PhoneNumber $phone,
+        ?int $age = null,
+        bool $whatsappOptIn = true,
         bool $updateName = false,
     ): Patient {
         $patient = $this->findByPhone($clinic, $phone);
 
         if ($patient === null) {
             return $clinic->patients()->create([
-                'code' => $this->generateCode->execute($clinic, $name, $phone),
                 'name' => trim($name),
                 'phone' => $phone->e164,
+                'age' => $age,
+                'whatsapp_opt_in_at' => $whatsappOptIn ? now() : null,
             ]);
         }
 

@@ -3,7 +3,6 @@
 namespace Tests\Feature\Api\V1\Queue;
 
 use App\Enums\BookingStatus;
-use App\Enums\CancelReason;
 use App\Enums\DayOfWeek;
 use App\Models\Booking;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,7 +21,7 @@ class StatusTransitionTest extends TestCase
     {
         parent::setUp();
 
-        Carbon::setTestNow(Carbon::parse('2026-08-08 10:00:00', 'Africa/Cairo'));
+        Carbon::setTestNow(Carbon::parse('2026-08-08 08:00:00', 'Africa/Cairo'));
 
         $this->setUpClinic();
 
@@ -38,6 +37,11 @@ class StatusTransitionTest extends TestCase
         Sanctum::actingAs($this->secretary);
     }
 
+    private function changeStatus(Booking $booking, string $to)
+    {
+        return $this->postJson(route('api.v1.bookings.status', $booking), ['to' => $to]);
+    }
+
     protected function tearDown(): void
     {
         Carbon::setTestNow();
@@ -47,17 +51,17 @@ class StatusTransitionTest extends TestCase
 
     public function test_the_happy_path_walks_the_whole_chain(): void
     {
-        $this->postJson(route('api.v1.bookings.arrive', $this->booking))
+        $this->changeStatus($this->booking, 'arrived')
             ->assertOk()
             ->assertJsonPath('data.status.value', 'arrived')
-            ->assertJsonPath('data.status.display', 'في الانتظار');
+            ->assertJsonPath('data.status.display', 'داخل العيادة');
 
-        $this->postJson(route('api.v1.bookings.call-in', $this->booking))
+        $this->changeStatus($this->booking, 'with_doctor')
             ->assertOk()
             ->assertJsonPath('data.status.value', 'with_doctor')
-            ->assertJsonPath('data.status.display', 'مع الدكتورة');
+            ->assertJsonPath('data.status.display', 'قيد الكشف');
 
-        $this->postJson(route('api.v1.bookings.complete', $this->booking))
+        $this->changeStatus($this->booking, 'done')
             ->assertOk()
             ->assertJsonPath('data.status.value', 'done');
 
@@ -67,13 +71,13 @@ class StatusTransitionTest extends TestCase
     public function test_each_step_stamps_its_own_timestamp(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-08-08 09:05:00', 'Africa/Cairo'));
-        $this->postJson(route('api.v1.bookings.arrive', $this->booking))->assertOk();
+        $this->changeStatus($this->booking, 'arrived')->assertOk();
 
         Carbon::setTestNow(Carbon::parse('2026-08-08 09:20:00', 'Africa/Cairo'));
-        $this->postJson(route('api.v1.bookings.call-in', $this->booking))->assertOk();
+        $this->changeStatus($this->booking, 'with_doctor')->assertOk();
 
         Carbon::setTestNow(Carbon::parse('2026-08-08 09:35:00', 'Africa/Cairo'));
-        $this->postJson(route('api.v1.bookings.complete', $this->booking))->assertOk();
+        $this->changeStatus($this->booking, 'done')->assertOk();
 
         $this->booking->refresh();
 
@@ -90,45 +94,45 @@ class StatusTransitionTest extends TestCase
     {
         Carbon::setTestNow(Carbon::parse('2026-08-08 10:42:00', 'Africa/Cairo'));
 
-        $this->postJson(route('api.v1.bookings.arrive', $this->booking))->assertOk();
+        $this->changeStatus($this->booking, 'arrived')->assertOk();
 
         $this->assertSame('10:42', $this->booking->refresh()->arrived_at->format('H:i'));
     }
 
     public function test_steps_cannot_be_skipped(): void
     {
-        $this->postJson(route('api.v1.bookings.call-in', $this->booking))
+        $this->changeStatus($this->booking, 'with_doctor')
             ->assertStatus(409)
             ->assertJsonPath('error.code', 'INVALID_STATUS_TRANSITION')
             ->assertJsonPath('error.details.from', 'booked')
             ->assertJsonPath('error.details.to', 'with_doctor')
             ->assertJsonPath('error.details.expected', 'arrived');
 
-        $this->postJson(route('api.v1.bookings.complete', $this->booking))
+        $this->changeStatus($this->booking, 'done')
             ->assertStatus(409)
             ->assertJsonPath('error.code', 'INVALID_STATUS_TRANSITION');
     }
 
     public function test_a_finished_booking_cannot_be_advanced_again(): void
     {
-        $this->postJson(route('api.v1.bookings.arrive', $this->booking))->assertOk();
-        $this->postJson(route('api.v1.bookings.call-in', $this->booking))->assertOk();
-        $this->postJson(route('api.v1.bookings.complete', $this->booking))->assertOk();
+        $this->changeStatus($this->booking, 'arrived')->assertOk();
+        $this->changeStatus($this->booking, 'with_doctor')->assertOk();
+        $this->changeStatus($this->booking, 'done')->assertOk();
 
-        $this->postJson(route('api.v1.bookings.arrive', $this->booking))
+        $this->changeStatus($this->booking, 'arrived')
             ->assertStatus(409)
             ->assertJsonPath('error.code', 'INVALID_STATUS_TRANSITION');
     }
 
     public function test_it_records_a_no_show(): void
     {
-        $this->postJson(route('api.v1.bookings.cancel', $this->booking), ['reason' => 'no_show'])
+        $this->changeStatus($this->booking, 'no_show')
             ->assertOk()
-            ->assertJsonPath('data.status.value', 'cancelled')
-            ->assertJsonPath('data.cancel_reason.value', 'no_show')
-            ->assertJsonPath('data.cancel_reason.display', 'لم تحضر');
+            ->assertJsonPath('data.status.value', 'no_show')
+            ->assertJsonPath('data.status.display', 'لم يحضر')
+            ->assertJsonPath('data.cancel_reason', null);
 
-        $this->assertSame(CancelReason::NO_SHOW, $this->booking->refresh()->cancel_reason);
+        $this->assertSame(BookingStatus::NO_SHOW, $this->booking->refresh()->status);
     }
 
     public function test_it_records_a_patient_cancellation(): void
@@ -144,26 +148,37 @@ class StatusTransitionTest extends TestCase
      */
     public function test_system_only_reasons_cannot_be_chosen(): void
     {
-        foreach (['emergency', 'incomplete'] as $reason) {
+        foreach (['no_show', 'emergency', 'incomplete'] as $reason) {
             $this->postJson(route('api.v1.bookings.cancel', $this->booking), ['reason' => $reason])
                 ->assertStatus(422)
                 ->assertJsonPath('error.code', 'VALIDATION_FAILED');
         }
     }
 
-    public function test_a_patient_with_the_doctor_cannot_be_cancelled(): void
+    public function test_a_patient_with_the_doctor_can_still_be_cancelled(): void
     {
-        $this->postJson(route('api.v1.bookings.arrive', $this->booking))->assertOk();
-        $this->postJson(route('api.v1.bookings.call-in', $this->booking))->assertOk();
+        $this->changeStatus($this->booking, 'arrived')->assertOk();
+        $this->changeStatus($this->booking, 'with_doctor')->assertOk();
 
-        $this->postJson(route('api.v1.bookings.cancel', $this->booking), ['reason' => 'no_show'])
-            ->assertStatus(400)
-            ->assertJsonPath('error.code', 'BOOKING_NOT_CANCELLABLE');
+        $this->postJson(route('api.v1.bookings.cancel', $this->booking), ['reason' => 'patient_cancelled'])
+            ->assertOk()
+            ->assertJsonPath('data.status.value', 'cancelled')
+            ->assertJsonPath('data.cancel_reason.value', 'patient_cancelled');
+    }
+
+    public function test_a_patient_with_the_doctor_cannot_be_marked_no_show(): void
+    {
+        $this->changeStatus($this->booking, 'arrived')->assertOk();
+        $this->changeStatus($this->booking, 'with_doctor')->assertOk();
+
+        $this->changeStatus($this->booking, 'no_show')
+            ->assertStatus(409)
+            ->assertJsonPath('error.code', 'INVALID_STATUS_TRANSITION');
     }
 
     public function test_an_arrived_patient_can_still_be_cancelled(): void
     {
-        $this->postJson(route('api.v1.bookings.arrive', $this->booking))->assertOk();
+        $this->changeStatus($this->booking, 'arrived')->assertOk();
 
         $this->postJson(route('api.v1.bookings.cancel', $this->booking), ['reason' => 'patient_cancelled'])
             ->assertOk();
@@ -183,7 +198,7 @@ class StatusTransitionTest extends TestCase
 
         $this->assertFalse(collect($taken)->firstWhere('start_time.value', '09:00')['is_available']);
 
-        $this->postJson(route('api.v1.bookings.cancel', $this->booking), ['reason' => 'no_show'])->assertOk();
+        $this->changeStatus($this->booking, 'no_show')->assertOk();
 
         $freed = $this->getJson(route('api.v1.slots', [
             'date' => '2026-08-08',
@@ -197,7 +212,7 @@ class StatusTransitionTest extends TestCase
     {
         $foreign = Booking::factory()->forClinic($this->otherClinic())->create();
 
-        $this->postJson(route('api.v1.bookings.arrive', $foreign))
+        $this->changeStatus($foreign, 'arrived')
             ->assertStatus(404)
             ->assertJsonPath('error.code', 'BOOKING_NOT_FOUND');
     }

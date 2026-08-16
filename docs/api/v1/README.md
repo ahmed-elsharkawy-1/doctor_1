@@ -20,7 +20,7 @@ that way on a public host.
 
 | File | What it is |
 |---|---|
-| [`openapi.yaml`](openapi.yaml) | **The source of truth.** OpenAPI 3.1, all 32 public endpoints. |
+| [`openapi.yaml`](openapi.yaml) | **The source of truth.** OpenAPI 3.1, all documented public endpoints. |
 | [`doctor1.postman_collection.json`](doctor1.postman_collection.json) | Generated. Import into Postman. |
 | [`doctor1.postman_environment.json`](doctor1.postman_environment.json) | Generated. `base_url`, `token`, `locale`. |
 
@@ -151,13 +151,12 @@ record belonging to another clinic returns `404`, never someone else's data.
 Rate limited to 10/minute. No token required.
 
 ```json
-{ "phone": "01001234567", "password": "secret", "device_name": "pixel-8" }
+{ "email": "clinic@example.test", "password": "secret", "device_name": "pixel-8" }
 ```
 
 `device_name` is optional and labels the token so one device can be signed out
 alone.
-`phone` is the clinic login phone; national, E.164 and spaced forms are
-normalised before matching.
+`email` is the shared clinic login email.
 
 **200**
 
@@ -174,7 +173,7 @@ normalised before matching.
 
 | Code | HTTP | When |
 |---|---|---|
-| `INVALID_CREDENTIALS` | 401 | Wrong phone **or** wrong password — deliberately indistinguishable |
+| `INVALID_CREDENTIALS` | 401 | Wrong email **or** wrong password — deliberately indistinguishable |
 | `ACCOUNT_INACTIVE` | 403 | Account deactivated |
 | `FORBIDDEN_ROLE` | 403 | A super-admin account; they use the web panel, not the app |
 | `VALIDATION_FAILED` | 422 | |
@@ -193,8 +192,8 @@ Drives what the app shows. Present values:
 | `queue.manage` | Advance queue status |
 | `patients.view` | Search and history |
 | `settings.manage` | Settings screen |
-| `prices.view` | **Owner only** — see and set prices |
-| `reports.view` | **Owner only** — revenue and retention (§13) |
+| `prices.view` | See and set prices |
+| `reports.view` | Revenue and retention (§13) |
 
 ---
 
@@ -395,12 +394,13 @@ Returns the full clinic object (same shape as `bootstrap.clinic`).
 
 ## 8. Booking
 
-### `GET /booking-days` — the day strip
+### `GET /bookings/calendar` — bookings calendar
 
-One entry per day of the rolling window, starting today.
+Dense day strip plus sparse date-keyed booking cards. `status=` filters cards only; counts always describe the whole day.
 
 ```json
 {
+  "range": { "from": "2026-08-08", "to": "2026-08-14" },
   "days": [
     {
       "date": { "value": "2026-08-08", "display": "8 أغسطس 2026" },
@@ -409,10 +409,10 @@ One entry per day of the rolling window, starting today.
       "is_open": true,
       "is_holiday": false,
       "is_today": true,
-      "bookings_count": 4,
-      "pending_count": 2
+      "counts": { "total": 4, "booked": 2, "arrived": 0, "with_doctor": 0, "done": 1, "cancelled": 1, "no_show": 0 }
     }
-  ]
+  ],
+  "bookings": { "2026-08-08": [{ "...": "booking card" }] }
 }
 ```
 
@@ -584,68 +584,7 @@ Changing the phone moves the booking to a different patient.
 
 ## 9. Today's queue
 
-### `GET /queue?date=&include_cancelled=`
-
-`date` defaults to today in the clinic's timezone. Cancelled bookings are
-excluded unless `include_cancelled=1` (the "الملغية" toggle).
-
-```json
-{
-  "date": { "value": "2026-08-08", "display": "8 أغسطس 2026" },
-  "is_open": true,
-  "is_holiday": false,
-  "counts": { "pending": 2, "done": 1, "cancelled": 0, "total": 3 },
-  "awaiting_rebooking_count": 0,
-  "items": [
-    {
-      "id": 88,
-      "status": { "value": "with_doctor", "display": "مع الدكتورة" },
-      "queue_position": 1,
-      "available_actions": ["complete"],
-      "arrived_at": "09:05",
-      "contacted_at": null,
-      "patient": { "id": 12, "code": "SAAH5521", "name": "سارة أحمد",
-                   "phone": { "value": "+201012225521", "display": "01012225521" } },
-      "visit_type": { "id": 3, "name": "كشف", "duration_minutes": 20 },
-      "date": { "value": "2026-08-08", "display": "8 أغسطس 2026" },
-      "start_time": { "value": "09:00", "display": "9:00 ص" },
-      "end_time": { "value": "09:20", "display": "9:20 ص" },
-      "is_overbooked": false,
-      "notes": null
-    }
-  ]
-}
-```
-
-### Ordering — by arrival, not appointment time
-
-The list is already sorted. Render it in the order given:
-
-1. `with_doctor`
-2. `arrived`, earliest check-in first
-3. `booked`, by appointment time
-4. `done`
-5. `cancelled` (only when requested)
-
-**The list re-sorts during the day** — a patient who checks in moves above
-people booked earlier, and someone booked at 09:00 who arrives at 10:30 goes
-behind everyone already waiting. This is intended; tell the secretary so it
-isn't reported as a bug.
-
-### `queue_position`
-
-Only patients physically in the clinic hold a number — `arrived` and
-`with_doctor`. For everyone else it is `null`:
-
-| Status | Badge to show |
-|---|---|
-| `with_doctor`, `arrived` | `queue_position` |
-| `booked` | The appointment time — no number |
-| `done` | ✓ |
-| `cancelled` | ✗ |
-
-Positions renumber as the day moves; re-read them from every response rather
-than caching.
+Cards are ordered by appointment time. There is no `queue_position`; `arrived_at` is still returned for future wait-time reporting.
 
 ### `available_actions`
 
@@ -654,34 +593,35 @@ live in one place:
 
 | Action | Endpoint | Label |
 |---|---|---|
-| `arrive` | `POST /bookings/{id}/arrive` | تسجيل الوصول |
-| `call_in` | `POST /bookings/{id}/call-in` | استدعاء للداخل |
-| `complete` | `POST /bookings/{id}/complete` | إنهاء الزيارة |
 | `call` | `tel:` link | (phone icon) |
+| `whatsapp` | `POST /bookings/{id}/message` | واتساب |
 | `edit` | `PUT /bookings/{id}` | تعديل |
-| `no_show` | `POST /bookings/{id}/cancel` `{"reason":"no_show"}` | لم تحضر |
+| `no_show` | `POST /bookings/{id}/status` `{"to":"no_show"}` | لم تحضر |
 | `cancel` | `POST /bookings/{id}/cancel` `{"reason":"patient_cancelled"}` | إلغاء |
+
+`no_show` appears only for `booked` and `arrived`. `cancel` appears for
+`booked`, `arrived`, and `with_doctor`; it disappears once the booking is
+`done`, `cancelled`, or `no_show`.
 
 **Confirm every one of these with a dialog before calling it** — that is a rule
 across the whole app, not a per-screen choice.
 
 ### Transitions
 
-Each returns the updated card (same shape as a queue item).
+Each returns the updated booking card.
 
 ```
-booked --arrive--> arrived --call_in--> with_doctor --complete--> done
+booked --arrived--> arrived --with_doctor--> with_doctor --done--> done
+booked/arrived --no_show--> no_show
 ```
 
 | Code | HTTP | When |
 |---|---|---|
 | `INVALID_STATUS_TRANSITION` | 409 | Skipping a step, or advancing a finished booking. `details.from`, `details.to`, `details.expected` |
-| `BOOKING_NOT_CANCELLABLE` | 400 | Cancelling a patient who is already with the doctor — complete her instead |
+| `BOOKING_NOT_CANCELLABLE` | 400 | Cancelling a booking that is already `done`, `cancelled`, or `no_show` |
 | `BOOKING_NOT_FOUND` | 404 | |
 
-`POST /bookings/{id}/cancel` takes `reason`: **`no_show`** or
-**`patient_cancelled`** only. `emergency` and `incomplete` are system-set and
-rejected with `VALIDATION_FAILED`.
+`POST /bookings/{id}/status` takes required `to`. `POST /bookings/{id}/cancel` takes `reason: patient_cancelled` only. `emergency` and `incomplete` are system-set and rejected with `VALIDATION_FAILED`. A booking can be cancelled until it is completed.
 
 Cancelling **frees the slot immediately**, whatever the reason.
 
@@ -689,8 +629,8 @@ Cancelling **frees the slot immediately**, whatever the reason.
 
 ## 10. Postpone & the call list
 
-Replaces the PRD's WhatsApp emergency broadcast, which is deferred to v2.
-**Nothing is messaged** — the bookings are cancelled and you get a worklist.
+Postpone cancels bookings and gives the secretary a worklist. WhatsApp template
+broadcasts are handled separately through `/broadcasts`.
 
 ### `GET /postpone/candidates?date=`
 
@@ -840,9 +780,9 @@ The patient's page: who she is, a summary, and every visit newest first.
 
 ---
 
-## 13. Reports *(owner only)*
+## 13. Reports
 
-Both require `reports.view`; a secretary gets `403 FORBIDDEN_ROLE`.
+Both require `reports.view`, which the clinic account has.
 
 There is no web dashboard for a clinic — the doctor runs everything from the
 app. The admin panel belongs to the platform operator alone.

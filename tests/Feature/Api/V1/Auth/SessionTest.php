@@ -30,7 +30,7 @@ class SessionTest extends TestCase
             ->assertJsonMissingPath('data.token');
     }
 
-    public function test_an_owner_receives_the_price_and_report_abilities_a_secretary_does_not(): void
+    public function test_a_clinic_account_receives_price_and_report_abilities(): void
     {
         $clinic = Clinic::factory()->create();
         $owner = User::factory()->owner()->inClinic($clinic)->create();
@@ -42,13 +42,6 @@ class SessionTest extends TestCase
         $this->assertContains('prices.view', $abilities);
         $this->assertContains('reports.view', $abilities);
 
-        $secretary = User::factory()->secretary()->inClinic($clinic)->create();
-        Sanctum::actingAs($secretary);
-
-        $secretaryAbilities = $this->getJson(route('api.v1.auth.me'))->json('data.abilities');
-
-        $this->assertNotContains('prices.view', $secretaryAbilities);
-        $this->assertNotContains('reports.view', $secretaryAbilities);
     }
 
     public function test_me_requires_a_token(): void
@@ -120,7 +113,7 @@ class SessionTest extends TestCase
             ->getJson(route('api.v1.auth.me'))
             ->json('data.user.role.display');
 
-        $this->assertSame('سكرتيرة', $arabic);
-        $this->assertSame('Secretary', $english);
+        $this->assertSame('العيادة', $arabic);
+        $this->assertSame('Clinic', $english);
     }
 }

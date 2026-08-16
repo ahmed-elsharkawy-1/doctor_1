@@ -42,60 +42,38 @@ class BookingDaysTest extends TestCase
         parent::tearDown();
     }
 
-    private function days(): array
+    private function calendar(array $query = []): array
     {
-        return $this->getJson(route('api.v1.booking-days'))->assertOk()->json('data.days');
+        return $this->getJson(route('api.v1.bookings.calendar', $query))->assertOk()->json('data');
     }
 
-    public function test_it_returns_one_entry_per_day_of_the_window(): void
+    public function test_it_returns_dense_days_for_the_requested_range(): void
     {
-        $days = $this->days();
+        $data = $this->calendar(['from' => '2026-08-08', 'to' => '2026-08-10']);
 
-        $this->assertCount($this->clinic->booking_window_days, $days);
-        $this->assertSame($this->saturday->toDateString(), $days[0]['date']['value']);
-        $this->assertTrue($days[0]['is_today']);
+        $this->assertSame(['from' => '2026-08-08', 'to' => '2026-08-10'], $data['range']);
+        $this->assertCount(3, $data['days']);
+        $this->assertSame($this->saturday->toDateString(), $data['days'][0]['date']['value']);
+        $this->assertTrue($data['days'][0]['is_today']);
     }
 
-    public function test_the_window_follows_the_clinic_setting(): void
-    {
-        $this->clinic->update(['booking_window_days' => 3]);
-
-        $this->assertCount(3, $this->days());
-    }
-
-    public function test_it_marks_which_days_the_clinic_works(): void
-    {
-        $days = collect($this->days())->keyBy(fn ($day) => $day['date']['value']);
-
-        $this->assertTrue($days['2026-08-08']['is_open']);   // Saturday
-        $this->assertTrue($days['2026-08-09']['is_open']);   // Sunday
-        $this->assertTrue($days['2026-08-10']['is_open']);   // Monday
-        $this->assertFalse($days['2026-08-11']['is_open']);  // Tuesday
-    }
-
-    public function test_a_holiday_closes_an_otherwise_open_day(): void
+    public function test_it_marks_open_days_and_holidays(): void
     {
         ClinicHoliday::factory()->create([
             'clinic_id' => $this->clinic->id,
             'date' => '2026-08-09',
         ]);
 
-        $days = collect($this->days())->keyBy(fn ($day) => $day['date']['value']);
+        $days = collect($this->calendar(['from' => '2026-08-08', 'to' => '2026-08-11'])['days'])
+            ->keyBy(fn ($day) => $day['date']['value']);
 
+        $this->assertTrue($days['2026-08-08']['is_open']);
         $this->assertFalse($days['2026-08-09']['is_open']);
         $this->assertTrue($days['2026-08-09']['is_holiday']);
+        $this->assertFalse($days['2026-08-11']['is_open']);
     }
 
-    public function test_it_labels_days_saturday_first(): void
-    {
-        $days = $this->days();
-
-        $this->assertSame(0, $days[0]['day_of_week']['value']);
-        $this->assertSame('السبت', $days[0]['day_of_week']['display']);
-        $this->assertSame(8, $days[0]['day_number']);
-    }
-
-    public function test_it_counts_bookings_and_those_not_yet_finished(): void
+    public function test_counts_include_all_statuses_while_cards_can_be_filtered(): void
     {
         Booking::factory()->count(2)->forClinic($this->clinic)
             ->at($this->saturday->copy()->setTime(9, 0))->create();
@@ -106,12 +84,39 @@ class BookingDaysTest extends TestCase
         Booking::factory()->forClinic($this->clinic)
             ->at($this->saturday->copy()->setTime(11, 0))->cancelled()->create();
 
-        $today = collect($this->days())->firstWhere('date.value', '2026-08-08');
+        Booking::factory()->forClinic($this->clinic)
+            ->at($this->saturday->copy()->setTime(11, 30))->noShow()->create();
 
-        // Cancelled bookings are not counted at all.
-        $this->assertSame(3, $today['bookings_count']);
-        // "X لسه ماخلصوش" — booked and arrived only.
-        $this->assertSame(2, $today['pending_count']);
+        $data = $this->calendar([
+            'from' => '2026-08-08',
+            'to' => '2026-08-08',
+            'status' => 'booked',
+        ]);
+
+        $counts = $data['days'][0]['counts'];
+
+        $this->assertSame(5, $counts['total']);
+        $this->assertSame(2, $counts['booked']);
+        $this->assertSame(1, $counts['done']);
+        $this->assertSame(1, $counts['cancelled']);
+        $this->assertSame(1, $counts['no_show']);
+        $this->assertCount(2, $data['bookings']['2026-08-08']);
+    }
+
+    public function test_cards_are_sparse_date_keyed_and_ordered_by_appointment_time(): void
+    {
+        Booking::factory()->forClinic($this->clinic)
+            ->at($this->saturday->copy()->setTime(10, 0))->create();
+
+        Booking::factory()->forClinic($this->clinic)
+            ->at($this->saturday->copy()->setTime(9, 0))->create();
+
+        $bookings = $this->calendar(['from' => '2026-08-08', 'to' => '2026-08-10'])['bookings'];
+
+        $this->assertSame(['2026-08-08'], array_keys($bookings));
+        $this->assertSame('09:00', $bookings['2026-08-08'][0]['start_time']['value']);
+        $this->assertArrayNotHasKey('queue_position', $bookings['2026-08-08'][0]);
+        $this->assertSame('arrived', $bookings['2026-08-08'][0]['next_status']['value']);
     }
 
     public function test_another_clinics_bookings_are_not_counted(): void
@@ -119,8 +124,9 @@ class BookingDaysTest extends TestCase
         Booking::factory()->forClinic($this->otherClinic())
             ->at($this->saturday->copy()->setTime(9, 0))->create();
 
-        $today = collect($this->days())->firstWhere('date.value', '2026-08-08');
+        $data = $this->calendar(['from' => '2026-08-08', 'to' => '2026-08-08']);
 
-        $this->assertSame(0, $today['bookings_count']);
+        $this->assertSame(0, $data['days'][0]['counts']['total']);
+        $this->assertSame([], $data['bookings']);
     }
 }

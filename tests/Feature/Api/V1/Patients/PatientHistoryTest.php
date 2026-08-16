@@ -102,7 +102,7 @@ class PatientHistoryTest extends TestCase
 
         Booking::factory()->forClinic($this->clinic)
             ->at(Carbon::parse('2026-06-01 09:00', 'Africa/Cairo'))
-            ->cancelled(CancelReason::NO_SHOW)
+            ->noShow()
             ->create(['patient_id' => $this->patient->id]);
 
         Booking::factory()->forClinic($this->clinic)
@@ -114,7 +114,7 @@ class PatientHistoryTest extends TestCase
 
         $this->assertSame(2, $summary['visits_count']);
         $this->assertSame(1, $summary['no_show_count']);
-        $this->assertSame(2, $summary['cancelled_count']);
+        $this->assertSame(1, $summary['cancelled_count']);
         $this->assertSame('2026-05-10', $summary['first_visit']['value']);
         $this->assertSame('2026-07-02', $summary['last_visit']['value']);
     }
@@ -122,18 +122,17 @@ class PatientHistoryTest extends TestCase
     /**
      * A pattern of no-shows is exactly what the secretary wants to see.
      */
-    public function test_cancellations_appear_in_the_history_with_their_reason(): void
+    public function test_no_shows_appear_in_the_history_as_their_own_status(): void
     {
         Booking::factory()->forClinic($this->clinic)
             ->at(Carbon::parse('2026-06-01 09:00', 'Africa/Cairo'))
-            ->cancelled(CancelReason::NO_SHOW)
+            ->noShow()
             ->create(['patient_id' => $this->patient->id]);
 
         $visit = $this->file()['visits'][0];
 
-        $this->assertSame('cancelled', $visit['status']['value']);
-        $this->assertSame('no_show', $visit['cancel_reason']['value']);
-        $this->assertSame('لم تحضر', $visit['cancel_reason']['display']);
+        $this->assertSame('no_show', $visit['status']['value']);
+        $this->assertNull($visit['cancel_reason']);
     }
 
     public function test_a_patient_with_no_visits_yet(): void
@@ -160,13 +159,11 @@ class PatientHistoryTest extends TestCase
         $this->assertSame(20, $this->file()['visits'][0]['visit_type']['duration_minutes']);
     }
 
-    public function test_a_secretary_sees_no_prices_in_the_history(): void
+    public function test_the_clinic_account_sees_prices_in_the_history(): void
     {
         $this->visit('2026-05-10');
 
-        foreach ($this->file()['visits'] as $visit) {
-            $this->assertArrayNotHasKey('price', $visit);
-        }
+        $this->assertArrayHasKey('price', $this->file()['visits'][0]);
     }
 
     public function test_the_owner_sees_prices_in_the_history(): void

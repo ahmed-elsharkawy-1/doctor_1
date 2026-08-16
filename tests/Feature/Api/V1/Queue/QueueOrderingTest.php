@@ -21,7 +21,7 @@ class QueueOrderingTest extends TestCase
     {
         parent::setUp();
 
-        Carbon::setTestNow(Carbon::parse('2026-08-08 10:00:00', 'Africa/Cairo'));
+        Carbon::setTestNow(Carbon::parse('2026-08-08 08:00:00', 'Africa/Cairo'));
 
         $this->setUpClinic();
         $this->today = Carbon::parse('2026-08-08');
@@ -53,217 +53,88 @@ class QueueOrderingTest extends TestCase
             ->create(['patient_id' => $patient->id]);
     }
 
-    private function queue(): array
+    private function calendar(): array
     {
-        return $this->getJson(route('api.v1.queue'))->assertOk()->json('data');
+        return $this->getJson(route('api.v1.bookings.calendar', [
+            'from' => '2026-08-08',
+            'to' => '2026-08-08',
+        ]))->assertOk()->json('data');
     }
 
-    private function names(array $data): array
+    public function test_cards_sort_by_appointment_time_not_arrival_time(): void
     {
-        return array_column(array_column($data['items'], 'patient'), 'name');
-    }
-
-    public function test_it_defaults_to_today(): void
-    {
-        $this->booking('09:00', 'سارة');
-
-        $data = $this->queue();
-
-        $this->assertSame('2026-08-08', $data['date']['value']);
-        $this->assertTrue($data['is_open']);
-        $this->assertCount(1, $data['items']);
-    }
-
-    /**
-     * Before anyone arrives, the list is simply the day's appointments in time
-     * order.
-     */
-    public function test_nobody_arrived_yet_sorts_by_appointment_time(): void
-    {
-        $this->booking('10:00', 'ب');
-        $this->booking('09:00', 'أ');
-        $this->booking('11:00', 'ج');
-
-        $this->assertSame(['أ', 'ب', 'ج'], $this->names($this->queue()));
-    }
-
-    /**
-     * The whole point of SPEC §4.2 — checking in jumps you ahead of people
-     * booked earlier.
-     */
-    public function test_arriving_moves_a_patient_above_those_who_have_not(): void
-    {
-        $early = $this->booking('09:00', 'أ');
         $late = $this->booking('11:00', 'ج');
+        $this->booking('09:00', 'أ');
 
-        $this->postJson(route('api.v1.bookings.arrive', $late))->assertOk();
+        Carbon::setTestNow(Carbon::parse('2026-08-08 09:05:00', 'Africa/Cairo'));
+        $this->postJson(route('api.v1.bookings.status', $late), ['to' => 'arrived'])->assertOk();
 
-        $this->assertSame(['ج', 'أ'], $this->names($this->queue()));
-        $this->assertSame($early->id, $early->id);
+        $names = array_column(array_column($this->calendar()['bookings']['2026-08-08'], 'patient'), 'name');
+
+        $this->assertSame(['أ', 'ج'], $names);
     }
 
-    public function test_arrived_patients_sort_by_when_they_actually_arrived(): void
-    {
-        $first = $this->booking('11:00', 'ج');
-        $second = $this->booking('09:00', 'أ');
-
-        Carbon::setTestNow(Carbon::parse('2026-08-08 10:00:00', 'Africa/Cairo'));
-        $this->postJson(route('api.v1.bookings.arrive', $first))->assertOk();
-
-        Carbon::setTestNow(Carbon::parse('2026-08-08 10:05:00', 'Africa/Cairo'));
-        $this->postJson(route('api.v1.bookings.arrive', $second))->assertOk();
-
-        $this->assertSame(['ج', 'أ'], $this->names($this->queue()));
-    }
-
-    /**
-     * A patient booked at 09:00 who turns up at 10:30 goes behind everyone
-     * already waiting.
-     */
-    public function test_a_late_patient_goes_behind_those_already_waiting(): void
-    {
-        $late = $this->booking('09:00', 'المتأخرة');
-        $onTime = $this->booking('10:00', 'الحاضرة');
-
-        Carbon::setTestNow(Carbon::parse('2026-08-08 10:00:00', 'Africa/Cairo'));
-        $this->postJson(route('api.v1.bookings.arrive', $onTime))->assertOk();
-
-        Carbon::setTestNow(Carbon::parse('2026-08-08 10:30:00', 'Africa/Cairo'));
-        $this->postJson(route('api.v1.bookings.arrive', $late))->assertOk();
-
-        $this->assertSame(['الحاضرة', 'المتأخرة'], $this->names($this->queue()));
-    }
-
-    public function test_the_patient_with_the_doctor_is_always_first(): void
-    {
-        $inRoom = $this->booking('11:00', 'جوه');
-        $waiting = $this->booking('09:00', 'مستنية');
-
-        $this->postJson(route('api.v1.bookings.arrive', $waiting))->assertOk();
-        $this->postJson(route('api.v1.bookings.arrive', $inRoom))->assertOk();
-        $this->postJson(route('api.v1.bookings.call-in', $inRoom))->assertOk();
-
-        $this->assertSame(['جوه', 'مستنية'], $this->names($this->queue()));
-    }
-
-    public function test_finished_patients_drop_to_the_bottom(): void
-    {
-        $done = $this->booking('09:00', 'خلصت');
-        $this->booking('10:00', 'لسه');
-
-        $this->postJson(route('api.v1.bookings.arrive', $done))->assertOk();
-        $this->postJson(route('api.v1.bookings.call-in', $done))->assertOk();
-        $this->postJson(route('api.v1.bookings.complete', $done))->assertOk();
-
-        $this->assertSame(['لسه', 'خلصت'], $this->names($this->queue()));
-    }
-
-    /**
-     * Only patients physically in the clinic hold a number.
-     */
-    public function test_positions_are_numbered_among_those_present_only(): void
-    {
-        $inRoom = $this->booking('09:00', 'جوه');
-        $waiting = $this->booking('10:00', 'مستنية');
-        $this->booking('11:00', 'لسه ماجاتش');
-
-        $this->postJson(route('api.v1.bookings.arrive', $inRoom))->assertOk();
-        $this->postJson(route('api.v1.bookings.call-in', $inRoom))->assertOk();
-        $this->postJson(route('api.v1.bookings.arrive', $waiting))->assertOk();
-
-        $items = collect($this->queue()['items'])->keyBy(fn ($item) => $item['patient']['name']);
-
-        $this->assertSame(1, $items['جوه']['queue_position']);
-        $this->assertSame(2, $items['مستنية']['queue_position']);
-        $this->assertNull($items['لسه ماجاتش']['queue_position']);
-    }
-
-    public function test_positions_renumber_as_the_day_moves(): void
-    {
-        $first = $this->booking('09:00', 'أ');
-        $second = $this->booking('10:00', 'ب');
-
-        $this->postJson(route('api.v1.bookings.arrive', $first))->assertOk();
-        $this->postJson(route('api.v1.bookings.arrive', $second))->assertOk();
-
-        $before = collect($this->queue()['items'])->keyBy(fn ($i) => $i['patient']['name']);
-        $this->assertSame(2, $before['ب']['queue_position']);
-
-        $this->postJson(route('api.v1.bookings.call-in', $first))->assertOk();
-        $this->postJson(route('api.v1.bookings.complete', $first))->assertOk();
-
-        $after = collect($this->queue()['items'])->keyBy(fn ($i) => $i['patient']['name']);
-        $this->assertSame(1, $after['ب']['queue_position']);
-        $this->assertNull($after['أ']['queue_position']);
-    }
-
-    public function test_it_counts_who_is_left(): void
-    {
-        $done = $this->booking('09:00', 'خلصت');
-        $this->booking('10:00', 'لسه');
-        $this->booking('11:00', 'كمان واحدة');
-
-        $this->postJson(route('api.v1.bookings.arrive', $done))->assertOk();
-        $this->postJson(route('api.v1.bookings.call-in', $done))->assertOk();
-        $this->postJson(route('api.v1.bookings.complete', $done))->assertOk();
-
-        $counts = $this->queue()['counts'];
-
-        $this->assertSame(2, $counts['pending']);
-        $this->assertSame(1, $counts['done']);
-        $this->assertSame(3, $counts['total']);
-    }
-
-    public function test_cancelled_bookings_are_hidden_unless_asked_for(): void
-    {
-        $cancelled = $this->booking('09:00', 'ملغية');
-        $this->booking('10:00', 'شغالة');
-
-        $this->postJson(route('api.v1.bookings.cancel', $cancelled), ['reason' => 'no_show'])->assertOk();
-
-        $this->assertSame(['شغالة'], $this->names($this->queue()));
-
-        $withCancelled = $this->getJson(route('api.v1.queue', ['include_cancelled' => 1]))->json('data');
-
-        $this->assertCount(2, $withCancelled['items']);
-        $this->assertSame('ملغية', $this->names($withCancelled)[1]);
-    }
-
-    public function test_each_card_carries_the_actions_the_app_may_offer(): void
+    public function test_cards_have_next_status_and_no_queue_position(): void
     {
         $booking = $this->booking('09:00', 'سارة');
 
-        $items = collect($this->queue()['items'])->keyBy('id');
-        $this->assertSame(['arrive', 'call', 'edit', 'no_show', 'cancel'], $items[$booking->id]['available_actions']);
+        $card = collect($this->calendar()['bookings']['2026-08-08'])->firstWhere('id', $booking->id);
 
-        $this->postJson(route('api.v1.bookings.arrive', $booking))->assertOk();
-        $items = collect($this->queue()['items'])->keyBy('id');
-        $this->assertSame(['call_in', 'edit', 'no_show', 'cancel'], $items[$booking->id]['available_actions']);
-
-        $this->postJson(route('api.v1.bookings.call-in', $booking))->assertOk();
-        $items = collect($this->queue()['items'])->keyBy('id');
-        $this->assertSame(['complete'], $items[$booking->id]['available_actions']);
-
-        $this->postJson(route('api.v1.bookings.complete', $booking))->assertOk();
-        $items = collect($this->queue()['items'])->keyBy('id');
-        $this->assertSame([], $items[$booking->id]['available_actions']);
+        $this->assertSame('arrived', $card['next_status']['value']);
+        $this->assertSame(['call', 'whatsapp', 'edit', 'no_show', 'cancel'], $card['available_actions']);
+        $this->assertArrayNotHasKey('queue_position', $card);
     }
 
-    public function test_a_closed_day_is_reported_as_such(): void
+    public function test_with_doctor_cards_can_be_cancelled_but_not_marked_no_show(): void
     {
-        $sunday = $this->today->copy()->addDay()->toDateString();
+        $booking = $this->booking('09:00', 'سارة');
 
-        $data = $this->getJson(route('api.v1.queue', ['date' => $sunday]))->assertOk()->json('data');
+        $this->postJson(route('api.v1.bookings.status', $booking), ['to' => 'arrived'])->assertOk();
+        $this->postJson(route('api.v1.bookings.status', $booking), ['to' => 'with_doctor'])->assertOk();
 
-        $this->assertFalse($data['is_open']);
-        $this->assertSame([], $data['items']);
+        $card = collect($this->calendar()['bookings']['2026-08-08'])->firstWhere('id', $booking->id);
+
+        $this->assertSame(['whatsapp', 'cancel'], $card['available_actions']);
     }
 
-    public function test_another_clinics_queue_is_never_visible(): void
+    public function test_counts_include_finished_cancelled_and_no_show_bookings(): void
+    {
+        $done = $this->booking('09:00', 'خلصت');
+        $this->booking('10:00', 'لسه');
+        $this->booking('11:00', 'ملغية')->update(['status' => 'cancelled']);
+        $this->booking('12:00', 'لم يحضر')->update(['status' => 'no_show']);
+
+        $this->postJson(route('api.v1.bookings.status', $done), ['to' => 'arrived'])->assertOk();
+        $this->postJson(route('api.v1.bookings.status', $done), ['to' => 'with_doctor'])->assertOk();
+        $this->postJson(route('api.v1.bookings.status', $done), ['to' => 'done'])->assertOk();
+
+        $counts = $this->calendar()['days'][0]['counts'];
+
+        $this->assertSame(4, $counts['total']);
+        $this->assertSame(1, $counts['booked']);
+        $this->assertSame(1, $counts['done']);
+        $this->assertSame(1, $counts['cancelled']);
+        $this->assertSame(1, $counts['no_show']);
+    }
+
+    public function test_home_returns_today_counts_and_upcoming_cards(): void
+    {
+        $this->booking('09:00', 'أ');
+        $this->booking('10:00', 'ب');
+
+        Carbon::setTestNow(Carbon::parse('2026-08-08 09:30:00', 'Africa/Cairo'));
+
+        $data = $this->getJson(route('api.v1.home'))->assertOk()->json('data');
+
+        $this->assertSame(2, $data['today']['counts']['total']);
+        $this->assertSame(['ب'], array_column(array_column($data['upcoming'], 'patient'), 'name'));
+    }
+
+    public function test_another_clinics_bookings_are_never_visible(): void
     {
         Booking::factory()->forClinic($this->otherClinic())
             ->at($this->today->copy()->setTime(9, 0))->create();
 
-        $this->assertCount(0, $this->queue()['items']);
+        $this->assertSame([], $this->calendar()['bookings']);
     }
 }

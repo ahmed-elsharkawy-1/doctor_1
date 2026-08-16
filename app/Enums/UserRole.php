@@ -5,7 +5,7 @@ namespace App\Enums;
 /**
  * Staff roles — see SPEC §2.
  *
- * Deliberately a small fixed set rather than a dynamic permission system.
+ * Deliberately a tiny fixed set rather than a dynamic permission system.
  * Adding a role is an enum case plus the ability map below.
  */
 enum UserRole: string
@@ -17,13 +17,10 @@ enum UserRole: string
     case SUPER_ADMIN = 'super_admin';
 
     /**
-     * The doctor. Everything inside their own clinic, including money and
-     * reports — all of it through the mobile app, never the panel.
+     * Shared clinic-side account. Everything inside its own clinic, including
+     * money and reports — all of it through the mobile app, never the panel.
      */
-    case OWNER = 'owner';
-
-    /** Front desk. Bookings, queue, patients. No revenue, no retention, no prices. */
-    case SECRETARY = 'secretary';
+    case CLINIC = 'clinic';
 
     public function label(): string
     {
@@ -40,19 +37,13 @@ enum UserRole: string
                 'clinics.manage',
                 'staff.manage',
             ],
-            self::OWNER => [
+            self::CLINIC => [
                 'bookings.manage',
                 'queue.manage',
                 'patients.view',
                 'settings.manage',
                 'prices.view',
                 'reports.view',
-            ],
-            self::SECRETARY => [
-                'bookings.manage',
-                'queue.manage',
-                'patients.view',
-                'settings.manage',
             ],
         };
     }
@@ -65,7 +56,7 @@ enum UserRole: string
     /** Roles that sign in to the mobile app. */
     public function usesMobileApp(): bool
     {
-        return $this !== self::SUPER_ADMIN;
+        return $this === self::CLINIC;
     }
 
     /**

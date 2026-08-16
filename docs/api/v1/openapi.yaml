@@ -56,13 +56,15 @@ tags:
   - name: Booking
     description: The day strip, slots and the New Booking screen
   - name: Queue
-    description: Today's queue and its transitions
+    description: Booking status changes
   - name: Postpone
     description: Postponing a day and the call list
+  - name: Messaging
+    description: WhatsApp template previews and log-driver sends
   - name: Patients
     description: Search and visit history
   - name: Reports
-    description: Revenue and retention — owner only
+    description: Revenue and retention
 
 paths:
 
@@ -81,12 +83,13 @@ paths:
           application/json:
             schema:
               type: object
-              required: [phone, password]
+              required: [email, password]
               properties:
-                phone:
+                email:
                   type: string
-                  example: "01001234567"
-                  description: Clinic login phone. National, E.164 and spaced forms are accepted.
+                  format: email
+                  example: "clinic@example.test"
+                  description: Shared clinic login email.
                 password: { type: string, example: password }
                 device_name:
                   type: string
@@ -106,7 +109,7 @@ paths:
                       data: { $ref: "#/components/schemas/LoginPayload" }
         "401":
           description: |
-            `INVALID_CREDENTIALS` — a wrong phone and a wrong password are
+            `INVALID_CREDENTIALS` — a wrong email and a wrong password are
             deliberately indistinguishable.
           content:
             application/json:
@@ -175,6 +178,34 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/ClinicScope" }
 
+  /home:
+    get:
+      tags: [Bootstrap]
+      summary: Home screen summary
+      description: Today's status counts plus the next upcoming appointments.
+      operationId: home
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          today:
+                            type: object
+                            properties:
+                              date: { type: string, format: date }
+                              counts: { $ref: "#/components/schemas/StatusCounts" }
+                          upcoming:
+                            type: array
+                            items: { $ref: "#/components/schemas/BookingCard" }
+
   # ------------------------------------------------------------ Settings ----
 
   /visit-types:
@@ -208,7 +239,7 @@ paths:
     post:
       tags: [Settings]
       summary: Add a visit type
-      description: A secretary may create one; any `price` she submits is silently ignored.
+      description: Clinic accounts can manage visit type duration, visibility and price.
       operationId: createVisitType
       requestBody:
         required: true
@@ -516,12 +547,28 @@ paths:
 
   # ------------------------------------------------------------- Booking ----
 
-  /booking-days:
+  /bookings/calendar:
     get:
       tags: [Booking]
-      summary: The day strip
-      description: One entry per day of the rolling window, starting today.
-      operationId: bookingDays
+      summary: Booking calendar
+      description: |
+        Dense day strip plus sparse date-keyed booking cards. `status` filters
+        cards only; counts always describe the whole day.
+      operationId: bookingCalendar
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+          example: "2026-08-08"
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+          example: "2026-08-14"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [booked, arrived, with_doctor, done, cancelled, no_show]
       responses:
         "200":
           description: OK
@@ -532,12 +579,7 @@ paths:
                   - $ref: "#/components/schemas/SuccessEnvelope"
                   - type: object
                     properties:
-                      data:
-                        type: object
-                        properties:
-                          days:
-                            type: array
-                            items: { $ref: "#/components/schemas/BookingDay" }
+                      data: { $ref: "#/components/schemas/BookingCalendar" }
 
   /slots:
     get:
@@ -719,75 +761,32 @@ paths:
 
   # --------------------------------------------------------------- Queue ----
 
-  /queue:
-    get:
+  /bookings/{booking}/status:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+    post:
       tags: [Queue]
-      summary: Today's queue
+      summary: Change booking status
       description: |
-        **Already sorted — render in the order given:** with_doctor, then
-        arrived by check-in time, then booked by appointment, then done, then
-        cancelled.
-
-        The list re-sorts during the day: checking in moves a patient above
-        people booked earlier, and someone booked at 09:00 who arrives at 10:30
-        goes behind everyone already waiting. That is intended.
-      operationId: queue
-      parameters:
-        - name: date
-          in: query
-          schema: { type: string, format: date }
-          description: Defaults to today in the clinic's timezone.
-        - name: include_cancelled
-          in: query
-          schema: { type: boolean }
-          description: The "الملغية" toggle.
+        Sends the intended target explicitly. A double tap repeats the same
+        target and returns `INVALID_STATUS_TRANSITION`; it never advances twice.
+        `cancelled` stays on the separate cancel endpoint because it carries a
+        reason.
+      operationId: updateBookingStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to]
+              properties:
+                to:
+                  type: string
+                  enum: [arrived, with_doctor, done, no_show]
+                  example: arrived
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: "#/components/schemas/SuccessEnvelope"
-                  - type: object
-                    properties:
-                      data: { $ref: "#/components/schemas/Queue" }
-
-  /bookings/{booking}/arrive:
-    parameters:
-      - $ref: "#/components/parameters/BookingId"
-    post:
-      tags: [Queue]
-      summary: "تسجيل الوصول — the patient is in the clinic"
-      description: This is the moment that gives her a queue position and stamps the wait-time clock.
-      operationId: arrive
-      responses:
-        "200": { $ref: "#/components/responses/QueueItemResponse" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/InvalidTransition" }
-
-  /bookings/{booking}/call-in:
-    parameters:
-      - $ref: "#/components/parameters/BookingId"
-    post:
-      tags: [Queue]
-      summary: "استدعاء للداخل — she goes in to the doctor"
-      operationId: callIn
-      responses:
-        "200": { $ref: "#/components/responses/QueueItemResponse" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/InvalidTransition" }
-
-  /bookings/{booking}/complete:
-    parameters:
-      - $ref: "#/components/parameters/BookingId"
-    post:
-      tags: [Queue]
-      summary: "إنهاء الزيارة — the visit is done"
-      description: The only status revenue counts.
-      operationId: complete
-      responses:
-        "200": { $ref: "#/components/responses/QueueItemResponse" }
+        "200": { $ref: "#/components/responses/BookingCardResponse" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/InvalidTransition" }
 
@@ -796,12 +795,12 @@ paths:
       - $ref: "#/components/parameters/BookingId"
     post:
       tags: [Queue]
-      summary: "إلغاء / لم تحضر"
+      summary: Cancel a booking
       description: |
-        Both are a cancellation, distinguished by reason. Either way the slot is
-        **freed immediately**.
+        Patient cancellation only. No-show is a status transition to
+        `no_show`; emergency cancellation comes from postpone/broadcast flows.
 
-        A patient already with the doctor cannot be cancelled — complete her.
+        A booking can be cancelled until it is completed.
       operationId: cancelBooking
       requestBody:
         required: true
@@ -813,13 +812,13 @@ paths:
               properties:
                 reason:
                   type: string
-                  enum: [no_show, patient_cancelled]
+                  enum: [patient_cancelled]
                   description: |
-                    Only these two. `emergency` is set by the postpone flow and
-                    `incomplete` by the nightly job; both are rejected here.
-                  example: no_show
+                    `emergency` is set by the postpone flow and `incomplete` by
+                    the nightly job; both are rejected here.
+                  example: patient_cancelled
       responses:
-        "200": { $ref: "#/components/responses/QueueItemResponse" }
+        "200": { $ref: "#/components/responses/BookingCardResponse" }
         "400":
           description: "`BOOKING_NOT_CANCELLABLE`"
           content:
@@ -853,6 +852,104 @@ paths:
                           contacted_at: { type: [string, "null"], format: date-time }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /message-templates:
+    get:
+      tags: [Messaging]
+      summary: List active WhatsApp templates
+      description: Template bodies are previews; the app never sends free-form patient messages.
+      operationId: listMessageTemplates
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: "#/components/schemas/MessageTemplate" }
+
+  /broadcasts:
+    post:
+      tags: [Messaging]
+      summary: Send a template to many bookings
+      description: |
+        Uses the configured messaging driver. The shipped `log` driver records
+        and marks messages sent without calling Meta. `day_cancelled` also
+        cancels selected pending bookings with reason `emergency`.
+      operationId: createBroadcast
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [template_key]
+              properties:
+                template_key:
+                  type: string
+                  enum: [day_cancelled, appointment_earlier, appointment_delayed]
+                  example: day_cancelled
+                date:
+                  type: string
+                  format: date
+                  description: Used when `booking_ids` is omitted.
+                booking_ids:
+                  type: array
+                  items: { type: integer }
+      responses:
+        "200":
+          description: Queued
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/MessageSendResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /bookings/{booking}/message:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+    post:
+      tags: [Messaging]
+      summary: Send a template for one booking
+      operationId: sendBookingMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [template_key]
+              properties:
+                template_key:
+                  type: string
+                  enum: [day_cancelled, appointment_earlier, appointment_delayed]
+                  example: appointment_delayed
+      responses:
+        "200":
+          description: Queued
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/MessageSendResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
   # ------------------------------------------------------------ Postpone ----
 
   /postpone/candidates:
@@ -876,8 +973,8 @@ paths:
         Cancels the selected bookings with reason `emergency`, **frees their
         slots**, and returns the call list.
 
-        **Nothing is messaged** — WhatsApp is v2. Omit `booking_ids` entirely
-        for "كل المريضات".
+        WhatsApp template broadcasts are handled separately through
+        `/broadcasts`. Omit `booking_ids` entirely for "كل المريضات".
       operationId: postpone
       requestBody:
         content:
@@ -1006,7 +1103,7 @@ paths:
   /reports/revenue:
     get:
       tags: [Reports]
-      summary: Revenue — owner only
+      summary: Revenue
       description: |
         Three periods, each already compared against **the same span** of the
         previous one: on the 8th, `this_month` covers 8 days and is compared
@@ -1032,7 +1129,7 @@ paths:
   /reports/retention:
     get:
       tags: [Reports]
-      summary: Retention — owner only
+      summary: Retention
       description: |
         Cohort-based: the cohort is patients whose **first** completed visit
         fell in the period, and the rate is how many came back.
@@ -1132,8 +1229,8 @@ components:
               - type: object
                 properties:
                   data: { $ref: "#/components/schemas/Booking" }
-    QueueItemResponse:
-      description: The updated card
+    BookingCardResponse:
+      description: The updated booking card
       content:
         application/json:
           schema:
@@ -1141,7 +1238,7 @@ components:
               - $ref: "#/components/schemas/SuccessEnvelope"
               - type: object
                 properties:
-                  data: { $ref: "#/components/schemas/QueueItem" }
+                  data: { $ref: "#/components/schemas/BookingCard" }
     CallListResponse:
       description: OK
       content:
@@ -1214,8 +1311,7 @@ components:
       type: array
       description: |
         Drives what the app shows: `bookings.manage`, `queue.manage`,
-        `patients.view`, `settings.manage`, and owner-only `prices.view` and
-        `reports.view`.
+        `patients.view`, `settings.manage`, `prices.view` and `reports.view`.
       items: { type: string }
 
     LoginPayload:
@@ -1269,10 +1365,10 @@ components:
         sort_order: { type: integer }
         price:
           allOf: [{ $ref: "#/components/schemas/Money" }]
-          description: "**Absent entirely** without `prices.view` — check for the key, not for null."
+          description: Present for clinic accounts.
         needs_price:
           type: boolean
-          description: True while the price is still zero. Owner only.
+          description: True while the price is still zero.
 
     VisitTypeInput:
       type: object
@@ -1366,7 +1462,7 @@ components:
           type: [object, "null"]
           properties:
             id: { type: integer }
-            code: { type: string, example: SAAH5521 }
+            code: { type: string, example: "60001" }
             name: { type: string }
             visits_count: { type: integer }
         is_returning: { type: boolean }
@@ -1388,10 +1484,17 @@ components:
 
     BookingInput:
       type: object
-      required: [patient_name, phone, visit_type_id, date, start_time]
+      required: [visit_type_id, date, start_time]
       properties:
+        patient_id:
+          type: integer
+          description: Existing patient id. If present, patient_name and phone are ignored.
         patient_name: { type: string, maxLength: 255, example: سارة أحمد }
         phone: { type: string, maxLength: 32, example: "01012225521" }
+        age: { type: [integer, "null"], minimum: 0, maximum: 130 }
+        whatsapp_opt_in:
+          type: boolean
+          description: Defaults true for new patients; no WhatsApp message is sent without consent.
         visit_type_id: { type: integer, example: 1 }
         date: { type: string, format: date, example: "2026-08-08" }
         start_time: { type: string, pattern: '^\d{2}:\d{2}$', example: "13:40" }
@@ -1439,48 +1542,92 @@ components:
         notes: { type: [string, "null"] }
         price:
           allOf: [{ $ref: "#/components/schemas/Money" }]
-          description: Owner only — absent otherwise.
+          description: Present for clinic accounts.
 
-    QueueItem:
+    BookingCard:
       allOf:
         - $ref: "#/components/schemas/Booking"
         - type: object
           properties:
-            queue_position:
-              type: [integer, "null"]
-              description: |
-                Only patients physically in the clinic hold one. Null for
-                `booked` (show her appointment time), `done` (✓) and
-                `cancelled` (✗). Renumbers as the day moves — re-read it.
+            next_status:
+              oneOf:
+                - allOf: [{ $ref: "#/components/schemas/Display" }]
+                - type: "null"
             available_actions:
               type: array
               description: |
-                Which buttons the card may show: `arrive`, `call_in`,
-                `complete`, `call`, `edit`, `no_show`, `cancel`. Confirm every
-                one with a dialog before calling it.
+                Separate card actions such as `call`, `whatsapp`, `edit`,
+                `no_show`, and `cancel`. The main transition button uses
+                `next_status`. `no_show` appears only for `booked` and
+                `arrived`; `cancel` also appears for `with_doctor`.
               items: { type: string }
             arrived_at: { type: [string, "null"], example: "09:05" }
             contacted_at: { type: [string, "null"], format: date-time }
 
-    Queue:
+    StatusCounts:
+      type: object
+      properties:
+        total: { type: integer }
+        booked: { type: integer }
+        arrived: { type: integer }
+        with_doctor: { type: integer }
+        done: { type: integer }
+        cancelled: { type: integer }
+        no_show: { type: integer }
+
+    BookingCalendarDay:
       type: object
       properties:
         date: { $ref: "#/components/schemas/Display" }
+        day_of_week: { $ref: "#/components/schemas/Display" }
+        day_number: { type: integer }
         is_open: { type: boolean }
         is_holiday: { type: boolean }
-        counts:
+        is_today: { type: boolean }
+        counts: { $ref: "#/components/schemas/StatusCounts" }
+
+    BookingCalendar:
+      type: object
+      properties:
+        range:
           type: object
           properties:
-            pending: { type: integer }
-            done: { type: integer }
-            cancelled: { type: integer }
-            total: { type: integer }
-        awaiting_rebooking_count:
-          type: integer
-          description: Drives the "N مريضة محتاجة معاد جديد" banner.
-        items:
+            from: { type: string, format: date }
+            to: { type: string, format: date }
+        days:
           type: array
-          items: { $ref: "#/components/schemas/QueueItem" }
+          items: { $ref: "#/components/schemas/BookingCalendarDay" }
+        bookings:
+          type: object
+          additionalProperties:
+            type: array
+            items: { $ref: "#/components/schemas/BookingCard" }
+
+    MessageTemplate:
+      type: object
+      properties:
+        key: { type: string }
+        category: { type: string, example: utility }
+        body_ar: { type: string }
+
+    MessageSendResult:
+      type: object
+      properties:
+        template_key: { type: string }
+        sent_count: { type: integer }
+        skipped_count: { type: integer }
+        cancelled_count: { type: integer }
+        message_ids:
+          type: array
+          items: { type: integer }
+        skipped:
+          type: array
+          items:
+            type: object
+            properties:
+              booking_id: { type: integer }
+              patient_id: { type: [integer, "null"] }
+              reason: { type: string }
 
     CallListRow:
       type: object

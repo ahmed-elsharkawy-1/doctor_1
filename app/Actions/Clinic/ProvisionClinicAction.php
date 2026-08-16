@@ -89,7 +89,7 @@ class ProvisionClinicAction
         }
 
         /** @var User|null $owner */
-        $owner = $clinic->staff()->role(UserRole::OWNER)->first();
+        $owner = $clinic->staff()->role(UserRole::CLINIC)->first();
 
         if ($owner === null && blank($password)) {
             return;
@@ -98,7 +98,7 @@ class ProvisionClinicAction
         $attributes = [
             'name' => $clinic->name,
             'email' => 'clinic-'.$clinic->id.'@doctor1.local',
-            'role' => UserRole::OWNER,
+            'role' => UserRole::CLINIC,
             'phone' => $phone,
             'locale' => config('clinic.api.default_locale'),
             'is_active' => $clinic->is_active,

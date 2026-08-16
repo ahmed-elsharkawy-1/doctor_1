@@ -17,21 +17,25 @@ class BookingLifecycleTest extends TestCase
         $this->assertSame(BookingStatus::DONE, BookingStatus::WITH_DOCTOR->next());
         $this->assertNull(BookingStatus::DONE->next());
         $this->assertNull(BookingStatus::CANCELLED->next());
+        $this->assertNull(BookingStatus::NO_SHOW->next());
     }
 
     public function test_skipping_a_step_is_not_a_valid_transition(): void
     {
         $this->assertTrue(BookingStatus::BOOKED->canAdvanceTo(BookingStatus::ARRIVED));
+        $this->assertTrue(BookingStatus::BOOKED->canAdvanceTo(BookingStatus::NO_SHOW));
+        $this->assertTrue(BookingStatus::ARRIVED->canAdvanceTo(BookingStatus::NO_SHOW));
         $this->assertFalse(BookingStatus::BOOKED->canAdvanceTo(BookingStatus::WITH_DOCTOR));
         $this->assertFalse(BookingStatus::BOOKED->canAdvanceTo(BookingStatus::DONE));
     }
 
-    public function test_a_patient_with_the_doctor_cannot_be_cancelled(): void
+    public function test_a_patient_with_the_doctor_can_still_be_cancelled(): void
     {
         $this->assertTrue(BookingStatus::BOOKED->canBeCancelled());
         $this->assertTrue(BookingStatus::ARRIVED->canBeCancelled());
-        $this->assertFalse(BookingStatus::WITH_DOCTOR->canBeCancelled());
+        $this->assertTrue(BookingStatus::WITH_DOCTOR->canBeCancelled());
         $this->assertFalse(BookingStatus::DONE->canBeCancelled());
+        $this->assertFalse(BookingStatus::NO_SHOW->canBeCancelled());
     }
 
     public function test_cancelled_bookings_do_not_hold_a_slot(): void
@@ -41,39 +45,12 @@ class BookingLifecycleTest extends TestCase
         $this->assertContains(BookingStatus::BOOKED, $occupying);
         $this->assertContains(BookingStatus::DONE, $occupying);
         $this->assertNotContains(BookingStatus::CANCELLED, $occupying);
-    }
-
-    public function test_the_queue_sorts_by_who_is_in_the_clinic_not_by_booked_time(): void
-    {
-        $weights = array_map(
-            fn (BookingStatus $status) => $status->queueWeight(),
-            [
-                BookingStatus::WITH_DOCTOR,
-                BookingStatus::ARRIVED,
-                BookingStatus::BOOKED,
-                BookingStatus::DONE,
-                BookingStatus::CANCELLED,
-            ],
-        );
-
-        $sorted = $weights;
-        sort($sorted);
-
-        $this->assertSame($sorted, $weights);
-    }
-
-    public function test_only_patients_present_in_the_clinic_hold_a_queue_position(): void
-    {
-        $this->assertTrue(BookingStatus::WITH_DOCTOR->holdsQueuePosition());
-        $this->assertTrue(BookingStatus::ARRIVED->holdsQueuePosition());
-        $this->assertFalse(BookingStatus::BOOKED->holdsQueuePosition());
-        $this->assertFalse(BookingStatus::DONE->holdsQueuePosition());
+        $this->assertNotContains(BookingStatus::NO_SHOW, $occupying);
     }
 
     public function test_only_emergency_cancellations_need_rebooking(): void
     {
         $this->assertTrue(CancelReason::EMERGENCY->requiresRebooking());
-        $this->assertFalse(CancelReason::NO_SHOW->requiresRebooking());
         $this->assertFalse(CancelReason::PATIENT_CANCELLED->requiresRebooking());
         $this->assertFalse(CancelReason::INCOMPLETE->requiresRebooking());
     }
@@ -82,6 +59,7 @@ class BookingLifecycleTest extends TestCase
     {
         $this->assertNotContains(CancelReason::INCOMPLETE, CancelReason::selectable());
         $this->assertNotContains(CancelReason::EMERGENCY, CancelReason::selectable());
+        $this->assertSame([CancelReason::PATIENT_CANCELLED], CancelReason::selectable());
     }
 
     /**

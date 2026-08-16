@@ -6,8 +6,7 @@ use App\Http\Requests\Api\V1\Queue\CancelBookingRequest;
 use Illuminate\Http\JsonResponse;
 
 /**
- * "إلغاء" / "لم تحضر" — both are a cancellation, distinguished by reason.
- * Either way the slot is freed immediately.
+ * Patient cancellation. No-show is handled by the status endpoint.
  */
 class CancelBookingController extends AdvanceStatusController
 {

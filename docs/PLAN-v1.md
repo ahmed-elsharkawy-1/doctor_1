@@ -1,4 +1,4 @@
-# doctor_1 — v1.1 implementation plan
+# doctor_1 — v1 implementation plan
 
 Self-contained brief. Everything needed to do this work without prior context.
 
@@ -10,12 +10,17 @@ Self-contained brief. Everything needed to do this work without prior context.
 Arabic RTL, staff-only. Patients never log in.
 
 - **Repo:** `/home/ahmed/Desktop/work/general/workspace/doctor_1`
-- **Spec:** `/home/ahmed/Desktop/work/clinic-booking-system/SPEC-v1.md` (read §0 first — it is the v1.1 delta)
+- **Spec:** `/home/ahmed/Desktop/work/clinic-booking-system/SPEC-v1.md` (read §0 first — it describes the current v1 design delta)
 - **Stack:** PHP 8.3 · Laravel 12 · Filament 4 · Sanctum · MySQL (`prac_doctor_app`), SQLite in tests
 - **Surfaces:** a Flutter mobile app via `/api/v1`, and a Filament panel at `/admin` for the platform operator only
 
-**Current state:** v1.0 complete and green — ~290 tests. This plan revises it
-against an updated Figma design that is now the source of truth.
+**Current state:** v1 is complete and green — ~290 tests. This plan records the
+updates made against the Figma design that is now the source of truth.
+
+**Implementation mode:** implement this directly in the current project line.
+There is no mobile integration yet, so no separate compatibility branch is
+required. Treat the work as one coordinated API revision and keep the test suite
+green at the end of each step.
 
 ---
 
@@ -75,8 +80,9 @@ The design is now the source of truth. Six earlier decisions are reversed:
 | Patient code `SAAH5521` | **5-digit numeric derived from `id`** |
 | No-show as a cancel reason | **A status of its own** |
 
-Accepted consequences: prices are visible to whoever signs in; per-person audit
-is replaced by device-level logging.
+Accepted consequence: prices are visible to whoever signs in. Per-person audit
+is not reliable with one shared clinic account; activity logging is explicitly
+deferred from this implementation pass.
 
 ---
 
@@ -113,7 +119,7 @@ them as you go; never leave the suite red.
 
 ---
 
-### Step 2 — Clinic login, one role, activity log
+### Step 2 — Clinic login and one role
 
 **2a. Login by clinic email**
 
@@ -128,24 +134,12 @@ them as you go; never leave the suite red.
 - Update the Filament `UserResource` to manage clinic accounts
 - Delete the `prices.view` / `reports.view` gating **inside** the app — one account sees everything. Keep the ability constants; they still separate panel from app
 
-**2c. Activity log**
+**2c. Activity log — deferred**
 
-New table `activity_logs`:
-
-| Column | |
-|---|---|
-| `clinic_id`, `user_id` | |
-| `action` | e.g. `booking.created`, `booking.status_changed`, `broadcast.sent` |
-| `subject_type`, `subject_id` | nullable, polymorphic |
-| `device_name` | from the Sanctum token name, captured at login |
-| `ip_address` | |
-| `properties` | nullable JSON — e.g. `{"from":"booked","to":"arrived"}` |
-| `created_at` | |
-
-Record on: login, booking created/updated, status changed, cancelled, broadcast sent.
-
-**Be honest in the docs:** with a shared password this identifies the *device*,
-not the person.
+Do **not** build `activity_logs` in this pass. The one-account model is accepted
+without audit until the product explicitly needs device-level logging. Keep the
+plan honest in docs: one shared password means the system cannot identify which
+person performed an action.
 
 ---
 
@@ -183,6 +177,13 @@ Add an opt-in flag to patient creation, defaulting to on, so consent is recorded
 **3c. Booking an existing patient**
 
 - `POST /bookings` accepts **`patient_id`** as an alternative to `patient_name` + `phone` — the design's step 1 picks a patient from search results
+- Validation is mutually exclusive:
+  - either `patient_id` is present
+  - or both `patient_name` and `phone` are present
+- If `patient_id` is present, the patient must belong to the authenticated clinic
+- A `patient_id` from another clinic returns **404**, not validation details
+- If `patient_id` is present, ignore `patient_name`, `phone`, and `update_patient_name`; editing patient details remains a separate patient concern
+- Keep `visit_type_id`, `date`, `start_time`, `force`, `notes`, and `rebooking_for_booking_id` behavior unchanged
 - Patient search results gain **`last_visit`** (date of the most recent visit) — the design shows اخر زيارة on each result
 - Search already matches name, code prefix and phone tail. Confirm the numeric code still matches as a prefix
 
@@ -228,10 +229,10 @@ GET /api/v1/bookings/calendar?from=2026-10-20&to=2026-10-26&status=booked
 
 **Card changes**
 
-- **Remove** `queue_position`, and the arrival-based ordering (`queueWeight`, `holdsQueuePosition`, `queueSortKey`, `QueueService::positions`)
+- **Remove** `queue_position`, and keep appointment-time ordering on calendar cards.
 - **Keep** `arrived_at` — no longer used for ordering, but it is the only way to measure waiting time later
 - **Add** `next_status: { value, display } | null` so the app renders **"تغيير إلى ( داخل العيادة )"** without hard-coding the chain
-- `available_actions` keeps `edit`, `cancel`, `no_show`, `call`, `whatsapp` — the transition verbs move to `next_status`
+- `available_actions` keeps `edit`, `cancel`, `no_show`, `call`, `whatsapp` — the transition verbs move to `next_status`. `cancel` is allowed through `with_doctor`; `no_show` is only before/at arrival.
 
 **Collapse the transition endpoints**
 
@@ -304,6 +305,9 @@ the chosen template**, not an editor.
 - **`log`** — ships now: renders, records, marks sent. Nothing leaves the building
 - **`cloud_api`** — swapped in by configuration when Meta approves. **No application code changes**
 - One queued job per message, so rate limits and retries are handled
+- Do not call the external WhatsApp Cloud API in this pass. The `cloud_api`
+  implementation can be a config-ready seam or explicit placeholder, but the
+  working driver is `log`.
 
 **Endpoints**
 
@@ -335,6 +339,7 @@ Seed the three templates.
 - Update `docs/api/v1/openapi.yaml` — it is the source of truth and a test fails if a route is missing from it
 - `php artisan api:postman` to regenerate the collection
 - Update `docs/api/v1/README.md`
+- Update `/home/ahmed/Desktop/work/clinic-booking-system/SPEC-v1.md` wording so it says: patients never log in; opted-in patients may receive clinic-initiated WhatsApp template messages
 - Confirm `/docs/api` still renders
 
 ---
@@ -344,15 +349,107 @@ Seed the three templates.
 1. **نوع الحجز on the booking card** — resolved as the visit type name; the card renders `visit_type.name`. No work.
 2. **Rebooking list** (`/rebooking-list`, `contacted_at`, `rebooked_booking_id`) — built and tested, but the new design has no screen for it. `day_cancelled` still cancels bookings, so the *need* exists. **Keep it** unless the design team confirms it is gone.
 3. **`first_visit_only_days`** — the retention maturity window has no screen. Keep as a setting.
+4. **Activity log** — deferred. Revisit only if device-level audit becomes a product requirement.
 
 ---
 
 ## 6. Definition of done
 
-- [ ] `php artisan test` green
-- [ ] `php artisan test -c phpunit.mysql.xml` green
-- [ ] `vendor/bin/pint` clean
-- [ ] `openapi.yaml` covers every route; Postman collection regenerated
-- [ ] Every new string has both `ar` and `en` keys
-- [ ] No new hardcoded values — config, clinic column, or enum
-- [ ] `DemoClinicSeeder` still produces a working clinic, including the six statuses and some messages
+- [x] `php artisan test` green
+- [x] `php artisan test -c phpunit.mysql.xml` green
+- [x] `vendor/bin/pint` clean
+- [x] `openapi.yaml` covers every route; Postman collection regenerated
+- [x] Every new string has both `ar` and `en` keys
+- [x] No new hardcoded values — config, clinic column, or enum
+- [x] `DemoClinicSeeder` still produces a working clinic, including the six statuses and some messages
+- [x] Activity logging remains out of scope and is not referenced as required behavior in docs/OpenAPI
+
+---
+
+## 7. Complete implementation checklist
+
+Use this checklist to execute the work without losing cross-cutting updates.
+
+### 7.1 Status model and slot behavior
+
+- [x] Add `BookingStatus::NO_SHOW`
+- [x] Remove `CancelReason::NO_SHOW` and update selectable reasons
+- [x] Represent no-show directly as `status = no_show` in the main booking schema/model
+- [x] Update labels/translations for all six statuses
+- [x] Update lifecycle helpers: terminal, cancellable, occupying slot, pending
+- [x] Update end-of-day command behavior
+- [x] Omit past start times from today's slot picker
+- [x] Keep `force: true` able to book past times
+- [x] Update factories, seeders, enum tests, slot tests, close-day tests
+
+### 7.2 Auth and clinic account
+
+- [x] Change login input from `phone` to `email`
+- [x] Query users by email in `AuthService`
+- [x] Preserve password rule with no minimum length
+- [x] Collapse roles to `SUPER_ADMIN` and `CLINIC`
+- [x] Give `CLINIC` all mobile abilities, including prices and reports
+- [x] Keep `usesPanel()` super-admin only
+- [x] Update Filament user resource/factories/seeders/tests
+- [x] Remove in-app filtering based on `prices.view` / `reports.view`
+
+### 7.3 Patient record and patient selection
+
+- [x] Replace transliteration code generation with numeric id-derived code
+- [x] Backfill existing patient codes
+- [x] Delete Arabic transliterator/action and their tests
+- [x] Add `age` and `whatsapp_opt_in_at`
+- [x] Add opt-in input to patient creation with consent recorded
+- [x] Accept `patient_id` as booking input alternative
+- [x] Enforce the exact `patient_id` validation rules from Step 3c
+- [x] Add `last_visit` to patient search results
+- [x] Confirm name, numeric-code prefix, and phone-tail search
+
+### 7.4 Calendar and booking card contract
+
+- [x] Add `GET /api/v1/bookings/calendar`
+- [x] Replace `/queue` and `/booking-days`
+- [x] Return dense `days[]` and sparse date-keyed `bookings`
+- [x] Order cards by appointment time ascending
+- [x] Apply `status` filter to cards only, not counts
+- [x] Remove `queue_position`
+- [x] Retire arrival-based ordering from calendar cards; keep legacy internals only for postponed/rebooking support
+- [x] Add `next_status`
+- [x] Keep `arrived_at`
+- [x] Return available actions: `edit`, `cancel`, `no_show`, `call`, `whatsapp`
+- [x] Add `POST /api/v1/bookings/{id}/status`
+- [x] Remove `arrive`, `call-in`, and `complete` endpoints
+- [x] Keep cancel endpoint separate
+
+### 7.5 Home endpoint
+
+- [x] Add `GET /api/v1/home`
+- [x] Return today's total and six status counts
+- [x] Return upcoming appointments for الكشوفات القادمة
+- [x] Reuse calendar counting logic
+
+### 7.6 WhatsApp log-driver messaging
+
+- [x] Add message template and outbound message schema
+- [x] Seed three approved templates
+- [x] Add `MessageSender` interface
+- [x] Implement `log` driver as the only working driver in this pass
+- [x] Add config for driver selection
+- [x] Add queued job per message
+- [x] Add message template endpoint
+- [x] Add broadcast endpoint
+- [x] Add per-booking message endpoint
+- [x] Implement opt-in skip/report behavior
+- [x] `day_cancelled` sends and cancels target bookings with `emergency`
+- [x] `appointment_earlier` and `appointment_delayed` notify only
+
+### 7.7 Docs and verification
+
+- [x] Update OpenAPI
+- [x] Regenerate Postman collection
+- [x] Update API README
+- [x] Update external spec wording about patient WhatsApp messages
+- [x] Confirm `/docs/api` renders
+- [x] Run `vendor/bin/pint`
+- [x] Run SQLite test suite
+- [x] Run MySQL test suite

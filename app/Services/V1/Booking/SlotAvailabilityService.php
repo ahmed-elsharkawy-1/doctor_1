@@ -134,6 +134,8 @@ class SlotAvailabilityService
 
         $periodStart = $this->at($clinic, $date, $period->startTime());
         $periodEnd = $this->at($clinic, $date, $period->endTime());
+        $now = Carbon::now($clinic->timezone);
+        $hidePastStarts = $date->isSameDay($now);
 
         $candidates = [];
         $cursor = $periodStart->copy();
@@ -145,7 +147,10 @@ class SlotAvailabilityService
                 break;
             }
 
-            $candidates[] = ['start' => $cursor->copy(), 'end' => $end];
+            if (! $hidePastStarts || $cursor->greaterThan($now)) {
+                $candidates[] = ['start' => $cursor->copy(), 'end' => $end];
+            }
+
             $cursor->addMinutes($step);
         }
 

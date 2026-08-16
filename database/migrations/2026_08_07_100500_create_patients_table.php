@@ -15,11 +15,13 @@ return new class extends Migration
             $table->foreignId('clinic_id')->constrained()->cascadeOnDelete();
 
             // Auto-generated and immutable once assigned (SPEC §5.3).
-            $table->string('code', 32);
+            $table->string('code', 32)->nullable();
             $table->string('name');
 
             // Stored E.164, displayed nationally (SPEC §5.2).
             $table->string('phone', 20);
+            $table->unsignedSmallInteger('age')->nullable();
+            $table->timestamp('whatsapp_opt_in_at')->nullable();
 
             $table->timestamps();
 

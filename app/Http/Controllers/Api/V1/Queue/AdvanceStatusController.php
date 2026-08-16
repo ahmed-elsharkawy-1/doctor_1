@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\V1\Queue;
 
 use App\Http\Controllers\Api\V1\V1Controller;
 use App\Models\Booking;
-use App\Services\Results\V1\Queue\QueueItemResult;
+use App\Services\Results\V1\Booking\BookingCardResult;
 use App\Services\V1\Booking\BookingService;
 use App\Services\V1\Queue\BookingStatusService;
 use App\Services\V1\Queue\QueueService;
@@ -13,8 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Shared plumbing for the four queue transitions. Each concrete controller
- * stays a single action, which is what the app calls after its confirm dialog.
+ * Shared plumbing for status and cancellation actions.
  */
 abstract class AdvanceStatusController extends V1Controller
 {
@@ -28,12 +27,7 @@ abstract class AdvanceStatusController extends V1Controller
     {
         $booking->load(['patient', 'visitType']);
 
-        $result = new QueueItemResult(
-            booking: $booking,
-            queuePosition: null,
-            availableActions: $this->queue->availableActions($booking),
-            withPrice: $this->user($request)->hasAbility('prices.view'),
-        );
+        $result = new BookingCardResult($booking, $this->queue, $this->user($request)->hasAbility('prices.view'));
 
         return ApiResponse::success($result->toArray(), $message);
     }

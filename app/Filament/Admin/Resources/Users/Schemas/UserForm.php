@@ -61,10 +61,10 @@ class UserForm
                         ->label(__('filament.user.role'))
                         ->options(fn (): array => $isSuperAdmin
                             ? UserRole::options()
-                            : [UserRole::SECRETARY->value => UserRole::SECRETARY->label()])
+                            : [UserRole::CLINIC->value => UserRole::CLINIC->label()])
                         ->required()
                         ->live()
-                        ->default(UserRole::SECRETARY->value),
+                        ->default(UserRole::CLINIC->value),
 
                     Select::make('clinics')
                         ->label(__('filament.user.clinics'))
@@ -84,7 +84,7 @@ class UserForm
                         ->relationship('doctor', 'name')
                         ->searchable()
                         ->preload()
-                        ->visible(fn ($get): bool => $get('role') === UserRole::OWNER->value)
+                        ->visible(fn ($get): bool => $get('role') === UserRole::CLINIC->value)
                         ->helperText(__('filament.user.doctor_hint')),
 
                     Select::make('locale')

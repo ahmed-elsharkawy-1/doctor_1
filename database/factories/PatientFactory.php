@@ -17,9 +17,10 @@ class PatientFactory extends Factory
     {
         return [
             'clinic_id' => Clinic::factory(),
-            'code' => strtoupper($this->faker->unique()->lexify('????')).$this->faker->numerify('####'),
             'name' => $this->faker->firstName('female').' '.$this->faker->lastName(),
             'phone' => '+20'.$this->faker->unique()->numerify('1#########'),
+            'age' => $this->faker->numberBetween(18, 80),
+            'whatsapp_opt_in_at' => now(),
         ];
     }
 }

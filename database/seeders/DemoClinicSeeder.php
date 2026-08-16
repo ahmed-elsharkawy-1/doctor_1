@@ -132,7 +132,7 @@ class DemoClinicSeeder extends Seeder
             [
                 'name' => 'د. سارة النجار',
                 'password' => Hash::make(self::PASSWORD),
-                'role' => UserRole::OWNER,
+                'role' => UserRole::CLINIC,
                 'doctor_id' => $doctor->id,
                 'phone' => '+201001234567',
                 'locale' => 'ar',
@@ -146,7 +146,7 @@ class DemoClinicSeeder extends Seeder
             [
                 'name' => 'نور محمد',
                 'password' => Hash::make(self::PASSWORD),
-                'role' => UserRole::SECRETARY,
+                'role' => UserRole::CLINIC,
                 'phone' => '+201009876543',
                 'locale' => 'ar',
                 'is_active' => true,
@@ -270,7 +270,7 @@ class DemoClinicSeeder extends Seeder
             [5, 95, 'كشف', BookingStatus::DONE],
 
             // A no-show and a cancellation, so the history screen has both.
-            [6, 90, 'كشف', BookingStatus::CANCELLED],
+            [6, 90, 'كشف', BookingStatus::NO_SHOW],
             [7, 85, 'إعادة', BookingStatus::CANCELLED],
 
             // This month, so revenue has a running total.
@@ -292,7 +292,7 @@ class DemoClinicSeeder extends Seeder
             $startAt = $now->copy()->subDays($daysAgo)->setTime(9 + ($index % 4), ($index % 3) * 20);
 
             $cancelReason = $status === BookingStatus::CANCELLED
-                ? ($index % 2 === 0 ? CancelReason::NO_SHOW : CancelReason::PATIENT_CANCELLED)
+                ? CancelReason::PATIENT_CANCELLED
                 : null;
 
             Booking::create([
@@ -312,7 +312,9 @@ class DemoClinicSeeder extends Seeder
                 'completed_at' => $status === BookingStatus::DONE
                     ? $startAt->copy()->addMinutes($visitType->duration_minutes)
                     : null,
-                'cancelled_at' => $status === BookingStatus::CANCELLED ? $startAt->copy() : null,
+                'cancelled_at' => in_array($status, [BookingStatus::CANCELLED, BookingStatus::NO_SHOW], true)
+                    ? $startAt->copy()
+                    : null,
                 'created_by' => $actor->id,
             ]);
         }
@@ -364,6 +366,7 @@ class DemoClinicSeeder extends Seeder
                 'visit_type_id' => $visitType->id,
                 'date' => $today,
                 'start_time' => $slots[$slotIndex],
+                'force' => true,
             ]), $secretary);
 
             match ($target) {

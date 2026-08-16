@@ -87,14 +87,14 @@ class BootstrapTest extends TestCase
         $this->assertFalse($schedule[1]['is_open']);
     }
 
-    public function test_a_secretarys_payload_carries_no_prices(): void
+    public function test_the_clinic_payload_carries_prices(): void
     {
         Sanctum::actingAs($this->secretary);
 
         $visitTypes = $this->getJson(route('api.v1.bootstrap'))->json('data.visit_types');
 
         foreach ($visitTypes as $visitType) {
-            $this->assertArrayNotHasKey('price', $visitType);
+            $this->assertArrayHasKey('price', $visitType);
         }
     }
 
@@ -107,8 +107,8 @@ class BootstrapTest extends TestCase
         $owner = $this->getJson(route('api.v1.bootstrap'))->json('data.abilities');
 
         $this->assertContains('bookings.manage', $secretary);
-        $this->assertNotContains('reports.view', $secretary);
-        $this->assertContains('reports.view', $owner);
+        $this->assertContains('reports.view', $secretary);
+        $this->assertSame($secretary, $owner);
     }
 
     public function test_it_requires_a_clinic(): void

@@ -26,7 +26,7 @@ class UserFactory extends Factory
             'email' => $this->faker->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
-            'role' => UserRole::SECRETARY,
+            'role' => UserRole::CLINIC,
             'phone' => '+20'.$this->faker->unique()->numerify('1#########'),
             'locale' => 'ar',
             'is_active' => true,
@@ -42,14 +42,14 @@ class UserFactory extends Factory
     public function owner(?Doctor $doctor = null): static
     {
         return $this->state(fn () => [
-            'role' => UserRole::OWNER,
+            'role' => UserRole::CLINIC,
             'doctor_id' => $doctor?->id,
         ]);
     }
 
     public function secretary(): static
     {
-        return $this->state(fn () => ['role' => UserRole::SECRETARY]);
+        return $this->state(fn () => ['role' => UserRole::CLINIC]);
     }
 
     public function inactive(): static

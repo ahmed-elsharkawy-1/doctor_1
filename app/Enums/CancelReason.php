@@ -10,9 +10,6 @@ enum CancelReason: string
     /** The patient called to cancel. */
     case PATIENT_CANCELLED = 'patient_cancelled';
 
-    /** Never arrived. Set by the secretary, or by the end-of-day job. */
-    case NO_SHOW = 'no_show';
-
     /** Cancelled by a same-day postponement (SPEC §4.5). */
     case EMERGENCY = 'emergency';
 
@@ -34,13 +31,14 @@ enum CancelReason: string
     }
 
     /**
-     * Reasons the secretary can pick directly. `incomplete` is system-only.
+     * Reasons the secretary can pick directly. `emergency` comes from the
+     * postpone flow and `incomplete` from the close-day job.
      *
      * @return list<self>
      */
     public static function selectable(): array
     {
-        return [self::PATIENT_CANCELLED, self::NO_SHOW];
+        return [self::PATIENT_CANCELLED];
     }
 
     /**

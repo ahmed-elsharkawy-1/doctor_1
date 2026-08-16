@@ -116,7 +116,8 @@ class Booking extends Model
     }
 
     /**
-     * Bookings that hold a time slot. Cancelled ones free theirs (SPEC §5.1).
+     * Bookings that hold a time slot. Cancelled and no-show bookings free
+     * theirs (SPEC §5.1).
      *
      * @param  Builder<self>  $query
      */
@@ -177,21 +178,5 @@ class Booking extends Model
     public function canBeCancelled(): bool
     {
         return $this->status->canBeCancelled();
-    }
-
-    /**
-     * Ordering key for the queue list — see SPEC §4.2. Sorted by status group
-     * first, then by when the patient actually arrived (not her booked time).
-     */
-    public function queueSortKey(): array
-    {
-        return [
-            $this->status->queueWeight(),
-            match ($this->status) {
-                BookingStatus::ARRIVED => $this->arrived_at?->timestamp ?? 0,
-                BookingStatus::DONE => $this->completed_at?->timestamp ?? 0,
-                default => $this->start_at?->timestamp ?? 0,
-            },
-        ];
     }
 }

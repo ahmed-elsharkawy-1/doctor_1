@@ -80,12 +80,12 @@ class User extends Authenticatable implements FilamentUser
 
     public function isOwner(): bool
     {
-        return $this->role === UserRole::OWNER;
+        return $this->role === UserRole::CLINIC;
     }
 
     public function isSecretary(): bool
     {
-        return $this->role === UserRole::SECRETARY;
+        return $this->role === UserRole::CLINIC;
     }
 
     public function hasAbility(string $ability): bool

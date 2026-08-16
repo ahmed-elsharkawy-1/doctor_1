@@ -165,6 +165,32 @@ class SlotAvailabilityTest extends TestCase
         $this->assertTrue($slots['09:00']['is_available']);
     }
 
+    public function test_a_no_show_booking_frees_its_slot(): void
+    {
+        Booking::factory()
+            ->forClinic($this->clinic)
+            ->at($this->saturday->copy()->setTime(9, 0), 20)
+            ->noShow()
+            ->create();
+
+        $slots = collect($this->slots($this->visitType(20))['slots'])->keyBy(fn ($s) => $s['start_time']['value']);
+
+        $this->assertTrue($slots['09:00']['is_available']);
+    }
+
+    public function test_past_starts_are_omitted_for_today_but_not_tomorrow(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-08 09:35:00', 'Africa/Cairo'));
+        $this->openDay(DayOfWeek::SUNDAY, [['09:00', '11:00']]);
+
+        $todayStarts = array_column(array_column($this->slots($this->visitType(20))['slots'], 'start_time'), 'value');
+        $tomorrowStarts = array_column(array_column($this->slots($this->visitType(20), $this->saturday->copy()->addDay())['slots'], 'start_time'), 'value');
+
+        $this->assertSame('09:40', $todayStarts[0]);
+        $this->assertNotContains('09:30', $todayStarts);
+        $this->assertContains('09:00', $tomorrowStarts);
+    }
+
     public function test_a_completed_booking_still_holds_its_slot(): void
     {
         Booking::factory()

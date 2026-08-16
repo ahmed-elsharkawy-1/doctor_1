@@ -4,7 +4,6 @@ namespace App\Services\V1\Patients;
 
 use App\Enums\ApiErrorCode;
 use App\Enums\BookingStatus;
-use App\Enums\CancelReason;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Models\Clinic;
@@ -33,6 +32,10 @@ class PatientSearchService
                 'bookings as visits_count' => fn (Builder $query) => $query
                     ->whereIn('status', BookingStatus::occupyingSlot()),
             ])
+            ->withMax([
+                'bookings as last_visit_date' => fn (Builder $query) => $query
+                    ->whereIn('status', BookingStatus::occupyingSlot()),
+            ], 'visit_date')
             ->when($term !== '', fn (Builder $query) => $query->where(
                 fn (Builder $inner) => $this->applyTerm($inner, $term),
             ))
@@ -81,7 +84,7 @@ class PatientSearchService
 
         return [
             'visits_count' => $visits->count(),
-            'no_show_count' => $history->where('cancel_reason', CancelReason::NO_SHOW)->count(),
+            'no_show_count' => $history->where('status', BookingStatus::NO_SHOW)->count(),
             'cancelled_count' => $history->where('status', BookingStatus::CANCELLED)->count(),
             // Ordered newest first, so the earliest visit is at the end.
             'first_visit' => $visits->last(),

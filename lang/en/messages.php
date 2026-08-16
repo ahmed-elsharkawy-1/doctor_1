@@ -4,6 +4,8 @@ return [
     'currency' => 'EGP',
     'am' => 'AM',
     'pm' => 'PM',
+    'loaded' => 'Loaded',
+    'sent' => 'Message queued',
 
     'validation_failed' => 'Please review the submitted data',
     'not_found' => 'The requested item was not found',

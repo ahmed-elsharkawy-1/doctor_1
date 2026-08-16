@@ -1,9 +1,9 @@
-# Doctor 1 — Clinic Booking, Queue & Insights
+# Doctor 1 — Clinic Booking, Calendar & Insights
 
 Backend for a clinic booking and queue system. One Laravel application serving
 two surfaces:
 
-- **Mobile API** (`/api/v1`) — the whole clinic: bookings, queue, patients,
+- **Mobile API** (`/api/v1`) — the whole clinic: bookings, calendar, patients,
   settings and reports. Used by the doctor and the secretary.
 - **Filament panel** (`/admin`) — the **platform operator only**: creating
   clinics, doctors and staff accounts. No clinic ever signs in here.
@@ -28,10 +28,10 @@ php artisan serve
 
 `DemoClinicSeeder` builds a working clinic to develop and demo against: priced
 visit types, a real week of hours, a holiday, 16 patients with five months of
-history, today's queue in every state, and two patients awaiting rebooking.
+history, today's bookings in every state, and two patients awaiting rebooking.
 It is safe to re-run — it rebuilds the demo clinic each time.
 
-Today's queue is created through the **real** `BookingService`, so seeding also
+Today's bookings are created through the **real** `BookingService`, so seeding also
 exercises slot availability, the write lock, patient codes and the price
 snapshot against your actual database.
 
@@ -120,8 +120,8 @@ one and not the other).
 - **Phase 0** ✅ schema, auth, roles, admin panel, API skeleton
 - **Phase 1** ✅ clinic settings API — visit types, weekly hours, holidays, bootstrap
 - **Phase 2** ✅ booking API — patients, ID codes, slot availability, new booking
-- **Phase 3** ✅ queue API — arrival ordering, status transitions, postpone + call list, end-of-day job
-- **Phase 4** ✅ patient search and visit history — **the mobile API is complete**
+- **Phase 3** ✅ calendar/status API — appointment-time cards, status transitions, postpone + call list, end-of-day job
+- **Phase 4** ✅ patient search and visit history
 - **Phase 5** ✅ revenue and retention — served by the API, owner only
 
 **v1 is feature-complete.** Remaining before launch: pricing each clinic's visit

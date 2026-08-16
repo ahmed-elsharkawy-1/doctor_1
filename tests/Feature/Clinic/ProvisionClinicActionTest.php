@@ -113,7 +113,7 @@ class ProvisionClinicActionTest extends TestCase
 
         $this->assertNotNull($owner);
         $this->assertSame('عيادة د. سارة', $owner->name);
-        $this->assertSame(UserRole::OWNER, $owner->role);
+        $this->assertSame(UserRole::CLINIC, $owner->role);
         $this->assertSame('+201001234567', $owner->phone);
         $this->assertTrue($owner->is_active);
         $this->assertTrue($owner->belongsToClinic($clinic->id));

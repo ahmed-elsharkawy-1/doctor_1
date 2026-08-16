@@ -10,12 +10,12 @@ use App\Models\Booking;
 use Illuminate\Support\Carbon;
 
 /**
- * Moves a booking through the queue — SPEC §5.4.
+ * Moves a booking through the six-status lifecycle — SPEC §5.4.
  *
- *   booked --arrive--> arrived --call_in--> with_doctor --complete--> done
+ *   booked -> arrived -> with_doctor -> done
+ *   booked/arrived -> no_show
  *
- * Each step is a separate method rather than a generic "advance", because the
- * app confirms each one with its own dialog and each stamps its own timestamp.
+ * Each clinical step stamps its own timestamp for later wait-time reporting.
  */
 class BookingStatusService
 {
@@ -32,6 +32,39 @@ class BookingStatusService
     public function complete(Booking $booking): Booking
     {
         return $this->advance($booking, BookingStatus::DONE, ['completed_at' => $this->now($booking)]);
+    }
+
+    public function update(Booking $booking, BookingStatus $target): Booking
+    {
+        if ($target === BookingStatus::CANCELLED) {
+            throw ApiException::make(
+                ApiErrorCode::INVALID_STATUS_TRANSITION,
+                __('booking.invalid_transition', [
+                    'from' => $booking->status->label(),
+                    'to' => $target->label(),
+                ]),
+                details: [
+                    'from' => $booking->status->value,
+                    'to' => $target->value,
+                    'expected' => $booking->status->next()?->value,
+                ],
+                http: 409,
+            );
+        }
+
+        if ($target === BookingStatus::NO_SHOW) {
+            return $this->advance($booking, $target, [
+                'cancel_reason' => null,
+                'cancelled_at' => $this->now($booking),
+            ]);
+        }
+
+        return match ($target) {
+            BookingStatus::ARRIVED => $this->arrive($booking),
+            BookingStatus::WITH_DOCTOR => $this->callIn($booking),
+            BookingStatus::DONE => $this->complete($booking),
+            default => $this->advance($booking, $target, []),
+        };
     }
 
     /**

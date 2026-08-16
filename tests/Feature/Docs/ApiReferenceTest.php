@@ -43,7 +43,7 @@ class ApiReferenceTest extends TestCase
         $this->assertArrayNotHasKey('/patients/{patient}', $spec['paths']);
         $this->assertArrayNotHasKey('/reports/revenue', $spec['paths']);
         $this->assertArrayNotHasKey('/reports/retention', $spec['paths']);
-        $this->assertArrayHasKey('/queue', $spec['paths']);
+        $this->assertArrayHasKey('/bookings/calendar', $spec['paths']);
     }
 
     /**

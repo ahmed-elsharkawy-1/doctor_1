@@ -17,8 +17,11 @@ class StoreBookingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'patient_name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:32'],
+            'patient_id' => ['nullable', 'integer'],
+            'patient_name' => ['required_without:patient_id', 'nullable', 'string', 'max:255'],
+            'phone' => ['required_without:patient_id', 'nullable', 'string', 'max:32'],
+            'age' => ['nullable', 'integer', 'min:0', 'max:130'],
+            'whatsapp_opt_in' => ['nullable', 'boolean'],
             'visit_type_id' => ['required', 'integer'],
             'date' => ['required', 'date_format:Y-m-d'],
             'start_time' => ['required', 'date_format:H:i'],
