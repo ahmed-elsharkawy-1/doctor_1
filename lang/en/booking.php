@@ -1,7 +1,6 @@
 <?php
 
 return [
-    'queue_loaded' => 'Queue loaded',
     'arrived' => 'Patient checked in',
     'called_in' => 'Patient called in',
     'completed' => 'Visit completed',

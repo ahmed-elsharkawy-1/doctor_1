@@ -238,8 +238,8 @@
                     <div><code>عيادة د. سارة النجار</code></div>
                 </div>
                 <div class="row">
-                    <div class="label">Phone</div>
-                    <div><code>01001234567</code></div>
+                    <div class="label">Email</div>
+                    <div><code>doctor@doctor1.test</code></div>
                 </div>
                 <div class="row">
                     <div class="label">Password</div>
@@ -277,7 +277,7 @@ Accept: application/json
 Content-Type: application/json
 
 {
-  "phone": "01001234567",
+  "email": "doctor@doctor1.test",
   "password": "password",
   "device_name": "mobile-team"
 }</code></pre>

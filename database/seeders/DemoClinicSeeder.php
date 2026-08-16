@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Hash;
 /**
  * A realistic clinic to develop and demo against.
  *
- * Today's queue is created through the **real** BookingService and
+ * Today's bookings are created through the **real** BookingService and
  * BookingStatusService rather than by inserting rows, so running this seeder
  * exercises patient codes, phone normalisation, slot availability, the write
  * lock and the price snapshot against the actual database.
@@ -83,7 +83,7 @@ class DemoClinicSeeder extends Seeder
 
         $patients = $this->patients($clinic);
         $this->backfillHistory($clinic, $doctor, $patients, $owner);
-        $this->todaysQueue($clinic, $patients, $secretary);
+        $this->todaysBookings($clinic, $patients, $secretary);
         $this->awaitingRebooking($clinic, $doctor, $patients);
 
         $this->report($clinic, $owner, $secretary);
@@ -326,7 +326,7 @@ class DemoClinicSeeder extends Seeder
      *
      * @param  list<Patient>  $patients
      */
-    private function todaysQueue(Clinic $clinic, array $patients, User $secretary): void
+    private function todaysBookings(Clinic $clinic, array $patients, User $secretary): void
     {
         $bookings = app(BookingService::class);
         $status = app(BookingStatusService::class);
@@ -334,7 +334,7 @@ class DemoClinicSeeder extends Seeder
         $slots = $this->todaysSlots($clinic);
 
         if ($slots === []) {
-            $this->command?->warn('The clinic has no open slots today, so no queue was seeded.');
+            $this->command?->warn('The clinic has no open slots today, so no bookings were seeded.');
 
             return;
         }

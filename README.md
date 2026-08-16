@@ -1,6 +1,6 @@
 # Doctor 1 — Clinic Booking, Calendar & Insights
 
-Backend for a clinic booking and queue system. One Laravel application serving
+Backend for a clinic booking, calendar, and insights system. One Laravel application serving
 two surfaces:
 
 - **Mobile API** (`/api/v1`) — the whole clinic: bookings, calendar, patients,
@@ -31,8 +31,8 @@ visit types, a real week of hours, a holiday, 16 patients with five months of
 history, today's bookings in every state, and two patients awaiting rebooking.
 It is safe to re-run — it rebuilds the demo clinic each time.
 
-Today's bookings are created through the **real** `BookingService`, so seeding also
-exercises slot availability, the write lock, patient codes and the price
+Today's bookings are created through the **real** `BookingService`, so seeding
+also exercises slot availability, the write lock, patient codes and the price
 snapshot against your actual database.
 
 | Login | Password |

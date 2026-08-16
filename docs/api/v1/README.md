@@ -582,7 +582,7 @@ Changing the phone moves the booking to a different patient.
 
 ---
 
-## 9. Today's queue
+## 9. Booking Status
 
 Cards are ordered by appointment time. There is no `queue_position`; `arrived_at` is still returned for future wait-time reporting.
 

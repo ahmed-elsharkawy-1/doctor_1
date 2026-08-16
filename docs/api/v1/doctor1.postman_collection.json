@@ -1,7 +1,7 @@
 {
     "info": {
-        "_postman_id": "9d4ca40a-7a1c-7679-63d2-be8dd64c665c",
-        "name": "Doctor 1 — Clinic Booking & Queue API — v1.0.0",
+        "_postman_id": "9e9a23e7-6658-3544-8b8d-b22cc3133382",
+        "name": "Doctor 1 — Clinic Booking & Calendar API — v1.0.0",
         "description": "The complete v1 API, consumed by the Flutter app.\n\n**This file is the source of truth.** The Postman collection is generated\nfrom it (`php artisan api:postman`), and a test fails if a registered route\nis missing here — so it cannot drift from the code.\n\n## The envelope\n\nEvery response is one of three shapes, including 404s and 500s:\n\n```\n{ \"status\": \"success\", \"message\": \"...\", \"data\": { } }\n{ \"status\": \"error\",   \"message\": \"...\", \"error\": { code, details, fields } }\n```\n\nBranch on `error.code` — a stable UPPER_SNAKE string — never on `message`,\nwhich is localised prose meant to be shown to the user as-is.\n\n## value + display\n\nAnything rendered as text arrives pre-formatted, driven by\n`Accept-Language`, so the client never re-implements Arabic formatting.\nUse `value` for logic, show `display`.\n\n## Clinic scope\n\nThe clinic comes from the token. **No endpoint accepts `clinic_id`.**\nAnother clinic's record returns 404, never its data.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
@@ -841,7 +841,7 @@
             ]
         },
         {
-            "name": "Queue",
+            "name": "Status",
             "description": "Booking status changes",
             "item": [
                 {

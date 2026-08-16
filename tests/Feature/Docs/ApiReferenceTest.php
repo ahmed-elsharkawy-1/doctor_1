@@ -82,7 +82,7 @@ class ApiReferenceTest extends TestCase
             ->assertOk()
             ->assertSee('Doctor 1 Developer Handoff')
             ->assertSee('admin@doctor1.test')
-            ->assertSee('01001234567')
+            ->assertSee('doctor@doctor1.test')
             ->assertSee(route('docs.api'), escape: false)
             ->assertSee(url('/api/v1'), escape: false);
     }

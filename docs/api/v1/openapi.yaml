@@ -1,7 +1,7 @@
 openapi: 3.1.0
 
 info:
-  title: Doctor 1 — Clinic Booking & Queue API
+  title: Doctor 1 — Clinic Booking & Calendar API
   version: "1.0.0"
   description: |
     The complete v1 API, consumed by the Flutter app.
@@ -55,7 +55,7 @@ tags:
     description: Visit types, weekly hours, holidays
   - name: Booking
     description: The day strip, slots and the New Booking screen
-  - name: Queue
+  - name: Status
     description: Booking status changes
   - name: Postpone
     description: Postponing a day and the call list
@@ -759,13 +759,13 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
 
-  # --------------------------------------------------------------- Queue ----
+  # -------------------------------------------------------------- Status ----
 
   /bookings/{booking}/status:
     parameters:
       - $ref: "#/components/parameters/BookingId"
     post:
-      tags: [Queue]
+      tags: [Status]
       summary: Change booking status
       description: |
         Sends the intended target explicitly. A double tap repeats the same
@@ -794,7 +794,7 @@ paths:
     parameters:
       - $ref: "#/components/parameters/BookingId"
     post:
-      tags: [Queue]
+      tags: [Status]
       summary: Cancel a booking
       description: |
         Patient cancellation only. No-show is a status transition to
