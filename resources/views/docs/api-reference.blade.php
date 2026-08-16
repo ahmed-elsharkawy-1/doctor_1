@@ -9,6 +9,26 @@
     <style>
         body { margin: 0; padding: 0; font-family: system-ui, sans-serif; }
 
+        .docs-nav {
+            position: fixed;
+            z-index: 10;
+            top: 12px;
+            right: 16px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .docs-nav a {
+            border-radius: 6px;
+            background: #0e6976;
+            color: #fff;
+            padding: 8px 10px;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 6px 16px rgba(14, 105, 118, .18);
+        }
+
         /* Shown only if the renderer never loads — usually no internet. */
         #fallback {
             display: none;
@@ -30,6 +50,10 @@
 </head>
 <body>
 
+<nav class="docs-nav" aria-label="Documentation links">
+    <a href="{{ $designMapUrl }}">Design Map</a>
+</nav>
+
 <redoc spec-url="{{ $specUrl }}" hide-download-button="false"></redoc>
 
 <div id="fallback">
@@ -40,6 +64,7 @@
     </p>
     <ul>
         <li><a href="{{ $specUrl }}">{{ $specUrl }}</a> — the spec as JSON</li>
+        <li><a href="{{ $designMapUrl }}">{{ $designMapUrl }}</a> — API to design map</li>
         <li><code>docs/api/v1/openapi.yaml</code> — the source of truth in the repo</li>
         <li><code>docs/api/v1/doctor1.postman_collection.json</code> — import into Postman</li>
     </ul>

@@ -16,5 +16,6 @@ Route::get('/', function () {
 Route::prefix(config('clinic.docs.path'))->group(function (): void {
     Route::get('/', [ApiReferenceController::class, 'page'])->name('docs.api');
     Route::get('handoff', [ApiReferenceController::class, 'handoff'])->name('docs.api.handoff');
+    Route::get('design-map', [ApiReferenceController::class, 'designMap'])->name('docs.api.design-map');
     Route::get('openapi.json', [ApiReferenceController::class, 'document'])->name('docs.api.spec');
 });

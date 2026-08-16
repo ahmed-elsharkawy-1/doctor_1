@@ -11,7 +11,8 @@ class ApiReferenceTest extends TestCase
         $this->get(route('docs.api'))
             ->assertOk()
             ->assertSee('redoc', escape: false)
-            ->assertSee(route('docs.api.spec'), escape: false);
+            ->assertSee(route('docs.api.spec'), escape: false)
+            ->assertSee(route('docs.api.design-map'), escape: false);
     }
 
     public function test_the_spec_is_served_as_json(): void
@@ -67,6 +68,7 @@ class ApiReferenceTest extends TestCase
 
         $this->get(route('docs.api'))->assertNotFound();
         $this->getJson(route('docs.api.spec'))->assertNotFound();
+        $this->get(route('docs.api.design-map'))->assertNotFound();
     }
 
     public function test_it_needs_no_login(): void
@@ -84,7 +86,18 @@ class ApiReferenceTest extends TestCase
             ->assertSee('admin@doctor1.test')
             ->assertSee('doctor@doctor1.test')
             ->assertSee(route('docs.api'), escape: false)
+            ->assertSee(route('docs.api.design-map'), escape: false)
             ->assertSee(url('/api/v1'), escape: false);
+    }
+
+    public function test_the_design_map_page_renders_api_to_figma_links(): void
+    {
+        $this->get(route('docs.api.design-map'))
+            ->assertOk()
+            ->assertSee('API v1 to Figma design map')
+            ->assertSee('/bookings/calendar')
+            ->assertSee('node-id=431-24337', escape: false)
+            ->assertSee(route('docs.api.spec'), escape: false);
     }
 
     public function test_the_handoff_page_is_hidden_when_docs_are_disabled(): void

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Docs;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
+use League\CommonMark\GithubFlavoredMarkdownConverter;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Yaml\Yaml;
 
@@ -23,6 +24,7 @@ class ApiReferenceController
         return view('docs.api-reference', [
             'title' => $this->parsed()['info']['title'] ?? 'API',
             'specUrl' => route('docs.api.spec'),
+            'designMapUrl' => route('docs.api.design-map'),
         ]);
     }
 
@@ -35,6 +37,31 @@ class ApiReferenceController
             'adminUrl' => url('/admin'),
             'apiBaseUrl' => url('/api/v1'),
             'apiDocsUrl' => route('docs.api'),
+            'designMapUrl' => route('docs.api.design-map'),
+            'openApiUrl' => route('docs.api.spec'),
+        ]);
+    }
+
+    public function designMap(): View
+    {
+        $this->guard();
+
+        $path = base_path('docs/api/v1/design-api-map.md');
+
+        if (! is_file($path)) {
+            throw new NotFoundHttpException('The API design map has not been written yet.');
+        }
+
+        $converter = new GithubFlavoredMarkdownConverter([
+            'html_input' => 'strip',
+            'allow_unsafe_links' => false,
+        ]);
+
+        return view('docs.design-map', [
+            'title' => 'Doctor 1 API to design map',
+            'html' => $converter->convert(file_get_contents($path))->getContent(),
+            'apiDocsUrl' => route('docs.api'),
+            'handoffUrl' => route('docs.api.handoff'),
             'openApiUrl' => route('docs.api.spec'),
         ]);
     }

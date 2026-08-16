@@ -264,6 +264,10 @@
                     <div><a href="{{ $apiDocsUrl }}">{{ $apiDocsUrl }}</a></div>
                 </div>
                 <div class="row">
+                    <div class="label">Design Map</div>
+                    <div><a href="{{ $designMapUrl }}">{{ $designMapUrl }}</a></div>
+                </div>
+                <div class="row">
                     <div class="label">OpenAPI JSON</div>
                     <div><a href="{{ $openApiUrl }}">{{ $openApiUrl }}</a></div>
                 </div>
@@ -293,6 +297,7 @@ Content-Type: application/json
 
         <article class="wide links">
             <a class="button" href="{{ $apiDocsUrl }}">Open API Docs</a>
+            <a class="button secondary" href="{{ $designMapUrl }}">Open Design Map</a>
             <a class="button secondary" href="{{ $adminUrl }}">Open Dashboard</a>
             <a class="button secondary" href="{{ $openApiUrl }}">Open OpenAPI JSON</a>
         </article>
