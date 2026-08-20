@@ -8,9 +8,11 @@ use App\Filament\Admin\Resources\Specialties\SpecialtyResource;
 use App\Filament\Admin\Resources\Users\UserResource;
 use App\Models\Clinic;
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
 use Filament\Facades\Filament;
 use Filament\Panel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 /**
@@ -53,6 +55,18 @@ class PanelAccessTest extends TestCase
         $this->assertFalse(
             User::factory()->superAdmin()->inactive()->create()->canAccessPanel($this->panel()),
         );
+    }
+
+    public function test_database_seeder_falls_back_when_the_super_admin_password_env_is_blank(): void
+    {
+        config()->set('clinic.super_admin.password', '');
+
+        $this->seed(DatabaseSeeder::class);
+
+        $admin = User::where('email', 'admin@doctor1.test')->firstOrFail();
+
+        $this->assertTrue(Hash::check('password', $admin->password));
+        $this->assertTrue($admin->canAccessPanel($this->panel()));
     }
 
     /**

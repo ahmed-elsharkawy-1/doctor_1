@@ -17,7 +17,7 @@ class DatabaseSeeder extends Seeder
             ['email' => config('clinic.super_admin.email')],
             [
                 'name' => config('clinic.super_admin.name'),
-                'password' => config('clinic.super_admin.password'),
+                'password' => config('clinic.super_admin.password') ?: 'password',
                 'role' => UserRole::SUPER_ADMIN,
                 'locale' => 'ar',
                 'is_active' => true,
