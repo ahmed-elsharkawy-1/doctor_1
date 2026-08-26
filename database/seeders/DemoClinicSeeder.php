@@ -14,7 +14,9 @@ use App\Models\Doctor;
 use App\Models\Patient;
 use App\Models\Specialty;
 use App\Models\User;
+use App\Models\VisitType;
 use App\Services\V1\Booking\BookingService;
+use App\Services\V1\Booking\SlotAvailabilityService;
 use App\Services\V1\Patients\PatientService;
 use App\Services\V1\Queue\BookingStatusService;
 use App\Support\PhoneNumber;
@@ -331,14 +333,6 @@ class DemoClinicSeeder extends Seeder
         $bookings = app(BookingService::class);
         $status = app(BookingStatusService::class);
 
-        $slots = $this->todaysSlots($clinic);
-
-        if ($slots === []) {
-            $this->command?->warn('The clinic has no open slots today, so no bookings were seeded.');
-
-            return;
-        }
-
         $checkup = $clinic->visitTypes->firstWhere('name', 'كشف');
         $followUp = $clinic->visitTypes->firstWhere('name', 'إعادة');
 
@@ -351,10 +345,17 @@ class DemoClinicSeeder extends Seeder
         ];
 
         $today = Carbon::now($clinic->timezone)->toDateString();
-        $slotIndex = 0;
 
         foreach ($plan as [$patientIndex, $visitType, $target]) {
-            if (! isset($slots[$slotIndex])) {
+            if (! $visitType instanceof VisitType) {
+                continue;
+            }
+
+            $startTime = $this->nextAvailableTime($clinic, $visitType, $today);
+
+            if ($startTime === null) {
+                $this->command?->warn('The clinic has no available slots today for '.$visitType->name.', so remaining bookings were skipped.');
+
                 break;
             }
 
@@ -365,7 +366,7 @@ class DemoClinicSeeder extends Seeder
                 'phone' => $patient->phone,
                 'visit_type_id' => $visitType->id,
                 'date' => $today,
-                'start_time' => $slots[$slotIndex],
+                'start_time' => $startTime,
             ]), $secretary);
 
             match ($target) {
@@ -374,36 +375,21 @@ class DemoClinicSeeder extends Seeder
                 'arrived' => $status->arrive($booking),
                 default => null,
             };
-
-            // Leave a gap so the next visit type still fits.
-            $slotIndex += 3;
         }
     }
 
-    /**
-     * @return list<string>
-     */
-    private function todaysSlots(Clinic $clinic): array
+    private function nextAvailableTime(Clinic $clinic, VisitType $visitType, string $date): ?string
     {
-        $schedule = $clinic->scheduleFor(DayOfWeek::fromDate(Carbon::now($clinic->timezone)));
+        $availability = app(SlotAvailabilityService::class)
+            ->for($clinic, Carbon::parse($date, $clinic->timezone), $visitType);
 
-        if ($schedule === null || ! $schedule->is_open) {
-            return [];
-        }
-
-        $slots = [];
-
-        foreach ($schedule->periods as $period) {
-            $cursor = Carbon::parse($period->startTime());
-            $end = Carbon::parse($period->endTime());
-
-            while ($cursor->copy()->addMinutes(30)->lessThanOrEqualTo($end)) {
-                $slots[] = $cursor->format('H:i');
-                $cursor->addMinutes($clinic->slot_step_minutes);
+        foreach ($availability->slots as $slot) {
+            if ($slot->isAvailable) {
+                return $slot->startAt->format('H:i');
             }
         }
 
-        return $slots;
+        return null;
     }
 
     /**
