@@ -4,7 +4,9 @@ namespace App\Services\V1\Booking;
 
 use App\DTOs\V1\Booking\BookingData;
 use App\Enums\ApiErrorCode;
+use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
+use App\Enums\PatientLocation;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Models\Clinic;
@@ -28,31 +30,42 @@ class BookingService
     public function create(Clinic $clinic, BookingData $data, User $actor): Booking
     {
         $visitType = $this->activeVisitType($clinic, $data->visitTypeId);
-        $startAt = $this->startAt($clinic, $data->date, $data->startTime);
+        $startAt = $data->bookingKind === BookingKind::NORMAL
+            ? $this->startAt($clinic, $data->date, (string) $data->startTime)
+            : null;
         $doctor = $this->doctor($clinic);
 
         $phone = $data->phone === null ? null : $this->patients->parsePhone($clinic, $data->phone);
 
-        return $this->claimingTheDay($clinic, $startAt, function () use (
+        return $this->claimingTheDay($clinic, $this->clinicDate($clinic, $data->date), function () use (
             $clinic, $data, $visitType, $startAt, $doctor, $actor, $phone
         ) {
-            $this->guardSlot($clinic, $startAt, $visitType, $data->force);
+            if ($data->bookingKind === BookingKind::NORMAL) {
+                $this->guardSlot($clinic, $startAt, $visitType, $data->force);
+            }
 
             $patient = $this->patientFor($clinic, $data, $phone);
+            $now = Carbon::now($clinic->timezone);
+            $startsInsideClinic = $data->bookingKind === BookingKind::EMERGENCY
+                && $data->patientLocation === PatientLocation::INSIDE_CLINIC;
 
             $booking = $clinic->bookings()->create([
                 'doctor_id' => $doctor->id,
                 'patient_id' => $patient->id,
                 'visit_type_id' => $visitType->id,
-                'visit_date' => $startAt->toDateString(),
+                'visit_date' => $this->clinicDate($clinic, $data->date)->toDateString(),
                 'start_at' => $startAt,
-                'end_at' => $startAt->copy()->addMinutes($visitType->duration_minutes),
+                'end_at' => $startAt?->copy()->addMinutes($visitType->duration_minutes),
                 // Frozen at creation — a later price or duration change must
                 // not rewrite this booking (SPEC §3.3).
                 'duration_minutes' => $visitType->duration_minutes,
                 'price' => $visitType->price,
-                'status' => BookingStatus::BOOKED,
-                'is_overbooked' => $data->force,
+                'status' => $startsInsideClinic ? BookingStatus::ARRIVED : BookingStatus::BOOKED,
+                'booking_kind' => $data->bookingKind,
+                'patient_location' => $data->bookingKind === BookingKind::EMERGENCY ? $data->patientLocation : null,
+                'arrived_at' => $startsInsideClinic ? $now : null,
+                'queue_entered_at' => $startsInsideClinic ? $now : null,
+                'is_overbooked' => $data->bookingKind === BookingKind::NORMAL && $data->force,
                 'notes' => $data->notes,
                 'created_by' => $actor->id,
             ]);
@@ -76,26 +89,41 @@ class BookingService
         }
 
         $visitType = $this->activeVisitType($clinic, $data->visitTypeId);
-        $startAt = $this->startAt($clinic, $data->date, $data->startTime);
+        $startAt = $data->bookingKind === BookingKind::NORMAL
+            ? $this->startAt($clinic, $data->date, (string) $data->startTime)
+            : null;
         $phone = $data->phone === null ? null : $this->patients->parsePhone($clinic, $data->phone);
 
-        return $this->claimingTheDay($clinic, $startAt, function () use (
+        return $this->claimingTheDay($clinic, $this->clinicDate($clinic, $data->date), function () use (
             $clinic, $booking, $data, $visitType, $startAt, $phone
         ) {
             // The booking must not collide with itself.
-            $this->guardSlot($clinic, $startAt, $visitType, $data->force, $booking->id);
+            if ($data->bookingKind === BookingKind::NORMAL) {
+                $this->guardSlot($clinic, $startAt, $visitType, $data->force, $booking->id);
+            }
 
             $patient = $this->patientFor($clinic, $data, $phone);
+            $now = Carbon::now($clinic->timezone);
+            $startsInsideClinic = $booking->status === BookingStatus::BOOKED
+                && $data->bookingKind === BookingKind::EMERGENCY
+                && $data->patientLocation === PatientLocation::INSIDE_CLINIC;
 
             $booking->update([
                 'patient_id' => $patient->id,
                 'visit_type_id' => $visitType->id,
-                'visit_date' => $startAt->toDateString(),
+                'visit_date' => $this->clinicDate($clinic, $data->date)->toDateString(),
                 'start_at' => $startAt,
-                'end_at' => $startAt->copy()->addMinutes($visitType->duration_minutes),
+                'end_at' => $startAt?->copy()->addMinutes($visitType->duration_minutes),
                 'duration_minutes' => $visitType->duration_minutes,
                 'price' => $visitType->price,
-                'is_overbooked' => $data->force ? true : $booking->is_overbooked,
+                'status' => $startsInsideClinic ? BookingStatus::ARRIVED : $booking->status,
+                'booking_kind' => $data->bookingKind,
+                'patient_location' => $data->bookingKind === BookingKind::EMERGENCY ? $data->patientLocation : null,
+                'arrived_at' => $startsInsideClinic ? $now : $booking->arrived_at,
+                'queue_entered_at' => $startsInsideClinic ? $now : $booking->queue_entered_at,
+                'is_overbooked' => $data->bookingKind === BookingKind::NORMAL
+                    ? ($data->force ? true : $booking->is_overbooked)
+                    : false,
                 'notes' => $data->notes,
             ]);
 
@@ -131,10 +159,10 @@ class BookingService
      * @param  \Closure(): T  $callback
      * @return T
      */
-    private function claimingTheDay(Clinic $clinic, Carbon $startAt, \Closure $callback): mixed
+    private function claimingTheDay(Clinic $clinic, Carbon $date, \Closure $callback): mixed
     {
         $lock = Cache::lock(
-            "booking_lock_{$clinic->id}_{$startAt->toDateString()}",
+            "booking_lock_{$clinic->id}_{$date->toDateString()}",
             seconds: 10,
         );
 
@@ -281,5 +309,10 @@ class BookingService
     private function startAt(Clinic $clinic, string $date, string $time): Carbon
     {
         return Carbon::parse("{$date} {$time}", $clinic->timezone);
+    }
+
+    private function clinicDate(Clinic $clinic, string $date): Carbon
+    {
+        return Carbon::parse($date, $clinic->timezone)->startOfDay();
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\BookingStatus;
+use App\Enums\BookingKind;
 use App\Services\Results\V1\Booking\BookingCardResult;
 use App\Services\V1\Booking\BookingCalendarService;
 use App\Services\V1\Booking\SlotAvailabilityService;
@@ -30,11 +31,18 @@ class HomeController extends V1Controller
 
         $upcoming = $clinic->bookings()
             ->with(['patient', 'visitType'])
-            ->where('start_at', '>=', $now)
+            ->where(function ($query) use ($now, $today): void {
+                $query
+                    ->where('start_at', '>=', $now)
+                    ->orWhere(function ($query) use ($today): void {
+                        $query
+                            ->where('booking_kind', BookingKind::EMERGENCY)
+                            ->whereDate('visit_date', $today->toDateString());
+                    });
+            })
             ->whereNotIn('status', [BookingStatus::DONE, BookingStatus::CANCELLED, BookingStatus::NO_SHOW])
-            ->orderBy('start_at')
-            ->limit(5)
             ->get()
+            ->pipe(fn ($bookings) => $this->queue->sortBookings($bookings)->take(5))
             ->map(fn ($booking) => (new BookingCardResult(
                 $booking,
                 $this->queue,

@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\Api\V1\Booking;
 
+use App\Enums\BookingKind;
+use App\Enums\PatientLocation;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreBookingRequest extends FormRequest
 {
@@ -24,10 +27,21 @@ class StoreBookingRequest extends FormRequest
             'whatsapp_opt_in' => ['nullable', 'boolean'],
             'visit_type_id' => ['required', 'integer'],
             'date' => ['required', 'date_format:Y-m-d'],
-            'start_time' => ['required', 'date_format:H:i'],
+            'booking_kind' => ['nullable', Rule::in(BookingKind::values())],
+            'patient_location' => [
+                Rule::requiredIf(fn (): bool => $this->input('booking_kind', BookingKind::NORMAL->value) === BookingKind::EMERGENCY->value),
+                'nullable',
+                Rule::in(PatientLocation::values()),
+            ],
+            'start_time' => [
+                Rule::requiredIf(fn (): bool => $this->input('booking_kind', BookingKind::NORMAL->value) === BookingKind::NORMAL->value),
+                'nullable',
+                'date_format:H:i',
+                'prohibited_if:booking_kind,'.BookingKind::EMERGENCY->value,
+            ],
             'notes' => ['nullable', 'string', 'max:2000'],
             // Overbooking override — books past a full day or outside hours.
-            'force' => ['nullable', 'boolean'],
+            'force' => ['nullable', 'boolean', 'prohibited_if:booking_kind,'.BookingKind::EMERGENCY->value],
             // Confirms replacing the stored name when the phone is known.
             'update_patient_name' => ['nullable', 'boolean'],
             // Set when booking from the call list, so the postponed booking is

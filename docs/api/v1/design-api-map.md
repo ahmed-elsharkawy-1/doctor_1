@@ -119,12 +119,16 @@ Notes:
 
 - `status=` filters booking cards only. Day counts remain full-day counts.
 - There is no `queue_position` in v1.
-- Cards should be ordered by appointment time.
+- Cards are ordered as the active queue: patients already with the doctor,
+  emergency arrived, normal arrived, emergency booked, normal booked, then
+  finished history. Normal appointment time still breaks ties.
 
 ### New/edit booking flow
 
-Design: patient phone/name form, visit type selector, date selector, slot picker,
-returning-patient warning, name-conflict warning, force booking confirmation.
+Design: patient phone/name form, emergency toggle, visit type selector, date
+selector, slot picker for normal bookings, patient-location selector for
+emergency bookings, returning-patient warning, name-conflict warning, force
+booking confirmation.
 
 APIs:
 
@@ -142,6 +146,9 @@ API-to-design mapping:
 | Slot picker changes by visit type | `/slots` requires `visit_type_id` |
 | Grey unavailable slots | `/slots` returns unavailable slots with `is_available: false` |
 | Closed day empty state | `/slots.closed_reason` |
+| Emergency toggle enabled | `POST /bookings` with `booking_kind: "emergency"` |
+| Emergency patient location | `patient_location: "inside_clinic"` or `"on_way"` |
+| Emergency without slot | Do not send `start_time`; response returns `start_time: null` and `end_time: null` |
 | Returning patient prefill | `/patients/lookup.found` and `patient` |
 | Name conflict prompt | `/patients/lookup.name_conflict` |
 | Visit type mismatch warning | `/patients/lookup.visit_type_mismatch` |
@@ -152,6 +159,10 @@ Important details:
 
 - Patients are matched by normalized phone only, never by name.
 - `POST /bookings` creates the patient if the phone is new.
+- `booking_kind` defaults to `normal`; normal bookings require `start_time`.
+- Emergency bookings require `patient_location`. `inside_clinic` starts as
+  `arrived`; `on_way` starts as `booked` until the status endpoint marks arrival.
+- Emergency bookings do not occupy a slot.
 - Editing is allowed for `booked` and `arrived` only.
 - Booking with `force: true` marks `is_overbooked`.
 

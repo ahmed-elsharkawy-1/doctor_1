@@ -49,4 +49,14 @@ return [
         'emergency' => 'Emergency',
         'incomplete' => 'Incomplete',
     ],
+
+    'kind' => [
+        'normal' => 'Normal',
+        'emergency' => 'Emergency',
+    ],
+
+    'patient_location' => [
+        'inside_clinic' => 'Patient inside clinic',
+        'on_way' => 'Patient on the way',
+    ],
 ];

@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\BookingStatus;
+use App\Enums\BookingKind;
 use App\Enums\CancelReason;
 use App\Models\Booking;
 use App\Models\Clinic;
@@ -36,6 +37,7 @@ class BookingFactory extends Factory
             'duration_minutes' => $duration,
             'price' => 300.00,
             'status' => BookingStatus::BOOKED,
+            'booking_kind' => BookingKind::NORMAL,
             'is_overbooked' => false,
         ];
     }

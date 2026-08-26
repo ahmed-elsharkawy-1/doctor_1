@@ -2,6 +2,7 @@
 
 namespace App\Services\V1\Queue;
 
+use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Models\Booking;
@@ -10,11 +11,25 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
- * Shared booking-card helpers. Calendar cards are ordered by appointment time;
- * rebooking worklists also use appointment time.
+ * Shared booking-card helpers. Calendar, home, postpone, and rebooking lists
+ * use the same queue-priority ordering.
  */
 class QueueService
 {
+    /**
+     * Emergency patients are handled before normal patients in the active
+     * waiting list. Appointment time still breaks ties for normal bookings.
+     *
+     * @param  Collection<int, Booking>  $bookings
+     * @return Collection<int, Booking>
+     */
+    public function sortBookings(Collection $bookings): Collection
+    {
+        return $bookings
+            ->sortBy(fn (Booking $booking): array => $this->sortKey($booking))
+            ->values();
+    }
+
     /**
      * What the app may offer on each card, so the button rules live in one
      * place rather than being re-implemented in Flutter.
@@ -57,11 +72,12 @@ class QueueService
      */
     public function awaitingRebooking(Clinic $clinic): Collection
     {
-        return $clinic->bookings()
+        $bookings = $clinic->bookings()
             ->with(['patient', 'visitType'])
             ->awaitingRebooking()
-            ->orderBy('start_at')
             ->get();
+
+        return $this->sortBookings($bookings);
     }
 
     public function awaitingRebookingCount(Clinic $clinic): int
@@ -76,12 +92,13 @@ class QueueService
      */
     public function postponeCandidates(Clinic $clinic, Carbon $date): Collection
     {
-        return $clinic->bookings()
+        $bookings = $clinic->bookings()
             ->with(['patient', 'visitType'])
             ->onDate($date->toDateString())
             ->pending()
-            ->orderBy('start_at')
             ->get();
+
+        return $this->sortBookings($bookings);
     }
 
     /**
@@ -90,5 +107,33 @@ class QueueService
     public function selectableCancelReasons(): array
     {
         return CancelReason::selectable();
+    }
+
+    /**
+     * @return array{0: int, 1: int, 2: string, 3: int}
+     */
+    private function sortKey(Booking $booking): array
+    {
+        $statusRank = match ($booking->status) {
+            BookingStatus::WITH_DOCTOR => 0,
+            BookingStatus::ARRIVED => 1,
+            BookingStatus::BOOKED => 2,
+            BookingStatus::DONE => 3,
+            BookingStatus::CANCELLED => 4,
+            BookingStatus::NO_SHOW => 5,
+        };
+
+        $kindRank = $booking->booking_kind === BookingKind::EMERGENCY ? 0 : 1;
+        $time = $booking->queue_entered_at
+            ?? $booking->arrived_at
+            ?? $booking->start_at
+            ?? $booking->created_at;
+
+        return [
+            $statusRank,
+            in_array($booking->status, [BookingStatus::ARRIVED, BookingStatus::BOOKED], true) ? $kindRank : 1,
+            $time?->format('Y-m-d H:i:s.u') ?? '',
+            $booking->id,
+        ];
     }
 }

@@ -2,6 +2,9 @@
 
 namespace App\DTOs\V1\Booking;
 
+use App\Enums\BookingKind;
+use App\Enums\PatientLocation;
+
 /**
  * A booking as submitted from the New Booking screen.
  */
@@ -15,7 +18,9 @@ final class BookingData
         public readonly bool $whatsappOptIn,
         public readonly int $visitTypeId,
         public readonly string $date,
-        public readonly string $startTime,
+        public readonly ?string $startTime,
+        public readonly BookingKind $bookingKind = BookingKind::NORMAL,
+        public readonly ?PatientLocation $patientLocation = null,
         public readonly ?string $notes = null,
         public readonly bool $force = false,
         public readonly bool $updatePatientName = false,
@@ -36,7 +41,11 @@ final class BookingData
             whatsappOptIn: (bool) ($validated['whatsapp_opt_in'] ?? true),
             visitTypeId: (int) $validated['visit_type_id'],
             date: (string) $validated['date'],
-            startTime: substr((string) $validated['start_time'], 0, 5),
+            startTime: isset($validated['start_time']) ? substr((string) $validated['start_time'], 0, 5) : null,
+            bookingKind: BookingKind::from((string) ($validated['booking_kind'] ?? BookingKind::NORMAL->value)),
+            patientLocation: isset($validated['patient_location'])
+                ? PatientLocation::from((string) $validated['patient_location'])
+                : null,
             notes: isset($validated['notes']) ? trim((string) $validated['notes']) : null,
             // Books past a full day, or outside working hours, on the
             // secretary's explicit confirmation (SPEC decision #16).

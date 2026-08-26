@@ -30,6 +30,10 @@ final class BookingResult extends ServiceResult
             'cancel_reason' => $booking->cancel_reason === null
                 ? null
                 : Wire::enum($booking->cancel_reason, $booking->cancel_reason->label()),
+            'booking_kind' => Wire::enum($booking->booking_kind, $booking->booking_kind->label()),
+            'patient_location' => $booking->patient_location === null
+                ? null
+                : Wire::enum($booking->patient_location, $booking->patient_location->label()),
             'patient' => $patient === null ? null : [
                 'id' => $patient->id,
                 'code' => $patient->code,
@@ -44,8 +48,9 @@ final class BookingResult extends ServiceResult
                 'duration_minutes' => $booking->duration_minutes,
             ],
             'date' => Wire::date($booking->visit_date),
-            'start_time' => Wire::time($booking->start_at),
-            'end_time' => Wire::time($booking->end_at),
+            'start_time' => $booking->start_at === null ? null : Wire::time($booking->start_at),
+            'end_time' => $booking->end_at === null ? null : Wire::time($booking->end_at),
+            'queue_entered_at' => $booking->queue_entered_at?->toAtomString(),
             'is_overbooked' => $booking->is_overbooked,
             'notes' => $booking->notes,
         ];

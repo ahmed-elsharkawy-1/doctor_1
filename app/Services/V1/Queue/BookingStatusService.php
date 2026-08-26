@@ -21,7 +21,12 @@ class BookingStatusService
 {
     public function arrive(Booking $booking): Booking
     {
-        return $this->advance($booking, BookingStatus::ARRIVED, ['arrived_at' => $this->now($booking)]);
+        $now = $this->now($booking);
+
+        return $this->advance($booking, BookingStatus::ARRIVED, [
+            'arrived_at' => $now,
+            'queue_entered_at' => $booking->queue_entered_at ?? $now,
+        ]);
     }
 
     public function callIn(Booking $booking): Booking

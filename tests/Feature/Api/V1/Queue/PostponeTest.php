@@ -55,7 +55,7 @@ class PostponeTest extends TestCase
             ->create(['patient_id' => $patient->id]);
     }
 
-    public function test_candidates_are_the_patients_still_in_play_today(): void
+    public function test_candidates_are_the_patients_still_in_play_today_in_queue_order(): void
     {
         $this->booking('09:00', 'محجوزة');
         $arrived = $this->booking('10:00', 'وصلت');
@@ -66,7 +66,7 @@ class PostponeTest extends TestCase
 
         $items = $this->getJson(route('api.v1.postpone.candidates'))->assertOk()->json('data.items');
 
-        $this->assertSame(['محجوزة', 'وصلت'], array_column(array_column($items, 'patient'), 'name'));
+        $this->assertSame(['وصلت', 'محجوزة'], array_column(array_column($items, 'patient'), 'name'));
     }
 
     public function test_postponing_everyone_cancels_them_with_the_emergency_reason(): void

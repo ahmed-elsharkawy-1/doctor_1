@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Enums\BookingStatus;
+use App\Enums\BookingKind;
 use App\Enums\CancelReason;
+use App\Enums\PatientLocation;
 use Database\Factories\BookingFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,10 +29,13 @@ class Booking extends Model
         'price',
         'status',
         'cancel_reason',
+        'booking_kind',
+        'patient_location',
         'arrived_at',
         'called_in_at',
         'completed_at',
         'cancelled_at',
+        'queue_entered_at',
         'contacted_at',
         'rebooked_booking_id',
         'is_overbooked',
@@ -52,11 +57,14 @@ class Booking extends Model
             'price' => 'decimal:2',
             'status' => BookingStatus::class,
             'cancel_reason' => CancelReason::class,
+            'booking_kind' => BookingKind::class,
+            'patient_location' => PatientLocation::class,
             'arrived_at' => 'datetime',
             'called_in_at' => 'datetime',
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'contacted_at' => 'datetime',
+            'queue_entered_at' => 'datetime',
             'is_overbooked' => 'boolean',
         ];
     }
@@ -123,7 +131,9 @@ class Booking extends Model
      */
     public function scopeOccupyingSlot(Builder $query): void
     {
-        $query->whereIn('status', BookingStatus::occupyingSlot());
+        $query->whereIn('status', BookingStatus::occupyingSlot())
+            ->whereNotNull('start_at')
+            ->whereNotNull('end_at');
     }
 
     /**

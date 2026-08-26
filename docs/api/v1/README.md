@@ -409,7 +409,17 @@ Dense day strip plus sparse date-keyed booking cards. `status=` filters cards on
       "is_open": true,
       "is_holiday": false,
       "is_today": true,
-      "counts": { "total": 4, "booked": 2, "arrived": 0, "with_doctor": 0, "done": 1, "cancelled": 1, "no_show": 0 }
+      "counts": {
+        "total": 4,
+        "normal_count": 3,
+        "emergency_count": 1,
+        "booked": 2,
+        "arrived": 0,
+        "with_doctor": 0,
+        "done": 1,
+        "cancelled": 1,
+        "no_show": 0
+      }
     }
   ],
   "bookings": { "2026-08-08": [{ "...": "booking card" }] }
@@ -418,8 +428,11 @@ Dense day strip plus sparse date-keyed booking cards. `status=` filters cards on
 
 - `is_open` is already false on a holiday — check `is_holiday` only to show
   "إجازة" rather than a date.
-- `pending_count` is the "X لسه ماخلصوش" number: booked + arrived.
-- `bookings_count` excludes cancelled bookings.
+- Booking cards are sorted as the active clinic queue: `with_doctor`, emergency
+  arrived, normal arrived, emergency booked, normal booked, then finished
+  history. Normal appointment time still breaks ties.
+- `normal_count` / `emergency_count` drive the "حالات عادية" / "حالة طارئة"
+  counters in the design.
 
 ### `GET /slots?date=&visit_type_id=`
 
@@ -507,12 +520,15 @@ one clinic; another clinic's patient is never returned.
 
 ### `POST /bookings`
 
+Normal slot booking:
+
 ```json
 {
   "patient_name": "سارة أحمد",
   "phone": "01012225521",
   "visit_type_id": 3,
   "date": "2026-08-08",
+  "booking_kind": "normal",
   "start_time": "09:00",
   "notes": null,
   "force": false,
@@ -520,13 +536,32 @@ one clinic; another clinic's patient is never returned.
 }
 ```
 
+Emergency queue booking, matching the "هل هذا حجز طارىء؟" screen:
+
+```json
+{
+  "patient_name": "سارة أحمد",
+  "phone": "01012225521",
+  "visit_type_id": 3,
+  "date": "2026-08-08",
+  "booking_kind": "emergency",
+  "patient_location": "inside_clinic"
+}
+```
+
 - The patient is created if the phone is new, and reused if it is known — the
   ID code is generated once and never changes.
 - `update_patient_name: true` replaces the stored name. Without it a differing
   name is ignored, so a typo cannot quietly rewrite the record.
-- `force: true` books anyway — past a taken slot, outside working hours, or on
-  a closed day — and sets `is_overbooked` on the result. Use it only after the
-  secretary confirms.
+- `booking_kind` defaults to `normal`. Normal bookings require `start_time`.
+- Emergency bookings require `patient_location` (`inside_clinic` or `on_way`)
+  and must not send `start_time`. They do not block a time slot.
+- `inside_clinic` emergency bookings are created as `arrived` and enter the
+  queue immediately. `on_way` emergency bookings are created as `booked`; call
+  `POST /bookings/{id}/status {"to":"arrived"}` when the patient arrives.
+- `force: true` is allowed only for normal bookings. It books anyway — past a
+  taken slot, outside working hours, or on a closed day — and sets
+  `is_overbooked` on the result. It is separate from emergency priority.
 
 **201 → `data`**
 
@@ -535,6 +570,8 @@ one clinic; another clinic's patient is never returned.
   "id": 88,
   "status": { "value": "booked", "display": "محجوزة" },
   "cancel_reason": null,
+  "booking_kind": { "value": "normal", "display": "حجز عادي" },
+  "patient_location": null,
   "patient": {
     "id": 12, "code": "SAAH5521", "name": "سارة أحمد",
     "phone": { "value": "+201012225521", "display": "01012225521" }
@@ -543,6 +580,7 @@ one clinic; another clinic's patient is never returned.
   "date": { "value": "2026-08-08", "display": "8 أغسطس 2026" },
   "start_time": { "value": "09:00", "display": "9:00 ص" },
   "end_time": { "value": "09:20", "display": "9:20 ص" },
+  "queue_entered_at": null,
   "is_overbooked": false,
   "notes": null,
   "price": { "value": "300.00", "display": "300.00 ج.م" }

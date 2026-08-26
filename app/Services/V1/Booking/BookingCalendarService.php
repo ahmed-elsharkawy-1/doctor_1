@@ -3,6 +3,7 @@
 namespace App\Services\V1\Booking;
 
 use App\Enums\BookingStatus;
+use App\Enums\BookingKind;
 use App\Enums\DayOfWeek;
 use App\Models\Booking;
 use App\Models\Clinic;
@@ -51,12 +52,14 @@ class BookingCalendarService
     }
 
     /**
-     * @return array{total: int, booked: int, arrived: int, with_doctor: int, done: int, cancelled: int, no_show: int}
+     * @return array{total: int, normal_count: int, emergency_count: int, booked: int, arrived: int, with_doctor: int, done: int, cancelled: int, no_show: int}
      */
     public function emptyCounts(): array
     {
         return [
             'total' => 0,
+            'normal_count' => 0,
+            'emergency_count' => 0,
             'booked' => 0,
             'arrived' => 0,
             'with_doctor' => 0,
@@ -77,6 +80,8 @@ class BookingCalendarService
             ->map(function (Collection $group): array {
                 $counts = $this->emptyCounts();
                 $counts['total'] = $group->count();
+                $counts['normal_count'] = $group->where('booking_kind', BookingKind::NORMAL)->count();
+                $counts['emergency_count'] = $group->where('booking_kind', BookingKind::EMERGENCY)->count();
 
                 foreach (BookingStatus::cases() as $status) {
                     $counts[$status->value] = $group->where('status', $status)->count();

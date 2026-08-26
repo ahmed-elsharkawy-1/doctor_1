@@ -3,6 +3,9 @@
 namespace Tests\Feature\Api\V1\Queue;
 
 use App\Enums\DayOfWeek;
+use App\Enums\BookingKind;
+use App\Enums\BookingStatus;
+use App\Enums\PatientLocation;
 use App\Models\Booking;
 use App\Models\Patient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -61,7 +64,7 @@ class QueueOrderingTest extends TestCase
         ]))->assertOk()->json('data');
     }
 
-    public function test_cards_sort_by_appointment_time_not_arrival_time(): void
+    public function test_active_cards_sort_by_queue_priority(): void
     {
         $late = $this->booking('11:00', 'ج');
         $this->booking('09:00', 'أ');
@@ -71,7 +74,36 @@ class QueueOrderingTest extends TestCase
 
         $names = array_column(array_column($this->calendar()['bookings']['2026-08-08'], 'patient'), 'name');
 
-        $this->assertSame(['أ', 'ج'], $names);
+        $this->assertSame(['ج', 'أ'], $names);
+    }
+
+    public function test_emergency_arrived_patients_sort_before_normal_arrived_patients(): void
+    {
+        $normal = $this->booking('09:00', 'عادي');
+        $emergency = Booking::factory()
+            ->forClinic($this->clinic)
+            ->create([
+                'patient_id' => Patient::factory()->create([
+                    'clinic_id' => $this->clinic->id,
+                    'name' => 'طارئ',
+                ])->id,
+                'visit_date' => $this->today->toDateString(),
+                'start_at' => null,
+                'end_at' => null,
+                'status' => BookingStatus::ARRIVED,
+                'booking_kind' => BookingKind::EMERGENCY,
+                'patient_location' => PatientLocation::INSIDE_CLINIC,
+                'arrived_at' => Carbon::parse('2026-08-08 09:10:00', 'Africa/Cairo'),
+                'queue_entered_at' => Carbon::parse('2026-08-08 09:10:00', 'Africa/Cairo'),
+            ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-08-08 09:05:00', 'Africa/Cairo'));
+        $this->postJson(route('api.v1.bookings.status', $normal), ['to' => 'arrived'])->assertOk();
+
+        $names = array_column(array_column($this->calendar()['bookings']['2026-08-08'], 'patient'), 'name');
+
+        $this->assertSame(['طارئ', 'عادي'], $names);
+        $this->assertNotNull($emergency->refresh()->queue_entered_at);
     }
 
     public function test_cards_have_next_status_and_no_queue_position(): void
@@ -111,6 +143,8 @@ class QueueOrderingTest extends TestCase
         $counts = $this->calendar()['days'][0]['counts'];
 
         $this->assertSame(4, $counts['total']);
+        $this->assertSame(4, $counts['normal_count']);
+        $this->assertSame(0, $counts['emergency_count']);
         $this->assertSame(1, $counts['booked']);
         $this->assertSame(1, $counts['done']);
         $this->assertSame(1, $counts['cancelled']);
@@ -127,6 +161,7 @@ class QueueOrderingTest extends TestCase
         $data = $this->getJson(route('api.v1.home'))->assertOk()->json('data');
 
         $this->assertSame(2, $data['today']['counts']['total']);
+        $this->assertSame(2, $data['today']['counts']['normal_count']);
         $this->assertSame(['ب'], array_column(array_column($data['upcoming'], 'patient'), 'name'));
     }
 

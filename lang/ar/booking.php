@@ -49,4 +49,14 @@ return [
         'emergency' => 'ظرف طارئ',
         'incomplete' => 'لم تكتمل',
     ],
+
+    'kind' => [
+        'normal' => 'حجز عادي',
+        'emergency' => 'حجز طارئ',
+    ],
+
+    'patient_location' => [
+        'inside_clinic' => 'المريض داخل العيادة',
+        'on_way' => 'المريض في الطريق',
+    ],
 ];

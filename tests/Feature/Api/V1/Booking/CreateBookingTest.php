@@ -3,7 +3,9 @@
 namespace Tests\Feature\Api\V1\Booking;
 
 use App\Enums\BookingStatus;
+use App\Enums\BookingKind;
 use App\Enums\DayOfWeek;
+use App\Enums\PatientLocation;
 use App\Models\Booking;
 use App\Models\ClinicHoliday;
 use App\Models\Patient;
@@ -67,6 +69,8 @@ class CreateBookingTest extends TestCase
         $response = $this->postJson(route('api.v1.bookings.store'), $this->payload())
             ->assertCreated()
             ->assertJsonPath('data.status.value', 'booked')
+            ->assertJsonPath('data.booking_kind.value', 'normal')
+            ->assertJsonPath('data.patient_location', null)
             ->assertJsonPath('data.start_time.value', '09:00')
             ->assertJsonPath('data.end_time.value', '09:20')
             ->assertJsonPath('data.patient.name', 'سارة أحمد');
@@ -254,6 +258,88 @@ class CreateBookingTest extends TestCase
             'date' => $this->saturday->copy()->addDay()->toDateString(),
             'force' => true,
         ]))->assertCreated();
+    }
+
+    public function test_normal_booking_requires_a_start_time(): void
+    {
+        $payload = $this->payload();
+        unset($payload['start_time']);
+
+        $this->postJson(route('api.v1.bookings.store'), $payload)
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED')
+            ->assertJsonStructure(['error' => ['fields' => ['start_time']]]);
+    }
+
+    public function test_emergency_booking_inside_clinic_does_not_need_a_slot_and_starts_arrived(): void
+    {
+        $this->postJson(route('api.v1.bookings.store'), $this->payload())->assertCreated();
+
+        $payload = $this->payload([
+            'patient_name' => 'ريم خالد',
+            'phone' => '01098887791',
+            'booking_kind' => BookingKind::EMERGENCY->value,
+            'patient_location' => PatientLocation::INSIDE_CLINIC->value,
+        ]);
+        unset($payload['start_time']);
+
+        $id = $this->postJson(route('api.v1.bookings.store'), $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.status.value', 'arrived')
+            ->assertJsonPath('data.booking_kind.value', 'emergency')
+            ->assertJsonPath('data.patient_location.value', 'inside_clinic')
+            ->assertJsonPath('data.start_time', null)
+            ->assertJsonPath('data.end_time', null)
+            ->json('data.id');
+
+        $booking = Booking::findOrFail($id);
+
+        $this->assertSame(BookingStatus::ARRIVED, $booking->status);
+        $this->assertSame(BookingKind::EMERGENCY, $booking->booking_kind);
+        $this->assertSame(PatientLocation::INSIDE_CLINIC, $booking->patient_location);
+        $this->assertNotNull($booking->arrived_at);
+        $this->assertNotNull($booking->queue_entered_at);
+
+        $slots = $this->getJson(route('api.v1.slots', [
+            'date' => '2026-08-08',
+            'visit_type_id' => $this->checkup->id,
+        ]))->assertOk()->json('data.slots');
+
+        $this->assertFalse(collect($slots)->firstWhere('start_time.value', '09:00')['is_available']);
+        $this->assertTrue(collect($slots)->firstWhere('start_time.value', '09:20')['is_available']);
+    }
+
+    public function test_emergency_booking_on_the_way_starts_booked_until_arrival(): void
+    {
+        $payload = $this->payload([
+            'booking_kind' => BookingKind::EMERGENCY->value,
+            'patient_location' => PatientLocation::ON_WAY->value,
+        ]);
+        unset($payload['start_time']);
+
+        $id = $this->postJson(route('api.v1.bookings.store'), $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.status.value', 'booked')
+            ->assertJsonPath('data.queue_entered_at', null)
+            ->json('data.id');
+
+        $this->postJson(route('api.v1.bookings.status', $id), ['to' => 'arrived'])
+            ->assertOk()
+            ->assertJsonPath('data.status.value', 'arrived')
+            ->assertJsonPath('data.queue_entered_at', fn ($value) => $value !== null);
+    }
+
+    public function test_emergency_booking_requires_patient_location_and_rejects_start_time(): void
+    {
+        $payload = $this->payload([
+            'booking_kind' => BookingKind::EMERGENCY->value,
+            'force' => true,
+        ]);
+
+        $this->postJson(route('api.v1.bookings.store'), $payload)
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED')
+            ->assertJsonStructure(['error' => ['fields' => ['patient_location', 'start_time', 'force']]]);
     }
 
     public function test_a_hidden_visit_type_cannot_be_booked(): void

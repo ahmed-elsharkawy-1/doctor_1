@@ -60,7 +60,7 @@ final class BookingCalendarResult extends ServiceResult
         foreach ($this->calendar['bookings'] as $date => $bookings) {
             $days[$date] = array_map(
                 fn (Booking $booking): array => (new BookingCardResult($booking, $this->queue, $this->withPrice))->toArray(),
-                $bookings,
+                $this->queue->sortBookings(collect($bookings))->all(),
             );
         }
 

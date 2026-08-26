@@ -16,8 +16,8 @@ return new class extends Migration
             $table->foreignId('visit_type_id')->constrained()->restrictOnDelete();
 
             $table->date('visit_date');
-            $table->dateTime('start_at');
-            $table->dateTime('end_at');
+            $table->dateTime('start_at')->nullable();
+            $table->dateTime('end_at')->nullable();
 
             // Snapshots taken at creation — a later price or duration change must
             // never rewrite history (SPEC §3.3).
@@ -26,11 +26,14 @@ return new class extends Migration
 
             $table->string('status', 32);
             $table->string('cancel_reason', 32)->nullable();
+            $table->string('booking_kind', 32)->default('normal');
+            $table->string('patient_location', 32)->nullable();
 
             $table->dateTime('arrived_at')->nullable();
             $table->dateTime('called_in_at')->nullable();
             $table->dateTime('completed_at')->nullable();
             $table->dateTime('cancelled_at')->nullable();
+            $table->dateTime('queue_entered_at')->nullable();
 
             // Call list worklist (SPEC §4.5).
             $table->dateTime('contacted_at')->nullable();
@@ -44,6 +47,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['clinic_id', 'visit_date', 'status']);
+            $table->index(['clinic_id', 'visit_date', 'booking_kind']);
             $table->index(['doctor_id', 'start_at']);
             $table->index(['patient_id', 'start_at']);
             $table->index(['clinic_id', 'status', 'cancel_reason']);
