@@ -22,7 +22,6 @@ final class BookingData
         public readonly BookingKind $bookingKind = BookingKind::NORMAL,
         public readonly ?PatientLocation $patientLocation = null,
         public readonly ?string $notes = null,
-        public readonly bool $force = false,
         public readonly bool $updatePatientName = false,
         /** The postponed booking this one replaces, when booked from the call list. */
         public readonly ?int $rebookingForBookingId = null,
@@ -47,9 +46,6 @@ final class BookingData
                 ? PatientLocation::from((string) $validated['patient_location'])
                 : null,
             notes: isset($validated['notes']) ? trim((string) $validated['notes']) : null,
-            // Books past a full day, or outside working hours, on the
-            // secretary's explicit confirmation (SPEC decision #16).
-            force: (bool) ($validated['force'] ?? false),
             updatePatientName: (bool) ($validated['update_patient_name'] ?? false),
             rebookingForBookingId: isset($validated['rebooking_for_booking_id'])
                 ? (int) $validated['rebooking_for_booking_id']

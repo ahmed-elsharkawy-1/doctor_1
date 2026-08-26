@@ -752,7 +752,7 @@
                                 "bookings"
                             ]
                         },
-                        "description": "The patient is created if the phone is new and reused if known — her ID\ncode is generated once and never changes.\n\n`update_patient_name: true` replaces the stored name; without it a\ndiffering name is ignored, so a typo cannot quietly rewrite the record.\n\nNormal bookings require `start_time`. Emergency bookings use\n`booking_kind: emergency`, require `patient_location`, must not send\n`start_time`, and do not block a slot. `inside_clinic` emergency\nbookings are created as `arrived`; `on_way` starts as `booked`.\n\n`force: true` books a normal slot anyway — past a taken slot, outside\nhours, or on a closed day — and flags the booking `is_overbooked`.",
+                        "description": "The patient is created if the phone is new and reused if known — her ID\ncode is generated once and never changes.\n\n`update_patient_name: true` replaces the stored name; without it a\ndiffering name is ignored, so a typo cannot quietly rewrite the record.\n\nNormal bookings require `start_time`. Emergency bookings use\n`booking_kind: emergency`, require `patient_location`, must not send\n`start_time`, and do not block a slot. `inside_clinic` emergency\nbookings are created as `arrived`; `on_way` starts as `booked`.",
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"patient_name\": \"سارة أحمد\",\n    \"phone\": \"01012225521\",\n    \"visit_type_id\": 1,\n    \"date\": \"2026-08-08\",\n    \"start_time\": \"13:40\"\n}\n",

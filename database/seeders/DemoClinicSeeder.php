@@ -366,7 +366,6 @@ class DemoClinicSeeder extends Seeder
                 'visit_type_id' => $visitType->id,
                 'date' => $today,
                 'start_time' => $slots[$slotIndex],
-                'force' => true,
             ]), $secretary);
 
             match ($target) {

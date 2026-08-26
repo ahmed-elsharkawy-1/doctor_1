@@ -686,9 +686,6 @@ paths:
         `booking_kind: emergency`, require `patient_location`, must not send
         `start_time`, and do not block a slot. `inside_clinic` emergency
         bookings are created as `arrived`; `on_way` starts as `booked`.
-
-        `force: true` books a normal slot anyway — past a taken slot, outside
-        hours, or on a closed day — and flags the booking `is_overbooked`.
       operationId: createBooking
       requestBody:
         required: true
@@ -719,8 +716,7 @@ paths:
         "409":
           description: |
             `SLOT_UNAVAILABLE`, `SLOT_OUTSIDE_WORKING_HOURS`,
-            `CLINIC_CLOSED_THAT_DAY` or `SLOT_OUTSIDE_WINDOW`. All are cleared
-            by `force: true`.
+            `CLINIC_CLOSED_THAT_DAY` or `SLOT_OUTSIDE_WINDOW`.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -1519,9 +1515,6 @@ components:
           example: "13:40"
           description: Required for normal bookings; prohibited for emergency bookings.
         notes: { type: [string, "null"], maxLength: 2000 }
-        force:
-          type: boolean
-          description: Normal bookings only. Book past a taken slot, closed day or off-hours time. Flags `is_overbooked`.
         update_patient_name:
           type: boolean
           description: Confirms replacing the stored name for a known phone.
@@ -1573,7 +1566,6 @@ components:
           type: [string, "null"]
           format: date-time
           description: Set when the patient physically enters the waiting queue.
-        is_overbooked: { type: boolean }
         notes: { type: [string, "null"] }
         price:
           allOf: [{ $ref: "#/components/schemas/Money" }]

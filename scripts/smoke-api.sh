@@ -129,9 +129,17 @@ check "double-book same slot -> 409" 409 "$(code "$r")" "$(body "$r")"
 echo "        code=$(jqv "$(body "$r")" "error.code")"
 
 r=$(call POST /bookings "$SEC_TOKEN" "{\"patient_name\":\"تجربة\",\"phone\":\"01266665555\",\"visit_type_id\":$VT_CHECKUP,\"date\":\"$TODAY\",\"start_time\":\"$FREE\",\"force\":true}")
-check "force overrides -> 201" 201 "$(code "$r")" "$(body "$r")"
-FORCED_ID=$(jqv "$(body "$r")" "data.id")
-echo "        overbooked=$(jqv "$(body "$r")" "data.is_overbooked")"
+check "removed force key cannot override -> 409" 409 "$(code "$r")" "$(body "$r")"
+
+r=$(call GET "/slots?date=$TODAY&visit_type_id=$VT_CHECKUP" "$SEC_TOKEN")
+FREE_AFTER=$(echo "$(body "$r")" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)['data']['slots']
+print(next((s['start_time']['value'] for s in d if s['is_available']), ''))")
+
+r=$(call POST /bookings "$SEC_TOKEN" "{\"patient_name\":\"تجربة\",\"phone\":\"01266665555\",\"visit_type_id\":$VT_CHECKUP,\"date\":\"$TODAY\",\"start_time\":\"$FREE_AFTER\"}")
+check "create second booking" 201 "$(code "$r")" "$(body "$r")"
+SECOND_ID=$(jqv "$(body "$r")" "data.id")
 
 r=$(call POST /bookings "$SEC_TOKEN" "{\"patient_name\":\"تجربة\",\"phone\":\"01266664444\",\"visit_type_id\":$VT_CHECKUP,\"date\":\"$TODAY\",\"start_time\":\"03:00\"}")
 check "outside working hours -> 409" 409 "$(code "$r")" "$(body "$r")"
@@ -175,10 +183,10 @@ echo "        code=$(jqv "$(body "$r")" "error.code")"
 r=$(call POST "/bookings/$NEW_ID/complete" "$SEC_TOKEN" '{}')
 check "complete" 200 "$(code "$r")" "$(body "$r")"
 
-r=$(call POST "/bookings/$FORCED_ID/cancel" "$SEC_TOKEN" '{"reason":"emergency"}')
+r=$(call POST "/bookings/$SECOND_ID/cancel" "$SEC_TOKEN" '{"reason":"emergency"}')
 check "system-only reason -> 422" 422 "$(code "$r")" "$(body "$r")"
 
-r=$(call POST "/bookings/$FORCED_ID/cancel" "$SEC_TOKEN" '{"reason":"no_show"}')
+r=$(call POST "/bookings/$SECOND_ID/cancel" "$SEC_TOKEN" '{"reason":"no_show"}')
 check "no-show" 200 "$(code "$r")" "$(body "$r")"
 
 echo

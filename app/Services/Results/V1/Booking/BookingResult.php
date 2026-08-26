@@ -51,7 +51,6 @@ final class BookingResult extends ServiceResult
             'start_time' => $booking->start_at === null ? null : Wire::time($booking->start_at),
             'end_time' => $booking->end_at === null ? null : Wire::time($booking->end_at),
             'queue_entered_at' => $booking->queue_entered_at?->toAtomString(),
-            'is_overbooked' => $booking->is_overbooked,
             'notes' => $booking->notes,
         ];
 

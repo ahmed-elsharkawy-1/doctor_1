@@ -40,7 +40,6 @@ return new class extends Migration
             $table->foreignId('rebooked_booking_id')->nullable()
                 ->constrained('bookings')->nullOnDelete();
 
-            $table->boolean('is_overbooked')->default(false);
             $table->text('notes')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
 

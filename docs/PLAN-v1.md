@@ -113,9 +113,10 @@ them as you go; never leave the suite red.
 
 - When the requested date is today, **omit** candidates whose start time has passed in the clinic's timezone
 - **Omit, do not mark unavailable.** Taken slots stay visible and struck through so the secretary sees they are booked; past slots are just noise
-- This is a **picker rule only**. `force: true` must still book a past time, so a walk-in already seen can be recorded
+- This is a **picker rule only**. Walk-ins that should jump the queue are
+  recorded as emergency bookings rather than slot overrides.
 
-**Tests:** a no-show frees its slot; past times absent from today's list but present for tomorrow; `force` still books one; the end-of-day command sets `no_show`.
+**Tests:** a no-show frees its slot; past times absent from today's list but present for tomorrow; the end-of-day command sets `no_show`.
 
 ---
 
@@ -183,7 +184,7 @@ Add an opt-in flag to patient creation, defaulting to on, so consent is recorded
 - If `patient_id` is present, the patient must belong to the authenticated clinic
 - A `patient_id` from another clinic returns **404**, not validation details
 - If `patient_id` is present, ignore `patient_name`, `phone`, and `update_patient_name`; editing patient details remains a separate patient concern
-- Keep `visit_type_id`, `date`, `start_time`, `force`, `notes`, and `rebooking_for_booking_id` behavior unchanged
+- Keep `visit_type_id`, `date`, `start_time`, `notes`, and `rebooking_for_booking_id` behavior unchanged
 - Patient search results gain **`last_visit`** (date of the most recent visit) — the design shows اخر زيارة on each result
 - Search already matches name, code prefix and phone tail. Confirm the numeric code still matches as a prefix
 
@@ -379,7 +380,7 @@ Use this checklist to execute the work without losing cross-cutting updates.
 - [x] Update lifecycle helpers: terminal, cancellable, occupying slot, pending
 - [x] Update end-of-day command behavior
 - [x] Omit past start times from today's slot picker
-- [x] Keep `force: true` able to book past times
+- [x] Remove booking override flow; urgent walk-ins use emergency bookings
 - [x] Update factories, seeders, enum tests, slot tests, close-day tests
 
 ### 7.2 Auth and clinic account

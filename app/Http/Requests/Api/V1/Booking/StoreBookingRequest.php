@@ -40,8 +40,6 @@ class StoreBookingRequest extends FormRequest
                 'prohibited_if:booking_kind,'.BookingKind::EMERGENCY->value,
             ],
             'notes' => ['nullable', 'string', 'max:2000'],
-            // Overbooking override — books past a full day or outside hours.
-            'force' => ['nullable', 'boolean', 'prohibited_if:booking_kind,'.BookingKind::EMERGENCY->value],
             // Confirms replacing the stored name when the phone is known.
             'update_patient_name' => ['nullable', 'boolean'],
             // Set when booking from the call list, so the postponed booking is

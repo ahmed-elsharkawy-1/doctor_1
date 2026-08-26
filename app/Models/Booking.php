@@ -38,7 +38,6 @@ class Booking extends Model
         'queue_entered_at',
         'contacted_at',
         'rebooked_booking_id',
-        'is_overbooked',
         'notes',
         'created_by',
     ];
@@ -65,7 +64,6 @@ class Booking extends Model
             'cancelled_at' => 'datetime',
             'contacted_at' => 'datetime',
             'queue_entered_at' => 'datetime',
-            'is_overbooked' => 'boolean',
         ];
     }
 

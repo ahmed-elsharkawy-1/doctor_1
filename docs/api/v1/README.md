@@ -531,7 +531,6 @@ Normal slot booking:
   "booking_kind": "normal",
   "start_time": "09:00",
   "notes": null,
-  "force": false,
   "update_patient_name": false
 }
 ```
@@ -559,9 +558,6 @@ Emergency queue booking, matching the "هل هذا حجز طارىء؟" screen:
 - `inside_clinic` emergency bookings are created as `arrived` and enter the
   queue immediately. `on_way` emergency bookings are created as `booked`; call
   `POST /bookings/{id}/status {"to":"arrived"}` when the patient arrives.
-- `force: true` is allowed only for normal bookings. It books anyway — past a
-  taken slot, outside working hours, or on a closed day — and sets
-  `is_overbooked` on the result. It is separate from emergency priority.
 
 **201 → `data`**
 
@@ -581,7 +577,6 @@ Emergency queue booking, matching the "هل هذا حجز طارىء؟" screen:
   "start_time": { "value": "09:00", "display": "9:00 ص" },
   "end_time": { "value": "09:20", "display": "9:20 ص" },
   "queue_entered_at": null,
-  "is_overbooked": false,
   "notes": null,
   "price": { "value": "300.00", "display": "300.00 ج.م" }
 }
@@ -599,8 +594,6 @@ is the value **snapshotted at booking time**, not the visit type's current one.
 | `VISIT_TYPE_NOT_FOUND` | 404 | Unknown, or another clinic's |
 | `VISIT_TYPE_INACTIVE` | 400 | Hidden visit type |
 | `INVALID_PHONE_NUMBER` | 422 | |
-
-All of these are cleared by `force: true` except the visit-type errors.
 
 ### `GET /bookings/{id}` · `PUT /bookings/{id}`
 

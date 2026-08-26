@@ -127,8 +127,7 @@ Notes:
 
 Design: patient phone/name form, emergency toggle, visit type selector, date
 selector, slot picker for normal bookings, patient-location selector for
-emergency bookings, returning-patient warning, name-conflict warning, force
-booking confirmation.
+emergency bookings, returning-patient warning, and name-conflict warning.
 
 APIs:
 
@@ -152,7 +151,6 @@ API-to-design mapping:
 | Returning patient prefill | `/patients/lookup.found` and `patient` |
 | Name conflict prompt | `/patients/lookup.name_conflict` |
 | Visit type mismatch warning | `/patients/lookup.visit_type_mismatch` |
-| Overbooking confirmation | Create/edit with `force: true` after warning |
 | Update stored patient name | `update_patient_name: true` |
 
 Important details:
@@ -164,7 +162,6 @@ Important details:
   `arrived`; `on_way` starts as `booked` until the status endpoint marks arrival.
 - Emergency bookings do not occupy a slot.
 - Editing is allowed for `booked` and `arrived` only.
-- Booking with `force: true` marks `is_overbooked`.
 
 ## Booking status and card actions
 
@@ -361,9 +358,8 @@ Common design-facing cases:
 7. Use each booking card's `available_actions` to show/hide buttons.
 8. Use `/slots` after every date or visit-type change.
 9. Call `/patients/lookup` after phone input is complete.
-10. Use `force: true` only after explicit confirmation dialogs.
-11. Use `/message-templates` before showing WhatsApp template choices.
-12. Keep notification settings out of scope until we add a dedicated API.
+10. Use `/message-templates` before showing WhatsApp template choices.
+11. Keep notification settings out of scope until we add a dedicated API.
 
 ## Current conclusion
 

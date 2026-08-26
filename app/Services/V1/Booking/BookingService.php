@@ -41,7 +41,7 @@ class BookingService
             $clinic, $data, $visitType, $startAt, $doctor, $actor, $phone
         ) {
             if ($data->bookingKind === BookingKind::NORMAL) {
-                $this->guardSlot($clinic, $startAt, $visitType, $data->force);
+                $this->guardSlot($clinic, $startAt, $visitType);
             }
 
             $patient = $this->patientFor($clinic, $data, $phone);
@@ -65,7 +65,6 @@ class BookingService
                 'patient_location' => $data->bookingKind === BookingKind::EMERGENCY ? $data->patientLocation : null,
                 'arrived_at' => $startsInsideClinic ? $now : null,
                 'queue_entered_at' => $startsInsideClinic ? $now : null,
-                'is_overbooked' => $data->bookingKind === BookingKind::NORMAL && $data->force,
                 'notes' => $data->notes,
                 'created_by' => $actor->id,
             ]);
@@ -99,7 +98,7 @@ class BookingService
         ) {
             // The booking must not collide with itself.
             if ($data->bookingKind === BookingKind::NORMAL) {
-                $this->guardSlot($clinic, $startAt, $visitType, $data->force, $booking->id);
+                $this->guardSlot($clinic, $startAt, $visitType, $booking->id);
             }
 
             $patient = $this->patientFor($clinic, $data, $phone);
@@ -121,9 +120,6 @@ class BookingService
                 'patient_location' => $data->bookingKind === BookingKind::EMERGENCY ? $data->patientLocation : null,
                 'arrived_at' => $startsInsideClinic ? $now : $booking->arrived_at,
                 'queue_entered_at' => $startsInsideClinic ? $now : $booking->queue_entered_at,
-                'is_overbooked' => $data->bookingKind === BookingKind::NORMAL
-                    ? ($data->force ? true : $booking->is_overbooked)
-                    : false,
                 'notes' => $data->notes,
             ]);
 
@@ -170,19 +166,14 @@ class BookingService
     }
 
     /**
-     * @throws ApiException unless the slot is free, or the secretary forced it
+     * @throws ApiException unless the slot is free
      */
     private function guardSlot(
         Clinic $clinic,
         Carbon $startAt,
         VisitType $visitType,
-        bool $force,
         ?int $ignoreBookingId = null,
     ): void {
-        if ($force) {
-            return;
-        }
-
         $availability = $this->slots->for($clinic, $startAt->copy()->startOfDay(), $visitType, $ignoreBookingId);
 
         if (! $availability->isOpen) {

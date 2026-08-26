@@ -38,7 +38,6 @@ class BookingFactory extends Factory
             'price' => 300.00,
             'status' => BookingStatus::BOOKED,
             'booking_kind' => BookingKind::NORMAL,
-            'is_overbooked' => false,
         ];
     }
 

@@ -234,10 +234,7 @@ class CreateBookingTest extends TestCase
             ->assertJsonPath('error.code', 'SLOT_OUTSIDE_WINDOW');
     }
 
-    /**
-     * The secretary can still squeeze in an urgent case (SPEC decision #16).
-     */
-    public function test_force_books_past_a_taken_slot_and_flags_the_booking(): void
+    public function test_force_key_cannot_bypass_a_taken_slot(): void
     {
         $this->postJson(route('api.v1.bookings.store'), $this->payload())->assertCreated();
 
@@ -246,18 +243,20 @@ class CreateBookingTest extends TestCase
             'patient_name' => 'ريم خالد',
             'force' => true,
         ]))
-            ->assertCreated()
-            ->assertJsonPath('data.is_overbooked', true);
+            ->assertStatus(409)
+            ->assertJsonPath('error.code', 'SLOT_UNAVAILABLE');
 
-        $this->assertSame(2, Booking::count());
+        $this->assertSame(1, Booking::count());
     }
 
-    public function test_force_also_books_a_closed_day(): void
+    public function test_force_key_cannot_bypass_a_closed_day(): void
     {
         $this->postJson(route('api.v1.bookings.store'), $this->payload([
             'date' => $this->saturday->copy()->addDay()->toDateString(),
             'force' => true,
-        ]))->assertCreated();
+        ]))
+            ->assertStatus(409)
+            ->assertJsonPath('error.code', 'CLINIC_CLOSED_THAT_DAY');
     }
 
     public function test_normal_booking_requires_a_start_time(): void
@@ -333,13 +332,12 @@ class CreateBookingTest extends TestCase
     {
         $payload = $this->payload([
             'booking_kind' => BookingKind::EMERGENCY->value,
-            'force' => true,
         ]);
 
         $this->postJson(route('api.v1.bookings.store'), $payload)
             ->assertStatus(422)
             ->assertJsonPath('error.code', 'VALIDATION_FAILED')
-            ->assertJsonStructure(['error' => ['fields' => ['patient_location', 'start_time', 'force']]]);
+            ->assertJsonStructure(['error' => ['fields' => ['patient_location', 'start_time']]]);
     }
 
     public function test_a_hidden_visit_type_cannot_be_booked(): void
