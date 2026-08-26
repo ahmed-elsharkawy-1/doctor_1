@@ -138,8 +138,8 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
     /*
     | Booking status and rebooking worklists — SPEC §4.2, §4.5.
     |
-    | Calendar cards are ordered by appointment time. Every transition is sent
-    | explicitly because the app confirms each one with its own dialog.
+    | Calendar cards use the shared queue-priority order. Every transition is
+    | sent explicitly because the app confirms each one with its own dialog.
     */
     Route::middleware('ability:queue.manage')->group(function (): void {
 
