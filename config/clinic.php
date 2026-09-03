@@ -97,6 +97,17 @@ return [
     ],
 
     /*
+    | Public doctor landing page — `/{slug}`.
+    |
+    | Path-based rather than a subdomain: one certificate, one origin, and the
+    | domain's search authority stays in one place.
+    */
+    'landing' => [
+        // Slugs the operator may not take, because a route already owns them.
+        'reserved' => ['app', 'b', 'admin', 'docs', 'api', 'livewire', 'storage', 'up', 'login'],
+    ],
+
+    /*
     | Patient booking-tracking page (SPEC v1.1 §7).
     |
     | The link goes out over WhatsApp, so the token is the whole secret and

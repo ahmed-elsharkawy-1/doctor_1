@@ -3,6 +3,7 @@
 use App\Http\Controllers\Docs\ApiReferenceController;
 use App\Http\Controllers\Web\Auth\LoginController;
 use App\Http\Controllers\Web\BookingTrackingController;
+use App\Http\Controllers\Web\DoctorLandingController;
 use App\Http\Middleware\EnsureClinicSession;
 use App\Livewire\App\NewBooking;
 use App\Livewire\App\Queue;
@@ -57,3 +58,14 @@ Route::prefix(config('clinic.docs.path'))->group(function (): void {
     Route::get('design-map', [ApiReferenceController::class, 'designMap'])->name('docs.api.design-map');
     Route::get('openapi.json', [ApiReferenceController::class, 'document'])->name('docs.api.spec');
 });
+
+/*
+| The public doctor landing page.
+|
+| Registered last on purpose: it matches a single path segment, so every
+| route above wins the match and a clinic can never take a path the app
+| already owns. `clinic.landing.reserved` stops one being created anyway.
+*/
+Route::get('/{slug}', DoctorLandingController::class)
+    ->where('slug', '[a-z0-9][a-z0-9-]*')
+    ->name('landing');

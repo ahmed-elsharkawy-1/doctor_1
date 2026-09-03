@@ -30,6 +30,8 @@ return [
     'clinic' => [
         'label' => 'Clinic',
         'plural_label' => 'Clinics',
+        'slug' => 'Public link',
+        'slug_hint' => 'Appears in the landing page URL: mydomain.com/slug — lowercase letters, digits and dashes.',
         'name' => 'Clinic name',
         'specialty' => 'Specialty',
         'specialty_hint' => 'The specialty seeds the clinic’s visit types, so it cannot change after creation.',
