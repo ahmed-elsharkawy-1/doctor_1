@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Controllers\Docs\ApiReferenceController;
+use App\Http\Controllers\Web\Auth\LoginController;
 use App\Http\Controllers\Web\BookingTrackingController;
+use App\Http\Middleware\EnsureClinicSession;
+use App\Livewire\App\Queue;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -15,6 +18,30 @@ Route::get('/', function () {
 */
 Route::get(config('clinic.tracking.path').'/{booking:tracking_token}', BookingTrackingController::class)
     ->name('booking.track');
+
+/*
+| The clinic web app — the screens the doctor and the assistant work from.
+|
+| Session auth on the existing `web` guard. The screens are Livewire
+| components that call the same services as the mobile API; no booking or
+| queue rule is restated here.
+*/
+Route::prefix('app')->name('app.')->group(function (): void {
+    Route::middleware('guest')->group(function (): void {
+        Route::get('login', [LoginController::class, 'show'])->name('login');
+        Route::post('login', [LoginController::class, 'store'])
+            ->middleware('throttle:6,1')
+            ->name('login.store');
+    });
+
+    // EnsureClinicSession does the guest redirect itself, so the framework's
+    // `auth` middleware is not used here — it redirects to a route named
+    // `login`, which this app deliberately does not have.
+    Route::middleware(EnsureClinicSession::class)->group(function (): void {
+        Route::get('/', Queue::class)->name('queue');
+        Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
+    });
+});
 
 /*
 | Browsable API reference, rendered from docs/api/v1/openapi.yaml.
