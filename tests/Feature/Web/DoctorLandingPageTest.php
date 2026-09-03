@@ -160,6 +160,16 @@ class DoctorLandingPageTest extends TestCase
         $this->get($booking->trackingUrl())->assertOk();
     }
 
+    public function test_the_root_signposts_staff_to_sign_in(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee(__('app.root.title'))
+            ->assertSee(route('app.login'), escape: false)
+            // Clinics are found at their own page, never through this one.
+            ->assertSee('noindex', escape: false);
+    }
+
     public function test_reserved_words_are_not_available_as_slugs(): void
     {
         foreach (config('clinic.landing.reserved') as $reserved) {

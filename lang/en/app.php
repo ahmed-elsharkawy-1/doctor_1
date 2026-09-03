@@ -5,6 +5,12 @@
 */
 
 return [
+    'root' => [
+        'title' => 'Clinic booking system',
+        'lead' => 'Each clinic has its own page. If you are clinic staff, sign in here.',
+        'sign_in' => 'Clinic sign in',
+    ],
+
     'login' => [
         'title' => 'Clinic sign in',
         'lead' => 'Sign in with the clinic email',

@@ -9,9 +9,15 @@ use App\Livewire\App\NewBooking;
 use App\Livewire\App\Queue;
 use Illuminate\Support\Facades\Route;
 
+/*
+| The platform root. Clinics live at `/{slug}`, so this is only a signpost
+| for staff who typed the bare domain.
+*/
 Route::get('/', function () {
+    app()->setLocale(config('clinic.api.default_locale'));
+
     return view('welcome');
-});
+})->name('root');
 
 /*
 | The patient's booking-tracking page. Unauthenticated by design: the clinic
