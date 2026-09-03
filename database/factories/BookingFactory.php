@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
-use App\Enums\BookingStatus;
 use App\Enums\BookingKind;
+use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Models\Booking;
 use App\Models\Clinic;

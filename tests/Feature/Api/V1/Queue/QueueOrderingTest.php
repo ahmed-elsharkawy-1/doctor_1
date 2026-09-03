@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Api\V1\Queue;
 
-use App\Enums\DayOfWeek;
 use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
+use App\Enums\DayOfWeek;
 use App\Enums\PatientLocation;
 use App\Models\Booking;
 use App\Models\Patient;
