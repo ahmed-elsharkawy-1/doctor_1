@@ -1,11 +1,20 @@
 <?php
 
 use App\Http\Controllers\Docs\ApiReferenceController;
+use App\Http\Controllers\Web\BookingTrackingController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
 });
+
+/*
+| The patient's booking-tracking page. Unauthenticated by design: the clinic
+| sends the link over WhatsApp and the token in it is the whole secret, so
+| the path stays short enough to read in a message.
+*/
+Route::get(config('clinic.tracking.path').'/{booking:tracking_token}', BookingTrackingController::class)
+    ->name('booking.track');
 
 /*
 | Browsable API reference, rendered from docs/api/v1/openapi.yaml.

@@ -59,4 +59,33 @@ return [
         'inside_clinic' => 'Patient inside clinic',
         'on_way' => 'Patient on the way',
     ],
+
+    /*
+    | The patient-facing tracking page.
+    */
+    'tracking' => [
+        'title' => 'Your booking at :clinic',
+        'waiting_count' => 'Ahead of you',
+        'total' => 'Total',
+        'normal' => 'Normal cases',
+        'emergency' => 'Emergency',
+        'emergency_notice' => 'Emergency cases always take priority, so the number ahead of you may rise while you wait',
+        'your_status' => 'Your status',
+        'expected_at' => 'Be at the clinic by',
+        'call_clinic' => 'Call the clinic',
+        'patient_code' => 'Patient code',
+        'appointment' => 'Appointment',
+        'your_turn' => "It's your turn",
+        'your_turn_note' => 'Please go through to the consulting room',
+        'done' => 'Visit complete',
+        'done_note' => 'Thank you for your visit',
+        'cancelled' => 'Booking cancelled',
+        'cancelled_note' => 'Please contact the clinic to book a new appointment',
+        'no_show' => 'Marked as not attended',
+        'no_show_note' => 'Please contact the clinic to book a new appointment',
+        'not_today' => 'Your appointment is coming up',
+        'not_today_note' => 'The waiting count appears on the day of your booking',
+        'am' => 'AM',
+        'pm' => 'PM',
+    ],
 ];

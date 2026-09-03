@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 class Booking extends Model
 {
@@ -41,6 +42,31 @@ class Booking extends Model
         'notes',
         'created_by',
     ];
+
+    /**
+     * The tracking token is the whole secret behind the patient's link, so it
+     * is generated here and never mass-assigned or serialised.
+     */
+    protected $hidden = [
+        'tracking_token',
+    ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $booking): void {
+            $booking->tracking_token ??= Str::random(
+                config('clinic.tracking.token_bytes') * 2,
+            );
+        });
+    }
+
+    /**
+     * The short link sent to the patient over WhatsApp.
+     */
+    public function trackingUrl(): string
+    {
+        return url(config('clinic.tracking.path').'/'.$this->tracking_token);
+    }
 
     protected function casts(): array
     {

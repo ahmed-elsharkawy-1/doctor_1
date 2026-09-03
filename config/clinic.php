@@ -97,6 +97,21 @@ return [
     ],
 
     /*
+    | Patient booking-tracking page (SPEC v1.1 §7).
+    |
+    | The link goes out over WhatsApp, so the token is the whole secret and
+    | the path is kept short. A signed URL would put a 64-character signature
+    | in the message instead.
+    */
+    'tracking' => [
+        'path' => 'b',
+        // Bytes of randomness; the stored token is twice this in hex.
+        'token_bytes' => 16,
+        // How often the waiting page re-reads its position.
+        'refresh_seconds' => (int) env('CLINIC_TRACKING_REFRESH_SECONDS', 30),
+    ],
+
+    /*
     | API surface.
     */
     'api' => [
