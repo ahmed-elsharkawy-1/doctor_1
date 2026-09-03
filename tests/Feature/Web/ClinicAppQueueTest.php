@@ -238,7 +238,7 @@ class ClinicAppQueueTest extends TestCase
             ->call('complete', $booking->id)
             ->assertOk()
             ->assertSet('failed', true)
-            ->assertSetStrict('message', __('booking.invalid_transition', [
+            ->assertSetStrict('notice', __('booking.invalid_transition', [
                 'from' => BookingStatus::BOOKED->label(),
                 'to' => BookingStatus::DONE->label(),
             ]));

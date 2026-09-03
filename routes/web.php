@@ -4,6 +4,7 @@ use App\Http\Controllers\Docs\ApiReferenceController;
 use App\Http\Controllers\Web\Auth\LoginController;
 use App\Http\Controllers\Web\BookingTrackingController;
 use App\Http\Middleware\EnsureClinicSession;
+use App\Livewire\App\NewBooking;
 use App\Livewire\App\Queue;
 use Illuminate\Support\Facades\Route;
 
@@ -39,6 +40,7 @@ Route::prefix('app')->name('app.')->group(function (): void {
     // `login`, which this app deliberately does not have.
     Route::middleware(EnsureClinicSession::class)->group(function (): void {
         Route::get('/', Queue::class)->name('queue');
+        Route::get('bookings/new', NewBooking::class)->name('bookings.new');
         Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
     });
 });

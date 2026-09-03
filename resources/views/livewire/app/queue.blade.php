@@ -79,14 +79,20 @@
             <div class="who">{{ auth()->user()->name }}</div>
         </div>
 
-        <form method="POST" action="{{ route('app.logout') }}">
-            @csrf
-            <button type="submit" class="btn btn-sm">{{ __('app.queue.sign_out') }}</button>
-        </form>
+        <div style="display:flex;gap:0.4rem;align-items:center">
+            <a class="btn btn-sm btn-primary" href="{{ route('app.bookings.new') }}">
+                {{ __('app.booking.new') }}
+            </a>
+
+            <form method="POST" action="{{ route('app.logout') }}">
+                @csrf
+                <button type="submit" class="btn btn-sm">{{ __('app.queue.sign_out') }}</button>
+            </form>
+        </div>
     </div>
 
-    @if ($message !== null)
-        <div class="flash {{ $failed ? 'flash-err' : 'flash-ok' }}">{{ $message }}</div>
+    @if ($notice !== null)
+        <div class="flash {{ $failed ? 'flash-err' : 'flash-ok' }}">{{ $notice }}</div>
     @endif
 
     <div class="daybar">

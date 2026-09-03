@@ -32,7 +32,7 @@ class Queue extends ClinicComponent
      * The outcome of the last action. A public property rather than a flash:
      * a flash would survive into the next full request and be shown twice.
      */
-    public ?string $message = null;
+    public ?string $notice = null;
 
     public bool $failed = false;
 
@@ -133,10 +133,10 @@ class Queue extends ClinicComponent
     {
         try {
             $action();
-            $this->message = $success;
+            $this->notice = $success;
             $this->failed = false;
         } catch (ApiException $e) {
-            $this->message = $e->getMessage();
+            $this->notice = $e->getMessage();
             $this->failed = true;
         }
     }
