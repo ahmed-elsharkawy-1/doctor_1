@@ -38,9 +38,9 @@ class Queue extends ClinicComponent
 
     public function mount(): void
     {
-        if ($this->date === '') {
-            $this->date = Carbon::now($this->clinic()->timezone)->toDateString();
-        }
+        // `date` is bound to the query string, so it arrives as whatever the
+        // address bar contained.
+        $this->date = $this->safeDate($this->date)->toDateString();
     }
 
     public function render(): View
@@ -56,7 +56,7 @@ class Queue extends ClinicComponent
 
     public function goToDay(int $offset): void
     {
-        $this->date = Carbon::parse($this->date, $this->clinic()->timezone)
+        $this->date = $this->safeDate($this->date)
             ->addDays($offset)
             ->toDateString();
     }

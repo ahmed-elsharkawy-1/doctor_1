@@ -90,7 +90,16 @@ class NewBooking extends ClinicComponent
 
     public function selectPatient(int $patientId): void
     {
-        $patient = app(PatientSearchService::class)->find($this->clinic(), $patientId);
+        try {
+            $patient = app(PatientSearchService::class)->find($this->clinic(), $patientId);
+        } catch (ApiException $e) {
+            // Another clinic's patient, or one just deleted. ApiException
+            // renders itself as JSON, which would break the Livewire response.
+            $this->notice = $e->getMessage();
+            $this->failed = true;
+
+            return;
+        }
 
         $this->patientId = $patient->id;
         $this->patientName = $patient->name;
@@ -284,7 +293,7 @@ class NewBooking extends ClinicComponent
 
         return app(SlotAvailabilityService::class)->for(
             $this->clinic(),
-            Carbon::parse($this->date, $this->clinic()->timezone),
+            $this->safeDate($this->date),
             $visitType,
         );
     }

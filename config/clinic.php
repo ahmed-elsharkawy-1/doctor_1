@@ -97,6 +97,13 @@ return [
     ],
 
     /*
+    | Filament panel, for the platform operator only.
+    */
+    'panel' => [
+        'path' => env('CLINIC_PANEL_PATH', 'admin'),
+    ],
+
+    /*
     | Public doctor landing page — `/{slug}`.
     |
     | Path-based rather than a subdomain: one certificate, one origin, and the

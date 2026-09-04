@@ -26,6 +26,13 @@ class EnsureClinicSession
             return redirect()->guest(route('app.login'));
         }
 
+        // A platform operator has a perfectly good session — for the panel.
+        // Signing them out here would drop them out of Filament for mistyping
+        // an address, so send them where they belong instead.
+        if ($user->role->usesPanel()) {
+            return redirect()->to(config('clinic.panel.path'));
+        }
+
         $clinic = $user->is_active && $user->role->usesMobileApp()
             ? $user->activeClinic()
             : null;

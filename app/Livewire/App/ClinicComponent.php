@@ -3,7 +3,9 @@
 namespace App\Livewire\App;
 
 use App\Models\Clinic;
+use Illuminate\Support\Carbon;
 use Livewire\Component;
+use Throwable;
 
 /**
  * Base for every screen in the clinic web app.
@@ -26,5 +28,23 @@ abstract class ClinicComponent extends Component
         abort_if($clinic === null || ! $clinic->is_active, 403);
 
         return $clinic;
+    }
+
+    /**
+     * A date the screen can safely work with.
+     *
+     * Screens keep their date as a string, and on the queue it is bound to the
+     * query string — so it is whatever the address bar happens to contain.
+     * Anything unparseable falls back to today rather than throwing.
+     */
+    protected function safeDate(?string $date): Carbon
+    {
+        $timezone = $this->clinic()->timezone;
+
+        try {
+            return Carbon::parse($date ?: 'now', $timezone)->startOfDay();
+        } catch (Throwable) {
+            return Carbon::now($timezone)->startOfDay();
+        }
     }
 }
