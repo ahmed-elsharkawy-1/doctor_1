@@ -17,11 +17,28 @@ class AuthService
      */
     public function login(LoginData $data): AuthenticatedUserResult
     {
+        $user = $this->authenticate($data->email, $data->password);
+
+        $token = $user->createToken($data->tokenName())->plainTextToken;
+
+        return new AuthenticatedUserResult($user, $token);
+    }
+
+    /**
+     * Who may sign in to a clinic client, and why they may not. The mobile app
+     * and the clinic web app ask the same three questions, so they ask them
+     * here rather than each keeping their own copy.
+     *
+     * @throws ApiException when the credentials are wrong, the account is
+     *                      disabled, or the role has no client access
+     */
+    public function authenticate(string $email, string $password): User
+    {
         $user = User::with(['clinics.specialty'])
-            ->where('email', strtolower($data->email))
+            ->where('email', strtolower($email))
             ->first();
 
-        if ($user === null || ! Hash::check($data->password, $user->password)) {
+        if ($user === null || ! Hash::check($password, $user->password)) {
             throw ApiException::make(
                 AuthErrorCode::INVALID_CREDENTIALS,
                 __('auth.invalid_credentials'),
@@ -45,9 +62,7 @@ class AuthService
             );
         }
 
-        $token = $user->createToken($data->tokenName())->plainTextToken;
-
-        return new AuthenticatedUserResult($user, $token);
+        return $user;
     }
 
     /**

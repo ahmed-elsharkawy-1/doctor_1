@@ -2,8 +2,8 @@
 
 namespace App\Services\V1\Booking;
 
-use App\Enums\BookingStatus;
 use App\Enums\BookingKind;
+use App\Enums\BookingStatus;
 use App\Enums\DayOfWeek;
 use App\Models\Booking;
 use App\Models\Clinic;

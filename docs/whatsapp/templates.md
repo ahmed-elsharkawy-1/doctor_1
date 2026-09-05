@@ -1,6 +1,6 @@
 # WhatsApp message templates — ready to submit
 
-Submit these three to Meta exactly as written. The code already expects these
+Submit these four to Meta exactly as written. The code already expects these
 names, so nothing needs changing once they are approved.
 
 **Submit early.** Review typically takes days to weeks and nothing else in the
@@ -13,17 +13,67 @@ build waits on it — the app runs against a `log` driver until approval lands.
 | | |
 |---|---|
 | Language | **Arabic — `ar`** |
-| Category | **UTILITY** for all three |
-| Variables | `{{1}}` = patient name · `{{2}}` = clinic name |
+| Category | **UTILITY** for all four |
+| Variables | `{{1}}` = patient name · `{{2}}` = clinic name · `{{3}}` = date and time · `{{4}}` = tracking link |
+
+Only `booking_confirmed` uses `{{3}}` and `{{4}}`. The other three use the
+first two and nothing else.
 
 **Category matters.** UTILITY is for transactional notices about something the
 customer already has — an appointment. It costs less per conversation and is
 approved far more readily than MARKETING. If any of these is submitted as
 MARKETING it will likely be rejected, and would cost more if it weren't.
 
-**Why only two variables.** Every extra variable is another thing review can
-object to. Name and clinic are enough to make the message feel addressed
-without risking a rejection over a date format.
+**Why so few variables.** Every extra variable is another thing review can
+object to. The three disruption notices need only name and clinic; the
+confirmation needs the date and the link because that is the whole point of it.
+
+---
+
+## 0. `booking_confirmed`
+
+Sent once, when the clinic takes a booking. This is the message that puts the
+tracking link in the patient's hands — without it, the waiting counter has no
+way of reaching them.
+
+**Body**
+
+```
+مرحباً {{1}}، تم تأكيد حجزك في {{2}} يوم {{3}}. تقدر تتابع دورك من هنا: {{4}}
+```
+
+**Sample values for the submission form**
+
+| | |
+|---|---|
+| `{{1}}` | سارة أحمد |
+| `{{2}}` | عيادة د. سارة النجار |
+| `{{3}}` | 2026-09-10 — 17:30 |
+| `{{4}}` | https://example.com/b/gOeOEdLH3duyIjxDxvCZuByfaPoSuqTU |
+
+**Justification** *(paste into the review notes)*
+
+> Confirms an appointment the patient has just booked with the clinic, and
+> gives her a private link to follow her position in the queue on the day.
+> Sent once per booking, only to patients who booked and consented to WhatsApp
+> updates. No promotional content.
+
+### One decision to make before submitting
+
+Meta accepts a URL inside the body as a variable, which is what the body above
+does and what the code renders today. Meta *prefers* a **URL button with a
+dynamic suffix**:
+
+| | |
+|---|---|
+| Button type | Visit website — Dynamic |
+| URL | `https://yourdomain.com/b/{{1}}` |
+| Suffix sample | `gOeOEdLH3duyIjxDxvCZuByfaPoSuqTU` |
+
+The button form gets approved more readily and renders as a proper tappable
+button. If you submit it that way, drop `{{4}}` from the body and tell us — the
+send path needs the token passed as a button parameter instead of inlined, and
+that is a small change on our side.
 
 ---
 

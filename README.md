@@ -1,19 +1,44 @@
 # Doctor 1 — Clinic Booking, Calendar & Insights
 
-Backend for a clinic booking, calendar, and insights system. One Laravel application serving
-two surfaces:
+A clinic booking, queue and insights system for Egyptian clinics. One Laravel
+application serving four surfaces:
 
-- **Mobile API** (`/api/v1`) — the whole clinic: bookings, calendar, patients,
-  settings and reports. Used by the doctor and the secretary.
-- **Filament panel** (`/admin`) — the **platform operator only**: creating
-  clinics, doctors and staff accounts. No clinic ever signs in here.
+| | | |
+|---|---|---|
+| `/{slug}` | **Doctor landing page** | Public and indexable. Hours, services, and a WhatsApp button. The entrance to the funnel. |
+| `/app` | **Clinic web app** | Livewire. The doctor and the assistant: take bookings, work today's queue. |
+| `/b/{token}` | **Patient tracking page** | Read-only, no sign-in. How many people are ahead, and when to be here. |
+| `/admin` | **Filament panel** | The **platform operator only**: clinics, doctors, staff accounts. No clinic signs in here. |
 
-Patients never sign in. See the full specification for scope and rules:
+`/api/v1` remains, untouched, for a mobile client. It is not currently used by
+any of the above — the web app calls the same services directly.
+
+**Nobody but clinic staff signs in.** A patient reaches their page through an
+unguessable link the clinic sends them.
+
+See the full specification for scope and rules:
 `../../../clinic-booking-system/SPEC-v1.md`.
+
+## The flow
+
+```
+Patient asks on WhatsApp, from the doctor's landing page
+  → secretary books them in /app          BookingService
+  → a confirmation goes out with a link   WhatsAppMessagingService
+  → patient watches /b/{token}            QueuePositionService
+  → secretary taps statuses in /app       BookingStatusService
+     ↳ the patient's number moves
+```
+
+The counter is only ever as truthful as those taps. That is a workflow fact,
+not a bug — it is worth saying out loud to any clinic before they start.
 
 ## Stack
 
-PHP 8.3 · Laravel 12 · Filament 4 · Sanctum · MySQL (SQLite for tests)
+PHP 8.3 · Laravel 12 · Livewire 3 · Filament 4 · Sanctum · MySQL (SQLite for tests)
+
+No build step. The web pages are Blade with inline CSS — mobile first, widening
+on a desk monitor, and dark-mode aware.
 
 ## Getting started
 
@@ -41,6 +66,9 @@ snapshot against your actual database.
 | `nour@doctor1.test` (secretary) | `password` |
 | `admin@doctor1.test` (super admin — **the only panel login**) | `password` |
 
+Both clinic logins work at **`/app/login`**. The demo clinic's public page is at
+**`/dr-sara-elnaggar`**.
+
 ## Layout
 
 Mirrors the 800advance codebase so the two feel like one house style.
@@ -54,10 +82,12 @@ app/
   Filament/Admin/   panel resources (platform operator only)
   Http/
     Controllers/Api/V1/   single-action (__invoke) controllers
-    Middleware/           SetApiLocale, ResolveClinic
+    Controllers/Web/      landing page, tracking page, web sign-in
+    Middleware/           SetApiLocale, ResolveClinic, EnsureClinicSession
     Requests/Api/V1/      Form Requests
+  Livewire/App/           the clinic web app's screens
   Models/
-  Services/V1/            business logic (API)
+  Services/V1/            business logic — shared by the API and the web app
   Services/Reports/       revenue and retention maths
   Services/Results/V1/    response payload shaping
   Support/                ApiResponse, Wire, PhoneNumber
@@ -87,8 +117,20 @@ invented inline.
 `App\Support\Wire`, driven by the `Accept-Language` header, so the client never
 re-implements Arabic formatting.
 
-**Clinic scope comes from the token.** The `clinic` middleware resolves it; no
-endpoint accepts `clinic_id` from the client.
+**Clinic scope is never accepted from the client.** On the API the `clinic`
+middleware resolves it from the token; on the web `EnsureClinicSession` resolves
+it from the session, and Livewire components re-resolve it from the signed-in
+account on every request.
+
+**One domain layer, two façades.** The web app calls the same services as the
+API — it does not call the API over HTTP, and it does not re-implement anything.
+Components orchestrate and render; every business rule lives in a service. The
+first `if` deciding a booking rule inside a Livewire component is a bug, because
+the mobile client would not see it.
+
+`ApiException` renders itself as a JSON envelope, which would break a Livewire
+response — so web callers catch it and show `$e->getMessage()`, already
+translated.
 
 **Records are deactivated, never deleted.** Bookings reference visit types,
 doctors and clinics forever, and `price` / `duration_minutes` are snapshotted
@@ -124,8 +166,17 @@ one and not the other).
 - **Phase 4** ✅ patient search and visit history
 - **Phase 5** ✅ revenue and retention — served by the API, owner only
 
-**v1 is feature-complete.** Remaining before launch: pricing each clinic's visit
-types, and mobile designs for the call list and patient history detail.
+- **Phase 6** ✅ web delivery — doctor landing page, clinic web app, patient
+  tracking page, booking confirmation
+
+**v1 is feature-complete and runs end to end without a mobile app.** Remaining
+before launch:
+
+- Meta approval for the four WhatsApp templates — see
+  [docs/whatsapp/templates.md](docs/whatsapp/templates.md). The app runs against
+  a `log` driver until then, so nothing waits on it.
+- A `your_turn` template, if patients should be pinged rather than watch the page.
+- Pricing each clinic's visit types, and a real slug per clinic.
 
 ## API reference
 

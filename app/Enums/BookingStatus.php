@@ -86,6 +86,18 @@ enum BookingStatus: string
     }
 
     /**
+     * Statuses that still hold a place in today's queue — everyone the patient
+     * ahead of them has yet to be finished with. Wider than `pending()`, which
+     * excludes the patient currently with the doctor.
+     *
+     * @return list<self>
+     */
+    public static function inQueue(): array
+    {
+        return [self::BOOKED, self::ARRIVED, self::WITH_DOCTOR];
+    }
+
+    /**
      * @return array<string, string> value => label, for Filament selects
      */
     public static function options(): array

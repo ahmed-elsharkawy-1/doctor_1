@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Enums\BookingStatus;
 use App\Enums\BookingKind;
+use App\Enums\BookingStatus;
 use App\Services\Results\V1\Booking\BookingCardResult;
 use App\Services\V1\Booking\BookingCalendarService;
 use App\Services\V1\Booking\SlotAvailabilityService;

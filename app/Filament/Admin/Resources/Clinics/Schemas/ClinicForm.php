@@ -33,6 +33,15 @@ class ClinicForm
                         ->required()
                         ->maxLength(255),
 
+                    TextInput::make('slug')
+                        ->label(__('filament.clinic.slug'))
+                        ->helperText(__('filament.clinic.slug_hint'))
+                        ->required()
+                        ->maxLength(120)
+                        ->rules(['regex:/^[a-z0-9][a-z0-9-]*$/'])
+                        ->notIn(config('clinic.landing.reserved'))
+                        ->unique(ignoreRecord: true),
+
                     TextInput::make('address')
                         ->label(__('filament.clinic.address'))
                         ->maxLength(255),

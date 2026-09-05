@@ -16,6 +16,9 @@ use Illuminate\Support\Collection;
 
 class WhatsAppMessagingService
 {
+    /** The template sent to a patient when their booking is taken. */
+    public const CONFIRMATION_KEY = 'booking_confirmed';
+
     /**
      * @return Collection<int, MessageTemplate>
      */
@@ -23,6 +26,7 @@ class WhatsAppMessagingService
     {
         return MessageTemplate::query()
             ->where('is_active', true)
+            ->where('is_broadcast', true)
             ->orderBy('key')
             ->get();
     }
@@ -72,7 +76,7 @@ class WhatsAppMessagingService
      */
     private function sendForBookings(Clinic $clinic, string $templateKey, Collection $bookings): array
     {
-        $template = $this->template($templateKey);
+        $template = $this->template($templateKey, broadcastOnly: true);
         $messages = [];
         $skipped = [];
         $cancelled = 0;
@@ -99,7 +103,7 @@ class WhatsAppMessagingService
                 'patient_id' => $patient->id,
                 'booking_id' => $booking->id,
                 'template_key' => $template->key,
-                'rendered_body' => $this->render($template, $patient->name, $clinic->name),
+                'rendered_body' => $this->render($template, $this->variables($booking, $clinic)),
                 'status' => 'queued',
             ]);
 
@@ -117,11 +121,16 @@ class WhatsAppMessagingService
         ];
     }
 
-    private function template(string $key): MessageTemplate
+    /**
+     * @param  bool  $broadcastOnly  refuse per-booking templates, so a
+     *                               confirmation can never be sent to a whole day
+     */
+    private function template(string $key, bool $broadcastOnly = false): MessageTemplate
     {
         $template = MessageTemplate::query()
             ->where('key', $key)
             ->where('is_active', true)
+            ->when($broadcastOnly, fn ($query) => $query->where('is_broadcast', true))
             ->first();
 
         if ($template === null) {
@@ -136,9 +145,73 @@ class WhatsAppMessagingService
         return $template;
     }
 
-    private function render(MessageTemplate $template, string $patientName, string $clinicName): string
+    /**
+     * The confirmation a patient gets when their booking is taken, carrying
+     * the link to their tracking page.
+     *
+     * Returns null when there is nothing to send — no patient, no opt-in, or
+     * the clinic has not been given the template yet. A booking must never
+     * fail because a message could not go out.
+     */
+    public function sendConfirmation(Clinic $clinic, Booking $booking): ?OutboundMessage
     {
-        return str_replace(['{{1}}', '{{2}}'], [$patientName, $clinicName], $template->body_ar);
+        $patient = $booking->patient;
+
+        if ($patient === null || $patient->whatsapp_opt_in_at === null) {
+            return null;
+        }
+
+        try {
+            $template = $this->template(self::CONFIRMATION_KEY);
+        } catch (ApiException) {
+            return null;
+        }
+
+        $message = OutboundMessage::create([
+            'clinic_id' => $clinic->id,
+            'patient_id' => $patient->id,
+            'booking_id' => $booking->id,
+            'template_key' => $template->key,
+            'rendered_body' => $this->render($template, $this->variables($booking, $clinic)),
+            'status' => 'queued',
+        ]);
+
+        SendWhatsAppMessage::dispatch($message->id);
+
+        return $message;
+    }
+
+    /**
+     * Placeholder values in template order. The three broadcast templates use
+     * only the first two; the extra replacements are no-ops for them.
+     *
+     * @return list<string>
+     */
+    private function variables(Booking $booking, Clinic $clinic): array
+    {
+        $date = $booking->visit_date->format(config('clinic.formats.date'));
+        $time = $booking->start_at?->format(config('clinic.formats.time'));
+
+        return [
+            $booking->patient?->name ?? '',
+            $clinic->name,
+            $time === null ? $date : $date.' — '.$time,
+            $booking->trackingUrl(),
+        ];
+    }
+
+    /**
+     * @param  list<string>  $variables
+     */
+    private function render(MessageTemplate $template, array $variables): string
+    {
+        $placeholders = [];
+
+        foreach ($variables as $index => $value) {
+            $placeholders['{{'.($index + 1).'}}'] = $value;
+        }
+
+        return strtr($template->body_ar, $placeholders);
     }
 
     /**

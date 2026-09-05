@@ -1,5 +1,17 @@
 # doctor_1 — v1 implementation plan
 
+> **Delivered — kept for the record.**
+>
+> Every step below was carried out, and the decisions in it still hold. What it
+> does *not* describe is the web delivery that followed it: the doctor landing
+> page, the clinic web app, the patient tracking page and the booking
+> confirmation. For the shape of the system as it stands, read the README; for
+> the rules, read §0 of the spec.
+>
+> One line here is now out of date on purpose: it says not to build
+> `activity_logs` in this pass. That is still the standing decision, not an
+> oversight.
+
 Self-contained brief. Everything needed to do this work without prior context.
 
 ---
@@ -12,7 +24,7 @@ Arabic RTL, staff-only. Patients never log in.
 - **Repo:** `/home/ahmed/Desktop/work/general/workspace/doctor_1`
 - **Spec:** `/home/ahmed/Desktop/work/clinic-booking-system/SPEC-v1.md` (read §0 first — it describes the current v1 design delta)
 - **Stack:** PHP 8.3 · Laravel 12 · Filament 4 · Sanctum · MySQL (`prac_doctor_app`), SQLite in tests
-- **Surfaces:** a Flutter mobile app via `/api/v1`, and a Filament panel at `/admin` for the platform operator only
+- **Surfaces at the time of writing:** a Flutter mobile app via `/api/v1`, and a Filament panel at `/admin` for the platform operator only. There are now four — see the README.
 
 **Current state:** v1 is complete and green — ~290 tests. This plan records the
 updates made against the Figma design that is now the source of truth.

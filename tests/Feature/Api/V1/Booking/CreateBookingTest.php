@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Api\V1\Booking;
 
-use App\Enums\BookingStatus;
 use App\Enums\BookingKind;
+use App\Enums\BookingStatus;
 use App\Enums\DayOfWeek;
 use App\Enums\PatientLocation;
 use App\Models\Booking;
