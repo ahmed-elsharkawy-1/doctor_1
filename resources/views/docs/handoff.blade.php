@@ -189,6 +189,97 @@
             background: var(--soft);
         }
 
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 22px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .tab {
+            appearance: none;
+            border: 0;
+            background: none;
+            font: inherit;
+            font-weight: 800;
+            color: var(--muted);
+            padding: 10px 4px;
+            margin-bottom: -1px;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+        }
+
+        .tab[aria-selected="true"] {
+            color: var(--brand-dark);
+            border-bottom-color: var(--brand);
+        }
+
+        .panel[hidden] { display: none; }
+
+        /* The reservation flow, as numbered steps. */
+        .flow {
+            display: grid;
+            gap: 0;
+            counter-reset: step;
+        }
+
+        .step {
+            display: grid;
+            grid-template-columns: 34px minmax(0, 1fr);
+            gap: 14px;
+            padding: 14px 0;
+            border-top: 1px solid var(--line);
+        }
+
+        .step:first-child { border-top: 0; padding-top: 0; }
+
+        .step::before {
+            counter-increment: step;
+            content: counter(step);
+            display: grid;
+            place-items: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            background: var(--brand);
+            color: #fff;
+            font-weight: 800;
+            font-size: .85rem;
+        }
+
+        .step .who {
+            font-size: .78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--muted);
+        }
+
+        .step p { margin-top: 2px; }
+
+        .queue-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .93rem;
+        }
+
+        .queue-table th {
+            text-align: left;
+            font-size: .78rem;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--muted);
+            padding: 0 10px 8px 0;
+        }
+
+        .queue-table td {
+            padding: 9px 10px 9px 0;
+            border-top: 1px solid var(--line);
+            vertical-align: middle;
+        }
+
+        .rtl { direction: rtl; text-align: right; }
+
         @media (max-width: 760px) {
             main { width: min(100% - 24px, 1120px); padding: 28px 0; }
             .grid { grid-template-columns: 1fr; }
@@ -202,12 +293,21 @@
         <span class="pill">Test Environment</span>
         <h1>Doctor 1 Developer Handoff</h1>
         <p class="subhead">
-            Shared test access for the admin dashboard and the demo clinic API account.
-            These credentials are for development and mobile integration testing only.
+            Shared test access for the web app, the admin dashboard and the demo clinic
+            API account. For development and integration testing only.
         </p>
     </header>
 
-    <section class="grid">
+    <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tab-web" aria-controls="panel-web" aria-selected="true">
+            Web &amp; Reservation Flow
+        </button>
+        <button class="tab" role="tab" id="tab-api" aria-controls="panel-api" aria-selected="false">
+            Mobile API
+        </button>
+    </div>
+
+    <section class="grid panel" id="panel-api" role="tabpanel" aria-labelledby="tab-api" hidden>
         <article class="card">
             <h2>Dashboard</h2>
             <div class="rows">
@@ -295,6 +395,13 @@ Content-Type: application/json
             </p>
         </article>
 
+    </section>
+
+    <section class="grid panel" id="panel-web" role="tabpanel" aria-labelledby="tab-web">
+        @include('docs.partials.reservation-flow')
+    </section>
+
+    <section class="grid">
         <article class="wide links">
             <a class="button" href="{{ $apiDocsUrl }}">Open API Docs</a>
             <a class="button secondary" href="{{ $designMapUrl }}">Open Design Map</a>
@@ -303,5 +410,26 @@ Content-Type: application/json
         </article>
     </section>
 </main>
+
+<script>
+    // Two panels, no dependency. The chosen tab survives a refresh.
+    const tabs = document.querySelectorAll('.tab');
+
+    function show(id) {
+        tabs.forEach(tab => {
+            const selected = tab.id === id;
+            tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+            document.getElementById(tab.getAttribute('aria-controls')).hidden = !selected;
+        });
+        try { localStorage.setItem('handoff-tab', id); } catch (e) { /* private mode */ }
+    }
+
+    tabs.forEach(tab => tab.addEventListener('click', () => show(tab.id)));
+
+    try {
+        const saved = localStorage.getItem('handoff-tab');
+        if (saved && document.getElementById(saved)) { show(saved); }
+    } catch (e) { /* private mode */ }
+</script>
 </body>
 </html>

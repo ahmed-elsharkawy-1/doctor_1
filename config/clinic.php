@@ -153,6 +153,11 @@ return [
         'path' => 'docs/api',
         'spec' => 'docs/api/v1/openapi.yaml',
         'hidden_tags' => ['Postpone', 'Patients', 'Reports'],
+
+        // The shared test account the handoff page documents. Its clinic is
+        // the only one the page will ever show live booking links for, so a
+        // real clinic's patients can never appear there.
+        'demo_account' => env('CLINIC_DOCS_DEMO_EMAIL', 'doctor@doctor1.test'),
     ],
 
     /*

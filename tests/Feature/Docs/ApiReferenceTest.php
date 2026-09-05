@@ -100,6 +100,24 @@ class ApiReferenceTest extends TestCase
             ->assertSee(route('docs.api.spec'), escape: false);
     }
 
+    public function test_the_handoff_page_carries_the_reservation_flow(): void
+    {
+        $this->get(route('docs.api.handoff'))
+            ->assertOk()
+            ->assertSee('Reservation Flow')
+            ->assertSee('Web &amp; Reservation Flow', escape: false)
+            ->assertSee(route('app.login'), escape: false);
+    }
+
+    public function test_the_handoff_page_renders_without_a_database(): void
+    {
+        // No RefreshDatabase here on purpose: a reference page must not 500
+        // because the database is unreachable.
+        $this->get(route('docs.api.handoff'))
+            ->assertOk()
+            ->assertSee('Reservation Flow');
+    }
+
     public function test_the_handoff_page_is_hidden_when_docs_are_disabled(): void
     {
         config()->set('clinic.docs.enabled', false);

@@ -2,12 +2,19 @@
 
 namespace App\Http\Controllers\Docs;
 
+use App\Models\Booking;
+use App\Models\Clinic;
+use App\Models\User;
+use App\Services\V1\Queue\QueueService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 use League\CommonMark\GithubFlavoredMarkdownConverter;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Yaml\Yaml;
+use Throwable;
 
 /**
  * Serves docs/api/v1/openapi.yaml as a browsable reference.
@@ -32,14 +39,63 @@ class ApiReferenceController
     {
         $this->guard();
 
+        $clinic = $this->demoClinic();
+
         return view('docs.handoff', [
             'appUrl' => url('/'),
-            'adminUrl' => url('/admin'),
+            'adminUrl' => url(config('clinic.panel.path')),
             'apiBaseUrl' => url('/api/v1'),
             'apiDocsUrl' => route('docs.api'),
             'designMapUrl' => route('docs.api.design-map'),
             'openApiUrl' => route('docs.api.spec'),
+            'demoEmail' => config('clinic.docs.demo_account'),
+            'clinic' => $clinic,
+            'landingUrl' => $clinic?->slug === null ? null : url($clinic->slug),
+            'clinicAppUrl' => route('app.login'),
+            'todaysBookings' => $this->todaysDemoBookings($clinic),
         ]);
+    }
+
+    /**
+     * The clinic behind the shared test account, and only that one — the
+     * handoff page lists patient names, so a real clinic must never appear.
+     */
+    private function demoClinic(): ?Clinic
+    {
+        try {
+            return User::query()
+                ->where('email', config('clinic.docs.demo_account'))
+                ->first()
+                ?->activeClinic();
+        } catch (Throwable) {
+            // The rest of the page is a static reference; it should still
+            // render when the database is unreachable.
+            return null;
+        }
+    }
+
+    /**
+     * Today's queue for the demo clinic, so the tracking links on the page are
+     * always live rather than pasted in and going stale on the next reseed.
+     *
+     * @return Collection<int, Booking>
+     */
+    private function todaysDemoBookings(?Clinic $clinic): Collection
+    {
+        if ($clinic === null) {
+            return collect();
+        }
+
+        try {
+            $bookings = $clinic->bookings()
+                ->with('patient')
+                ->onDate(Carbon::now($clinic->timezone)->toDateString())
+                ->get();
+        } catch (Throwable) {
+            return collect();
+        }
+
+        return app(QueueService::class)->sortBookings($bookings);
     }
 
     public function designMap(): View
