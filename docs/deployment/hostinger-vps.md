@@ -34,6 +34,68 @@ Internet
   -> private MySQL container
 ```
 
+## Domain Cutover
+
+Current production fallback hostname:
+
+```text
+doctor1.srv1362420.hstgr.cloud
+```
+
+Current VPS public IPv4:
+
+```text
+76.13.50.56
+```
+
+Ask the Cloudflare account owner to add these DNS records for `elayadah.com`:
+
+```text
+Type: A
+Name: @
+Content: 76.13.50.56
+Proxy status: DNS only
+TTL: Auto
+
+Type: CNAME
+Name: www
+Target: elayadah.com
+Proxy status: DNS only
+TTL: Auto
+```
+
+Keep Cloudflare proxy disabled while Traefik issues the Let's Encrypt
+certificate. The production Compose router accepts the root domain, the `www`
+alias, and the old Hostinger hostname, so the old URL can stay available during
+the cutover.
+
+After DNS resolves, update the VPS `.env` to:
+
+```bash
+APP_URL=https://elayadah.com
+APP_HOST=elayadah.com
+APP_HOST_WWW=www.elayadah.com
+APP_HOST_LEGACY=doctor1.srv1362420.hstgr.cloud
+```
+
+Then redeploy from `/docker/doctor_1`:
+
+```bash
+docker compose -f compose.prod.yml up -d --build --force-recreate
+docker compose -f compose.prod.yml exec app php artisan optimize:clear
+docker compose -f compose.prod.yml exec app php artisan filament:optimize
+```
+
+Check these URLs after deploy:
+
+```text
+https://elayadah.com/up
+https://elayadah.com/admin
+https://elayadah.com/docs/api
+https://www.elayadah.com/up
+https://doctor1.srv1362420.hstgr.cloud/up
+```
+
 ## First Deploy
 
 From the VPS:
@@ -49,8 +111,10 @@ Edit `.env` on the server only. Set at minimum:
 
 ```bash
 APP_KEY=
-APP_URL=https://doctor1.srv1362420.hstgr.cloud
-APP_HOST=doctor1.srv1362420.hstgr.cloud
+APP_URL=https://elayadah.com
+APP_HOST=elayadah.com
+APP_HOST_WWW=www.elayadah.com
+APP_HOST_LEGACY=doctor1.srv1362420.hstgr.cloud
 DB_PASSWORD=
 DB_ROOT_PASSWORD=
 SUPER_ADMIN_EMAIL=

@@ -50,6 +50,34 @@ class ClinicAppRobustnessTest extends TestCase
         $this->assertAuthenticatedAs($admin);
     }
 
+    public function test_livewire_actions_refuse_a_disabled_session_user(): void
+    {
+        $booking = Booking::factory()
+            ->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-09-03 09:00', $this->clinic->timezone))
+            ->create();
+
+        $page = Livewire::actingAs($this->owner)
+            ->test(Queue::class);
+
+        $this->owner->update(['is_active' => false]);
+
+        $page
+            ->call('arrive', $booking->id)
+            ->assertForbidden();
+
+        $this->assertSame('booked', $booking->fresh()->status->value);
+    }
+
+    public function test_livewire_actions_refuse_a_panel_only_user(): void
+    {
+        $admin = User::factory()->create(['role' => UserRole::SUPER_ADMIN]);
+
+        Livewire::actingAs($admin)
+            ->test(Queue::class)
+            ->assertForbidden();
+    }
+
     public function test_a_junk_date_in_the_query_string_falls_back_to_today(): void
     {
         // `date` is bound to the query string, so this is one URL edit away.

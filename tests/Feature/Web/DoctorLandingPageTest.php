@@ -112,6 +112,18 @@ class DoctorLandingPageTest extends TestCase
             ->assertSee('MedicalClinic', escape: false);
     }
 
+    public function test_structured_data_cannot_break_out_of_its_script_tag(): void
+    {
+        $this->clinic->update([
+            'name' => '</script><script>alert(1)</script>',
+        ]);
+
+        $this->get($this->url())
+            ->assertOk()
+            ->assertDontSee('</script><script>alert(1)</script>', escape: false)
+            ->assertSee('\u003C/script\u003E\u003Cscript\u003Ealert(1)\u003C/script\u003E', escape: false);
+    }
+
     public function test_the_page_is_not_hidden_from_search_engines(): void
     {
         // The opposite of every other page in the system.

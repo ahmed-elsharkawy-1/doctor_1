@@ -16,7 +16,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=n8n_default
-      - traefik.http.routers.doctor1.rule=Host(`${APP_HOST:?Set APP_HOST in .env}`)
+      - traefik.http.routers.doctor1.rule=Host(`${APP_HOST:?Set APP_HOST in .env}`) || Host(`${APP_HOST_WWW:-www.elayadah.com}`) || Host(`${APP_HOST_LEGACY:-doctor1.srv1362420.hstgr.cloud}`)
       - traefik.http.routers.doctor1.entrypoints=web,websecure
       - traefik.http.routers.doctor1.tls=true
       - traefik.http.routers.doctor1.tls.certresolver=mytlschallenge

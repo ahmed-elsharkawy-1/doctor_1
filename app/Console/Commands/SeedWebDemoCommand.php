@@ -30,7 +30,8 @@ class SeedWebDemoCommand extends Command
 {
     protected $signature = 'clinic:seed-web-demo
                             {--clinic= : Clinic id (defaults to the first one)}
-                            {--fresh : Delete today\'s existing bookings first}';
+                            {--fresh : Delete today\'s existing bookings first}
+                            {--force-production : Allow --fresh while APP_ENV=production}';
 
     protected $description = "Set up today's queue for testing the web flow, and print every link to open";
 
@@ -70,6 +71,12 @@ class SeedWebDemoCommand extends Command
         }
 
         if ($this->option('fresh')) {
+            if (app()->isProduction() && ! $this->option('force-production')) {
+                $this->error('Refusing to delete bookings in production. Re-run with --force-production if this is intentional.');
+
+                return self::FAILURE;
+            }
+
             $deleted = $clinic->bookings()->onDate($today->toDateString())->delete();
             $this->line("Removed {$deleted} booking(s) from today.");
         }

@@ -22,9 +22,14 @@ abstract class ClinicComponent extends Component
 {
     public function clinic(): Clinic
     {
-        $clinic = auth()->user()?->activeClinic();
+        $user = auth()->user();
 
-        // The session went away mid-visit, or the account was detached.
+        abort_if($user === null || ! $user->is_active || ! $user->role->usesMobileApp(), 403);
+
+        $clinic = $user->activeClinic();
+
+        // The session went away mid-visit, the account was detached, or the
+        // clinic was disabled after the component first loaded.
         abort_if($clinic === null || ! $clinic->is_active, 403);
 
         return $clinic;
