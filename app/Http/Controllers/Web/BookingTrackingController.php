@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Services\V1\Queue\QueuePositionService;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\App;
 use Illuminate\View\View;
 
@@ -22,11 +23,21 @@ class BookingTrackingController extends Controller
         // Patients are not sent an Accept-Language header worth trusting.
         App::setLocale(config('clinic.api.default_locale'));
 
-        $booking->load(['patient', 'clinic', 'visitType']);
+        $booking->load(['patient', 'clinic.doctor', 'visitType']);
+
+        $clinic = $booking->clinic;
+        $phone = $clinic->phone === null ? null : PhoneNumber::tryParse($clinic->phone);
+
+        $mapQuery = $clinic->latitude !== null && $clinic->longitude !== null
+            ? $clinic->latitude.','.$clinic->longitude
+            : $clinic->address;
 
         return view('tracking.show', [
             'booking' => $booking,
-            'clinic' => $booking->clinic,
+            'clinic' => $clinic,
+            'doctor' => $clinic->doctor,
+            'phone' => $phone,
+            'mapLink' => $mapQuery === null ? null : 'https://maps.google.com/?q='.urlencode($mapQuery),
             'position' => $positions->for($booking),
             'refreshSeconds' => config('clinic.tracking.refresh_seconds'),
         ]);

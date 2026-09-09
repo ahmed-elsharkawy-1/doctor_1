@@ -64,6 +64,10 @@ return [
     | The patient-facing tracking page.
     */
     'tracking' => [
+        'patient_name' => 'اسم المريض',
+        'time' => 'الوقت',
+        'date' => 'التاريخ',
+        'booking_type' => 'نوع الحجز',
         'title' => 'حجزك في :clinic',
         'waiting_count' => 'عدد الإنتظار',
         'total' => 'الإجمالى',

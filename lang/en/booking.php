@@ -64,6 +64,10 @@ return [
     | The patient-facing tracking page.
     */
     'tracking' => [
+        'patient_name' => 'Patient',
+        'time' => 'Time',
+        'date' => 'Date',
+        'booking_type' => 'Booking type',
         'title' => 'Your booking at :clinic',
         'waiting_count' => 'Ahead of you',
         'total' => 'Total',
