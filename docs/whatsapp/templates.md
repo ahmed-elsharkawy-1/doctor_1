@@ -1,6 +1,6 @@
 # WhatsApp message templates — ready to submit
 
-Submit these four to Meta exactly as written. The code already expects these
+Submit these five to Meta exactly as written. The code already expects these
 names, so nothing needs changing once they are approved.
 
 **Submit early.** Review typically takes days to weeks and nothing else in the
@@ -13,7 +13,7 @@ build waits on it — the app runs against a `log` driver until approval lands.
 | | |
 |---|---|
 | Language | **Arabic — `ar`** |
-| Category | **UTILITY** for all four |
+| Category | **UTILITY** for all five |
 | Variables | `{{1}}` = patient name · `{{2}}` = clinic name · `{{3}}` = date and time · `{{4}}` = tracking link |
 
 Only `booking_confirmed` uses `{{3}}` and `{{4}}`. The other three use the
@@ -74,6 +74,67 @@ The button form gets approved more readily and renders as a proper tappable
 button. If you submit it that way, drop `{{4}}` from the body and tell us — the
 send path needs the token passed as a button parameter instead of inlined, and
 that is a small change on our side.
+
+---
+
+## 0b. `visit_completed`
+
+Sent once, the moment the secretary marks the visit **done**. Thanks the
+patient and invites them to rate the visit.
+
+**Approved by Meta — this section records what was approved so the code and
+the template cannot drift apart. Fill in the two blanks below from the Meta
+template manager.**
+
+| | |
+|---|---|
+| Template name | `visit_completed` *(confirm the exact name)* |
+| Language | **Arabic — `ar`** |
+| Category | **UTILITY** |
+
+**Body** *(as approved — replace with the exact wording if it differs)*
+
+```
+قيّم تجربتك
+
+وقتك أغلى حاجة عندنا، ونفسنا نعرف وقّرناه فعلًا؟
+
+تقدر تعمل تقييم سريع عن تجربتك في نظام الحجز الجديد
+
+حجزك أسهل، ووقتك أثمن
+```
+
+**Button — this is the part that matters**
+
+| | |
+|---|---|
+| Type | **Visit website — Dynamic** |
+| Label | `المشاركة في التقييم` |
+| Base URL | `https://elayadah.com/review/` |
+| Suffix variable | `{{1}}` — the booking's tracking token |
+| Suffix sample | `TA6pX6LqReDHCa5KUSJs5VGxUnHNiC2G` |
+
+The full link a patient receives therefore looks like:
+
+```
+https://elayadah.com/review/TA6pX6LqReDHCa5KUSJs5VGxUnHNiC2G
+```
+
+**The suffix must be dynamic.** A static URL would open the review page with
+no idea which visit, patient, doctor or clinic it belongs to, and every review
+would arrive anonymous and unusable.
+
+**Justification** *(paste into the review notes)*
+
+> Thanks a patient for a visit that has just taken place and invites them to
+> rate it. Sent once per completed appointment, only to patients who booked
+> and consented to WhatsApp updates. No promotional content.
+
+**What the link opens**
+
+A page dedicated to the review — not the tracking page. It offers three
+ratings and an optional note, accepts one submission per visit, and refuses
+politely if the visit is not finished or has already been rated.
 
 ---
 

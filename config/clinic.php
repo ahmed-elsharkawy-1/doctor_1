@@ -111,7 +111,12 @@ return [
     */
     'landing' => [
         // Slugs the operator may not take, because a route already owns them.
-        'reserved' => ['app', 'b', 'admin', 'docs', 'api', 'livewire', 'storage', 'up', 'login'],
+        'reserved' => [
+            'app', 'admin', 'docs', 'api', 'livewire', 'storage', 'up', 'login',
+            'booking', 'review',
+            // The path tracking links used before they were made readable.
+            'b',
+        ],
     ],
 
     /*
@@ -155,11 +160,28 @@ return [
     | in the message instead.
     */
     'tracking' => [
-        'path' => 'b',
+        // Readable, and stable for ever: a WhatsApp template's URL button has
+        // one fixed base, so the path cannot vary by doctor — the token
+        // carries the identity.
+        'path' => 'booking',
+
+        // Paths that shipped earlier. Links already sitting in patients'
+        // WhatsApp history must never stop working, so these keep resolving.
+        'legacy_paths' => ['b'],
         // Bytes of randomness; the stored token is twice this in hex.
         'token_bytes' => 16,
         // How often the waiting page re-reads its position.
         'refresh_seconds' => (int) env('CLINIC_TRACKING_REFRESH_SECONDS', 30),
+    ],
+
+    /*
+    | Patient review page, opened from the visit-completed WhatsApp message.
+    | Shares the booking's tracking token — it is already that patient's
+    | secret for that visit, and a second one would be one more thing to leak.
+    */
+    'review' => [
+        'path' => 'review',
+        'comment_max' => 600,
     ],
 
     /*

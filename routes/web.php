@@ -27,6 +27,12 @@ Route::get('/', function () {
 Route::get(config('clinic.tracking.path').'/{booking:tracking_token}', BookingTrackingController::class)
     ->name('booking.track');
 
+// Links already delivered to patients used the older, shorter path. Their
+// WhatsApp history cannot be rewritten, so those keep resolving for ever.
+foreach (config('clinic.tracking.legacy_paths', []) as $legacyPath) {
+    Route::get($legacyPath.'/{booking:tracking_token}', BookingTrackingController::class);
+}
+
 /*
 | The clinic web app — the screens the doctor and the assistant work from.
 |

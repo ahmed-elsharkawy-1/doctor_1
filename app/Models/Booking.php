@@ -68,6 +68,15 @@ class Booking extends Model
         return url(config('clinic.tracking.path').'/'.$this->tracking_token);
     }
 
+    /**
+     * Where the visit-completed message sends the patient to leave a review.
+     * The same token: it is already this patient's secret for this visit.
+     */
+    public function reviewUrl(): string
+    {
+        return url(config('clinic.review.path').'/'.$this->tracking_token);
+    }
+
     protected function casts(): array
     {
         return [
