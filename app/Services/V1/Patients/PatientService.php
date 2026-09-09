@@ -81,6 +81,13 @@ class PatientService
             $patient->update(['name' => trim($name)]);
         }
 
+        // A patient who predates the consent field, or who declined once and
+        // is now agreeing, would otherwise never be reachable. Consent is only
+        // ever granted here — revoking it is deliberate and belongs elsewhere.
+        if ($whatsappOptIn && $patient->whatsapp_opt_in_at === null) {
+            $patient->update(['whatsapp_opt_in_at' => now()]);
+        }
+
         return $patient;
     }
 

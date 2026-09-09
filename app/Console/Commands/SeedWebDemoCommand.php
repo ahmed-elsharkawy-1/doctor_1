@@ -12,7 +12,6 @@ use App\Models\VisitType;
 use App\Services\V1\Booking\BookingService;
 use App\Services\V1\Booking\Slot;
 use App\Services\V1\Booking\SlotAvailabilityService;
-use App\Services\V1\Messaging\WhatsAppMessagingService;
 use App\Services\V1\Queue\BookingStatusService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
@@ -48,7 +47,6 @@ class SeedWebDemoCommand extends Command
         BookingService $bookings,
         BookingStatusService $statuses,
         SlotAvailabilityService $slots,
-        WhatsAppMessagingService $messaging,
     ): int {
         $clinic = $this->option('clinic')
             ? Clinic::find($this->option('clinic'))
@@ -108,8 +106,8 @@ class SeedWebDemoCommand extends Command
                 patientLocation: $slot === null ? PatientLocation::ON_WAY : null,
             ), $actor);
 
+            // BookingService sends the confirmation itself.
             $this->advanceTo($statuses, $booking, $patient['state']);
-            $messaging->sendConfirmation($clinic, $booking);
 
             $rows[] = [
                 $booking->fresh()->status->value,

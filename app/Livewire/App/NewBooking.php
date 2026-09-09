@@ -12,7 +12,6 @@ use App\Services\V1\Booking\BookingDaysService;
 use App\Services\V1\Booking\BookingService;
 use App\Services\V1\Booking\DayAvailability;
 use App\Services\V1\Booking\SlotAvailabilityService;
-use App\Services\V1\Messaging\WhatsAppMessagingService;
 use App\Services\V1\Patients\PatientSearchService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
@@ -184,11 +183,6 @@ class NewBooking extends ClinicComponent
                 ),
                 auth()->user(),
             );
-
-            // Sending is deliberately not inside BookingService: adding a side
-            // effect there would change what the mobile API does on every
-            // booking. The web app decides when, the service decides how.
-            app(WhatsAppMessagingService::class)->sendConfirmation($this->clinic(), $booking);
 
             $this->afterSave($booking);
         } catch (ApiException $e) {

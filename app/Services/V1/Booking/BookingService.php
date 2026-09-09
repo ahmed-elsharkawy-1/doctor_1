@@ -14,6 +14,7 @@ use App\Models\Doctor;
 use App\Models\Patient;
 use App\Models\User;
 use App\Models\VisitType;
+use App\Services\V1\Messaging\WhatsAppMessagingService;
 use App\Services\V1\Patients\PatientService;
 use App\Support\PhoneNumber;
 use Illuminate\Support\Carbon;
@@ -25,6 +26,7 @@ class BookingService
     public function __construct(
         private readonly SlotAvailabilityService $slots,
         private readonly PatientService $patients,
+        private readonly WhatsAppMessagingService $messaging,
     ) {}
 
     public function create(Clinic $clinic, BookingData $data, User $actor): Booking
@@ -37,7 +39,7 @@ class BookingService
 
         $phone = $data->phone === null ? null : $this->patients->parsePhone($clinic, $data->phone);
 
-        return $this->claimingTheDay($clinic, $this->clinicDate($clinic, $data->date), function () use (
+        $booking = $this->claimingTheDay($clinic, $this->clinicDate($clinic, $data->date), function () use (
             $clinic, $data, $visitType, $startAt, $doctor, $actor, $phone
         ) {
             if ($data->bookingKind === BookingKind::NORMAL) {
@@ -73,6 +75,14 @@ class BookingService
 
             return $booking;
         });
+
+        // Sent here so every caller behaves the same: a booking taken on the
+        // mobile app reaches the patient exactly as one taken on the web does,
+        // with no button for anyone to forget. Deliberately outside the day
+        // lock — a queued message must never outlive a rolled-back booking.
+        $this->messaging->sendConfirmation($clinic, $booking);
+
+        return $booking;
     }
 
     public function update(Clinic $clinic, int $bookingId, BookingData $data): Booking
