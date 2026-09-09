@@ -27,6 +27,18 @@ return [
         ],
     ],
 
+    'review' => [
+        'label' => 'تقييم',
+        'plural_label' => 'التقييمات',
+        'doctor' => 'الطبيب',
+        'clinic' => 'العيادة',
+        'rating' => 'التقييم',
+        'comment' => 'الملاحظات',
+        'patient' => 'المريض',
+        'patient_code' => 'كود المريض',
+        'submitted_at' => 'تاريخ التقييم',
+    ],
+
     'clinic' => [
         'label' => 'عيادة',
         'plural_label' => 'العيادات',

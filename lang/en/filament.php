@@ -27,6 +27,18 @@ return [
         ],
     ],
 
+    'review' => [
+        'label' => 'Review',
+        'plural_label' => 'Reviews',
+        'doctor' => 'Doctor',
+        'clinic' => 'Clinic',
+        'rating' => 'Rating',
+        'comment' => 'Notes',
+        'patient' => 'Patient',
+        'patient_code' => 'Patient code',
+        'submitted_at' => 'Submitted',
+    ],
+
     'clinic' => [
         'label' => 'Clinic',
         'plural_label' => 'Clinics',

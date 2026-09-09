@@ -7,6 +7,7 @@ use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
+use App\Services\V1\Messaging\WhatsAppMessagingService;
 use Illuminate\Support\Carbon;
 
 /**
@@ -19,6 +20,10 @@ use Illuminate\Support\Carbon;
  */
 class BookingStatusService
 {
+    public function __construct(
+        private readonly WhatsAppMessagingService $messaging,
+    ) {}
+
     public function arrive(Booking $booking): Booking
     {
         $now = $this->now($booking);
@@ -36,7 +41,16 @@ class BookingStatusService
 
     public function complete(Booking $booking): Booking
     {
-        return $this->advance($booking, BookingStatus::DONE, ['completed_at' => $this->now($booking)]);
+        $booking = $this->advance($booking, BookingStatus::DONE, ['completed_at' => $this->now($booking)]);
+
+        // Thanks the patient and carries the review link. Sent from here so it
+        // reaches them whichever client marked the visit done, and after the
+        // transition so a messaging problem can never block it.
+        if ($booking->clinic !== null) {
+            $this->messaging->sendVisitCompleted($booking->clinic, $booking);
+        }
+
+        return $booking;
     }
 
     public function update(Booking $booking, BookingStatus $target): Booking

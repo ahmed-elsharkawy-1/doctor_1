@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Docs\ApiReferenceController;
 use App\Http\Controllers\Web\Auth\LoginController;
+use App\Http\Controllers\Web\BookingReviewController;
 use App\Http\Controllers\Web\BookingTrackingController;
 use App\Http\Controllers\Web\DoctorLandingController;
 use App\Http\Middleware\EnsureClinicSession;
@@ -32,6 +33,17 @@ Route::get(config('clinic.tracking.path').'/{booking:tracking_token}', BookingTr
 foreach (config('clinic.tracking.legacy_paths', []) as $legacyPath) {
     Route::get($legacyPath.'/{booking:tracking_token}', BookingTrackingController::class);
 }
+
+/*
+| The patient's review page, opened from the visit-completed message. Same
+| token as the tracking page: it is already this patient's key to this visit.
+*/
+Route::get(config('clinic.review.path').'/{booking:tracking_token}', [BookingReviewController::class, 'show'])
+    ->name('booking.review');
+
+Route::post(config('clinic.review.path').'/{booking:tracking_token}', [BookingReviewController::class, 'store'])
+    ->middleware('throttle:10,1')
+    ->name('booking.review.store');
 
 /*
 | The clinic web app — the screens the doctor and the assistant work from.

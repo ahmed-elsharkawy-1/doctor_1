@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class Booking extends Model
@@ -130,6 +131,12 @@ class Booking extends Model
     public function rebookedInto(): BelongsTo
     {
         return $this->belongsTo(self::class, 'rebooked_booking_id');
+    }
+
+    /** @return HasOne<BookingReview, $this> */
+    public function review(): HasOne
+    {
+        return $this->hasOne(BookingReview::class);
     }
 
     /** @return BelongsTo<User, $this> */

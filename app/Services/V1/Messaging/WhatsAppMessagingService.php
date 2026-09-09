@@ -19,6 +19,9 @@ class WhatsAppMessagingService
     /** The template sent to a patient when their booking is taken. */
     public const CONFIRMATION_KEY = 'booking_confirmed';
 
+    /** Sent once the visit is finished, inviting a review. */
+    public const VISIT_COMPLETED_KEY = 'visit_completed';
+
     /**
      * @return Collection<int, MessageTemplate>
      */
@@ -155,6 +158,21 @@ class WhatsAppMessagingService
      */
     public function sendConfirmation(Clinic $clinic, Booking $booking): ?OutboundMessage
     {
+        return $this->sendForBookingUsing($clinic, $booking, self::CONFIRMATION_KEY);
+    }
+
+    /**
+     * The thank-you that carries the review link, sent when the visit is
+     * marked done. Same guarantees as the confirmation: silent when there is
+     * nobody to reach, and never able to cost the status change.
+     */
+    public function sendVisitCompleted(Clinic $clinic, Booking $booking): ?OutboundMessage
+    {
+        return $this->sendForBookingUsing($clinic, $booking, self::VISIT_COMPLETED_KEY);
+    }
+
+    private function sendForBookingUsing(Clinic $clinic, Booking $booking, string $templateKey): ?OutboundMessage
+    {
         $patient = $booking->patient;
 
         if ($patient === null || $patient->whatsapp_opt_in_at === null) {
@@ -162,7 +180,7 @@ class WhatsAppMessagingService
         }
 
         try {
-            $template = $this->template(self::CONFIRMATION_KEY);
+            $template = $this->template($templateKey);
         } catch (ApiException) {
             return null;
         }
