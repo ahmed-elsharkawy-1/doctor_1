@@ -3,6 +3,7 @@
 namespace Tests\Feature\Web;
 
 use App\Enums\DayOfWeek;
+use App\Enums\DoctorSex;
 use App\Models\Booking;
 use App\Models\Doctor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -65,7 +66,7 @@ class DoctorLandingPageTest extends TestCase
             ])), escape: false);
     }
 
-    public function test_it_lists_the_opening_hours(): void
+    public function test_it_lists_the_opening_hours_in_twelve_hour_form(): void
     {
         $schedule = $this->clinic->scheduleFor(DayOfWeek::SATURDAY);
         $schedule->update(['is_open' => true]);
@@ -75,15 +76,53 @@ class DoctorLandingPageTest extends TestCase
             ->assertOk()
             ->assertSee(__('landing.hours'))
             ->assertSee(DayOfWeek::SATURDAY->label())
-            ->assertSee('09:00');
+            // Crosses noon, so both meridiems are written.
+            ->assertSee('9:00 '.__('schedule.am').' – 1:00 '.__('schedule.pm'))
+            ->assertDontSee('09:00–13:00');
     }
 
-    public function test_closed_days_are_not_listed(): void
+    public function test_both_ends_of_a_period_name_their_meridiem(): void
     {
-        // Every day of a provisioned clinic starts closed.
+        $schedule = $this->clinic->scheduleFor(DayOfWeek::SUNDAY);
+        $schedule->update(['is_open' => true]);
+        $schedule->periods()->create(['start_time' => '13:00', 'end_time' => '15:00']);
+
+        // Even sharing a half of the day, the opening time says so itself —
+        // "1:00 – 3:00 مساءً" leaves the first time merely implied.
         $this->get($this->url())
             ->assertOk()
-            ->assertDontSee(__('landing.hours'));
+            ->assertSee('1:00 '.__('schedule.pm').' – 3:00 '.__('schedule.pm'))
+            ->assertDontSee('1:00 – 3:00 '.__('schedule.pm'));
+    }
+
+    public function test_a_split_day_shows_each_shift_as_its_own_tag(): void
+    {
+        $schedule = $this->clinic->scheduleFor(DayOfWeek::MONDAY);
+        $schedule->update(['is_open' => true]);
+        $schedule->periods()->create(['start_time' => '13:00', 'end_time' => '15:00']);
+        $schedule->periods()->create(['start_time' => '17:00', 'end_time' => '21:00']);
+
+        $html = $this->get($this->url())->assertOk()->getContent();
+
+        // Two separate tags, not one comma-joined string.
+        $this->assertStringContainsString(
+            '<bdi class="time-tag">1:00 '.__('schedule.pm').' – 3:00 '.__('schedule.pm').'</bdi>',
+            $html,
+        );
+        $this->assertStringContainsString(
+            '<bdi class="time-tag">5:00 '.__('schedule.pm').' – 9:00 '.__('schedule.pm').'</bdi>',
+            $html,
+        );
+    }
+
+    public function test_closed_days_are_shown_as_closed(): void
+    {
+        // The design lists the whole week, so a patient can see at a glance
+        // which day the clinic does not open.
+        $this->get($this->url())
+            ->assertOk()
+            ->assertSee(__('landing.hours'))
+            ->assertSee(__('landing.closed'));
     }
 
     public function test_hidden_visit_types_are_not_advertised(): void
@@ -94,12 +133,192 @@ class DoctorLandingPageTest extends TestCase
 
         $hidden->hide();
 
-        // Matched on the chip itself: the visit type name can legitimately
+        // Matched on the service row itself: a visit type name can legitimately
         // appear elsewhere on the page, such as inside the meta description.
         $this->get($this->url())
             ->assertOk()
-            ->assertDontSee('<span class="type">'.$hidden->name.'</span>', escape: false)
-            ->assertSee('<span class="type">'.$stillShown->name.'</span>', escape: false);
+            ->assertDontSee('<b>'.$hidden->name.'</b>', escape: false)
+            ->assertSee('<b>'.$stillShown->name.'</b>', escape: false);
+    }
+
+    public function test_services_are_listed_as_names_only(): void
+    {
+        $visitType = $this->clinic->visitTypes()->active()->first();
+        $visitType->update(['price' => 400, 'duration_minutes' => 35]);
+
+        $html = $this->get($this->url())->assertOk()->getContent();
+
+        $panel = $this->servicesPanel($html);
+
+        $this->assertStringContainsString(
+            '<div class="service-block"><b>'.$visitType->name.'</b></div>',
+            $panel,
+        );
+
+        // Neither the fee nor the length belongs in this list. The visit length
+        // still appears in the header stat row, which the design asks for.
+        $this->assertStringNotContainsString(__('messages.currency'), $panel);
+        $this->assertStringNotContainsString(__('landing.minutes', ['count' => 35]), $panel);
+    }
+
+    /** The services tab's markup, isolated from the rest of the page. */
+    private function servicesPanel(string $html): string
+    {
+        $start = strpos($html, 'id="panel-services"');
+        $end = strpos($html, 'id="panel-contact"');
+
+        $this->assertNotFalse($start);
+        $this->assertNotFalse($end);
+
+        return substr($html, $start, $end - $start);
+    }
+
+    public function test_the_overview_no_longer_repeats_the_services(): void
+    {
+        $visitType = $this->clinic->visitTypes()->active()->first();
+
+        $html = $this->get($this->url())->assertOk()->getContent();
+
+        // It used to appear twice: once under أبرز الخدمات on the overview and
+        // again on the services tab. That card is gone, so once is correct.
+        $this->assertSame(
+            1,
+            substr_count($html, '<b>'.$visitType->name.'</b>'),
+            'A service should be listed on the services tab only.',
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | The redesigned page's own content
+    |--------------------------------------------------------------------------
+    */
+
+    public function test_it_offers_every_tab_except_the_blog(): void
+    {
+        $page = $this->get($this->url())->assertOk();
+
+        foreach (['overview', 'services', 'contact', 'location'] as $tab) {
+            $page->assertSee(__('landing.tab_'.$tab));
+        }
+    }
+
+    public function test_it_shows_the_doctors_title_bio_and_treatment_areas(): void
+    {
+        $doctor = $this->clinic->doctor;
+        $doctor->update([
+            'title' => 'أخصائية النساء والتوليد',
+            'bio' => 'نبذة تجريبية عن الطبيبة.',
+        ]);
+        $doctor->treatmentAreas()->create([
+            'title' => 'متابعة الحمل',
+            'description' => 'متابعة دورية بالسونار.',
+            'icon' => 'baby',
+        ]);
+
+        $this->get($this->url())
+            ->assertOk()
+            ->assertSee('أخصائية النساء والتوليد')
+            ->assertSee('نبذة تجريبية عن الطبيبة.')
+            ->assertSee(__('landing.treatment_areas'))
+            ->assertSee('متابعة الحمل');
+    }
+
+    public function test_a_hidden_treatment_area_is_not_shown(): void
+    {
+        $this->clinic->doctor->treatmentAreas()->create([
+            'title' => 'مجال متخفي',
+            'is_active' => false,
+        ]);
+
+        $this->get($this->url())
+            ->assertOk()
+            ->assertDontSee('مجال متخفي');
+    }
+
+    public function test_it_shows_the_clinic_photos_with_captions(): void
+    {
+        $this->clinic->photos()->create([
+            'path' => 'clinics/reception.jpg',
+            'caption' => 'الاستقبال',
+        ]);
+
+        $this->get($this->url())
+            ->assertOk()
+            ->assertSee(__('landing.photos'))
+            ->assertSee('الاستقبال');
+    }
+
+    public function test_the_working_days_stat_reads_as_a_range(): void
+    {
+        foreach ([DayOfWeek::SATURDAY, DayOfWeek::SUNDAY, DayOfWeek::MONDAY] as $day) {
+            $this->clinic->scheduleFor($day)->update(['is_open' => true]);
+        }
+
+        // The Arabic article contracts: not "السبت للـالاثنين".
+        $this->get($this->url())
+            ->assertOk()
+            ->assertSee('السبت للاثنين')
+            ->assertDontSee('للـ');
+    }
+
+    public function test_a_clinic_with_no_city_falls_back_to_its_address(): void
+    {
+        $this->clinic->update(['city' => null]);
+
+        $this->get($this->url())
+            ->assertOk()
+            ->assertSee($this->clinic->address);
+    }
+
+    public function test_a_doctor_without_a_photo_gets_the_avatar_for_their_sex(): void
+    {
+        $this->clinic->doctor->update(['sex' => DoctorSex::FEMALE, 'photo_path' => null]);
+
+        $this->get($this->url())
+            ->assertOk()
+            ->assertSee(DoctorSex::FEMALE->avatarUrl(), escape: false)
+            ->assertDontSee('<div class="portrait portrait-fallback"', escape: false);
+    }
+
+    public function test_a_doctor_with_no_sex_recorded_still_falls_back_to_an_initial(): void
+    {
+        $this->clinic->doctor->update(['sex' => null, 'photo_path' => null]);
+
+        $this->get($this->url())
+            ->assertOk()
+            ->assertSee('<div class="portrait portrait-fallback"', escape: false);
+    }
+
+    public function test_the_stock_avatar_is_never_used_as_the_share_image(): void
+    {
+        $this->clinic->doctor->update(['sex' => DoctorSex::MALE, 'photo_path' => null]);
+
+        // Sharing a link should not put a cartoon in the preview card.
+        $this->get($this->url())
+            ->assertOk()
+            ->assertDontSee('property="og:image"', escape: false);
+    }
+
+    public function test_the_header_carries_three_stats_without_the_visit_length(): void
+    {
+        // A stat with no value is skipped, so give the clinic an open day.
+        $this->clinic->scheduleFor(DayOfWeek::SATURDAY)->update(['is_open' => true]);
+
+        $page = $this->get($this->url())->assertOk();
+
+        $page->assertSee(__('landing.stat_specialty'))
+            ->assertSee(__('landing.stat_working_days'))
+            ->assertSee(__('landing.stat_location'));
+
+        // The clinic name used to repeat under the doctor's name; it does not now.
+        $this->assertSame(
+            1,
+            substr_count($page->getContent(), '<span class="k">'.__('landing.stat_location').'</span>'),
+        );
+
+        // Exactly three tiles, and the visit length is not one of them.
+        $this->assertSame(3, substr_count($page->getContent(), '<div class="stat">'));
     }
 
     public function test_it_carries_the_search_metadata(): void

@@ -22,6 +22,9 @@ class Clinic extends Model
         'slug',
         'name',
         'address',
+        'city',
+        'latitude',
+        'longitude',
         'phone',
         'timezone',
         'country_code',
@@ -70,6 +73,12 @@ class Clinic extends Model
     public function staff(): BelongsToMany
     {
         return $this->belongsToMany(User::class)->withTimestamps();
+    }
+
+    /** @return HasMany<ClinicPhoto, $this> */
+    public function photos(): HasMany
+    {
+        return $this->hasMany(ClinicPhoto::class)->orderBy('sort_order');
     }
 
     /** @return HasMany<VisitType, $this> */

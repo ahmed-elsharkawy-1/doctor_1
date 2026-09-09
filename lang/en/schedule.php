@@ -13,4 +13,8 @@ return [
 
     'closed' => 'Closed',
     'open' => 'Open',
+
+    // How opening hours read on the public page.
+    'am' => 'AM',
+    'pm' => 'PM',
 ];

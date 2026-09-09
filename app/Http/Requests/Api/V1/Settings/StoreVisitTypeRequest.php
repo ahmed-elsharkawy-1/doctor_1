@@ -18,6 +18,7 @@ class StoreVisitTypeRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:100'],
+            'description' => ['nullable', 'string', 'max:255'],
             'duration_minutes' => ['required', 'integer', 'min:5', 'max:480'],
             // Accepted only from callers with prices.view; ignored otherwise.
             'price' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],

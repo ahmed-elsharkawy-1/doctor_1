@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\DoctorSex;
 use App\Models\Clinic;
 use App\Models\Doctor;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -17,6 +18,7 @@ class DoctorFactory extends Factory
     {
         return [
             'clinic_id' => Clinic::factory(),
+            'sex' => fake()->randomElement(DoctorSex::cases()),
             'name' => 'د. '.$this->faker->firstName(),
             'phone' => '+20'.$this->faker->numerify('1#########'),
             'is_active' => true,

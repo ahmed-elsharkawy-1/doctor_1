@@ -2,6 +2,8 @@
 
 namespace App\Filament\Admin\Resources\Clinics\Schemas;
 
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -46,6 +48,20 @@ class ClinicForm
                         ->label(__('filament.clinic.address'))
                         ->maxLength(255),
 
+                    TextInput::make('city')
+                        ->label(__('filament.clinic.city'))
+                        ->helperText(__('filament.clinic.city_hint'))
+                        ->maxLength(120),
+
+                    TextInput::make('latitude')
+                        ->label(__('filament.clinic.latitude'))
+                        ->numeric()
+                        ->helperText(__('filament.clinic.coords_hint')),
+
+                    TextInput::make('longitude')
+                        ->label(__('filament.clinic.longitude'))
+                        ->numeric(),
+
                     TextInput::make('phone')
                         ->label(__('filament.clinic.phone'))
                         ->tel()
@@ -69,6 +85,34 @@ class ClinicForm
                         ->default(true),
                 ])
                 ->columns(2),
+
+            Section::make(__('filament.clinic.section.public_page'))
+                ->description(__('filament.clinic.section.public_page_hint'))
+                ->schema([
+                    Repeater::make('photos')
+                        ->label(__('filament.clinic.photos'))
+                        ->relationship()
+                        ->orderColumn('sort_order')
+                        ->defaultItems(0)
+                        ->collapsed()
+                        ->itemLabel(fn (array $state): ?string => $state['caption'] ?? null)
+                        ->schema([
+                            FileUpload::make('path')
+                                ->label(__('filament.clinic.photo'))
+                                ->image()
+                                ->imageEditor()
+                                ->disk(config('clinic.public.disk'))
+                                ->directory('clinics')
+                                ->maxSize(config('clinic.public.photo_max_kb'))
+                                ->required(),
+
+                            TextInput::make('caption')
+                                ->label(__('filament.clinic.photo_caption'))
+                                ->maxLength(255),
+                        ])
+                        ->columns(2)
+                        ->columnSpanFull(),
+                ]),
 
             Section::make(__('filament.clinic.section.settings'))
                 ->description(__('filament.clinic.section.settings_hint'))

@@ -25,6 +25,7 @@ final class VisitTypeResult extends ServiceResult
         $body = [
             'id' => $this->visitType->id,
             'name' => $this->visitType->name,
+            'description' => $this->visitType->description,
             'duration_minutes' => $this->visitType->duration_minutes,
             'is_active' => $this->visitType->is_active,
             // Booking a returning patient under this type triggers the

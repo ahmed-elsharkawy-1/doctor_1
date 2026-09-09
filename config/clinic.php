@@ -115,6 +115,39 @@ return [
     ],
 
     /*
+    | The public doctor page's own content.
+    */
+    'public' => [
+        // Photos and portraits. `public` is served through the storage symlink,
+        // which the container creates on boot.
+        'disk' => env('CLINIC_PUBLIC_DISK', 'public'),
+        'photo_max_kb' => 4096,
+
+        // Stock avatars shown until a doctor uploads a portrait. Files are
+        // named after App\Enums\DoctorSex — male.<ext> and female.<ext>.
+        'avatar_path' => 'images/avatars',
+        'avatar_extension' => env('CLINIC_AVATAR_EXTENSION', 'svg'),
+
+        // Icon keys a treatment area may use. The page draws the SVG itself,
+        // so nothing an operator types is ever rendered as markup.
+        'icons' => [
+            'activity',
+            'spine',
+            'joint',
+            'stethoscope',
+            'heart',
+            'baby',
+            'tooth',
+            'eye',
+            'brain',
+            'bone',
+        ],
+
+        // Tabs the page offers. `blog` is deliberately absent for now.
+        'tabs' => ['overview', 'services', 'contact', 'location'],
+    ],
+
+    /*
     | Patient booking-tracking page (SPEC v1.1 §7).
     |
     | The link goes out over WhatsApp, so the token is the whole secret and

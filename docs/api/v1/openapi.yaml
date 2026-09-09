@@ -1357,6 +1357,11 @@ components:
       properties:
         id: { type: integer }
         name: { type: string, example: كشف }
+        description:
+          type: string
+          nullable: true
+          description: The line shown under this service on the clinic's public page.
+          example: أول زيارة لتحديد الحالة
         duration_minutes: { type: integer }
         is_active: { type: boolean }
         is_new_patient_type:
@@ -1378,6 +1383,12 @@ components:
       required: [name, duration_minutes]
       properties:
         name: { type: string, maxLength: 100, example: سونار }
+        description:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: Optional. Shown under this service on the clinic's public page.
+          example: أول زيارة لتحديد الحالة
         duration_minutes: { type: integer, minimum: 5, maximum: 480, example: 15 }
         price:
           type: number

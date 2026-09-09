@@ -17,6 +17,7 @@ class VisitType extends Model
     protected $fillable = [
         'clinic_id',
         'name',
+        'description',
         'duration_minutes',
         'price',
         'is_active',

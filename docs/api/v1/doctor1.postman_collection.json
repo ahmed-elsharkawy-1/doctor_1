@@ -274,7 +274,7 @@
                         "description": "Clinic accounts can manage visit type duration, visibility and price.",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"name\": \"سونار\",\n    \"duration_minutes\": 15,\n    \"price\": 250\n}\n",
+                            "raw": "{\n    \"name\": \"سونار\",\n    \"description\": \"أول زيارة لتحديد الحالة\",\n    \"duration_minutes\": 15,\n    \"price\": 250\n}\n",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -317,7 +317,7 @@
                         "description": "Full replacement, not a patch.",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"name\": \"سونار\",\n    \"duration_minutes\": 15,\n    \"price\": 250\n}\n",
+                            "raw": "{\n    \"name\": \"سونار\",\n    \"description\": \"أول زيارة لتحديد الحالة\",\n    \"duration_minutes\": 15,\n    \"price\": 250\n}\n",
                             "options": {
                                 "raw": {
                                     "language": "json"

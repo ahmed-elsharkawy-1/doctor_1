@@ -13,6 +13,10 @@ final class VisitTypeData
     public function __construct(
         public readonly string $name,
         public readonly int $durationMinutes,
+        public readonly ?string $description = null,
+        // Whether the caller sent the key at all. A client that knows nothing
+        // about descriptions must not erase one by omitting it.
+        public readonly bool $descriptionProvided = false,
         public readonly ?string $price = null,
         public readonly ?bool $isNewPatientType = null,
     ) {}
@@ -25,6 +29,11 @@ final class VisitTypeData
         return new self(
             name: trim((string) $validated['name']),
             durationMinutes: (int) $validated['duration_minutes'],
+            // The line under each service on the public page.
+            description: array_key_exists('description', $validated)
+                ? (trim((string) $validated['description']) ?: null)
+                : null,
+            descriptionProvided: array_key_exists('description', $validated),
             price: $canSetPrice && isset($validated['price'])
                 ? (string) $validated['price']
                 : null,
@@ -43,6 +52,11 @@ final class VisitTypeData
             'name' => $this->name,
             'duration_minutes' => $this->durationMinutes,
         ];
+
+        // Sending an empty string clears it; omitting the key leaves it alone.
+        if ($this->descriptionProvided) {
+            $attributes['description'] = $this->description;
+        }
 
         if ($this->price !== null) {
             $attributes['price'] = $this->price;

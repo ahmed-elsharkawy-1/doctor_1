@@ -1,8 +1,12 @@
 @php
-    $title = ($doctor?->name ?? $clinic->name).' — '.$clinic->specialty?->name;
+    use App\Enums\DayOfWeek;
+
+    $doctorName = $doctor?->name ?? $clinic->name;
+    $title = $doctorName.' — '.($doctor?->title ?: $clinic->specialty?->name);
+
     $description = __('landing.meta_description', [
-        'doctor' => $doctor?->name ?? $clinic->name,
-        'specialty' => $clinic->specialty?->name,
+        'doctor' => $doctorName,
+        'specialty' => $doctor?->title ?: $clinic->specialty?->name,
         'address' => $clinic->address ?: $clinic->name,
     ]);
 
@@ -10,6 +14,11 @@
     $waLink = $whatsapp === null
         ? null
         : 'https://wa.me/'.$whatsapp.'?text='.rawurlencode($greeting);
+
+    $mapQuery = $clinic->latitude !== null && $clinic->longitude !== null
+        ? $clinic->latitude.','.$clinic->longitude
+        : $clinic->address;
+    $mapLink = $mapQuery === null ? null : 'https://maps.google.com/?q='.urlencode($mapQuery);
 
     // Schema.org opening hours want 2-letter day codes.
     $schemaDays = [0 => 'Sa', 1 => 'Su', 2 => 'Mo', 3 => 'Tu', 4 => 'We', 5 => 'Th', 6 => 'Fr'];
@@ -28,19 +37,29 @@
         'name' => $clinic->name,
         'url' => url()->current(),
         'telephone' => $phone === null ? null : (string) $phone,
-        'address' => $clinic->address === null ? null : [
+        'image' => $doctor?->photoUrl(),
+        'address' => $clinic->address === null ? null : array_filter([
             '@type' => 'PostalAddress',
             'streetAddress' => $clinic->address,
+            'addressLocality' => $clinic->city,
+        ]),
+        'geo' => $clinic->latitude === null ? null : [
+            '@type' => 'GeoCoordinates',
+            'latitude' => (float) $clinic->latitude,
+            'longitude' => (float) $clinic->longitude,
         ],
         'medicalSpecialty' => $clinic->specialty?->name_en,
         'openingHours' => $hours,
-        'employee' => $doctor === null ? null : [
+        'employee' => $doctor === null ? null : array_filter([
             '@type' => 'Physician',
             'name' => $doctor->name,
+            'jobTitle' => $doctor->title,
             'medicalSpecialty' => $clinic->specialty?->name_en,
-        ],
+        ]),
     ]);
 
+    // HEX flags matter: the clinic name is operator-entered and this is
+    // injected raw into a <script> block.
     $schemaJson = json_encode(
         $schema,
         JSON_UNESCAPED_UNICODE
@@ -50,6 +69,8 @@
         | JSON_HEX_AMP
         | JSON_HEX_QUOT,
     );
+
+    $initials = mb_substr(trim(preg_replace('/^د\.\s*/u', '', $doctorName)), 0, 1);
 @endphp
 <!doctype html>
 <html lang="{{ app()->getLocale() }}" dir="rtl">
@@ -65,21 +86,40 @@
     <meta property="og:title" content="{{ $title }}">
     <meta property="og:description" content="{{ $description }}">
     <meta property="og:url" content="{{ url()->current() }}">
+    @if ($doctor?->photoUrl())
+        {{-- A real portrait only: the stock avatar is not worth sharing. --}}
+        <meta property="og:image" content="{{ $doctor->photoUrl() }}">
+    @endif
     <meta name="twitter:card" content="summary">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 
     {{-- Structured data, so the clinic can surface as a place rather than a page. --}}
     <script type="application/ld+json">{!! $schemaJson !!}</script>
 
     <style>
+        /* Tokens read from the Figma file (Public/*). Light only in V1. */
         :root {
-            --bg: #eef2f7;
-            --card: #ffffff;
-            --ink: #16202e;
-            --muted: #6b7a8d;
-            --line: #e2e8f0;
-            --brand: #0f766e;
-            --brand-soft: #e6f4f1;
-            --wa: #25d366;
+            color-scheme: light;
+            --ink: #132433;
+            --ink-soft: #33475A;
+            --muted: #5F6F80;
+            --faint: #8B9AAA;
+            --primary: #185FA5;
+            --primary-50: #EEF4FB;
+            --primary-100: #D8E8F7;
+            --whatsapp: #1FAF54;
+            --success-bg: #E7F4EC;
+            --surface: #FFFFFF;
+            --surface-2: #F6F9FC;
+            --line: #E5ECF3;
+            --line-strong: #CFDAE6;
+            --bg: #EEF2F7;
+            --shadow: 0 14px 28px rgba(20, 60, 100, .10);
+            --shadow-sm: 0 4px 8px rgba(20, 60, 100, .06);
+            --radius: 16px;
         }
 
         * { box-sizing: border-box; }
@@ -88,170 +128,630 @@
             margin: 0;
             background: var(--bg);
             color: var(--ink);
-            font-family: "Segoe UI", Tahoma, system-ui, sans-serif;
-            line-height: 1.7;
+            font-family: Tajawal, "Segoe UI", Tahoma, system-ui, sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+            -webkit-text-size-adjust: 100%;
         }
 
-        .wrap { max-width: 34rem; margin: 0 auto; padding: 1rem 1rem 5rem; }
+        h1, h2, h3, p { margin: 0; }
+        a { color: inherit; text-decoration: none; }
 
-        .hero {
-            background: var(--card);
-            border: 1px solid var(--line);
-            border-radius: 1rem;
-            padding: 1.75rem 1.25rem;
-            text-align: center;
-            margin: 1.5rem 0 0.85rem;
+        .shell { width: min(1000px, 100% - 32px); margin: 0 auto; }
+
+        /* ---------- Banner ---------- */
+        .banner {
+            position: relative;
+            background:
+                radial-gradient(120% 140% at 85% 0%, #2C7FD0 0%, transparent 55%),
+                linear-gradient(200deg, #1B6BB5 0%, #124C86 55%, #0E3E6E 100%);
+            background-color: #124C86;
+            padding: 18px 0 96px;
         }
 
-        .badge {
-            display: inline-block;
-            background: var(--brand-soft);
-            color: var(--brand);
-            border-radius: 999px;
-            padding: 0.2rem 0.85rem;
-            font-size: 0.85rem;
+        .banner-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            font-weight: 800;
+            font-size: 17px;
+        }
+
+        .brand .mark {
+            display: grid;
+            place-items: center;
+            width: 32px; height: 32px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, .16);
+        }
+
+        .icon-btn {
+            display: grid;
+            place-items: center;
+            width: 34px; height: 34px;
+            border: 0;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, .16);
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .icon-btn:hover { background: rgba(255, 255, 255, .26); }
+
+        /* ---------- Doctor header ---------- */
+        .profile {
+            position: relative;
+            margin-top: -80px;
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 22px;
+        }
+
+        .identity {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            justify-content: space-between;
+        }
+
+        .identity h1 { font-size: 26px; font-weight: 800; line-height: 1.25; }
+        .identity .role {
+            margin-top: 6px;
+            color: var(--primary);
+            font-size: 16px;
             font-weight: 700;
-            margin-bottom: 0.6rem;
+            line-height: 1.45;
         }
 
-        .hero h1 { margin: 0 0 0.15rem; font-size: 1.5rem; }
-        .hero .clinic { color: var(--muted); margin: 0; }
+        .meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 13.5px;
+        }
 
-        .card {
-            background: var(--card);
+        .meta span { display: inline-flex; align-items: center; gap: 5px; }
+
+        .portrait {
+            flex: 0 0 auto;
+            width: 96px; height: 96px;
+            margin-top: -58px;
+            border-radius: 20px;
+            border: 4px solid var(--surface);
+            box-shadow: var(--shadow-sm);
+            object-fit: cover;
+            background: var(--primary-50);
+        }
+
+        .portrait-fallback {
+            display: grid;
+            place-items: center;
+            color: var(--primary);
+            font-size: 34px;
+            font-weight: 800;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--surface-2);
             border: 1px solid var(--line);
-            border-radius: 1rem;
-            padding: 1.1rem 1.25rem;
-            margin-bottom: 0.85rem;
+            border-radius: 12px;
+            padding: 10px 12px;
         }
 
-        .card h2 {
-            margin: 0 0 0.6rem;
-            font-size: 0.85rem;
+        .stat .ico {
+            display: grid;
+            place-items: center;
+            width: 30px; height: 30px;
+            flex: 0 0 auto;
+            border-radius: 9px;
+            background: var(--primary-50);
+            color: var(--primary);
+        }
+
+        .stat .k { display: block; color: var(--faint); font-size: 12px; }
+        .stat .v { display: block; font-weight: 700; font-size: 14px; }
+
+        .cta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 46px;
+            padding: 10px 16px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .btn-wa { background: var(--whatsapp); color: #fff; }
+        .btn-wa:hover { filter: brightness(.95); }
+        .btn-ghost { background: var(--surface); border-color: var(--line-strong); color: var(--ink); }
+        .btn-ghost:hover { background: var(--surface-2); }
+
+        /* ---------- Tabs ---------- */
+        .tabs-wrap {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            margin-top: 12px;
+            padding: 8px 0;
+            background: var(--bg);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            background: var(--surface);
+            border-radius: 14px;
+            box-shadow: var(--shadow-sm);
+            padding: 8px;
+        }
+
+        .tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            white-space: nowrap;
+            border: 0;
+            border-radius: 10px;
+            background: none;
+            padding: 9px 14px;
+            font: inherit;
             font-weight: 700;
             color: var(--muted);
+            cursor: pointer;
         }
+
+        .tab[aria-selected="true"] { background: var(--primary-50); color: var(--primary); }
+
+        /* ---------- Layout ---------- */
+        .panel[hidden] { display: none; }
+
+        .cols {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 336px;
+            gap: 16px;
+            align-items: start;
+            padding-bottom: 40px;
+        }
+
+        .stack { display: grid; gap: 16px; }
+
+        .card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            padding: 20px;
+        }
+
+        .card > h2 { font-size: 18px; font-weight: 800; margin-bottom: 14px; }
+
+        .card-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .card-head h2 { font-size: 18px; font-weight: 800; }
+        .card-head a { color: var(--primary); font-weight: 700; font-size: 13.5px; }
+
+        .lede { color: var(--ink-soft); }
+
+        /* Booking sidebar */
+        .booking { border-top: 3px solid var(--whatsapp); }
+        .booking .lede { color: var(--muted); font-size: 13.5px; margin-bottom: 14px; }
+
+        .steps { display: grid; gap: 12px; margin-bottom: 16px; }
+
+        .step { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; }
+
+        .step .n {
+            display: grid;
+            place-items: center;
+            width: 20px; height: 20px;
+            border-radius: 999px;
+            background: var(--primary-50);
+            color: var(--primary);
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .step b { font-size: 14px; }
+        .step small { color: var(--muted); display: block; }
+
+        .booking .btn { width: 100%; margin-bottom: 8px; }
+
+        .note {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-top: 6px;
+            padding-top: 12px;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 12.5px;
+        }
+
+        .note .tick {
+            display: grid;
+            place-items: center;
+            flex: 0 0 auto;
+            width: 20px; height: 20px;
+            border-radius: 999px;
+            background: var(--success-bg);
+            color: #147F3C;
+        }
+
+        /* Lists */
+        .rows { display: grid; }
 
         .row {
             display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 0;
+            border-top: 1px solid var(--line);
+        }
+
+        .row:first-child { border-top: 0; padding-top: 0; }
+
+        .row .ico {
+            display: grid;
+            place-items: center;
+            width: 30px; height: 30px;
+            flex: 0 0 auto;
+            border-radius: 9px;
+            background: var(--primary-50);
+            color: var(--primary);
+        }
+
+        .row b { display: block; font-size: 14.5px; }
+        .row small { color: var(--muted); }
+        .row .grow { flex: 1 1 auto; min-width: 0; }
+
+        .badge {
+            flex: 0 0 auto;
+            border-radius: 10px;
+            background: var(--primary-50);
+            color: var(--primary);
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .service {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--surface-2);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 8px;
+        }
+
+        .service:last-of-type { margin-bottom: 0; }
+
+        /* Services as blocks. auto-fit lands on four across for a clinic with
+           four services, and still reads well for three or six. */
+        .service-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+            gap: 10px;
+        }
+
+        .service-block {
+            display: grid;
+            place-items: center;
+            text-align: center;
+            min-height: 64px;
+            padding: 12px 10px;
+            background: var(--surface-2);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 14.5px;
+        }
+
+        @media (max-width: 560px) {
+            .service-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        .hint {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-top: 12px;
+            background: var(--primary-50);
+            border-radius: 12px;
+            padding: 11px 13px;
+            color: var(--ink-soft);
+            font-size: 13px;
+        }
+
+        /* Hours */
+        .hour {
+            display: flex;
+            align-items: center;
             justify-content: space-between;
-            gap: 1rem;
-            padding: 0.45rem 0;
+            gap: 12px;
+            padding: 10px 0;
             border-bottom: 1px solid var(--line);
         }
 
-        .row:last-child { border-bottom: 0; }
-        .row .v { font-weight: 600; }
+        .hour:last-of-type { border-bottom: 0; }
+        .hour .day { font-weight: 600; }
+        .hour.is-today .day { color: var(--primary); font-weight: 800; }
 
-        .cta {
-            display: block;
-            background: var(--wa);
-            color: #06301a;
-            text-align: center;
-            text-decoration: none;
-            font-weight: 800;
-            font-size: 1.05rem;
-            padding: 1rem;
-            border-radius: 0.9rem;
-            margin-bottom: 0.85rem;
-        }
-
-        .cta-secondary {
-            display: block;
-            text-align: center;
-            text-decoration: none;
+        .today-pill {
+            margin-inline-start: 6px;
+            border-radius: 999px;
+            background: var(--primary);
+            color: #fff;
+            padding: 1px 8px;
+            font-size: 11px;
             font-weight: 700;
-            padding: 0.85rem;
-            border-radius: 0.9rem;
-            border: 1px solid var(--line);
-            background: var(--card);
-            color: var(--ink);
         }
 
-        .types { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-
-        .type {
-            border: 1px solid var(--line);
-            border-radius: 0.6rem;
-            padding: 0.3rem 0.7rem;
-            font-size: 0.9rem;
+        .hour .times {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 6px;
         }
 
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg: #0f1620;
-                --card: #18222f;
-                --ink: #e8eef5;
-                --muted: #93a3b6;
-                --line: #26333f;
-                --brand: #4db6a5;
-                --brand-soft: #16302c;
+        .time-tag {
+            border-radius: 8px;
+            background: var(--primary-50);
+            color: var(--primary);
+            padding: 4px 10px;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .hour.is-today .time-tag { background: var(--primary); color: #fff; }
+
+        .hour .off {
+            color: var(--faint);
+            background: var(--surface-2);
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 13px;
+        }
+
+        /* Gallery */
+        .gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .shot {
+            position: relative;
+            display: block;
+            border-radius: 12px;
+            overflow: hidden;
+            aspect-ratio: 16 / 10;
+            background: var(--surface-2);
+        }
+
+        .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        .shot figcaption {
+            position: absolute;
+            inset-inline-start: 10px;
+            bottom: 8px;
+            color: #fff;
+            font-size: 12.5px;
+            font-weight: 700;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+        }
+
+        .map {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            border: 0;
+            border-radius: 12px;
+            background: var(--surface-2);
+        }
+
+        /* Sticky mobile CTA */
+        .dock { display: none; }
+
+        @media (max-width: 900px) {
+            .cols { grid-template-columns: minmax(0, 1fr); }
+            .stats { grid-template-columns: 1fr 1fr; }
+            .cta-row { grid-template-columns: 1fr; }
+            .identity h1 { font-size: 22px; }
+            .banner { padding-bottom: 88px; }
+
+            /* The sidebar reads as the last thing on a phone, not the first. */
+            .side { order: 2; }
+
+            .dock {
+                position: fixed;
+                inset-inline: 0;
+                bottom: 0;
+                z-index: 20;
+                display: flex;
+                gap: 8px;
+                padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+                background: rgba(255, 255, 255, .96);
+                border-top: 1px solid var(--line);
+                backdrop-filter: blur(8px);
             }
 
-            .cta { color: #04240f; }
+            .dock .btn-wa { flex: 1 1 auto; }
+            .dock .btn-ghost { flex: 0 0 auto; }
+            body { padding-bottom: 78px; }
         }
     </style>
 </head>
 <body>
-<div class="wrap">
 
-    <div class="hero">
-        @if ($clinic->specialty)
-            <div class="badge">{{ $clinic->specialty->name }}</div>
-        @endif
-
-        <h1>{{ $doctor?->name ?? $clinic->name }}</h1>
-        @if ($doctor)
-            <p class="clinic">{{ $clinic->name }}</p>
-        @endif
-    </div>
-
-    @if ($waLink)
-        <a class="cta" href="{{ $waLink }}">{{ __('landing.book_on_whatsapp') }}</a>
-    @endif
-
-    @if ($phone)
-        <a class="cta-secondary" href="tel:{{ $phone }}" style="margin-bottom:0.85rem">
-            {{ __('landing.call') }} — <span dir="ltr">{{ $phone->national() }}</span>
-        </a>
-    @endif
-
-    @if ($clinic->address)
-        <div class="card">
-            <h2>{{ __('landing.address') }}</h2>
-            <div>{{ $clinic->address }}</div>
-            <a href="https://maps.google.com/?q={{ urlencode($clinic->address) }}"
-               style="color:var(--brand);font-weight:600">{{ __('landing.directions') }}</a>
+<header class="banner">
+    <div class="shell banner-bar">
+        <div class="brand">
+            <span class="mark">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v4a4 4 0 0 0 8 0V3"/><path d="M12 11v4a5 5 0 0 1-10 0"/><circle cx="19" cy="14" r="2"/></svg>
+            </span>
+            {{ __('landing.brand') }}
         </div>
-    @endif
 
-    @if ($openDays->isNotEmpty())
-        <div class="card">
-            <h2>{{ __('landing.hours') }}</h2>
-            @foreach ($openDays as $schedule)
-                <div class="row">
-                    <span>{{ $schedule->day_of_week->label() }}</span>
-                    <span class="v" dir="ltr">
-                        @foreach ($schedule->periods as $period)
-                            {{ $period->startTime() }}–{{ $period->endTime() }}@if (! $loop->last), @endif
-                        @endforeach
-                    </span>
-                </div>
+        <button type="button" class="icon-btn" id="share" title="{{ __('landing.share') }}" aria-label="{{ __('landing.share') }}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+        </button>
+    </div>
+</header>
+
+<main class="shell">
+
+    <section class="profile">
+        <div class="identity">
+            <div>
+                <h1>{{ $doctorName }}</h1>
+
+                @if ($doctor?->title || $clinic->specialty)
+                    <p class="role">{{ $doctor?->title ?: $clinic->specialty?->name }}</p>
+                @endif
+
+            </div>
+
+            @if ($doctor?->avatarUrl())
+                <img class="portrait" src="{{ $doctor->avatarUrl() }}" alt="{{ $doctorName }}" loading="lazy">
+            @else
+                <div class="portrait portrait-fallback" aria-hidden="true">{{ $initials }}</div>
+            @endif
+        </div>
+
+        <div class="stats">
+            @include('landing.partials.stat', [
+                'label' => __('landing.stat_specialty'),
+                'value' => $doctor?->title ?: $clinic->specialty?->name,
+                'icon' => 'stethoscope',
+            ])
+            @include('landing.partials.stat', [
+                'label' => __('landing.stat_working_days'),
+                'value' => $workingDaysLabel,
+                'icon' => 'calendar',
+            ])
+            @include('landing.partials.stat', [
+                'label' => __('landing.stat_location'),
+                'value' => $clinic->city ?: $clinic->address,
+                'icon' => 'pin',
+            ])
+        </div>
+
+        <div class="cta-row">
+            @if ($waLink)
+                <a class="btn btn-wa" href="{{ $waLink }}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.6 14.1c-.2.6-1.2 1.2-1.7 1.2-.4 0-.9.2-3.1-.7-2.6-1.1-4.2-3.8-4.3-4-.1-.2-1-1.4-1-2.6 0-1.2.6-1.8.9-2 .2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.3.3c-.1.1-.3.3-.1.6.1.3.7 1.2 1.5 1.9 1 .9 1.8 1.2 2.1 1.3.2.1.4.1.6-.1l.8-1c.2-.2.3-.2.5-.1l2 1c.2.1.4.2.4.3.1.1.1.6-.1 1.2Z"/></svg>
+                    {{ __('landing.book_on_whatsapp') }}
+                </a>
+            @endif
+
+            @if ($phone)
+                <a class="btn btn-ghost" href="tel:{{ $phone }}">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.9v2a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 3.2 2 2 0 0 1 4.1 1h2a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L7.1 8.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg>
+                    {{ __('landing.call') }}
+                </a>
+            @endif
+        </div>
+    </section>
+
+    <div class="tabs-wrap">
+        <div class="tabs" role="tablist">
+            @foreach (['overview', 'services', 'contact', 'location'] as $tab)
+                <button type="button" class="tab" role="tab"
+                        id="tab-{{ $tab }}" aria-controls="panel-{{ $tab }}"
+                        aria-selected="{{ $loop->first ? 'true' : 'false' }}">
+                    @include('landing.partials.icon', ['name' => ['overview' => 'user', 'services' => 'calendar', 'contact' => 'phone', 'location' => 'pin'][$tab]])
+                    {{ __('landing.tab_'.$tab) }}
+                </button>
             @endforeach
         </div>
-    @endif
+    </div>
 
-    @if ($clinic->visitTypes->isNotEmpty())
-        <div class="card">
-            <h2>{{ __('landing.services') }}</h2>
-            <div class="types">
-                @foreach ($clinic->visitTypes as $visitType)
-                    <span class="type">{{ $visitType->name }}</span>
-                @endforeach
-            </div>
-        </div>
-    @endif
+    @include('landing.partials.tab-overview')
+    @include('landing.partials.tab-services')
+    @include('landing.partials.tab-contact')
+    @include('landing.partials.tab-location')
 
-</div>
+</main>
+
+@if ($waLink)
+    <nav class="dock">
+        <a class="btn btn-wa" href="{{ $waLink }}">{{ __('landing.book_on_whatsapp') }}</a>
+        @if ($phone)
+            <a class="btn btn-ghost" href="tel:{{ $phone }}" aria-label="{{ __('landing.call') }}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.9v2a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 3.2 2 2 0 0 1 4.1 1h2a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L7.1 8.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg>
+            </a>
+        @endif
+    </nav>
+@endif
+
+<script>
+    // Tabs. The chosen one lives in the URL hash so a link can open on it.
+    const tabs = [...document.querySelectorAll('.tab')];
+
+    function show(id, push) {
+        tabs.forEach(tab => {
+            const on = tab.id === id;
+            tab.setAttribute('aria-selected', on ? 'true' : 'false');
+            document.getElementById(tab.getAttribute('aria-controls')).hidden = !on;
+        });
+        if (push) { history.replaceState(null, '', '#' + id.replace('tab-', '')); }
+    }
+
+    tabs.forEach(tab => tab.addEventListener('click', () => show(tab.id, true)));
+
+    const fromHash = 'tab-' + location.hash.replace('#', '');
+    if (location.hash && document.getElementById(fromHash)) { show(fromHash, false); }
+
+    // Anything linking to another tab, such as "all services".
+    document.querySelectorAll('[data-tab]').forEach(link => {
+        link.addEventListener('click', event => {
+            event.preventDefault();
+            show('tab-' + link.dataset.tab, true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    });
+
+    const share = document.getElementById('share');
+    share?.addEventListener('click', async () => {
+        const data = { title: document.title, url: location.href };
+        if (navigator.share) { try { await navigator.share(data); } catch (e) { /* dismissed */ } return; }
+        try {
+            await navigator.clipboard.writeText(location.href);
+            share.title = @json(__('landing.link_copied'));
+        } catch (e) { /* clipboard blocked */ }
+    });
+</script>
 </body>
 </html>

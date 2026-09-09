@@ -13,4 +13,8 @@ return [
 
     'closed' => 'إجازة',
     'open' => 'مفتوح',
+
+    // How opening hours read on the public page.
+    'am' => 'صباحًا',
+    'pm' => 'مساءً',
 ];

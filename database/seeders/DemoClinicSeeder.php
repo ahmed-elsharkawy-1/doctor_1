@@ -7,6 +7,7 @@ use App\DTOs\V1\Booking\BookingData;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Enums\DayOfWeek;
+use App\Enums\DoctorSex;
 use App\Enums\UserRole;
 use App\Models\Booking;
 use App\Models\Clinic;
@@ -107,6 +108,12 @@ class DemoClinicSeeder extends Seeder
             'first_visit_only_days' => config('clinic.defaults.first_visit_only_days'),
             'slot_step_minutes' => config('clinic.defaults.slot_step_minutes'),
             'patient_arrival_lead_minutes' => config('clinic.defaults.patient_arrival_lead_minutes'),
+            // Without this the clinic has no public page at all: the slug
+            // migration only backfilled rows that already existed.
+            'slug' => 'dr-sara-elnaggar',
+            'city' => 'المنصورة',
+            'latitude' => 31.0409,
+            'longitude' => 31.3785,
             'is_active' => true,
         ]);
 
@@ -117,11 +124,32 @@ class DemoClinicSeeder extends Seeder
 
     private function doctor(Clinic $clinic): Doctor
     {
-        return $clinic->doctors()->create([
+        $doctor = $clinic->doctors()->create([
             'name' => 'د. سارة النجار',
-            'phone' => '+201001234567',
+            'sex' => DoctorSex::FEMALE,
+            'title' => 'أخصائية النساء والتوليد وعلاج التأخر في الإنجاب',
+            'bio' => 'أخصائية نساء وتوليد بعيادة المنصورة، متخصصة في متابعة الحمل وحالات '
+                .'تأخر الإنجاب. كل حالة تبدأ بتقييم دقيق، ثم خطة متابعة واضحة مع الشرح '
+                .'الكامل لكل خطوة.',
             'is_active' => true,
         ]);
+
+        // مجالات العلاج on the public page.
+        foreach ([
+            ['متابعة الحمل', 'متابعة دورية من أول الحمل حتى الولادة بالسونار.', 'baby'],
+            ['تأخر الإنجاب', 'تقييم الحالة ووضع خطة علاج مناسبة للزوجين.', 'heart'],
+            ['أمراض النساء', 'تشخيص وعلاج الالتهابات واضطرابات الدورة.', 'stethoscope'],
+        ] as $index => [$title, $description, $icon]) {
+            $doctor->treatmentAreas()->create([
+                'title' => $title,
+                'description' => $description,
+                'icon' => $icon,
+                'sort_order' => $index,
+                'is_active' => true,
+            ]);
+        }
+
+        return $doctor;
     }
 
     /**
@@ -171,8 +199,18 @@ class DemoClinicSeeder extends Seeder
             'متابعة حمل' => 300,
         ];
 
+        $descriptions = [
+            'كشف' => 'أول زيارة لتقييم الحالة ووضع الخطة',
+            'إعادة' => 'زيارة متابعة قصيرة لمتابعة التقدم',
+            'سونار' => 'فحص بالموجات فوق الصوتية',
+            'متابعة حمل' => 'متابعة دورية أثناء الحمل',
+        ];
+
         foreach ($clinic->visitTypes as $visitType) {
-            $visitType->update(['price' => $prices[$visitType->name] ?? 250]);
+            $visitType->update([
+                'price' => $prices[$visitType->name] ?? 250,
+                'description' => $descriptions[$visitType->name] ?? null,
+            ]);
         }
     }
 
