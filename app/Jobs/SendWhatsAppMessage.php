@@ -16,7 +16,14 @@ class SendWhatsAppMessage implements ShouldQueue
 
     public function handle(MessageSender $sender): void
     {
-        $message = OutboundMessage::findOrFail($this->messageId);
+        $message = OutboundMessage::find($this->messageId);
+
+        // The row was deleted after the job was queued — a cancelled booking,
+        // or a purge. There is nothing to send and nothing wrong, so stop
+        // rather than retrying three times and landing in failed_jobs.
+        if ($message === null) {
+            return;
+        }
 
         try {
             $sender->send($message);
