@@ -44,6 +44,63 @@
             padding: 1rem 0;
         }
 
+        /* The app bar. On a phone the links scroll sideways rather than
+           wrapping into a wall; on a monitor everything sits on one line. */
+        .appbar {
+            background: var(--card);
+            border-bottom: 1px solid var(--line);
+            margin-bottom: 1rem;
+        }
+
+        .appbar .inner {
+            max-width: 64rem;
+            margin: 0 auto;
+            padding: 0.6rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .appbar .who { line-height: 1.3; }
+        .appbar .who b { display: block; font-size: 0.95rem; }
+        .appbar .who small { color: var(--muted); font-size: 0.8rem; }
+
+        .appbar .nav {
+            order: 3;
+            width: 100%;
+            display: flex;
+            gap: 0.15rem;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .appbar .nav::-webkit-scrollbar { display: none; }
+
+        .appbar .nav a {
+            white-space: nowrap;
+            padding: 0.4rem 0.7rem;
+            border-radius: 0.5rem;
+            color: var(--muted);
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-decoration: none;
+        }
+
+        .appbar .nav a:hover { color: var(--brand); }
+
+        .appbar .nav a[aria-current="page"] {
+            background: var(--brand-soft);
+            color: var(--brand);
+        }
+
+        .appbar form { margin-inline-start: auto; }
+
+        @media (min-width: 48rem) {
+            .appbar .nav { order: 0; width: auto; flex: 1; }
+            .appbar form { margin-inline-start: 0; }
+        }
+
         .topbar h1 { margin: 0; font-size: 1.05rem; font-weight: 700; }
         .topbar .who { color: var(--muted); font-size: 0.85rem; }
 
