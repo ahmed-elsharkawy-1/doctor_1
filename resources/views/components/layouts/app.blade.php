@@ -122,6 +122,10 @@
     @livewireStyles
 </head>
 <body>
+    @auth
+        @include('app.partials.navigation')
+    @endauth
+
     {{ $slot }}
     @livewireScripts
 </body>

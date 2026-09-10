@@ -7,6 +7,8 @@ use App\Http\Controllers\Web\BookingTrackingController;
 use App\Http\Controllers\Web\DoctorLandingController;
 use App\Http\Middleware\EnsureClinicSession;
 use App\Livewire\App\NewBooking;
+use App\Livewire\App\PatientProfile;
+use App\Livewire\App\Patients;
 use App\Livewire\App\Queue;
 use Illuminate\Support\Facades\Route;
 
@@ -66,6 +68,8 @@ Route::prefix('app')->name('app.')->group(function (): void {
     Route::middleware(EnsureClinicSession::class)->group(function (): void {
         Route::get('/', Queue::class)->name('queue');
         Route::get('bookings/new', NewBooking::class)->name('bookings.new');
+        Route::get('patients', Patients::class)->name('patients');
+        Route::get('patients/{patient}', PatientProfile::class)->name('patients.show');
         Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
     });
 });

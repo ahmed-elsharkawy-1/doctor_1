@@ -36,6 +36,18 @@ abstract class ClinicComponent extends Component
     }
 
     /**
+     * Refuses a screen the signed-in account has no business seeing.
+     *
+     * Mirrors the API's EnsureAbility middleware. Today UserRole::CLINIC holds
+     * every ability, so nothing is hidden — the checks exist so that stops
+     * being true safely rather than silently.
+     */
+    protected function requireAbility(string $ability): void
+    {
+        abort_unless(auth()->user()?->hasAbility($ability) ?? false, 403);
+    }
+
+    /**
      * A date the screen can safely work with.
      *
      * Screens keep their date as a string, and on the queue it is bound to the

@@ -20,6 +20,24 @@ return [
         'submit' => 'Sign in',
     ],
 
+    'nav' => [
+        'queue' => "Today's list",
+        'new' => 'New booking',
+        'patients' => 'Patients',
+    ],
+
+    'patients' => [
+        'title' => 'Patients',
+        'search_placeholder' => 'Search by name, code or phone',
+        'none_yet' => 'No patients yet',
+        'no_matches' => 'No matches for that search',
+        'visits' => 'visits',
+        'history' => 'Visit history',
+        'no_visits' => 'No visits recorded',
+        'minutes' => 'min',
+        'back' => 'Back',
+    ],
+
     'queue' => [
         'title' => "Today's list",
         'today' => 'Today',

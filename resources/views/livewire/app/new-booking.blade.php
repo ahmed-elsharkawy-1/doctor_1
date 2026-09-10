@@ -88,14 +88,7 @@
         }
     </style>
 
-    <div class="topbar">
-        <div>
-            <h1>{{ __('app.booking.title') }}</h1>
-            <div class="who">{{ $clinic->name }}</div>
-        </div>
-
-        <a class="btn btn-sm" href="{{ route('app.queue') }}">{{ __('app.booking.back_to_queue') }}</a>
-    </div>
+    <h1 style="font-size:1.05rem;font-weight:700;margin:0 0 12px">{{ __('app.booking.title') }}</h1>
 
     @if ($notice !== null)
         <div class="flash {{ $failed ? 'flash-err' : 'flash-ok' }}">

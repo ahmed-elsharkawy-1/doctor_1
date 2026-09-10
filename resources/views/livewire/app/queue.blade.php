@@ -73,23 +73,8 @@
         }
     </style>
 
-    <div class="topbar">
-        <div>
-            <h1>{{ $clinic->name }}</h1>
-            <div class="who">{{ auth()->user()->name }}</div>
-        </div>
-
-        <div style="display:flex;gap:0.4rem;align-items:center">
-            <a class="btn btn-sm btn-primary" href="{{ route('app.bookings.new') }}">
-                {{ __('app.booking.new') }}
-            </a>
-
-            <form method="POST" action="{{ route('app.logout') }}">
-                @csrf
-                <button type="submit" class="btn btn-sm">{{ __('app.queue.sign_out') }}</button>
-            </form>
-        </div>
-    </div>
+    {{-- The clinic name, the account and sign-out live in the app bar now. --}}
+    <h1 style="font-size:1.05rem;font-weight:700;margin:0 0 12px">{{ __('app.queue.title') }}</h1>
 
     @if ($notice !== null)
         <div class="flash {{ $failed ? 'flash-err' : 'flash-ok' }}">{{ $notice }}</div>
