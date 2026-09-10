@@ -102,6 +102,65 @@
 
         .muted { color: var(--muted); }
 
+        .subnav {
+            display: flex;
+            gap: 4px;
+            overflow-x: auto;
+            margin-bottom: 14px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .subnav a {
+            white-space: nowrap;
+            padding: 8px 12px;
+            margin-bottom: -1px;
+            border-bottom: 3px solid transparent;
+            color: var(--muted);
+            font-weight: 700;
+            font-size: 14px;
+            text-decoration: none;
+        }
+
+        .subnav a[aria-current="page"] { color: var(--brand-dark); border-bottom-color: var(--brand); }
+
+        .field { margin-bottom: 0.9rem; }
+        .field label { display: block; font-weight: 600; margin-bottom: 0.3rem; }
+
+        .field input[type="text"],
+        .field input[type="number"],
+        .field input[type="date"],
+        .field input[type="time"] {
+            padding: 0.55rem 0.75rem;
+            border: 1px solid var(--line);
+            border-radius: 0.6rem;
+            background: var(--card);
+            color: var(--ink);
+            font: inherit;
+        }
+
+        .field input[type="text"], .field input[type="number"] { width: 100%; }
+        .field small { display: block; margin-top: 0.3rem; font-size: 0.8rem; }
+        .err { color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem; }
+
+        .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+        .chip {
+            border: 1px solid var(--line);
+            background: var(--card);
+            color: var(--ink);
+            border-radius: 0.6rem;
+            padding: 0.45rem 0.8rem;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .chip[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+        @media (min-width: 48rem) {
+            .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+        }
+
         @media (prefers-color-scheme: dark) {
             :root {
                 --bg: #0f1620;

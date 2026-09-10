@@ -8,6 +8,7 @@
         ['route' => 'app.queue',        'label' => __('app.nav.queue'),     'ability' => 'queue.manage'],
         ['route' => 'app.bookings.new', 'label' => __('app.nav.new'),       'ability' => 'bookings.manage'],
         ['route' => 'app.patients',     'label' => __('app.nav.patients'),  'ability' => 'patients.view'],
+        ['route' => 'app.settings',     'label' => __('app.nav.settings'),  'ability' => 'settings.manage'],
     ];
 
     $user = auth()->user();
