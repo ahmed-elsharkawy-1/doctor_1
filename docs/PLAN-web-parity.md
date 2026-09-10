@@ -37,7 +37,7 @@ wrong.
 
 ---
 
-## Phase 0 — the shell
+## Phase 0 — the shell — **done**
 
 The two screens that exist today are standalone; there is no navigation
 between them. Everything below needs somewhere to live.
@@ -55,7 +55,7 @@ cannot reach the screen that needs it.
 
 ---
 
-## Phase 1 — Patients
+## Phase 1 — Patients — **done**
 
 The highest-value gap: the secretary looks a patient up constantly.
 
@@ -77,7 +77,7 @@ without `prices.view` sees no money.
 
 ---
 
-## Phase 2 — Settings
+## Phase 2 — Settings — **done**
 
 Four screens under `/app/settings`.
 
