@@ -49,7 +49,9 @@ class TemplatePayloadResolver
             'day_cancelled' => new TemplatePayload(
                 body: [
                     $this->patientName($booking),
-                    $this->doctorName($clinic),
+                    // This template supplies "الدكتور" itself, so the name must
+                    // arrive bare — otherwise it reads "الدكتور د. سارة".
+                    $this->doctorNameBare($clinic),
                     $this->date($booking, $clinic),
                     $this->clinicPhone($clinic),
                 ],
@@ -88,9 +90,34 @@ class TemplatePayloadResolver
         return $this->clean($booking->patient?->name, __('messages.fallback.patient'));
     }
 
+    /**
+     * "د. سارة النجار" — for a template that prints the name under its own
+     * label and expects the honorific to come with it.
+     *
+     * Doctors are not stored consistently: one clinic types the honorific into
+     * the name and another does not, so it is normalised here rather than
+     * trusted. "د." is the same abbreviation for either sex.
+     */
     private function doctorName(Clinic $clinic): string
     {
-        return $this->clean($clinic->doctor?->name, $clinic->name);
+        $name = $this->doctorNameBare($clinic);
+
+        return $name === $clinic->name ? $name : 'د. '.$name;
+    }
+
+    /**
+     * The name with any honorific taken off, for a template that prints one of
+     * its own.
+     */
+    private function doctorNameBare(Clinic $clinic): string
+    {
+        $name = $this->clean($clinic->doctor?->name, $clinic->name);
+
+        return trim(preg_replace(
+            '/^(?:ال)?(?:د\.|د\/|د\s|دكتورة|دكتور|الدكتورة|الدكتور)\s*/u',
+            '',
+            $name,
+        ) ?: $name);
     }
 
     private function address(Clinic $clinic): string
@@ -159,7 +186,24 @@ class TemplatePayloadResolver
     private function clean(?string $value, string $fallback): string
     {
         $value = trim(preg_replace('/\s+/u', ' ', (string) $value) ?? '');
+        $value = $this->westernDigits($value);
 
         return $value === '' ? $fallback : $value;
+    }
+
+    /**
+     * Everything this class generates — dates, times, minutes — is in Western
+     * digits, but a clinic's address is typed by hand and may not be. Mixing
+     * both inside one message looks like a bug to the patient, so stored text
+     * is brought into line with the generated text.
+     */
+    private function westernDigits(string $value): string
+    {
+        return strtr($value, [
+            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+        ]);
     }
 }

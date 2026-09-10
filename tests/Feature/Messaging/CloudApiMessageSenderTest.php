@@ -70,11 +70,17 @@ class CloudApiMessageSenderTest extends TestCase
         parent::tearDown();
     }
 
+    private int $patientSeq = 0;
+
     private function booking(): Booking
     {
+        // A clinic cannot hold two patients on one number, and some tests queue
+        // several messages in a row.
+        $phone = '+2010123456'.str_pad((string) (++$this->patientSeq), 2, '0', STR_PAD_LEFT);
+
         $patient = Patient::factory()->for($this->clinic)->create([
             'name' => 'سارة أحمد',
-            'phone' => '+201012345678',
+            'phone' => $phone,
             'whatsapp_opt_in_at' => now(),
         ]);
 
@@ -120,7 +126,7 @@ class CloudApiMessageSenderTest extends TestCase
 
             $this->assertSame('whatsapp', $body['messaging_product']);
             // International, digits only — no leading plus.
-            $this->assertSame('201012345678', $body['to']);
+            $this->assertSame('201012345601', $body['to']);
             $this->assertSame('template', $body['type']);
             $this->assertSame('appointment_booking_confirmation', $body['template']['name']);
             $this->assertSame('ar', $body['template']['language']['code']);
@@ -205,7 +211,11 @@ class CloudApiMessageSenderTest extends TestCase
 
             $this->assertCount(4, $parameters);
             $this->assertSame('سارة أحمد', $parameters[0]['text']);
-            $this->assertSame($this->clinic->doctor->name, $parameters[1]['text']);
+            // Bare: the template prints "مع الدكتور" itself.
+            $this->assertSame(
+                preg_replace('/^(?:ال)?(?:د\.|دكتورة|دكتور)\s*/u', '', $this->clinic->doctor->name),
+                $parameters[1]['text'],
+            );
             $this->assertSame('+201012223344', $parameters[3]['text']);
 
             return true;
@@ -236,6 +246,66 @@ class CloudApiMessageSenderTest extends TestCase
         // The job's handler is what records the failure, so the row is
         // untouched here — it must not have been marked sent.
         $this->assertNotSame('sent', $message->fresh()->status);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | How the values read on a phone
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * booking_cancellation prints "مع الدكتور {{2}}" itself. A name stored with
+     * the honorific already in it produced "الدكتور د. سارة النجار".
+     */
+    public function test_the_cancellation_never_repeats_the_doctors_honorific(): void
+    {
+        Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'x']]])]);
+
+        $this->clinic->doctor->update(['name' => 'د. سارة النجار']);
+
+        $message = $this->queueMessage('day_cancelled');
+
+        $this->assertSame('سارة النجار', $message->variables[1]);
+
+        // And a clinic that stored the name without one reads the same.
+        $this->clinic->doctor->update(['name' => 'سارة النجار']);
+
+        $this->assertSame('سارة النجار', $this->queueMessage('day_cancelled')->variables[1]);
+    }
+
+    /**
+     * The confirmation prints the name under its own label and expects the
+     * honorific with it — whichever way the clinic typed it.
+     */
+    public function test_the_confirmation_always_carries_one_honorific(): void
+    {
+        foreach (['د. سارة النجار', 'سارة النجار', 'الدكتورة سارة النجار'] as $stored) {
+            $this->clinic->doctor->update(['name' => $stored]);
+
+            $this->assertSame(
+                'د. سارة النجار',
+                $this->queueMessage(WhatsAppMessagingService::CONFIRMATION_KEY)->variables[3],
+                "Stored as [{$stored}]",
+            );
+        }
+    }
+
+    /**
+     * Dates, times and minutes are generated in Western digits. An address is
+     * typed by hand and may not be, and one message carrying both looks broken.
+     */
+    public function test_arabic_indic_digits_in_stored_text_are_brought_into_line(): void
+    {
+        $this->clinic->update(['address' => '١٢ شارع مصدق، الدقي، الجيزة']);
+
+        $variables = $this->queueMessage(WhatsAppMessagingService::CONFIRMATION_KEY)->variables;
+
+        $this->assertSame('12 شارع مصدق، الدقي، الجيزة', $variables[4]);
+
+        foreach ($variables as $value) {
+            $this->assertDoesNotMatchRegularExpression('/[٠-٩۰-۹]/u', (string) $value);
+        }
     }
 
     public function test_it_refuses_to_send_without_credentials(): void
