@@ -11,11 +11,16 @@ use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\MessageTemplate;
 use App\Models\OutboundMessage;
+use App\Models\Patient;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 class WhatsAppMessagingService
 {
+    public function __construct(
+        private readonly TemplatePayloadResolver $payloads = new TemplatePayloadResolver,
+    ) {}
+
     /** The template sent to a patient when their booking is taken. */
     public const CONFIRMATION_KEY = 'booking_confirmed';
 
@@ -101,14 +106,7 @@ class WhatsAppMessagingService
                 continue;
             }
 
-            $message = OutboundMessage::create([
-                'clinic_id' => $clinic->id,
-                'patient_id' => $patient->id,
-                'booking_id' => $booking->id,
-                'template_key' => $template->key,
-                'rendered_body' => $this->render($template, $this->variables($booking, $clinic)),
-                'status' => 'queued',
-            ]);
+            $message = $this->queue($clinic, $booking, $patient, $template);
 
             SendWhatsAppMessage::dispatch($message->id);
             $messages[] = $message->id;
@@ -185,14 +183,7 @@ class WhatsAppMessagingService
             return null;
         }
 
-        $message = OutboundMessage::create([
-            'clinic_id' => $clinic->id,
-            'patient_id' => $patient->id,
-            'booking_id' => $booking->id,
-            'template_key' => $template->key,
-            'rendered_body' => $this->render($template, $this->variables($booking, $clinic)),
-            'status' => 'queued',
-        ]);
+        $message = $this->queue($clinic, $booking, $patient, $template);
 
         SendWhatsAppMessage::dispatch($message->id);
 
@@ -200,22 +191,32 @@ class WhatsAppMessagingService
     }
 
     /**
-     * Placeholder values in template order. The three broadcast templates use
-     * only the first two; the extra replacements are no-ops for them.
+     * Builds the row a queued message is, with everything the sender will need
+     * frozen onto it: the parameters in the approved template's own order, and
+     * the path its button points at.
      *
-     * @return list<string>
+     * Frozen rather than recomputed at send time for the same reason
+     * `rendered_body` always was — a message describes the booking as it stood
+     * when it was queued.
      */
-    private function variables(Booking $booking, Clinic $clinic): array
-    {
-        $date = $booking->visit_date->format(config('clinic.formats.date'));
-        $time = $booking->start_at?->format(config('clinic.formats.time'));
+    private function queue(
+        Clinic $clinic,
+        Booking $booking,
+        Patient $patient,
+        MessageTemplate $template,
+    ): OutboundMessage {
+        $payload = $this->payloads->for($template, $booking, $clinic);
 
-        return [
-            $booking->patient?->name ?? '',
-            $clinic->name,
-            $time === null ? $date : $date.' — '.$time,
-            $booking->trackingUrl(),
-        ];
+        return OutboundMessage::create([
+            'clinic_id' => $clinic->id,
+            'patient_id' => $patient->id,
+            'booking_id' => $booking->id,
+            'template_key' => $template->key,
+            'rendered_body' => $this->render($template, $payload->body),
+            'variables' => $payload->body,
+            'button_suffix' => $payload->buttonSuffix,
+            'status' => 'queued',
+        ]);
     }
 
     /**

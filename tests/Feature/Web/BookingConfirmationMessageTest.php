@@ -110,10 +110,42 @@ class BookingConfirmationMessageTest extends TestCase
         $booking = Booking::latest('id')->first();
         $message = OutboundMessage::latest('id')->first();
 
-        $this->assertStringContainsString($booking->trackingUrl(), $message->rendered_body);
-        $this->assertStringContainsString('سارة أحمد', $message->rendered_body);
-        $this->assertStringContainsString($this->clinic->name, $message->rendered_body);
-        $this->assertStringContainsString($booking->start_at->format('H:i'), $message->rendered_body);
+        // The approved template carries the link on its URL button, and Meta
+        // appends the suffix to a fixed base — so the path travels there, not
+        // in the text.
+        $this->assertSame('booking/'.$booking->tracking_token, $message->button_suffix);
+        $this->assertStringEndsWith($message->button_suffix, $booking->trackingUrl());
+    }
+
+    /**
+     * The six parameters the approved template declares, in its order:
+     * patient, date, time, doctor, address, arrival lead.
+     */
+    public function test_the_confirmation_fills_every_approved_parameter(): void
+    {
+        $this->clinic->update([
+            'address' => '12 شارع مصدق، الدقي',
+            'patient_arrival_lead_minutes' => 15,
+        ]);
+
+        $this->book();
+
+        $booking = Booking::latest('id')->first();
+        $variables = OutboundMessage::latest('id')->first()->variables;
+
+        $this->assertCount(6, $variables);
+        $this->assertSame('سارة أحمد', $variables[0]);
+        $this->assertSame($booking->visit_date->locale('ar')->isoFormat('D MMMM YYYY'), $variables[1]);
+        $this->assertStringContainsString($booking->start_at->format('h:i'), $variables[2]);
+        $this->assertSame($this->clinic->doctor->name, $variables[3]);
+        $this->assertSame('12 شارع مصدق، الدقي', $variables[4]);
+        $this->assertSame('15 دقيقة', $variables[5]);
+
+        // Meta rejects a parameter that is empty or carries a newline.
+        foreach ($variables as $value) {
+            $this->assertNotSame('', trim((string) $value));
+            $this->assertDoesNotMatchRegularExpression('/[\n\r\t]/', (string) $value);
+        }
     }
 
     public function test_no_placeholder_is_left_unreplaced(): void
@@ -156,10 +188,11 @@ class BookingConfirmationMessageTest extends TestCase
 
         $message = OutboundMessage::latest('id')->first();
 
-        // No slot to name, so the date stands on its own.
+        // No slot to name. The time parameter still has to say something —
+        // Meta rejects an empty one — so it says there is no set time.
         $this->assertNotNull($message);
-        $this->assertStringContainsString('2026-09-03', $message->rendered_body);
-        $this->assertStringNotContainsString('—', $message->rendered_body);
+        $this->assertSame(__('messages.fallback.no_time'), $message->variables[2]);
+        $this->assertNotSame('', trim((string) $message->variables[2]));
     }
 
     public function test_the_confirmation_is_never_offered_as_a_broadcast(): void

@@ -57,10 +57,19 @@ class WhatsAppMessagingTest extends TestCase
 
     public function test_it_lists_active_message_templates(): void
     {
-        $this->getJson(route('api.v1.message-templates.index'))
+        // Only templates that are active *and* approved at Meta are offered.
+        // appointment_earlier and appointment_delayed were written for the app
+        // but never submitted, so they are seeded inactive and must not appear.
+        $items = $this->getJson(route('api.v1.message-templates.index'))
             ->assertOk()
-            ->assertJsonCount(3, 'data.items')
-            ->assertJsonPath('data.items.0.category', 'utility');
+            ->assertJsonPath('data.items.0.category', 'utility')
+            ->json('data.items');
+
+        $keys = array_column($items, 'key');
+
+        $this->assertContains('day_cancelled', $keys);
+        $this->assertNotContains('appointment_earlier', $keys);
+        $this->assertNotContains('appointment_delayed', $keys);
     }
 
     public function test_the_log_driver_records_and_marks_a_booking_message_sent(): void
@@ -68,7 +77,7 @@ class WhatsAppMessagingTest extends TestCase
         $booking = $this->booking();
 
         $this->postJson(route('api.v1.bookings.message', $booking), [
-            'template_key' => 'appointment_delayed',
+            'template_key' => 'day_cancelled',
         ])
             ->assertOk()
             ->assertJsonPath('data.sent_count', 1)
@@ -86,7 +95,7 @@ class WhatsAppMessagingTest extends TestCase
         $booking = $this->booking(optedIn: false);
 
         $this->postJson(route('api.v1.bookings.message', $booking), [
-            'template_key' => 'appointment_delayed',
+            'template_key' => 'day_cancelled',
         ])
             ->assertOk()
             ->assertJsonPath('data.sent_count', 0)

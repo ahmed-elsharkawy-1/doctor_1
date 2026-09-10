@@ -98,8 +98,11 @@ class PatientJourneyTest extends TestCase
             ->where('template_key', WhatsAppMessagingService::CONFIRMATION_KEY)
             ->sole();
 
-        $this->assertStringContainsString($booking->trackingUrl(), $confirmation->rendered_body);
-        $this->assertStringContainsString('منى عبد الرحمن', $confirmation->rendered_body);
+        // The approved template puts the link on its URL button; Meta appends
+        // the suffix to a fixed base, so the whole path travels there.
+        $this->assertSame('booking/'.$booking->tracking_token, $confirmation->button_suffix);
+        $this->assertStringEndsWith($confirmation->button_suffix, $booking->trackingUrl());
+        $this->assertSame('منى عبد الرحمن', $confirmation->variables[0]);
         $this->assertSame($booking->patient_id, $confirmation->patient_id);
 
         /*
@@ -153,7 +156,11 @@ class PatientJourneyTest extends TestCase
         // The test queue is synchronous, so it has already gone through the
         // log driver. What matters is that it exists and did not fail.
         $this->assertNotSame('failed', $thanks->status);
-        $this->assertStringContainsString('منى عبد الرحمن', $thanks->rendered_body);
+        // The rating template declares no body parameters at all — only the
+        // button varies, and it points at this booking's review page.
+        $this->assertSame([], $thanks->variables);
+        $this->assertSame('review/'.$booking->tracking_token, $thanks->button_suffix);
+        $this->assertStringEndsWith($thanks->button_suffix, $booking->reviewUrl());
 
         /*
         | 6. The patient opens the review page from that message and rates it.

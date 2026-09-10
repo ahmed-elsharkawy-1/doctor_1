@@ -12,6 +12,7 @@ class MessageTemplate extends Model
         'is_broadcast',
         'body_ar',
         'provider_template_name',
+        'language_code',
         'is_active',
     ];
 

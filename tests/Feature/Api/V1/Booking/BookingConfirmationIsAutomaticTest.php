@@ -86,11 +86,13 @@ class BookingConfirmationIsAutomaticTest extends TestCase
         $this->book()->assertCreated();
 
         $booking = Booking::latest('id')->first();
+        $message = OutboundMessage::latest('id')->first();
 
-        $this->assertStringContainsString(
-            $booking->trackingUrl(),
-            OutboundMessage::latest('id')->first()->rendered_body,
-        );
+        // The approved template puts the link on its URL button rather than in
+        // the text, and Meta appends the suffix to a fixed base — so the whole
+        // path travels, not just the token.
+        $this->assertSame('booking/'.$booking->tracking_token, $message->button_suffix);
+        $this->assertStringEndsWith($message->button_suffix, $booking->trackingUrl());
     }
 
     public function test_whatsapp_consent_is_assumed_when_the_caller_says_nothing(): void

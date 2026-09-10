@@ -4,6 +4,7 @@ namespace Tests\Feature\Api\V1;
 
 use App\Enums\CancelReason;
 use App\Enums\DayOfWeek;
+use App\Models\MessageTemplate;
 use App\Models\OutboundMessage;
 use App\Models\Patient;
 use App\Models\VisitType;
@@ -97,6 +98,12 @@ class DesignApiFlowTest extends TestCase
         $this->assertSame('arrived', $card['next_status']['value']);
         $this->assertSame(['call', 'whatsapp', 'edit', 'no_show', 'cancel'], $card['available_actions']);
         $this->assertArrayNotHasKey('queue_position', $card);
+
+        // day_cancelled is the only broadcast template Meta has approved, and
+        // sending it cancels the booking — no use in a flow that carries on
+        // using it. This one is seeded inactive; the flow only needs *a*
+        // sendable template, so it switches one on for itself.
+        MessageTemplate::where('key', 'appointment_delayed')->update(['is_active' => true]);
 
         $this->postJson(route('api.v1.bookings.message', $booking['id']), [
             'template_key' => 'appointment_delayed',

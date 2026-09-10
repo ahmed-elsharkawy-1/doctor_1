@@ -13,6 +13,8 @@ class OutboundMessage extends Model
         'booking_id',
         'template_key',
         'rendered_body',
+        'variables',
+        'button_suffix',
         'status',
         'provider_message_id',
         'error',
@@ -23,6 +25,7 @@ class OutboundMessage extends Model
     protected function casts(): array
     {
         return [
+            'variables' => 'array',
             'sent_at' => 'datetime',
             'delivered_at' => 'datetime',
         ];

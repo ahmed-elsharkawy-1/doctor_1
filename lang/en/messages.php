@@ -11,4 +11,10 @@ return [
     'not_found' => 'The requested item was not found',
     'request_failed' => 'The request could not be completed',
     'server_error' => 'Something went wrong, please try again',
+    'minutes' => ':count minutes',
+    'fallback' => [
+        'patient' => 'our patient',
+        'phone' => 'the clinic number',
+        'no_time' => 'no set time',
+    ],
 ];

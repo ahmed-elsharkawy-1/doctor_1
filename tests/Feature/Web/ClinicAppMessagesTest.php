@@ -6,6 +6,7 @@ use App\Enums\BookingStatus;
 use App\Jobs\SendWhatsAppMessage;
 use App\Livewire\App\Messages;
 use App\Models\Booking;
+use App\Models\MessageTemplate;
 use App\Models\OutboundMessage;
 use App\Models\Patient;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
@@ -45,6 +46,18 @@ class ClinicAppMessagesTest extends TestCase
     }
 
     /**
+     * day_cancelled is the only broadcast template Meta has approved, and
+     * sending it cancels the day. A test about who receives a message needs
+     * one that does not, so it switches on a seeded-inactive draft.
+     */
+    private function harmlessTemplate(): string
+    {
+        MessageTemplate::where('key', 'appointment_delayed')->update(['is_active' => true]);
+
+        return 'appointment_delayed';
+    }
+
+    /**
      * @param  bool  $optedIn  whether the patient agreed to WhatsApp
      */
     private function bookingAt(string $time, bool $optedIn = true): Booking
@@ -78,7 +91,10 @@ class ClinicAppMessagesTest extends TestCase
         $this->assertNotContains(WhatsAppMessagingService::VISIT_COMPLETED_KEY, $keys);
 
         $this->assertContains('day_cancelled', $keys);
-        $this->assertContains('appointment_delayed', $keys);
+        // Drafted but never approved at Meta, so seeded inactive: offering a
+        // send that is certain to fail is worse than not offering it.
+        $this->assertNotContains('appointment_delayed', $keys);
+        $this->assertNotContains('appointment_earlier', $keys);
     }
 
     public function test_a_per_booking_template_is_refused_even_if_asked_for(): void
@@ -133,7 +149,7 @@ class ClinicAppMessagesTest extends TestCase
 
         $page = Livewire::actingAs($this->owner)
             ->test(Messages::class)
-            ->call('selectTemplate', 'appointment_delayed')
+            ->call('selectTemplate', $this->harmlessTemplate())
             ->call('send')
             ->assertSet('failed', false);
 
@@ -152,7 +168,7 @@ class ClinicAppMessagesTest extends TestCase
 
         Livewire::actingAs($this->owner)
             ->test(Messages::class)
-            ->call('selectTemplate', 'appointment_delayed')
+            ->call('selectTemplate', $this->harmlessTemplate())
             ->call('toggle', $picked->id)
             ->call('send')
             ->assertSet('failed', false);
@@ -168,7 +184,7 @@ class ClinicAppMessagesTest extends TestCase
 
         Livewire::actingAs($this->owner)
             ->test(Messages::class)
-            ->call('selectTemplate', 'appointment_delayed')
+            ->call('selectTemplate', $this->harmlessTemplate())
             ->call('send');
 
         Queue::assertPushed(SendWhatsAppMessage::class, 1);
@@ -222,7 +238,7 @@ class ClinicAppMessagesTest extends TestCase
 
         $page = Livewire::actingAs($this->owner)
             ->test(Messages::class)
-            ->call('selectTemplate', 'appointment_delayed')
+            ->call('selectTemplate', $this->harmlessTemplate())
             ->call('send');
 
         $this->assertSame(0, $page->get('result')['cancelled_count']);
@@ -245,7 +261,7 @@ class ClinicAppMessagesTest extends TestCase
 
         $page = Livewire::actingAs($this->owner)
             ->test(Messages::class)
-            ->call('selectTemplate', 'appointment_delayed')
+            ->call('selectTemplate', $this->harmlessTemplate())
             ->call('send');
 
         $this->assertCount(0, $page->viewData('recipients'));
@@ -258,7 +274,7 @@ class ClinicAppMessagesTest extends TestCase
 
         Livewire::actingAs($this->owner)
             ->test(Messages::class)
-            ->call('selectTemplate', 'appointment_delayed')
+            ->call('selectTemplate', $this->harmlessTemplate())
             ->call('toggle', $booking->id)
             ->call('goToDay', 1)
             ->assertSet('selected', [])
