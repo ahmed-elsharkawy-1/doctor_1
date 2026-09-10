@@ -49,7 +49,7 @@ way of reaching them.
 | `{{1}}` | سارة أحمد |
 | `{{2}}` | عيادة د. سارة النجار |
 | `{{3}}` | 2026-09-10 — 17:30 |
-| `{{4}}` | https://example.com/b/gOeOEdLH3duyIjxDxvCZuByfaPoSuqTU |
+| `{{4}}` | https://elayadah.com/booking/gOeOEdLH3duyIjxDxvCZuByfaPoSuqTU |
 
 **Justification** *(paste into the review notes)*
 
@@ -67,7 +67,7 @@ dynamic suffix**:
 | | |
 |---|---|
 | Button type | Visit website — Dynamic |
-| URL | `https://yourdomain.com/b/{{1}}` |
+| URL | `https://elayadah.com/booking/{{1}}` |
 | Suffix sample | `gOeOEdLH3duyIjxDxvCZuByfaPoSuqTU` |
 
 The button form gets approved more readily and renders as a proper tappable
