@@ -12,6 +12,7 @@ use App\Livewire\App\Patients;
 use App\Livewire\App\Postpone;
 use App\Livewire\App\Queue;
 use App\Livewire\App\Rebooking;
+use App\Livewire\App\Reports;
 use App\Livewire\App\Settings\General;
 use App\Livewire\App\Settings\Holidays;
 use App\Livewire\App\Settings\Hours;
@@ -80,6 +81,9 @@ Route::prefix('app')->name('app.')->group(function (): void {
         // Postponing a day and the call list it produces (SPEC §4.5).
         Route::get('postpone', Postpone::class)->name('postpone');
         Route::get('rebooking', Rebooking::class)->name('rebooking');
+
+        // Revenue and retention (SPEC §5.5, §5.6).
+        Route::get('reports', Reports::class)->name('reports');
 
         Route::prefix('settings')->name('settings')->group(function (): void {
             Route::get('/', General::class);

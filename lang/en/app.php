@@ -27,6 +27,19 @@ return [
         'patients' => 'Patients',
         'postpone' => 'Postpone a day',
         'rebooking' => 'Call list',
+        'reports' => 'Reports',
+    ],
+
+    'reports' => [
+        'title' => 'Reports',
+        'visits' => ':count completed visits',
+        'daily' => 'Day by day this month',
+        'retention' => 'Patients coming back',
+        'return_rate' => 'Return rate',
+        'returned' => 'Came back after a first visit',
+        'visits_in_period' => 'Visits in the period',
+        'total_patients' => 'Patients in total',
+        'first_visit_only' => ':once patients were seen once and more than :days days have passed; :maturing may still return.',
     ],
 
     'postpone' => [

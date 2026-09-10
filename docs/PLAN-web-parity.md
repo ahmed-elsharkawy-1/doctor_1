@@ -125,7 +125,7 @@ patient leaves the list; the count matches the queue screen.
 
 ---
 
-## Phase 4 — Revenue and retention
+## Phase 4 — Revenue and retention — **done**
 
 | Screen | Service |
 |---|---|

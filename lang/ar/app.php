@@ -27,6 +27,19 @@ return [
         'patients' => 'المرضى',
         'postpone' => 'تأجيل يوم',
         'rebooking' => 'قائمة الاتصال',
+        'reports' => 'التقارير',
+    ],
+
+    'reports' => [
+        'title' => 'التقارير',
+        'visits' => ':count كشف مكتمل',
+        'daily' => 'الدخل يوم بيوم في الشهر ده',
+        'retention' => 'رجوع المرضى',
+        'return_rate' => 'نسبة الرجوع',
+        'returned' => 'رجعوا من أول زيارة',
+        'visits_in_period' => 'زيارات في الفترة',
+        'total_patients' => 'إجمالي المرضى',
+        'first_visit_only' => ':once مريض جه مرة واحدة بس وعدى عليه أكتر من :days يوم، و:maturing لسه ممكن يرجعوا.',
     ],
 
     'postpone' => [

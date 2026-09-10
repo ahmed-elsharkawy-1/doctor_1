@@ -18,6 +18,7 @@
         ['route' => 'app.bookings.new', 'label' => __('app.nav.new'),       'ability' => 'bookings.manage'],
         ['route' => 'app.patients',     'label' => __('app.nav.patients'),  'ability' => 'patients.view'],
         ['route' => 'app.postpone',     'label' => __('app.nav.postpone'),  'ability' => 'queue.manage'],
+        ['route' => 'app.reports',      'label' => __('app.nav.reports'),   'ability' => 'reports.view'],
         ['route' => 'app.settings',     'label' => __('app.nav.settings'),  'ability' => 'settings.manage'],
     ];
 
