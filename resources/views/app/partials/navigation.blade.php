@@ -19,6 +19,7 @@
         ['route' => 'app.patients',     'label' => __('app.nav.patients'),  'ability' => 'patients.view'],
         ['route' => 'app.postpone',     'label' => __('app.nav.postpone'),  'ability' => 'queue.manage'],
         ['route' => 'app.reports',      'label' => __('app.nav.reports'),   'ability' => 'reports.view'],
+        ['route' => 'app.messages',     'label' => __('app.nav.messages'),  'ability' => 'bookings.manage'],
         ['route' => 'app.settings',     'label' => __('app.nav.settings'),  'ability' => 'settings.manage'],
     ];
 

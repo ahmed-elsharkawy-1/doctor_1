@@ -6,6 +6,7 @@ use App\Http\Controllers\Web\BookingReviewController;
 use App\Http\Controllers\Web\BookingTrackingController;
 use App\Http\Controllers\Web\DoctorLandingController;
 use App\Http\Middleware\EnsureClinicSession;
+use App\Livewire\App\Messages;
 use App\Livewire\App\NewBooking;
 use App\Livewire\App\PatientProfile;
 use App\Livewire\App\Patients;
@@ -84,6 +85,9 @@ Route::prefix('app')->name('app.')->group(function (): void {
 
         // Revenue and retention (SPEC §5.5, §5.6).
         Route::get('reports', Reports::class)->name('reports');
+
+        // WhatsApp template broadcasts. Last, because it reaches patients.
+        Route::get('messages', Messages::class)->name('messages');
 
         Route::prefix('settings')->name('settings')->group(function (): void {
             Route::get('/', General::class);

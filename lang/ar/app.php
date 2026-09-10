@@ -28,6 +28,29 @@ return [
         'postpone' => 'تأجيل يوم',
         'rebooking' => 'قائمة الاتصال',
         'reports' => 'التقارير',
+        'messages' => 'رسائل واتساب',
+    ],
+
+    'messages' => [
+        'title' => 'رسائل واتساب',
+        'template' => [
+            'day_cancelled' => 'إلغاء مواعيد اليوم',
+            'appointment_earlier' => 'تقديم الموعد',
+            'appointment_delayed' => 'تأخير المواعيد',
+        ],
+        'pick_template' => 'اختاري الرسالة الأول.',
+        'nobody' => 'مفيش حجوزات في اليوم ده',
+        'will_send' => 'هتوصل لـ :count مريض',
+        'will_skip' => ':count من غير موافقة على الواتساب',
+        'no_consent' => 'من غير واتساب',
+        'send' => 'إرسال لـ :count',
+        'send_now' => 'إرسال دلوقتي',
+        'confirm' => 'الرسالة هتتبعت لـ :count مريض. تمام؟',
+        'also_cancels' => 'الرسالة دي كمان هتلغي :count حجز في اليوم ده.',
+        'sent' => 'اتبعت :count رسالة',
+        'result_sent' => 'اتبعت :count رسالة',
+        'result_skipped' => 'اتخطينا :count مريض من غير موافقة على الواتساب',
+        'result_cancelled' => 'اتلغى :count حجز في اليوم ده',
     ],
 
     'reports' => [

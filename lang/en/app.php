@@ -28,6 +28,29 @@ return [
         'postpone' => 'Postpone a day',
         'rebooking' => 'Call list',
         'reports' => 'Reports',
+        'messages' => 'WhatsApp',
+    ],
+
+    'messages' => [
+        'title' => 'WhatsApp messages',
+        'template' => [
+            'day_cancelled' => "Cancel the day's appointments",
+            'appointment_earlier' => 'Come in earlier',
+            'appointment_delayed' => 'Running late',
+        ],
+        'pick_template' => 'Choose a message first.',
+        'nobody' => 'No bookings on this day',
+        'will_send' => 'Reaches :count patients',
+        'will_skip' => ':count without WhatsApp consent',
+        'no_consent' => 'No WhatsApp',
+        'send' => 'Send to :count',
+        'send_now' => 'Send now',
+        'confirm' => 'The message goes to :count patients. Go ahead?',
+        'also_cancels' => 'This message also cancels :count bookings on that day.',
+        'sent' => ':count messages sent',
+        'result_sent' => ':count messages sent',
+        'result_skipped' => ':count patients skipped for having no WhatsApp consent',
+        'result_cancelled' => ':count bookings on that day were cancelled',
     ],
 
     'reports' => [
