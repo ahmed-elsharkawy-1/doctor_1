@@ -157,6 +157,20 @@
 
         .chip[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
 
+        /* Day stepper and empty state — the queue and the postpone screen are
+           both "a clinic day", so they share one look. */
+        .daybar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 0.85rem;
+        }
+
+        .daybar .day { font-weight: 700; }
+
+        .empty { padding: 2.5rem 1rem; text-align: center; color: var(--muted); }
+
         @media (min-width: 48rem) {
             .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
         }

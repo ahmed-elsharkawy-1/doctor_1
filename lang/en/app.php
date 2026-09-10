@@ -25,6 +25,29 @@ return [
         'new' => 'New booking',
         'settings' => 'Settings',
         'patients' => 'Patients',
+        'postpone' => 'Postpone a day',
+        'rebooking' => 'Call list',
+    ],
+
+    'postpone' => [
+        'title' => "Postpone the day's appointments",
+        'lead' => ':count bookings on this day can still be postponed.',
+        'nobody' => 'Nothing to postpone on this day',
+        'select_all' => 'Select everyone',
+        'postpone' => 'Postpone :count',
+        'confirm' => ':count bookings will be cancelled and added to the call list. Go ahead?',
+        'do_it' => 'Postpone now',
+        'done_lead' => 'Done. Those patients are on the call list, waiting for new appointments.',
+        'go_to_call_list' => 'Open the call list',
+    ],
+
+    'rebooking' => [
+        'title' => 'Call list',
+        'lead' => ':count patients still need a new appointment.',
+        'empty' => 'Nobody is waiting for a new appointment',
+        'contacted' => 'Called',
+        'mark_contacted' => 'Mark as called',
+        'book_again' => 'Book a new time',
     ],
 
     'patients' => [
@@ -117,6 +140,7 @@ return [
         'visits' => 'visits',
         'emergency_note' => 'An emergency has no time slot — it goes to the front of today’s queue',
         'tracking_ready' => 'Tracking link ready for the patient',
+        'replacing' => 'This replaces a postponed appointment — saving it takes the patient off the call list.',
     ],
 
     'actions' => [

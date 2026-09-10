@@ -106,6 +106,12 @@
         </div>
     @endif
 
+    @if ($rebookingFor !== null)
+        {{-- Booked from the call list. Saving links this to the postponed
+             booking, which is what takes the patient off that list. --}}
+        <div class="flash flash-ok">{{ __('app.booking.replacing') }}</div>
+    @endif
+
     {{-- Patient --}}
     <div class="card section">
         <h2>{{ __('app.booking.patient') }}</h2>

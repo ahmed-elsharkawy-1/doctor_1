@@ -9,7 +9,9 @@ use App\Http\Middleware\EnsureClinicSession;
 use App\Livewire\App\NewBooking;
 use App\Livewire\App\PatientProfile;
 use App\Livewire\App\Patients;
+use App\Livewire\App\Postpone;
 use App\Livewire\App\Queue;
+use App\Livewire\App\Rebooking;
 use App\Livewire\App\Settings\General;
 use App\Livewire\App\Settings\Holidays;
 use App\Livewire\App\Settings\Hours;
@@ -74,6 +76,10 @@ Route::prefix('app')->name('app.')->group(function (): void {
         Route::get('bookings/new', NewBooking::class)->name('bookings.new');
         Route::get('patients', Patients::class)->name('patients');
         Route::get('patients/{patient}', PatientProfile::class)->name('patients.show');
+
+        // Postponing a day and the call list it produces (SPEC §4.5).
+        Route::get('postpone', Postpone::class)->name('postpone');
+        Route::get('rebooking', Rebooking::class)->name('rebooking');
 
         Route::prefix('settings')->name('settings')->group(function (): void {
             Route::get('/', General::class);

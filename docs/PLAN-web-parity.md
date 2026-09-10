@@ -102,7 +102,7 @@ old bookings untouched.
 
 ---
 
-## Phase 3 — Postpone and the rebooking list
+## Phase 3 — Postpone and the rebooking list — **done**
 
 The clinic's worst day, and the flow with the most side effects.
 

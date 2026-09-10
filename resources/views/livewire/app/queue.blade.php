@@ -19,16 +19,6 @@
 
 <div class="wrap">
     <style>
-        .daybar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.5rem;
-            margin-bottom: 0.85rem;
-        }
-
-        .daybar .day { font-weight: 700; }
-
         .tallies { display: flex; gap: 0.5rem; margin-bottom: 0.85rem; flex-wrap: wrap; }
 
         .tally {
@@ -62,8 +52,6 @@
         }
 
         .booking.is-terminal { opacity: 0.62; }
-
-        .empty { padding: 2.5rem 1rem; text-align: center; color: var(--muted); }
 
         /* One layout, widened. On a desk monitor the cards sit two abreast
            rather than becoming a different screen. */

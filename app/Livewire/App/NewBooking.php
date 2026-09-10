@@ -7,6 +7,7 @@ use App\Enums\BookingKind;
 use App\Enums\PatientLocation;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
+use App\Models\Clinic;
 use App\Models\Patient;
 use App\Services\V1\Booking\BookingDaysService;
 use App\Services\V1\Booking\BookingService;
@@ -16,6 +17,7 @@ use App\Services\V1\Patients\PatientSearchService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\Url;
 
 /**
  * Taking a booking: find the patient, pick the visit, pick the time, save.
@@ -53,6 +55,14 @@ class NewBooking extends ClinicComponent
 
     public string $notes = '';
 
+    /**
+     * Set when the secretary came here from the call list. The replacement
+     * booking is linked to the original inside BookingService, which is what
+     * takes the patient off the rebooking worklist.
+     */
+    #[Url(as: 'rebooking_for', except: null)]
+    public ?int $rebookingFor = null;
+
     public ?string $notice = null;
 
     public bool $failed = false;
@@ -66,6 +76,47 @@ class NewBooking extends ClinicComponent
 
         $this->date = Carbon::now($clinic->timezone)->toDateString();
         $this->visitTypeId = $clinic->visitTypes()->active()->value('id');
+
+        $this->prefillFromRebooking($clinic);
+    }
+
+    /**
+     * Coming from the call list, the patient and the visit are already known —
+     * this is the same appointment, on a new day.
+     *
+     * The id arrives in the query string, so it is checked here rather than
+     * trusted: it must be this clinic's, and still awaiting a replacement.
+     */
+    private function prefillFromRebooking(Clinic $clinic): void
+    {
+        if ($this->rebookingFor === null) {
+            return;
+        }
+
+        $original = $clinic->bookings()
+            ->awaitingRebooking()
+            ->with('patient')
+            ->whereKey($this->rebookingFor)
+            ->first();
+
+        if ($original === null) {
+            // Already rebooked, or never ours. Drop the link and let her book
+            // normally rather than failing on save.
+            $this->rebookingFor = null;
+            $this->notice = __('booking.not_awaiting_rebooking');
+            $this->failed = true;
+
+            return;
+        }
+
+        $this->patientId = $original->patient_id;
+        $this->patientName = (string) $original->patient?->name;
+        $this->phone = (string) $original->patient?->phone;
+        $this->age = (string) ($original->patient?->age ?? '');
+
+        if ($clinic->visitTypes()->active()->whereKey($original->visit_type_id)->exists()) {
+            $this->visitTypeId = $original->visit_type_id;
+        }
     }
 
     public function render(): View
@@ -180,6 +231,7 @@ class NewBooking extends ClinicComponent
                         ? null
                         : PatientLocation::from($this->patientLocation),
                     notes: $this->notes === '' ? null : $this->notes,
+                    rebookingForBookingId: $this->rebookingFor,
                 ),
                 auth()->user(),
             );
@@ -241,9 +293,11 @@ class NewBooking extends ClinicComponent
         $this->trackingUrl = $booking->trackingUrl();
 
         // Ready for the next patient, but keep the day the secretary is on.
+        // The rebooking link is one-shot: the original is now spoken for, so
+        // carrying it into the next booking would only fail.
         $this->reset([
             'patientSearch', 'patientId', 'patientName', 'phone', 'age',
-            'startTime', 'notes', 'patientLocation',
+            'startTime', 'notes', 'patientLocation', 'rebookingFor',
         ]);
 
         $this->kind = BookingKind::NORMAL->value;
