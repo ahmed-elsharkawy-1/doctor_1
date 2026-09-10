@@ -70,10 +70,3 @@ The suffix **must** be dynamic. A static URL makes every review anonymous.
 > Thanks a patient for a visit that has just taken place and invites them to
 > rate it. Sent once per completed appointment, only to patients who consented
 > to WhatsApp updates. No promotional content.
-
----
-
-## Confirm back to us
-
-1. The exact approved template names, if they differ from the two above.
-2. That the `visit_completed` button URL is dynamic and matches `https://elayadah.com/review/{{1}}`.
