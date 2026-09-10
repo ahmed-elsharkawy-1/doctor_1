@@ -100,11 +100,14 @@ jobs:
               exit 1
             fi
 
-            docker compose -f compose.prod.yml exec -T app php artisan migrate --force
+            # Each exec is given its own stdin. Without it the first one reads
+            # the rest of this script — which arrives over ssh on stdin — and
+            # every command below it silently never runs.
+            docker compose -f compose.prod.yml exec -T app php artisan migrate --force < /dev/null
             # Upserts keyed on `key`, so this is safe on every deploy and never
             # disturbs a template Meta has already approved. Not `db:seed`,
             # which would also reset the super admin's password.
-            docker compose -f compose.prod.yml exec -T app php artisan db:seed --class=MessageTemplateSeeder --force
-            docker compose -f compose.prod.yml exec -T app php artisan optimize:clear
-            docker compose -f compose.prod.yml exec -T app php artisan filament:optimize
+            docker compose -f compose.prod.yml exec -T app php artisan db:seed --class=MessageTemplateSeeder --force < /dev/null
+            docker compose -f compose.prod.yml exec -T app php artisan optimize:clear < /dev/null
+            docker compose -f compose.prod.yml exec -T app php artisan filament:optimize < /dev/null
           DEPLOY
