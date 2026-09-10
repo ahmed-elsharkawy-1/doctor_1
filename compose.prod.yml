@@ -109,6 +109,14 @@ services:
       app:
         condition: service_started
     command: ["php", "artisan", "schedule:work"]
+    volumes:
+      - app_storage:/app/storage
+    # Without this the service lands on the project's default network, where
+    # `mysql` does not resolve — every scheduled run died acquiring its
+    # withoutOverlapping lock, silently, because nothing was due the other
+    # 59 minutes of the hour.
+    networks:
+      - app
 
   queue:
     image: doctor_1-app:latest
