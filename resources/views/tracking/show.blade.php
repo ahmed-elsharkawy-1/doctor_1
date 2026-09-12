@@ -106,7 +106,13 @@
            the part the card covers.
         */
         .topbar {
-            background: var(--primary);
+            /* The same two layers the doctor page's banner is built from, so
+               the three pages a patient sees share one sky rather than three
+               shades of blue. Literal values, matching landing/show. */
+            background:
+                radial-gradient(120% 140% at 85% 0%, #2C7FD0 0%, transparent 55%),
+                linear-gradient(200deg, #1B6BB5 0%, #124C86 55%, #0E3E6E 100%);
+            background-color: #124C86;
             height: 76px;
             padding-bottom: 22px;
             display: flex;
