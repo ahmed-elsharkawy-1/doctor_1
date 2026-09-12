@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
 use App\Services\Results\V1\Booking\BookingCardResult;
 use App\Services\V1\Booking\BookingCalendarService;
@@ -11,7 +10,6 @@ use App\Services\V1\Queue\QueueService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 
 class HomeController extends V1Controller
 {
@@ -27,20 +25,22 @@ class HomeController extends V1Controller
         $user = $this->user($request);
         $today = $this->slots->today($clinic);
         $calendar = $this->calendar->range($clinic, $today, $today);
-        $now = Carbon::now($clinic->timezone);
 
+        /*
+         * Today, and only today. This once read `start_at >= now` with no
+         * upper bound, so it swept in every future day and `take(5)` quietly
+         * trimmed the evidence — a home screen showing all zeros above a
+         * booking two days out. Another day's list is the calendar's job.
+         *
+         * `inQueue` rather than `pending` so the patient currently with the
+         * doctor is still on it, and a booking whose time has passed without
+         * anyone resolving it stays visible instead of disappearing at the
+         * moment it starts needing attention.
+         */
         $upcoming = $clinic->bookings()
             ->with(['patient', 'visitType'])
-            ->where(function ($query) use ($now, $today): void {
-                $query
-                    ->where('start_at', '>=', $now)
-                    ->orWhere(function ($query) use ($today): void {
-                        $query
-                            ->where('booking_kind', BookingKind::EMERGENCY)
-                            ->whereDate('visit_date', $today->toDateString());
-                    });
-            })
-            ->whereNotIn('status', [BookingStatus::DONE, BookingStatus::CANCELLED, BookingStatus::NO_SHOW])
+            ->onDate($today->toDateString())
+            ->whereIn('status', BookingStatus::inQueue())
             ->get()
             ->pipe(fn ($bookings) => $this->queue->sortBookings($bookings)->take(5))
             ->map(fn ($booking) => (new BookingCardResult(

@@ -151,7 +151,13 @@ class QueueOrderingTest extends TestCase
         $this->assertSame(1, $counts['no_show']);
     }
 
-    public function test_home_returns_today_counts_and_upcoming_cards(): void
+    /**
+     * The home list is everyone still in today's queue, in queue order — not
+     * whoever happens to start later. A 09:00 booking nobody has resolved by
+     * 09:30 is precisely when it needs to be on screen, not the moment it
+     * drops off one.
+     */
+    public function test_home_returns_today_counts_and_everyone_still_in_the_queue(): void
     {
         $this->booking('09:00', 'أ');
         $this->booking('10:00', 'ب');
@@ -162,7 +168,41 @@ class QueueOrderingTest extends TestCase
 
         $this->assertSame(2, $data['today']['counts']['total']);
         $this->assertSame(2, $data['today']['counts']['normal_count']);
+        $this->assertSame(['أ', 'ب'], array_column(array_column($data['upcoming'], 'patient'), 'name'));
+    }
+
+    public function test_home_drops_a_booking_once_it_leaves_the_queue(): void
+    {
+        $seen = $this->booking('09:00', 'أ');
+        $this->booking('10:00', 'ب');
+
+        foreach (['arrived', 'with_doctor', 'done'] as $to) {
+            $this->postJson(route('api.v1.bookings.status', $seen), ['to' => $to])->assertOk();
+        }
+
+        $data = $this->getJson(route('api.v1.home'))->assertOk()->json('data');
+
         $this->assertSame(['ب'], array_column(array_column($data['upcoming'], 'patient'), 'name'));
+    }
+
+    /**
+     * The home screen is today. It used to match on `start_at >= now` with no
+     * upper bound, so a booking days away sat under a row of zeroes; another
+     * day belongs to the calendar.
+     */
+    public function test_home_never_shows_another_day(): void
+    {
+        $patient = Patient::factory()->create(['clinic_id' => $this->clinic->id, 'name' => 'بكرة']);
+
+        Booking::factory()
+            ->forClinic($this->clinic)
+            ->at($this->today->copy()->addDays(2)->setTime(9, 0))
+            ->create(['patient_id' => $patient->id]);
+
+        $data = $this->getJson(route('api.v1.home'))->assertOk()->json('data');
+
+        $this->assertSame(0, $data['today']['counts']['total']);
+        $this->assertSame([], $data['upcoming']);
     }
 
     public function test_another_clinics_bookings_are_never_visible(): void
