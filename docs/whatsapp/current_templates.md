@@ -98,6 +98,26 @@ offering it. Their parameter mapping exists in `TemplatePayloadResolver` and
 must be re-checked against the approved template if they are ever submitted,
 since Meta fixes the parameter list at approval.
 
+## Proven: the MARKETING category is dropping messages
+
+Not a theory. On 2026-09-12 the same recipient, sender and code path gave:
+
+| Template | Category | Delivered |
+|---|---|---|
+| `appointment_booking_confirmation` x3 | MARKETING | no |
+| `appointment_rating` x2 | MARKETING | no |
+| `booking_cancellation` | **UTILITY** | **yes** |
+
+All eight were accepted by Meta with a valid `wamid` and no error. The five
+marketing ones never arrived; the utility one arrived immediately. Meta applies
+a per-user cap to marketing template messages and withholds the excess
+silently — there is no failure to observe at send time, which is why this took
+an investigation rather than a glance at a log.
+
+The practical consequence: a clinic seeing several patients in quick
+succession is exactly the pattern that trips the cap, so confirmations start
+disappearing under precisely the load the product is built for.
+
 ## Open: the MARKETING category
 
 Templates 1 and 2 are categorised MARKETING rather than UTILITY. Marketing
