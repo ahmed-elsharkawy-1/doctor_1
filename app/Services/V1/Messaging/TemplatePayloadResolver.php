@@ -5,6 +5,7 @@ namespace App\Services\V1\Messaging;
 use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\MessageTemplate;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Carbon;
 
 /**
@@ -125,9 +126,17 @@ class TemplatePayloadResolver
         return $this->clean($clinic->address, $clinic->name);
     }
 
+    /**
+     * Shown to the patient as the number to call back on, so it is normalised
+     * against the clinic's own country rather than printed as typed.
+     */
     private function clinicPhone(Clinic $clinic): string
     {
-        return $this->clean($clinic->phone, __('messages.fallback.phone'));
+        $phone = $clinic->phone === null
+            ? null
+            : PhoneNumber::tryParse($clinic->phone, $clinic->country_code)?->e164;
+
+        return $this->clean($phone ?? $clinic->phone, __('messages.fallback.phone'));
     }
 
     /**

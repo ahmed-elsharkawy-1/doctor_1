@@ -26,7 +26,13 @@ class BookingTrackingController extends Controller
         $booking->load(['patient', 'clinic.doctor', 'visitType']);
 
         $clinic = $booking->clinic;
-        $phone = $clinic->phone === null ? null : PhoneNumber::tryParse($clinic->phone);
+        // Parsed against the clinic's own country, not the platform
+        // default: a Saudi clinic that typed its number the local way
+        // parses to nothing as an Egyptian one, and the contact
+        // buttons then disappear from the page entirely.
+        $phone = $clinic->phone === null
+            ? null
+            : PhoneNumber::tryParse($clinic->phone, $clinic->country_code);
 
         $mapQuery = $clinic->latitude !== null && $clinic->longitude !== null
             ? $clinic->latitude.','.$clinic->longitude
