@@ -138,6 +138,15 @@ block, and the cancellation notice can then be built.
 
 ---
 
+## Still three templates, not four
+
+The cancellation one covers **both** a single booking and a whole day, which is
+why there is no fourth. Sent to one patient it is true; sent to forty during a
+day cancellation each still reads correctly about their own appointment, which
+is better than the present version telling every patient about everyone else's.
+
+"New" below refers only to how they are submitted. It is not extra scope.
+
 ## Submit these as new templates, not edits
 
 Editing a live template replaces it on approval. Our code sends an exact
