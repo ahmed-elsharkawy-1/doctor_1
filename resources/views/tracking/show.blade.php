@@ -175,6 +175,13 @@
         /* ---------- ring ---------- */
         .stage { text-align: center; padding: 22px 16px; }
 
+        .stage-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--muted);
+            margin-bottom: 16px;
+        }
+
         .ring { position: relative; width: 176px; height: 176px; margin: 0 auto; }
         .ring svg { transform: rotate(-90deg); }
         .ring .track { stroke: var(--primary-50); }
@@ -322,6 +329,13 @@
 
     {{-- The headline: a ring that fills as the patient moves up --}}
     <section class="card stage">
+        {{-- A ring with a number in it does not say what the number counts.
+             The heading does, and only while the ring is about the queue: a
+             finished or cancelled visit has no position to report. --}}
+        @if ($isWaiting || $isNext || $isFirstInLine)
+            <h2 class="stage-title">{{ __('booking.tracking.queue_title') }}</h2>
+        @endif
+
         <div class="ring @if ($isDone) is-done @endif @if ($isOff) is-off @endif">
             <svg width="176" height="176" viewBox="0 0 176 176">
                 <circle class="track" cx="88" cy="88" r="{{ $radius }}" fill="none" stroke-width="12"/>

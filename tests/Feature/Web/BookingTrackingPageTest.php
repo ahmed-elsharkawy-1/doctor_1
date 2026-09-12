@@ -125,6 +125,31 @@ class BookingTrackingPageTest extends TestCase
             ]));
     }
 
+    /**
+     * A ring with a number in it does not say what the number counts. The
+     * heading does — and only while the ring is about the queue, since a
+     * finished visit has no position to report.
+     */
+    public function test_the_queue_ring_is_headed_so_the_number_means_something(): void
+    {
+        $mine = $this->booking('09:00');
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(__('booking.tracking.queue_title'));
+    }
+
+    public function test_a_finished_visit_has_no_queue_heading(): void
+    {
+        $mine = $this->booking('09:00');
+        $mine->update(['status' => BookingStatus::DONE, 'completed_at' => now()]);
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(__('booking.tracking.done'))
+            ->assertDontSee(__('booking.tracking.queue_title'));
+    }
+
     public function test_it_is_their_turn_once_they_have_arrived(): void
     {
         $mine = $this->booking('09:00');
