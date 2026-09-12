@@ -86,10 +86,9 @@
     <meta property="og:title" content="{{ $title }}">
     <meta property="og:description" content="{{ $description }}">
     <meta property="og:url" content="{{ url()->current() }}">
-    @if ($doctor?->photoUrl())
-        {{-- A real portrait only: the stock avatar is not worth sharing. --}}
-        <meta property="og:image" content="{{ $doctor->photoUrl() }}">
-    @endif
+    {{-- A real portrait shares better than the stock avatar; failing that the
+         platform cover, which at least carries the name and the promise. --}}
+    @include('partials.brand-head', ['shareImage' => $doctor?->photoUrl()])
     <meta name="twitter:card" content="summary">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">

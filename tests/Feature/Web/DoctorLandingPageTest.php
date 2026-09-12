@@ -294,10 +294,18 @@ class DoctorLandingPageTest extends TestCase
     {
         $this->clinic->doctor->update(['sex' => DoctorSex::MALE, 'photo_path' => null]);
 
-        // Sharing a link should not put a cartoon in the preview card.
-        $this->get($this->url())
-            ->assertOk()
-            ->assertDontSee('property="og:image"', escape: false);
+        // Sharing a link should not put a cartoon in the preview card. The
+        // platform cover goes instead — it carries the name and the promise,
+        // which beats both a cartoon and no preview at all.
+        // The avatar still shows on the page itself; what matters is what the
+        // share card points at.
+        $html = $this->get($this->url())->assertOk()->getContent();
+
+        preg_match('/<meta property="og:image" content="([^"]+)"/', $html, $shared);
+
+        $this->assertNotEmpty($shared, 'The page offers no share image at all.');
+        $this->assertStringNotContainsString('avatars/', $shared[1]);
+        $this->assertStringContainsString(config('clinic.brand.cover'), $shared[1]);
     }
 
     public function test_the_header_carries_three_stats_without_the_visit_length(): void

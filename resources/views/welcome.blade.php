@@ -5,6 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
+    @include('partials.brand-head')
     <title>{{ config('app.name') }}</title>
     <style>
         :root {
@@ -39,6 +40,13 @@
             text-align: center;
         }
 
+        .mark {
+            width: 72px; height: 72px;
+            border-radius: 1.1rem;
+            margin: 0 auto 1rem;
+            display: block;
+        }
+
         h1 { margin: 0 0 0.35rem; font-size: 1.25rem; }
         p { margin: 0 0 1.25rem; color: var(--muted); }
 
@@ -66,6 +74,8 @@
 </head>
 <body>
     <div class="card">
+        <img class="mark" src="{{ asset(config('clinic.brand.logo')) }}"
+             alt="{{ config('clinic.brand.name') }}" width="72" height="72">
         <h1>{{ __('app.root.title') }}</h1>
         <p>{{ __('app.root.lead') }}</p>
         <a class="btn" href="{{ route('app.login') }}">{{ __('app.root.sign_in') }}</a>

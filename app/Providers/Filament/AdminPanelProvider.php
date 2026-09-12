@@ -28,8 +28,13 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path(config('clinic.panel.path'))
             ->login()
+            ->brandName(config('clinic.brand.name'))
+            ->brandLogo(fn () => asset(config('clinic.brand.logo')))
+            ->brandLogoHeight('2.25rem')
+            ->favicon(asset(config('clinic.brand.favicon')))
             ->colors([
-                'primary' => Color::Amber,
+                // Sampled from the logo artwork rather than guessed.
+                'primary' => Color::hex(config('clinic.brand.color')),
             ])
             ->discoverResources(in: app_path('Filament/Admin/Resources'), for: 'App\Filament\Admin\Resources')
             ->discoverPages(in: app_path('Filament/Admin/Pages'), for: 'App\Filament\Admin\Pages')

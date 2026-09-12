@@ -34,6 +34,9 @@
 
 <nav class="appbar">
     <div class="inner">
+        <img class="brand-mark" src="{{ asset(config('clinic.brand.logo')) }}"
+             alt="{{ config('clinic.brand.name') }}" width="34" height="34">
+
         <div class="who">
             <b>{{ $clinic?->name }}</b>
             <small>{{ $user->name }}</small>

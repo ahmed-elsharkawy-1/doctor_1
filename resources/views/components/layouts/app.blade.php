@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="robots" content="noindex, nofollow">
+    @include('partials.brand-head')
     <title>{{ $title ?? config('app.name') }}</title>
     <style>
         :root {
@@ -60,6 +61,12 @@
             align-items: center;
             gap: 0.75rem;
             flex-wrap: wrap;
+        }
+
+        .appbar .brand-mark {
+            width: 34px; height: 34px;
+            border-radius: 9px;
+            flex: 0 0 auto;
         }
 
         .appbar .who { line-height: 1.3; }

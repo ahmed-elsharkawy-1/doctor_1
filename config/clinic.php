@@ -124,6 +124,26 @@ return [
     /*
     | The public doctor page's own content.
     */
+    /*
+    | Platform branding. Files live in public/images/brand and are replaced by
+    | dropping new ones in — nothing reads them by any other name. Point a key
+    | somewhere else and every page follows.
+    |
+    | `logo` is the mark on its own blue tile and is safe anywhere. `logo_white`
+    | is knocked out in white with a transparent background, so it is legible
+    | *only* on the brand colour or another dark surface.
+    */
+    'brand' => [
+        'name' => env('CLINIC_BRAND_NAME', 'الِعيادة'),
+        'color' => '#0174D6',
+        'logo' => 'images/brand/logo.png',
+        'logo_white' => 'images/brand/logo-white.png',
+        'cover' => 'images/brand/cover.jpg',
+        'favicon' => 'images/brand/favicon.png',
+        'apple_touch_icon' => 'images/brand/apple-touch-icon.png',
+        'icon_192' => 'images/brand/icon-192.png',
+    ],
+
     'public' => [
         // Photos and portraits. `public` is served through the storage symlink,
         // which the container creates on boot.
