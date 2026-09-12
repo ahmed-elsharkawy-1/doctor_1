@@ -43,6 +43,13 @@ return [
         // suffix we send is a whole path. This is that domain.
         'link_base' => env('WHATSAPP_LINK_BASE', env('APP_URL')),
         'timeout' => (int) env('WHATSAPP_TIMEOUT', 15),
+
+        // Delivery receipts. Meta signs every callback with the app secret;
+        // without it a stranger could post whatever delivery state they liked,
+        // so the endpoint refuses to process anything until it is set.
+        'app_secret' => env('WHATSAPP_APP_SECRET'),
+        // Echoed back to Meta once, when the callback URL is first verified.
+        'verify_token' => env('WHATSAPP_VERIFY_TOKEN'),
     ],
 
     'slack' => [

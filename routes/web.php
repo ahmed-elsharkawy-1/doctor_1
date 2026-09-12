@@ -5,6 +5,7 @@ use App\Http\Controllers\Web\Auth\LoginController;
 use App\Http\Controllers\Web\BookingReviewController;
 use App\Http\Controllers\Web\BookingTrackingController;
 use App\Http\Controllers\Web\DoctorLandingController;
+use App\Http\Controllers\Webhooks\WhatsAppWebhookController;
 use App\Http\Middleware\EnsureClinicSession;
 use App\Livewire\App\Messages;
 use App\Livewire\App\NewBooking;
@@ -54,6 +55,19 @@ Route::get(config('clinic.review.path').'/{booking:tracking_token}', [BookingRev
 Route::post(config('clinic.review.path').'/{booking:tracking_token}', [BookingReviewController::class, 'store'])
     ->middleware('throttle:10,1')
     ->name('booking.review.store');
+
+/*
+| Meta's delivery receipts for WhatsApp.
+|
+| Outside the `app` prefix and outside auth: Meta has no credentials of ours
+| to present, so the signature on each callback is the whole of the security.
+| CSRF is excluded for the same reason — there is no session here to forge.
+*/
+Route::get('webhooks/whatsapp', [WhatsAppWebhookController::class, 'verify'])
+    ->name('webhooks.whatsapp.verify');
+
+Route::post('webhooks/whatsapp', [WhatsAppWebhookController::class, 'handle'])
+    ->name('webhooks.whatsapp');
 
 /*
 | The clinic web app — the screens the doctor and the assistant work from.

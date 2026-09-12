@@ -36,6 +36,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'clinic' => ResolveClinic::class,
             'ability' => EnsureAbility::class,
         ]);
+
+        // Meta posts delivery receipts with no session and no token of ours.
+        // Authenticity comes from the signature on the body instead, which the
+        // controller checks before it acts on anything.
+        $middleware->validateCsrfTokens(except: [
+            'webhooks/whatsapp',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         /*

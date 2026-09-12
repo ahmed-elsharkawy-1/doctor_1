@@ -20,6 +20,7 @@ class OutboundMessage extends Model
         'error',
         'sent_at',
         'delivered_at',
+        'read_at',
     ];
 
     protected function casts(): array
@@ -28,6 +29,7 @@ class OutboundMessage extends Model
             'variables' => 'array',
             'sent_at' => 'datetime',
             'delivered_at' => 'datetime',
+            'read_at' => 'datetime',
         ];
     }
 
