@@ -129,8 +129,13 @@ class SlotAvailabilityService
      */
     private function candidates(Clinic $clinic, Carbon $date, ClinicSchedulePeriod $period, VisitType $visitType): array
     {
-        $step = max(1, $clinic->slot_step_minutes);
         $duration = $visitType->duration_minutes;
+
+        // The grid follows the visit unless the clinic has deliberately asked
+        // for rolling start times. Stepping by anything shorter than the visit
+        // offers overlapping start times — correct, since taking one removes
+        // the others, but unreadable.
+        $step = max(1, $clinic->slot_step_minutes ?: $duration);
 
         $periodStart = $this->at($clinic, $date, $period->startTime());
         $periodEnd = $this->at($clinic, $date, $period->endTime());

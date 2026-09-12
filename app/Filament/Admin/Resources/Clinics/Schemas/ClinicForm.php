@@ -158,8 +158,9 @@ class ClinicForm
                         ->numeric()
                         ->minValue(5)
                         ->maxValue(60)
-                        ->required()
-                        ->default($defaults['slot_step_minutes'])
+                        // Left empty, each visit type sets its own grid from
+                        // its own length, which is what a clinic expects.
+                        ->placeholder(__('filament.clinic.slot_step_minutes_auto'))
                         ->helperText(__('filament.clinic.slot_step_minutes_hint')),
                 ])
                 ->columns(2),

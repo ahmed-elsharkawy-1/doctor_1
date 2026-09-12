@@ -29,7 +29,9 @@ return [
         'timezone' => env('CLINIC_DEFAULT_TIMEZONE', 'Africa/Cairo'),
         'booking_window_days' => 7,
         'first_visit_only_days' => 60,
-        'slot_step_minutes' => 10,
+        // Null means every visit type sets its own grid from its own
+        // duration. A number overrides that with fixed rolling starts.
+        'slot_step_minutes' => null,
         'patient_arrival_lead_minutes' => 30,
     ],
 

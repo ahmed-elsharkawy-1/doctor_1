@@ -75,6 +75,10 @@ class SlotAvailabilityTest extends TestCase
 
     public function test_slots_step_by_the_clinics_configured_interval(): void
     {
+        // Left empty the grid follows the visit's own length; a number is how
+        // a clinic asks for rolling start times instead.
+        $this->clinic->update(['slot_step_minutes' => 10]);
+
         $data = $this->slots($this->visitType(20));
 
         $this->assertTrue($data['is_open']);
@@ -110,7 +114,10 @@ class SlotAvailabilityTest extends TestCase
 
         $starts = array_column(array_column($this->slots($this->visitType(30))['slots'], 'start_time'), 'value');
 
-        $this->assertSame(['13:00', '13:10', '13:20', '13:30', '17:00', '17:10', '17:20', '17:30'], $starts);
+        // A 30-minute visit inside two one-hour periods: two starts in each,
+        // and the second period begins its own grid rather than continuing the
+        // first.
+        $this->assertSame(['13:00', '13:30', '17:00', '17:30'], $starts);
     }
 
     /**
@@ -119,6 +126,10 @@ class SlotAvailabilityTest extends TestCase
      */
     public function test_an_existing_booking_blocks_every_slot_it_overlaps(): void
     {
+        // Rolling starts, so a 20-minute candidate can begin part-way through
+        // the 30-minute procedure — which is the collision being tested.
+        $this->clinic->update(['slot_step_minutes' => 10]);
+
         $procedure = $this->visitType(30);
 
         Booking::factory()
