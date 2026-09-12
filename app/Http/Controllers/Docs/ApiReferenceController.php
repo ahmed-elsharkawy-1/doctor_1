@@ -53,6 +53,10 @@ class ApiReferenceController
             'landingUrl' => $clinic?->slug === null ? null : url($clinic->slug),
             'clinicAppUrl' => route('app.login'),
             'todaysBookings' => $this->todaysDemoBookings($clinic),
+            'reviewsUrl' => url(config('clinic.panel.path').'/reviews'),
+            'pilotClinic' => $pilot = $this->clinicFor(config('clinic.docs.pilot_account')),
+            'pilotEmail' => config('clinic.docs.pilot_account'),
+            'pilotLandingUrl' => $pilot?->slug === null ? null : url($pilot->slug),
         ]);
     }
 
@@ -62,9 +66,14 @@ class ApiReferenceController
      */
     private function demoClinic(): ?Clinic
     {
+        return $this->clinicFor(config('clinic.docs.demo_account'));
+    }
+
+    private function clinicFor(?string $email): ?Clinic
+    {
         try {
             return User::query()
-                ->where('email', config('clinic.docs.demo_account'))
+                ->where('email', $email)
                 ->first()
                 ?->activeClinic();
         } catch (Throwable) {

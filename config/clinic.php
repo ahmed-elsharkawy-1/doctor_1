@@ -235,6 +235,11 @@ return [
         // the only one the page will ever show live booking links for, so a
         // real clinic's patients can never appear there.
         'demo_account' => env('CLINIC_DOCS_DEMO_EMAIL', 'doctor@doctor1.test'),
+
+        // The clinic the live end-to-end flow is exercised on. Listed on the
+        // handoff page for access, but never for its bookings — those name
+        // patients, and this one takes real ones.
+        'pilot_account' => env('CLINIC_DOCS_PILOT_EMAIL', 'drseham@gmail.com'),
     ],
 
     /*

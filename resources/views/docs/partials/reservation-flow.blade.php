@@ -32,7 +32,7 @@
         </div>
         <div class="step">
             <div>
-                <div class="who">Patient — /b/{token}</div>
+                <div class="who">Patient — /{{ config('clinic.tracking.path') }}/{token}</div>
                 <p>
                     Before the day: date and time only. On the day: how many people are
                     ahead, and when to be at the clinic.
@@ -46,6 +46,34 @@
                     Taps <code>وصل</code> → <code>دخول الكشف</code> → <code>إنهاء الكشف</code>.
                     Each tap moves the patient's number. <strong>The counter is only ever as
                     truthful as these taps.</strong>
+                </p>
+            </div>
+        </div>
+        <div class="step">
+            <div>
+                <div class="who">System</div>
+                <p>
+                    On <code>إنهاء الكشف</code>, queues a second WhatsApp message
+                    inviting a rating. The link rides on the template's button,
+                    not in the text.
+                </p>
+            </div>
+        </div>
+        <div class="step">
+            <div>
+                <div class="who">Patient — /{{ config('clinic.review.path') }}/{token}</div>
+                <p>
+                    Same token as the tracking page. Three ratings and an optional
+                    note; submitted once and never overwritten.
+                </p>
+            </div>
+        </div>
+        <div class="step">
+            <div>
+                <div class="who">Dashboard</div>
+                <p>
+                    The review lands under <a href="{{ $reviewsUrl }}">Reviews</a> with
+                    its clinic, doctor and patient attached.
                 </p>
             </div>
         </div>
@@ -74,14 +102,60 @@
             <div><code>{{ url(config('clinic.tracking.path')) }}/{token}</code></div>
         </div>
         <div class="row">
+            <div class="label">Review page</div>
+            <div><code>{{ url(config('clinic.review.path')) }}/{token}</code></div>
+        </div>
+        <div class="row">
+            <div class="label">Reviews</div>
+            <div><a href="{{ $reviewsUrl }}">{{ $reviewsUrl }}</a></div>
+        </div>
+        <div class="row">
             <div class="label">Dashboard</div>
             <div><a href="{{ $adminUrl }}">{{ $adminUrl }}</a></div>
         </div>
     </div>
 </article>
 
+@if ($pilotClinic)
+    <article class="card">
+        <h2>Pilot Clinic — live flow</h2>
+        <p class="subhead">
+            The clinic the end-to-end flow is exercised on, WhatsApp included.
+            Its bookings are not listed here: it takes real patients.
+        </p>
+        <div class="rows">
+            <div class="row">
+                <div class="label">Clinic</div>
+                <div><code class="rtl">{{ $pilotClinic->name }}</code></div>
+            </div>
+            <div class="row">
+                <div class="label">Doctor page</div>
+                <div>
+                    @if ($pilotLandingUrl)
+                        <a href="{{ $pilotLandingUrl }}">{{ $pilotLandingUrl }}</a>
+                    @else
+                        <code>no slug set</code>
+                    @endif
+                </div>
+            </div>
+            <div class="row">
+                <div class="label">Email</div>
+                <div><code>{{ $pilotEmail }}</code></div>
+            </div>
+            <div class="row">
+                <div class="label">Password</div>
+                <div><code>password</code></div>
+            </div>
+            <div class="row">
+                <div class="label">Signs in to</div>
+                <div>The mobile app and <a href="{{ $clinicAppUrl }}">/app</a>, same account</div>
+            </div>
+        </div>
+    </article>
+@endif
+
 <article class="card">
-    <h2>Clinic Login</h2>
+    <h2>Demo Clinic</h2>
     <div class="rows">
         <div class="row">
             <div class="label">Clinic</div>
