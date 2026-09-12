@@ -16,8 +16,10 @@
     };
 
     $status = $booking->status;
-    $isWaiting = $position !== null && ! $position->isNext();
     $isNext = $position !== null && $position->isNext();
+    // Nobody booked before them, but they are not in the clinic yet.
+    $isFirstInLine = $position !== null && $position->isFirstInLine();
+    $isWaiting = $position !== null && ! $isNext && ! $isFirstInLine;
     $isDone = $status === BookingStatus::DONE;
     $isOff = $status->isTerminal() && ! $isDone;
 
@@ -50,7 +52,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
-    @if ($isWaiting || $isNext)
+    @if ($isWaiting || $isNext || $isFirstInLine)
         <meta http-equiv="refresh" content="{{ $refreshSeconds }}">
     @endif
     <title>{{ __('booking.tracking.title', ['clinic' => $clinic->name]) }}</title>
@@ -309,6 +311,8 @@
                     <span class="word">{{ __('booking.tracking.no_show') }}</span>
                 @elseif ($isNext)
                     <span class="word">{{ __('booking.tracking.your_turn') }}</span>
+                @elseif ($isFirstInLine)
+                    <span class="word">{{ __('booking.tracking.first_in_line') }}</span>
                 @elseif ($isWaiting)
                     <span class="count">{{ $position->ahead }}</span>
                     <span class="label">{{ __('booking.tracking.waiting_count') }}</span>
@@ -318,6 +322,22 @@
             </div>
         </div>
     </section>
+
+    @if ($isFirstInLine)
+        {{-- Nobody before them, but they are not here yet: say when to come
+             rather than calling them into the examination room. --}}
+        <div class="notice">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            @if ($booking->start_at)
+                {{ __('booking.tracking.first_in_line_note', [
+                    'time' => $clock($booking->start_at),
+                    'lead' => __('messages.minutes', ['count' => (int) $clinic->patient_arrival_lead_minutes]),
+                ]) }}
+            @else
+                {{ __('booking.tracking.first_in_line_note_no_time') }}
+            @endif
+        </div>
+    @endif
 
     @if ($isWaiting)
         <div class="tiles">

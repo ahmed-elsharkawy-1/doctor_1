@@ -20,13 +20,29 @@ final class QueuePosition
         public readonly int $normal,
         public readonly int $emergency,
         public readonly ?Carbon $expectedAt,
+        public readonly bool $hasArrived = false,
     ) {}
 
     /**
-     * The patient is next — the page swaps to دورك الأن.
+     * The clinic is ready for this patient *now* — the page swaps to دورك الآن
+     * and tells them to go to the examination room.
+     *
+     * Being first in the queue is not enough: the first booking of the day is
+     * first from midnight onwards, and telling someone at home at 5am to walk
+     * into the examination room for a 1pm appointment is worse than saying
+     * nothing. They have to be in the clinic for it to be their turn.
      */
     public function isNext(): bool
     {
-        return $this->ahead === 0;
+        return $this->ahead === 0 && $this->hasArrived;
+    }
+
+    /**
+     * Nobody is booked before them, but they are not in the clinic yet — so
+     * the page reassures them without calling them in.
+     */
+    public function isFirstInLine(): bool
+    {
+        return $this->ahead === 0 && ! $this->hasArrived;
     }
 }

@@ -56,6 +56,11 @@ class QueuePositionService
             normal: $sorted->where('booking_kind', BookingKind::NORMAL)->count(),
             emergency: $sorted->where('booking_kind', BookingKind::EMERGENCY)->count(),
             expectedAt: $this->expectedAt($booking, $ahead, $now, $clinic->timezone),
+            // In the clinic, not merely due: only then is it their turn.
+            hasArrived: in_array($booking->status, [
+                BookingStatus::ARRIVED,
+                BookingStatus::WITH_DOCTOR,
+            ], true),
         );
     }
 

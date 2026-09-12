@@ -3,6 +3,7 @@
 namespace Tests\Feature\Queue;
 
 use App\Enums\BookingKind;
+use App\Enums\BookingStatus;
 use App\Models\Booking;
 use App\Services\V1\Queue\QueuePositionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,7 +55,12 @@ class QueuePositionServiceTest extends TestCase
         $this->assertSame(3, $position->total);
     }
 
-    public function test_the_first_patient_is_next(): void
+    /**
+     * Being first is not being called in. The first booking of the day is
+     * first from midnight onwards, and a patient still at home must not be
+     * told to walk into the examination room.
+     */
+    public function test_the_first_patient_is_not_next_until_they_arrive(): void
     {
         $mine = $this->booking('09:00');
         $this->booking('09:20');
@@ -62,7 +68,50 @@ class QueuePositionServiceTest extends TestCase
         $position = $this->positions->for($mine);
 
         $this->assertSame(0, $position->ahead);
+        $this->assertFalse($position->isNext());
+        $this->assertTrue($position->isFirstInLine());
+    }
+
+    public function test_the_first_patient_is_next_once_they_are_in_the_clinic(): void
+    {
+        $mine = $this->booking('09:00');
+        $this->booking('09:20');
+
+        $mine->update(['status' => BookingStatus::ARRIVED, 'arrived_at' => now()]);
+
+        $position = $this->positions->for($mine->fresh());
+
         $this->assertTrue($position->isNext());
+        $this->assertFalse($position->isFirstInLine());
+    }
+
+    public function test_a_patient_with_the_doctor_is_still_their_turn(): void
+    {
+        $mine = $this->booking('09:00');
+        $mine->update(['status' => BookingStatus::WITH_DOCTOR, 'called_in_at' => now()]);
+
+        $this->assertTrue($this->positions->for($mine->fresh())->isNext());
+    }
+
+    /**
+     * Arrival alone is not enough either — somebody is still in front.
+     *
+     * Both have to be in the clinic for the earlier one to count: the queue
+     * ranks a patient who has turned up above one who has not, so an arrival
+     * at 09:20 really does go before a 09:00 booking nobody has seen.
+     */
+    public function test_an_arrived_patient_behind_another_arrival_is_not_next(): void
+    {
+        $first = $this->booking('09:00');
+        $first->update(['status' => BookingStatus::ARRIVED, 'arrived_at' => now()]);
+
+        $mine = $this->booking('09:20');
+        $mine->update(['status' => BookingStatus::ARRIVED, 'arrived_at' => now()]);
+
+        $position = $this->positions->for($mine->fresh());
+
+        $this->assertFalse($position->isNext());
+        $this->assertFalse($position->isFirstInLine());
     }
 
     public function test_an_emergency_booking_raises_the_count(): void

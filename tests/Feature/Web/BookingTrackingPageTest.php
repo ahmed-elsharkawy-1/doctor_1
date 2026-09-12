@@ -3,6 +3,7 @@
 namespace Tests\Feature\Web;
 
 use App\Enums\BookingKind;
+use App\Enums\BookingStatus;
 use App\Enums\DoctorSex;
 use App\Models\Booking;
 use App\Services\V1\Queue\BookingStatusService;
@@ -94,14 +95,45 @@ class BookingTrackingPageTest extends TestCase
             ->assertSee(__('booking.tracking.emergency_notice'));
     }
 
-    public function test_the_first_patient_is_told_it_is_their_turn(): void
+    /**
+     * The bug this replaced: the first booking of the day read دورك الآن from
+     * midnight, under a note telling the patient to go to the examination
+     * room — for an appointment still hours away.
+     */
+    public function test_the_first_patient_is_told_nobody_is_ahead_not_to_come_in(): void
     {
         $mine = $this->booking('09:00');
 
         $this->get($mine->trackingUrl())
             ->assertOk()
-            ->assertSee(__('booking.tracking.your_turn'))
+            ->assertSee(__('booking.tracking.first_in_line'))
+            ->assertDontSee(__('booking.tracking.your_turn'))
             ->assertDontSee('<div class="count">', escape: false);
+    }
+
+    public function test_the_note_gives_the_appointment_time_and_when_to_arrive(): void
+    {
+        $this->clinic->update(['patient_arrival_lead_minutes' => 30]);
+
+        $mine = $this->booking('09:00');
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(__('booking.tracking.first_in_line_note', [
+                'time' => '9:00 '.__('booking.tracking.am'),
+                'lead' => __('messages.minutes', ['count' => 30]),
+            ]));
+    }
+
+    public function test_it_is_their_turn_once_they_have_arrived(): void
+    {
+        $mine = $this->booking('09:00');
+        $mine->update(['status' => BookingStatus::ARRIVED, 'arrived_at' => now()]);
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(__('booking.tracking.your_turn'))
+            ->assertDontSee(__('booking.tracking.first_in_line'));
     }
 
     public function test_a_finished_visit_says_so(): void
