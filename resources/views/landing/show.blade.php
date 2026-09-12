@@ -164,12 +164,12 @@
             font-size: 17px;
         }
 
+        /* The mark is knocked out in white, so it needs no tile behind it —
+           the banner's own blue is what makes it read. */
         .brand .mark {
-            display: grid;
-            place-items: center;
-            width: 32px; height: 32px;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, .16);
+            height: 26px;
+            width: auto;
+            display: block;
         }
 
         .icon-btn {
@@ -617,9 +617,8 @@
 <header class="banner">
     <div class="shell banner-bar">
         <div class="brand">
-            <span class="mark">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v4a4 4 0 0 0 8 0V3"/><path d="M12 11v4a5 5 0 0 1-10 0"/><circle cx="19" cy="14" r="2"/></svg>
-            </span>
+            <img class="mark" src="{{ asset(config('clinic.brand.logo_white')) }}"
+                 alt="{{ __('landing.brand') }}" width="55" height="26">
             {{ __('landing.brand') }}
         </div>
 

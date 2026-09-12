@@ -89,6 +89,24 @@ class BrandAssetsTest extends TestCase
         }
     }
 
+    /**
+     * The banner carried a generic stethoscope glyph before the real artwork
+     * existed. It sits on the brand blue, which is the one surface the
+     * knocked-out white mark is legible on.
+     */
+    public function test_the_doctor_page_banner_carries_the_real_mark(): void
+    {
+        $html = $this->get('/dr-sara')->assertOk()->getContent();
+
+        preg_match('#<header class="banner">.*?</header>#s', $html, $banner);
+
+        $this->assertNotEmpty($banner, 'The page has no banner.');
+        $this->assertStringContainsString(config('clinic.brand.logo_white'), $banner[0]);
+        // The placeholder glyph. It still draws the specialty stat further
+        // down the page, which is a legitimate icon — only the banner changed.
+        $this->assertStringNotContainsString('M8 3v4a4 4 0 0 0 8 0V3', $banner[0]);
+    }
+
     public function test_the_root_signpost_shows_the_mark(): void
     {
         $this->get('/')

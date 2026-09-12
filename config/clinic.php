@@ -134,7 +134,7 @@ return [
     | *only* on the brand colour or another dark surface.
     */
     'brand' => [
-        'name' => env('CLINIC_BRAND_NAME', 'الِعيادة'),
+        'name' => env('CLINIC_BRAND_NAME', 'العيادة'),
         'color' => '#0174D6',
         'logo' => 'images/brand/logo.png',
         'logo_white' => 'images/brand/logo-white.png',
