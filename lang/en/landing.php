@@ -7,8 +7,6 @@
 return [
     'meta_description' => 'Book an appointment with :doctor, :specialty. :address. Book over WhatsApp.',
     'brand' => 'The Clinic',
-    'share' => 'Share this page',
-    'link_copied' => 'Link copied',
 
     'stat_specialty' => 'Specialty',
     'stat_working_days' => 'Working days',

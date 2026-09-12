@@ -102,6 +102,9 @@ class BrandAssetsTest extends TestCase
 
         $this->assertNotEmpty($banner, 'The page has no banner.');
         $this->assertStringContainsString(config('clinic.brand.logo_white'), $banner[0]);
+        // The share button was removed: it was invisible on the blue, and on
+        // desktop it copied the link with no feedback anybody could see.
+        $this->assertStringNotContainsString('id="share"', $banner[0]);
         // The placeholder glyph. It still draws the specialty stat further
         // down the page, which is a legitimate icon — only the banner changed.
         $this->assertStringNotContainsString('M8 3v4a4 4 0 0 0 8 0V3', $banner[0]);

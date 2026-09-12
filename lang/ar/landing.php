@@ -7,8 +7,6 @@
 return [
     'meta_description' => 'حجز كشف مع :doctor، :specialty. :address. احجزي موعدك عبر واتساب.',
     'brand' => 'العيادة',
-    'share' => 'مشاركة الصفحة',
-    'link_copied' => 'تم نسخ الرابط',
 
     // Stats
     'stat_specialty' => 'التخصص',

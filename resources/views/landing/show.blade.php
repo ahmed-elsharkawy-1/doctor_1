@@ -151,7 +151,6 @@
         .banner-bar {
             display: flex;
             align-items: center;
-            justify-content: space-between;
             gap: 12px;
         }
 
@@ -171,19 +170,6 @@
             width: auto;
             display: block;
         }
-
-        .icon-btn {
-            display: grid;
-            place-items: center;
-            width: 34px; height: 34px;
-            border: 0;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, .16);
-            color: #fff;
-            cursor: pointer;
-        }
-
-        .icon-btn:hover { background: rgba(255, 255, 255, .26); }
 
         /* ---------- Doctor header ---------- */
         .profile {
@@ -621,10 +607,6 @@
                  alt="{{ __('landing.brand') }}" width="55" height="26">
             {{ __('landing.brand') }}
         </div>
-
-        <button type="button" class="icon-btn" id="share" title="{{ __('landing.share') }}" aria-label="{{ __('landing.share') }}">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
-        </button>
     </div>
 </header>
 
@@ -739,16 +721,6 @@
             show('tab-' + link.dataset.tab, true);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
-    });
-
-    const share = document.getElementById('share');
-    share?.addEventListener('click', async () => {
-        const data = { title: document.title, url: location.href };
-        if (navigator.share) { try { await navigator.share(data); } catch (e) { /* dismissed */ } return; }
-        try {
-            await navigator.clipboard.writeText(location.href);
-            share.title = @json(__('landing.link_copied'));
-        } catch (e) { /* clipboard blocked */ }
     });
 </script>
 </body>
