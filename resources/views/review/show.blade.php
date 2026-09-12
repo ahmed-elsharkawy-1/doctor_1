@@ -48,9 +48,17 @@
 
         h1, h2, p { margin: 0; }
 
+        /*
+           The first card is pulled up 22px to sit over this strip, which is a
+           deliberate layered look — but at 54px that overlap was landing on
+           the logo. The bar is taller now and reserves those 22px as padding,
+           so the brand centres in the part that stays visible rather than in
+           the part the card covers.
+        */
         .topbar {
             background: var(--primary);
-            height: 54px;
+            height: 76px;
+            padding-bottom: 22px;
             display: flex;
             align-items: center;
         }
