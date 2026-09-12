@@ -290,6 +290,37 @@ class DoctorLandingPageTest extends TestCase
             ->assertSee('<div class="portrait portrait-fallback"', escape: false);
     }
 
+    /**
+     * Two-up leaves the third fact stranded on a line of its own, and squeezes
+     * a long specialty into four lines. A phone gets one per line.
+     */
+    public function test_the_three_facts_stack_on_a_phone(): void
+    {
+        $this->get($this->url())
+            ->assertOk()
+            ->assertSee('@media (max-width: 700px)', escape: false)
+            ->assertSee('.stats { grid-template-columns: minmax(0, 1fr); }', escape: false);
+    }
+
+    /**
+     * A scrollable strip that looks like a full one hides its last tabs
+     * completely. The fades appear only on the side with more to show.
+     */
+    public function test_the_tab_strip_says_which_way_it_scrolls(): void
+    {
+        $html = $this->get($this->url())->assertOk()->getContent();
+
+        foreach ([
+            '.tabs-wrap[data-scroll~="start"]::before',
+            '.tabs-wrap[data-scroll~="end"]::after',
+            'function markOverflow()',
+            // RTL counts scrollLeft down from zero, so magnitude is what works.
+            'Math.abs(strip.scrollLeft)',
+        ] as $needle) {
+            $this->assertStringContainsString($needle, $html);
+        }
+    }
+
     public function test_the_stock_avatar_is_never_used_as_the_share_image(): void
     {
         $this->clinic->doctor->update(['sex' => DoctorSex::MALE, 'photo_path' => null]);

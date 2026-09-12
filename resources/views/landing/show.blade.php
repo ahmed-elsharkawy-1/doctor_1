@@ -286,17 +286,73 @@
             margin-top: 12px;
             padding: 8px 0;
             background: var(--bg);
+            --fade: 30px;
+        }
+
+        /*
+           A horizontally scrollable strip that looks exactly like a full one is
+           a trap: the last tabs simply do not exist as far as the reader is
+           concerned. These fades appear only on the side that has more to show
+           and vanish once you reach that end, so the page is telling the truth
+           at every scroll position rather than decorating an edge for ever.
+
+           The document is always dir="rtl", so inline-start is the right edge.
+           Physical properties are used deliberately — a logical gradient
+           direction is not something every target browser agrees on.
+        */
+        .tabs-wrap::before,
+        .tabs-wrap::after {
+            content: "";
+            position: absolute;
+            top: 8px;
+            bottom: 8px;
+            width: var(--fade);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity .18s ease;
+            z-index: 2;
+        }
+
+        .tabs-wrap::before {
+            right: 0;
+            border-radius: 0 14px 14px 0;
+            background: linear-gradient(to left, var(--surface), rgba(255, 255, 255, 0));
+        }
+
+        .tabs-wrap::after {
+            left: 0;
+            border-radius: 14px 0 0 14px;
+            background: linear-gradient(to right, var(--surface), rgba(255, 255, 255, 0));
+        }
+
+        .tabs-wrap[data-scroll~="start"]::before { opacity: 1; }
+        .tabs-wrap[data-scroll~="end"]::after { opacity: 1; }
+
+        /* One gentle shove on first sight, so the strip is seen to move rather
+           than merely hinted at. It runs once and never fights the reader. */
+        @media (prefers-reduced-motion: no-preference) {
+            .tabs.is-nudging { animation: tab-nudge .9s ease-in-out; }
+        }
+
+        @keyframes tab-nudge {
+            0%, 100% { transform: translateX(0); }
+            35% { transform: translateX(14px); }
+            70% { transform: translateX(-4px); }
         }
 
         .tabs {
             display: flex;
             gap: 6px;
             overflow-x: auto;
+            scrollbar-width: none;
+            scroll-behavior: smooth;
             background: var(--surface);
             border-radius: 14px;
             box-shadow: var(--shadow-sm);
             padding: 8px;
         }
+
+        .tabs::-webkit-scrollbar { display: none; }
 
         .tab {
             display: inline-flex;
@@ -572,6 +628,7 @@
         @media (max-width: 900px) {
             .cols { grid-template-columns: minmax(0, 1fr); }
             .stats { grid-template-columns: 1fr 1fr; }
+            .tabs-wrap { --fade: 38px; }
             .cta-row { grid-template-columns: 1fr; }
             .identity h1 { font-size: 22px; }
             .banner { padding-bottom: 88px; }
@@ -595,6 +652,12 @@
             .dock .btn-wa { flex: 1 1 auto; }
             .dock .btn-ghost { flex: 0 0 auto; }
             body { padding-bottom: 78px; }
+        }
+
+        /* A phone reads the three facts as a list. Two-up strands the third on
+           a line of its own and squeezes the specialty into four lines. */
+        @media (max-width: 700px) {
+            .stats { grid-template-columns: minmax(0, 1fr); }
         }
     </style>
 </head>
@@ -707,9 +770,59 @@
             document.getElementById(tab.getAttribute('aria-controls')).hidden = !on;
         });
         if (push) { history.replaceState(null, '', '#' + id.replace('tab-', '')); }
+
+        document.getElementById(id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 
     tabs.forEach(tab => tab.addEventListener('click', () => show(tab.id, true)));
+
+    /*
+       Tell the reader which way the strip still has tabs to give.
+
+       In RTL scrollLeft counts down from zero, so both ends are measured
+       against its magnitude rather than its sign — that is the one part of
+       this browsers genuinely disagree about.
+    */
+    const strip = document.querySelector('.tabs');
+    const stripWrap = document.querySelector('.tabs-wrap');
+
+    function markOverflow() {
+        if (!strip || !stripWrap) { return; }
+
+        const offset = Math.abs(strip.scrollLeft);
+        const hidden = strip.scrollWidth - strip.clientWidth;
+        const sides = [];
+
+        if (hidden > 1) {
+            if (offset > 1) { sides.push('start'); }
+            if (offset < hidden - 1) { sides.push('end'); }
+        }
+
+        stripWrap.setAttribute('data-scroll', sides.join(' '));
+
+        return hidden > 1;
+    }
+
+    if (strip) {
+        strip.addEventListener('scroll', markOverflow, { passive: true });
+        window.addEventListener('resize', markOverflow);
+
+        // The one-time shove, once the strip is actually on screen and only if
+        // there is something off it to find.
+        if (markOverflow() && 'IntersectionObserver' in window) {
+            const nudge = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) { return; }
+
+                    strip.classList.add('is-nudging');
+                    strip.addEventListener('animationend', () => strip.classList.remove('is-nudging'), { once: true });
+                    nudge.disconnect();
+                });
+            });
+
+            nudge.observe(strip);
+        }
+    }
 
     const fromHash = 'tab-' + location.hash.replace('#', '');
     if (location.hash && document.getElementById(fromHash)) { show(fromHash, false); }
