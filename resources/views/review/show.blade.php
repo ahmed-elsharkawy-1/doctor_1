@@ -48,7 +48,26 @@
 
         h1, h2, p { margin: 0; }
 
-        .topbar { background: var(--primary); height: 54px; }
+        .topbar {
+            background: var(--primary);
+            height: 54px;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Lined up with the cards below rather than the window edge. */
+        .topbar-inner {
+            width: min(30rem, 100% - 24px);
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            font-weight: 800;
+            font-size: 15px;
+        }
+
+        .topbar-inner img { height: 22px; width: auto; display: block; }
         .wrap { width: min(30rem, 100% - 24px); margin: 0 auto; padding-bottom: 40px; }
 
         .card {
@@ -192,7 +211,7 @@
 </head>
 <body>
 
-<div class="topbar"></div>
+@include('partials.brand-bar')
 
 <div class="wrap">
 

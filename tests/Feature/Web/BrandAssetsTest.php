@@ -90,6 +90,28 @@ class BrandAssetsTest extends TestCase
     }
 
     /**
+     * A patient reaches these two pages from a WhatsApp message and nothing
+     * else, so they were the only pages carrying no sign of whose service
+     * this is. The blue strip at the top was already drawn and empty.
+     */
+    public function test_the_patient_pages_show_the_mark_in_the_top_bar(): void
+    {
+        $booking = Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-09-12 11:00', $this->clinic->timezone))
+            ->create();
+
+        foreach ([$booking->trackingUrl(), $booking->reviewUrl()] as $url) {
+            $html = $this->get($url)->assertOk()->getContent();
+
+            preg_match('#<div class="topbar">.*?</div>\s*</div>#s', $html, $bar);
+
+            $this->assertNotEmpty($bar, "No top bar on {$url}");
+            $this->assertStringContainsString(config('clinic.brand.logo_white'), $bar[0]);
+            $this->assertStringContainsString(__('landing.brand'), $bar[0]);
+        }
+    }
+
+    /**
      * The banner carried a generic stethoscope glyph before the real artwork
      * existed. It sits on the brand blue, which is the one surface the
      * knocked-out white mark is legible on.
