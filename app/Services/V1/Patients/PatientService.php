@@ -98,7 +98,7 @@ class PatientService
     public function lastVisit(Patient $patient): ?Booking
     {
         return $patient->bookings()
-            ->whereIn('status', BookingStatus::occupyingSlot())
+            ->whereIn('status', BookingStatus::countsAsVisit())
             ->with('visitType')
             ->latest('start_at')
             ->first();
@@ -107,7 +107,7 @@ class PatientService
     public function visitsCount(Patient $patient): int
     {
         return $patient->bookings()
-            ->whereIn('status', BookingStatus::occupyingSlot())
+            ->whereIn('status', BookingStatus::countsAsVisit())
             ->count();
     }
 

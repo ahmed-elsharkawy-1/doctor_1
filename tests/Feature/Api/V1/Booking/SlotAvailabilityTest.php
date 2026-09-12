@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api\V1\Booking;
 
+use App\Enums\BookingStatus;
 use App\Enums\DayOfWeek;
 use App\Models\Booking;
 use App\Models\ClinicHoliday;
@@ -202,13 +203,56 @@ class SlotAvailabilityTest extends TestCase
         $this->assertContains('09:00', $tomorrowStarts);
     }
 
-    public function test_a_completed_booking_still_holds_its_slot(): void
+    /**
+     * A slot is a claim on the doctor's future time. A finished visit has no
+     * claim left — and a clinic that runs ahead of itself, seeing a 5pm
+     * patient at 3pm, should not go on holding 5pm for a visit that already
+     * happened.
+     */
+    public function test_a_completed_booking_frees_its_slot(): void
     {
         Booking::factory()
             ->forClinic($this->clinic)
             ->at($this->saturday->copy()->setTime(9, 0), 20)
             ->done()
             ->create();
+
+        $slots = collect($this->slots($this->visitType(20))['slots'])->keyBy(fn ($s) => $s['start_time']['value']);
+
+        $this->assertTrue($slots['09:00']['is_available']);
+    }
+
+    /**
+     * Same reasoning one step earlier: the patient is being seen now, so the
+     * scheduled window is no longer spoken for.
+     */
+    public function test_a_visit_in_progress_frees_its_slot(): void
+    {
+        $booking = Booking::factory()
+            ->forClinic($this->clinic)
+            ->at($this->saturday->copy()->setTime(9, 0), 20)
+            ->create();
+
+        $booking->update(['status' => BookingStatus::WITH_DOCTOR, 'called_in_at' => now()]);
+
+        $slots = collect($this->slots($this->visitType(20))['slots'])->keyBy(fn ($s) => $s['start_time']['value']);
+
+        $this->assertTrue($slots['09:00']['is_available']);
+    }
+
+    /**
+     * But an arrived patient is still waiting, and their visit is demand
+     * nobody has served. Freeing that slot would let a busy evening be booked
+     * twice over.
+     */
+    public function test_an_arrived_patient_still_holds_their_slot(): void
+    {
+        $booking = Booking::factory()
+            ->forClinic($this->clinic)
+            ->at($this->saturday->copy()->setTime(9, 0), 20)
+            ->create();
+
+        $booking->update(['status' => BookingStatus::ARRIVED, 'arrived_at' => now()]);
 
         $slots = collect($this->slots($this->visitType(20))['slots'])->keyBy(fn ($s) => $s['start_time']['value']);
 

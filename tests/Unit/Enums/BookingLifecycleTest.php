@@ -38,14 +38,38 @@ class BookingLifecycleTest extends TestCase
         $this->assertFalse(BookingStatus::NO_SHOW->canBeCancelled());
     }
 
-    public function test_cancelled_bookings_do_not_hold_a_slot(): void
+    /**
+     * A slot is a claim on the doctor's future time, so it is held only until
+     * the visit starts — after that the claim is being met, not waited for.
+     */
+    public function test_only_a_visit_still_to_come_holds_a_slot(): void
     {
         $occupying = BookingStatus::occupyingSlot();
 
         $this->assertContains(BookingStatus::BOOKED, $occupying);
-        $this->assertContains(BookingStatus::DONE, $occupying);
+        $this->assertContains(BookingStatus::ARRIVED, $occupying);
+
+        $this->assertNotContains(BookingStatus::WITH_DOCTOR, $occupying);
+        $this->assertNotContains(BookingStatus::DONE, $occupying);
         $this->assertNotContains(BookingStatus::CANCELLED, $occupying);
         $this->assertNotContains(BookingStatus::NO_SHOW, $occupying);
+    }
+
+    /**
+     * A different question, and the one a patient's history asks: the visit
+     * still happened even though it no longer holds the slot it was promised.
+     */
+    public function test_a_visit_counts_unless_it_was_cancelled_or_missed(): void
+    {
+        $counts = BookingStatus::countsAsVisit();
+
+        $this->assertContains(BookingStatus::BOOKED, $counts);
+        $this->assertContains(BookingStatus::ARRIVED, $counts);
+        $this->assertContains(BookingStatus::WITH_DOCTOR, $counts);
+        $this->assertContains(BookingStatus::DONE, $counts);
+
+        $this->assertNotContains(BookingStatus::CANCELLED, $counts);
+        $this->assertNotContains(BookingStatus::NO_SHOW, $counts);
     }
 
     public function test_only_emergency_cancellations_need_rebooking(): void

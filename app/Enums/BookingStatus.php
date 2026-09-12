@@ -65,12 +65,37 @@ enum BookingStatus: string
     }
 
     /**
-     * Statuses that occupy a time slot. Cancelled and no-show bookings free
-     * their slot.
+     * Statuses that hold a slot.
+     *
+     * A slot is a claim on the doctor's *future* time, so a booking holds one
+     * only until the visit starts. Once the patient is with the doctor that
+     * claim is being met now rather than later, and the scheduled window is
+     * free — which matters when a clinic runs ahead of itself and sees a 5pm
+     * patient at 3pm. Before that it must still hold: an arrived patient is
+     * waiting, and their visit is demand nobody has served yet. Free their
+     * slot and a busy evening can be booked twice over.
+     *
+     * Cancelled and no-show hold nothing; there is no visit to come.
      *
      * @return list<self>
      */
     public static function occupyingSlot(): array
+    {
+        return [self::BOOKED, self::ARRIVED];
+    }
+
+    /**
+     * Statuses that count as a visit to this clinic — everything except a
+     * booking that was cancelled or never turned up.
+     *
+     * Not the same question as occupyingSlot(), though the two sets matched
+     * until a finished visit stopped holding its slot. This one is about a
+     * patient's history: someone booked yesterday and seen today is not a new
+     * patient, and a visit that happened two hours early still happened.
+     *
+     * @return list<self>
+     */
+    public static function countsAsVisit(): array
     {
         return [self::BOOKED, self::ARRIVED, self::WITH_DOCTOR, self::DONE];
     }

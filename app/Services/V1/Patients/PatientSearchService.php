@@ -30,11 +30,11 @@ class PatientSearchService
         return $clinic->patients()
             ->withCount([
                 'bookings as visits_count' => fn (Builder $query) => $query
-                    ->whereIn('status', BookingStatus::occupyingSlot()),
+                    ->whereIn('status', BookingStatus::countsAsVisit()),
             ])
             ->withMax([
                 'bookings as last_visit_date' => fn (Builder $query) => $query
-                    ->whereIn('status', BookingStatus::occupyingSlot()),
+                    ->whereIn('status', BookingStatus::countsAsVisit()),
             ], 'visit_date')
             ->when($term !== '', fn (Builder $query) => $query->where(
                 fn (Builder $inner) => $this->applyTerm($inner, $term),
@@ -79,7 +79,7 @@ class PatientSearchService
     public function summary(Collection $history): array
     {
         $visits = $history->filter(
-            fn (Booking $booking) => in_array($booking->status, BookingStatus::occupyingSlot(), true),
+            fn (Booking $booking) => in_array($booking->status, BookingStatus::countsAsVisit(), true),
         );
 
         return [

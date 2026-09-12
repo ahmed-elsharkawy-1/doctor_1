@@ -48,8 +48,18 @@ final class BookingResult extends ServiceResult
                 'duration_minutes' => $booking->duration_minutes,
             ],
             'date' => Wire::date($booking->visit_date),
+            // Scheduled. These never change once the booking is made — they
+            // are what was promised, and the rest of the system snapshots
+            // against them.
             'start_time' => $booking->start_at === null ? null : Wire::time($booking->start_at),
             'end_time' => $booking->end_at === null ? null : Wire::time($booking->end_at),
+
+            // What actually happened, which is not always the same thing: a
+            // clinic running ahead of itself may see a 5pm patient at 3pm.
+            // Null until it does — `seen_to` stays null while the patient is
+            // still with the doctor, so the pair is never half a fiction.
+            'seen_from' => $booking->called_in_at === null ? null : Wire::time($booking->called_in_at),
+            'seen_to' => $booking->completed_at === null ? null : Wire::time($booking->completed_at),
             'queue_entered_at' => $booking->queue_entered_at?->toAtomString(),
             'notes' => $booking->notes,
         ];
