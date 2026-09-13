@@ -74,6 +74,27 @@ Sent automatically the moment a booking is taken.
 
 **Button** — `متابعة الحجز` → `https://elayadah.com/{{1}}`, suffix `booking/<token>`
 
+**How the patient sees it**
+
+```
+*د. سهام عبدالعزيز*
+
+مرحبًا أحمد محمد، تم تأكيد حجزك ✅
+
+🗓 التاريخ: 12 سبتمبر 2026
+🕐 الموعد: 05:00 مساءً
+📍 العنوان: برج الأتربي، شارع قناة السويس، المنصورة
+⏰ يُرجى الحضور قبل الموعد بـ 30 دقيقة
+
+يمكنك متابعة حجزك ومعرفة دورك من الرابط بالأسفل.
+
+نتمنى لك دوام الصحة
+منصة العيادة · elayadah.com
+حجزك أسهل، ووقتك أثمن
+─────────────────────────
+        🔗 متابعة الحجز
+```
+
 ---
 
 ## 2. Rating request
@@ -98,6 +119,22 @@ Sent automatically when the visit is marked finished.
 | `{{2}}` | Patient | أحمد محمد |
 
 **Button** — `المشاركة في التقييم` → `https://elayadah.com/{{1}}`, suffix `review/<token>`
+
+**How the patient sees it**
+
+```
+*د. سهام عبدالعزيز*
+
+مرحبًا أحمد محمد، شكرًا لزيارتك اليوم 🌷
+
+نتمنى أن تكون تجربتك كانت مريحة. رأيك يساعدنا على تحسين الخدمة،
+والتقييم لا يستغرق أكثر من دقيقة.
+
+منصة العيادة · elayadah.com
+حجزك أسهل، ووقتك أثمن
+─────────────────────────
+     🔗 المشاركة في التقييم
+```
 
 The live version has **no parameters at all** — no name, no doctor — and opens
 on *وقتك أغلى حاجة عندنا*. It is the least personal of the three and the one
@@ -134,6 +171,23 @@ the same template serves both.
 | `{{4}}` | Clinic phone | +20 101 745 5239 |
 
 No button.
+
+**How the patient sees it**
+
+```
+*د. سهام عبدالعزيز*
+
+مرحبًا أحمد محمد، نعتذر عن إلغاء موعدك 🙏
+
+كان موعدك يوم 12 سبتمبر 2026، واضطررنا إلى إلغائه لظرف طارئ.
+
+سنتواصل معك قريبًا لتحديد موعد جديد، ولأي استفسار يمكنك
+التواصل معنا على 01017455239.
+
+شكرًا لتفهمك
+منصة العيادة · elayadah.com
+حجزك أسهل، ووقتك أثمن
+```
 
 The live version says *اضطرينا نلغي **مواعيد اليوم***, true only for a
 whole-day cancellation. That is why a single cancellation sends nothing today:
