@@ -41,7 +41,7 @@ UTILITY with comparable content, which is the precedent to cite.
 
 The three were written separately and read that way. One opens with the
 patient's name, one opens with nothing at all, and the third is in heavy
-Egyptian colloquial. **None names the clinic** — so the patient's first sight
+Egyptian colloquial. **None says who sent it** — so the patient's first sight
 is an unknown number with no stated source, which is what makes a confirmation
 feel like spam.
 
@@ -50,23 +50,27 @@ Full text, parameter tables and rationale: **[proposed_templates.md](proposed_te
 The shape all three share:
 
 ```
-*<clinic>*
-<doctor>
+*<doctor>*
 
 مرحبًا <patient>، <what this message is about>
 
 <details, if any>
 
+منصة العيادة · elayadah.com
 حجزك أسهل، ووقتك أثمن
 ```
 
+The doctor alone heads it — every clinic is already named after its doctor.
+The signature names the sender, since patients see only a bare number.
+
 Three things to know before submitting:
 
-**Submit as new templates, not edits.** An edit replaces the live template the
-moment Meta approves it. Our code sends an exact parameter count, so between
-approval and our deploy there is a window where **every message fails**
-(`#132000`). New names remove that window entirely — the old templates keep
-working until we switch one database field, and rolling back is the same field.
+**Submit as new templates, not edits.** Two rewrites take the same number of
+parameters as the live ones, in a different order. Edited in place, Meta would
+accept our old values without complaint and put **the patient's name where the
+doctor's belongs** — no error, just wrong messages. New names remove that
+entirely: the old templates keep working until we switch one database field,
+and rolling back is the same field.
 
 Suggested: `appointment_confirmed_v2`, `appointment_rating_v2`,
 `appointment_cancelled_v2`.
