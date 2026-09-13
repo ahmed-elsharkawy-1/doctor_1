@@ -97,12 +97,21 @@ class ProvisionClinicAction
 
         $attributes = [
             'name' => $clinic->name,
-            'email' => 'clinic-'.$clinic->id.'@doctor1.local',
             'role' => UserRole::CLINIC,
             'phone' => $phone,
             'locale' => config('clinic.api.default_locale'),
             'is_active' => $clinic->is_active,
         ];
+
+        // The email is the login — both the mobile app and /app sign in with
+        // it and nothing else. It is generated once, for a brand-new owner,
+        // and never touched again: this runs on every save of the clinic in
+        // the dashboard, whose form has no email field, so rewriting it here
+        // silently locked a clinic out of the app the moment anyone corrected
+        // its phone number.
+        if ($owner === null) {
+            $attributes['email'] = 'clinic-'.$clinic->id.'@doctor1.local';
+        }
 
         if (filled($password)) {
             $attributes['password'] = $password;

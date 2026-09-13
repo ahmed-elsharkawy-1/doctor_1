@@ -9,6 +9,7 @@ use App\Models\Clinic;
 use App\Models\Specialty;
 use Database\Seeders\SpecialtySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class ProvisionClinicActionTest extends TestCase
@@ -140,5 +141,40 @@ class ProvisionClinicActionTest extends TestCase
         $this->assertSame('عيادة جديدة', $owner->name);
         $this->assertSame('+201009876543', $owner->phone);
         $this->assertFalse($owner->is_active);
+    }
+
+    public function test_a_new_owner_is_given_a_generated_login_email(): void
+    {
+        $clinic = Clinic::factory()->create(['phone' => '+201001234567']);
+
+        $this->action()->execute($clinic, 'secret-password');
+
+        $this->assertSame('clinic-'.$clinic->id.'@doctor1.local', $clinic->staff()->first()->email);
+    }
+
+    /**
+     * The email is the login for both the mobile app and /app. This action
+     * runs on every save of the clinic in the dashboard, whose form has no
+     * email field — so rewriting it here locked a live clinic out of the app
+     * the moment someone corrected its phone number.
+     */
+    public function test_saving_a_clinic_never_rewrites_its_owners_login_email(): void
+    {
+        $clinic = Clinic::factory()->create(['phone' => '+201001234567']);
+
+        $this->action()->execute($clinic, 'secret-password');
+
+        $owner = $clinic->staff()->first();
+        $owner->update(['email' => 'drseham@gmail.com']);
+
+        $clinic->update(['phone' => '+201067854267']);
+        $this->action()->execute($clinic);
+
+        $owner = $owner->fresh();
+
+        $this->assertSame('drseham@gmail.com', $owner->email);
+        // The rest still follows the clinic, as it did before.
+        $this->assertSame('+201067854267', $owner->phone);
+        $this->assertTrue(Hash::check('secret-password', $owner->password));
     }
 }
