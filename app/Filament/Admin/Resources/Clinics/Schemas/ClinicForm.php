@@ -2,11 +2,16 @@
 
 namespace App\Filament\Admin\Resources\Clinics\Schemas;
 
+use App\Enums\UserRole;
+use App\Filament\Admin\Resources\Users\UserResource;
+use App\Models\Clinic;
+use App\Models\User;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
@@ -67,6 +72,18 @@ class ClinicForm
                         ->tel()
                         ->required()
                         ->maxLength(20),
+
+                    // The login lives on its user account, not on the clinic.
+                    // Shown here so nobody has to guess where to change it.
+                    TextEntry::make('owner_login')
+                        ->label(__('filament.clinic.owner_login'))
+                        ->visibleOn('edit')
+                        ->state(fn (?Clinic $record): ?string => self::owner($record)?->email)
+                        ->placeholder(__('filament.clinic.owner_login_missing'))
+                        ->url(fn (?Clinic $record): ?string => ($owner = self::owner($record))
+                            ? UserResource::getUrl('edit', ['record' => $owner])
+                            : null)
+                        ->helperText(__('filament.clinic.owner_login_hint')),
 
                     TextInput::make('owner_password')
                         ->label(__('filament.clinic.owner_password'))
@@ -165,5 +182,10 @@ class ClinicForm
                 ])
                 ->columns(2),
         ]);
+    }
+
+    private static function owner(?Clinic $clinic): ?User
+    {
+        return $clinic?->staff()->role(UserRole::CLINIC)->first();
     }
 }

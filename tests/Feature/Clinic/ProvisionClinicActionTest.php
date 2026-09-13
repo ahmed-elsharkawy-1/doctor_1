@@ -120,45 +120,41 @@ class ProvisionClinicActionTest extends TestCase
         $this->assertTrue($owner->belongsToClinic($clinic->id));
     }
 
-    public function test_it_syncs_the_shared_owner_login_without_requiring_a_new_password(): void
+    /**
+     * The login is created once and then belongs to the Users page. This runs
+     * on every clinic save, so copying clinic fields onto the account undid
+     * whatever was set there — and once locked a live clinic out of the app.
+     */
+    public function test_saving_a_clinic_leaves_its_existing_login_account_untouched(): void
     {
         $clinic = Clinic::factory()->create(['phone' => '+201001234567']);
 
         $this->action()->execute($clinic, 'secret-password');
-        $ownerId = $clinic->staff()->first()->id;
+
+        $owner = $clinic->staff()->first();
+        $owner->update([
+            'name' => 'د. سهام',
+            'email' => 'drseham@gmail.com',
+            'phone' => '+201017455239',
+        ]);
 
         $clinic->update([
             'name' => 'عيادة جديدة',
-            'phone' => '+201009876543',
+            'phone' => '+201067854267',
             'is_active' => false,
         ]);
-
         $this->action()->execute($clinic);
 
-        $owner = $clinic->staff()->first();
+        $owner = $owner->fresh();
 
-        $this->assertSame($ownerId, $owner->id);
-        $this->assertSame('عيادة جديدة', $owner->name);
-        $this->assertSame('+201009876543', $owner->phone);
-        $this->assertFalse($owner->is_active);
+        $this->assertSame('د. سهام', $owner->name);
+        $this->assertSame('drseham@gmail.com', $owner->email);
+        $this->assertSame('+201017455239', $owner->phone);
+        $this->assertTrue($owner->is_active);
+        $this->assertTrue(Hash::check('secret-password', $owner->password));
     }
 
-    public function test_a_new_owner_is_given_a_generated_login_email(): void
-    {
-        $clinic = Clinic::factory()->create(['phone' => '+201001234567']);
-
-        $this->action()->execute($clinic, 'secret-password');
-
-        $this->assertSame('clinic-'.$clinic->id.'@doctor1.local', $clinic->staff()->first()->email);
-    }
-
-    /**
-     * The email is the login for both the mobile app and /app. This action
-     * runs on every save of the clinic in the dashboard, whose form has no
-     * email field — so rewriting it here locked a live clinic out of the app
-     * the moment someone corrected its phone number.
-     */
-    public function test_saving_a_clinic_never_rewrites_its_owners_login_email(): void
+    public function test_a_password_typed_on_the_clinic_page_changes_only_the_password(): void
     {
         $clinic = Clinic::factory()->create(['phone' => '+201001234567']);
 
@@ -168,13 +164,22 @@ class ProvisionClinicActionTest extends TestCase
         $owner->update(['email' => 'drseham@gmail.com']);
 
         $clinic->update(['phone' => '+201067854267']);
-        $this->action()->execute($clinic);
+        $this->action()->execute($clinic, 'new-password-123');
 
         $owner = $owner->fresh();
 
+        $this->assertTrue(Hash::check('new-password-123', $owner->password));
         $this->assertSame('drseham@gmail.com', $owner->email);
-        // The rest still follows the clinic, as it did before.
-        $this->assertSame('+201067854267', $owner->phone);
-        $this->assertTrue(Hash::check('secret-password', $owner->password));
+        $this->assertSame('+201001234567', $owner->phone);
+        $this->assertSame(1, $clinic->staff()->count());
+    }
+
+    public function test_a_new_owner_is_given_a_generated_login_email(): void
+    {
+        $clinic = Clinic::factory()->create(['phone' => '+201001234567']);
+
+        $this->action()->execute($clinic, 'secret-password');
+
+        $this->assertSame('clinic-'.$clinic->id.'@doctor1.local', $clinic->staff()->first()->email);
     }
 }

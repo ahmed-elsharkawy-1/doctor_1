@@ -77,9 +77,34 @@ class ProvisionClinicAction
     /**
      * V1 uses one shared clinic login. It is still stored as a User so
      * Sanctum tokens, abilities and audit columns keep using the normal path.
+     *
+     * The login is created here once, and from then on belongs to the Users
+     * resource. This runs on every save of the clinic in the dashboard, so it
+     * must not copy clinic fields onto the account: doing so silently undid
+     * edits made on the Users page — and once rewrote a live clinic's login
+     * email, locking it out of the app. The only thing a clinic save may
+     * change is the password, and only when one was typed on purpose.
+     *
+     * An inactive clinic is refused at the session and API middleware on its
+     * own, so the account's active flag does not need to follow the clinic.
      */
     private function ensureSharedOwner(Clinic $clinic, ?string $password): void
     {
+        /** @var User|null $owner */
+        $owner = $clinic->staff()->role(UserRole::CLINIC)->first();
+
+        if ($owner !== null) {
+            if (filled($password)) {
+                $owner->update(['password' => $password]);
+            }
+
+            return;
+        }
+
+        if (blank($password)) {
+            return;
+        }
+
         $phone = $clinic->phone === null
             ? null
             : PhoneNumber::tryParse($clinic->phone, $clinic->country_code)?->e164;
@@ -88,38 +113,16 @@ class ProvisionClinicAction
             return;
         }
 
-        /** @var User|null $owner */
-        $owner = $clinic->staff()->role(UserRole::CLINIC)->first();
-
-        if ($owner === null && blank($password)) {
-            return;
-        }
-
-        $attributes = [
+        $owner = new User([
             'name' => $clinic->name,
+            'email' => 'clinic-'.$clinic->id.'@doctor1.local',
+            'password' => $password,
             'role' => UserRole::CLINIC,
             'phone' => $phone,
             'locale' => config('clinic.api.default_locale'),
             'is_active' => $clinic->is_active,
-        ];
-
-        // The email is the login — both the mobile app and /app sign in with
-        // it and nothing else. It is generated once, for a brand-new owner,
-        // and never touched again: this runs on every save of the clinic in
-        // the dashboard, whose form has no email field, so rewriting it here
-        // silently locked a clinic out of the app the moment anyone corrected
-        // its phone number.
-        if ($owner === null) {
-            $attributes['email'] = 'clinic-'.$clinic->id.'@doctor1.local';
-        }
-
-        if (filled($password)) {
-            $attributes['password'] = $password;
-        }
-
-        $owner ??= new User;
-        $owner->fill($attributes);
-        $owner->email_verified_at ??= now();
+        ]);
+        $owner->email_verified_at = now();
         $owner->save();
 
         $owner->clinics()->syncWithoutDetaching([$clinic->id]);
