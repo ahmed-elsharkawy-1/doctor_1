@@ -649,9 +649,23 @@
                 backdrop-filter: blur(8px);
             }
 
-            .dock .btn-wa { flex: 1 1 auto; }
-            .dock .btn-ghost { flex: 0 0 auto; }
+            /* The dock is the one place to book from on a phone. The hero
+               buttons and the booking card said the same thing twice more. */
+            .profile .cta-row,
+            .side { display: none; }
+
+            .dock .btn { min-width: 0; padding-inline: 10px; font-size: 14px; white-space: nowrap; }
+            .dock .btn svg { flex-shrink: 0; }
+            .dock .btn-wa { flex: 1.15 1 0; }
+            .dock .btn-ghost { flex: 1 1 0; }
             body { padding-bottom: 78px; }
+        }
+
+        /* The narrowest phones cannot fit both labels at full size. */
+        @media (max-width: 380px) {
+            .dock { gap: 6px; padding-inline: 12px; }
+            .dock .btn { gap: 5px; padding-inline: 8px; font-size: 12.5px; }
+            .dock .btn svg { width: 15px; height: 15px; }
         }
 
         /* A phone reads the three facts as a list. Two-up strands the third on
@@ -748,12 +762,15 @@
 
 </main>
 
-@if ($waLink)
+@if ($waLink || $phone)
     <nav class="dock">
-        <a class="btn btn-wa" href="{{ $waLink }}">{{ __('landing.book_on_whatsapp') }}</a>
+        @if ($waLink)
+            <a class="btn btn-wa" href="{{ $waLink }}">{{ __('landing.book_on_whatsapp') }}</a>
+        @endif
         @if ($phone)
-            <a class="btn btn-ghost" href="tel:{{ $phone }}" aria-label="{{ __('landing.call') }}">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.9v2a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 3.2 2 2 0 0 1 4.1 1h2a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L7.1 8.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg>
+            <a class="btn btn-ghost" href="tel:{{ $phone }}">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M22 16.9v2a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 3.2 2 2 0 0 1 4.1 1h2a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L7.1 8.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg>
+                {{ __('landing.book_by_call') }}
             </a>
         @endif
     </nav>

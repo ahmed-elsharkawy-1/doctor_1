@@ -14,6 +14,7 @@ return [
     'days_range' => ':from to :to',
 
     'book_on_whatsapp' => 'Book on WhatsApp',
+    'book_by_call' => 'Book by calling the clinic',
     'call' => 'Call the clinic',
     'whatsapp_greeting' => 'Hello, I would like to book an appointment at :clinic',
 

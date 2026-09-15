@@ -16,6 +16,7 @@ return [
 
     // Actions
     'book_on_whatsapp' => 'احجز عبر واتساب',
+    'book_by_call' => 'احجز بالاتصال بالعيادة',
     'call' => 'اتصل بالعيادة',
     'whatsapp_greeting' => 'السلام عليكم، أريد حجز موعد في :clinic',
 

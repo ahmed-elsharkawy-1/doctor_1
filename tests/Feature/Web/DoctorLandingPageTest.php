@@ -57,6 +57,17 @@ class DoctorLandingPageTest extends TestCase
             ->assertSee(__('landing.book_on_whatsapp'));
     }
 
+    /**
+     * On a phone the bottom bar is the only place to book from, so its call
+     * button carries a label rather than a bare icon.
+     */
+    public function test_the_mobile_bar_offers_a_labelled_call_button(): void
+    {
+        $this->get($this->url())
+            ->assertOk()
+            ->assertSeeInOrder(['class="dock"', 'tel:', __('landing.book_by_call'), '</nav>'], escape: false);
+    }
+
     public function test_the_whatsapp_link_carries_an_opening_message(): void
     {
         $this->get($this->url())
