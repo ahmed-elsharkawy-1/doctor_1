@@ -103,11 +103,13 @@ class BrandAssetsTest extends TestCase
         foreach ([$booking->trackingUrl(), $booking->reviewUrl()] as $url) {
             $html = $this->get($url)->assertOk()->getContent();
 
-            preg_match('#<div class="topbar">.*?</div>\s*</div>#s', $html, $bar);
+            preg_match('#<header class="brand-header">.*?</header>#s', $html, $bar);
 
             $this->assertNotEmpty($bar, "No top bar on {$url}");
             $this->assertStringContainsString(config('clinic.brand.logo_white'), $bar[0]);
-            $this->assertStringContainsString(__('landing.brand'), $bar[0]);
+            $this->assertStringContainsString(config('clinic.brand.slogan'), $bar[0]);
+            // The mark alone carries the name; it is no longer spelled out beside it.
+            $this->assertStringNotContainsString('>'.config('clinic.brand.name').'<', $bar[0]);
         }
     }
 
@@ -120,10 +122,11 @@ class BrandAssetsTest extends TestCase
     {
         $html = $this->get('/dr-sara')->assertOk()->getContent();
 
-        preg_match('#<header class="banner">.*?</header>#s', $html, $banner);
+        preg_match('#<header class="brand-header">.*?</header>#s', $html, $banner);
 
         $this->assertNotEmpty($banner, 'The page has no banner.');
         $this->assertStringContainsString(config('clinic.brand.logo_white'), $banner[0]);
+        $this->assertStringContainsString(config('clinic.brand.slogan'), $banner[0]);
         // The share button was removed: it was invisible on the blue, and on
         // desktop it copied the link with no feedback anybody could see.
         $this->assertStringNotContainsString('id="share"', $banner[0]);

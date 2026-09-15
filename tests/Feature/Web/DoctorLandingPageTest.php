@@ -289,7 +289,7 @@ class DoctorLandingPageTest extends TestCase
         $this->get($this->url())
             ->assertOk()
             ->assertSee(DoctorSex::FEMALE->avatarUrl(), escape: false)
-            ->assertDontSee('<div class="portrait portrait-fallback"', escape: false);
+            ->assertDontSee('<div class="dcard-photo dcard-initial"', escape: false);
     }
 
     public function test_a_doctor_with_no_sex_recorded_still_falls_back_to_an_initial(): void
@@ -298,19 +298,7 @@ class DoctorLandingPageTest extends TestCase
 
         $this->get($this->url())
             ->assertOk()
-            ->assertSee('<div class="portrait portrait-fallback"', escape: false);
-    }
-
-    /**
-     * Two-up leaves the third fact stranded on a line of its own, and squeezes
-     * a long specialty into four lines. A phone gets one per line.
-     */
-    public function test_the_three_facts_stack_on_a_phone(): void
-    {
-        $this->get($this->url())
-            ->assertOk()
-            ->assertSee('@media (max-width: 700px)', escape: false)
-            ->assertSee('.stats { grid-template-columns: minmax(0, 1fr); }', escape: false);
+            ->assertSee('<div class="dcard-photo dcard-initial"', escape: false);
     }
 
     /**
@@ -350,25 +338,25 @@ class DoctorLandingPageTest extends TestCase
         $this->assertStringContainsString(config('clinic.brand.cover'), $shared[1]);
     }
 
-    public function test_the_header_carries_three_stats_without_the_visit_length(): void
+    /**
+     * The header card: photo, name and specialty on top, then two boxes —
+     * working days, and a location that opens the map. The specialty box
+     * went: it repeated the line under the doctor's name.
+     */
+    public function test_the_header_carries_working_days_and_a_location_that_opens_the_map(): void
     {
-        // A stat with no value is skipped, so give the clinic an open day.
         $this->clinic->scheduleFor(DayOfWeek::SATURDAY)->update(['is_open' => true]);
 
-        $page = $this->get($this->url())->assertOk();
+        $html = $this->get($this->url())->assertOk()->getContent();
 
-        $page->assertSee(__('landing.stat_specialty'))
-            ->assertSee(__('landing.stat_working_days'))
-            ->assertSee(__('landing.stat_location'));
+        preg_match('#<section class="dcard">.*?</section>#s', $html, $card);
+        $this->assertNotEmpty($card, 'The page has no doctor card.');
 
-        // The clinic name used to repeat under the doctor's name; it does not now.
-        $this->assertSame(
-            1,
-            substr_count($page->getContent(), '<span class="k">'.__('landing.stat_location').'</span>'),
-        );
-
-        // Exactly three tiles, and the visit length is not one of them.
-        $this->assertSame(3, substr_count($page->getContent(), '<div class="stat">'));
+        $this->assertStringContainsString(__('landing.stat_working_days'), $card[0]);
+        $this->assertStringContainsString(__('landing.stat_location'), $card[0]);
+        $this->assertStringContainsString($this->clinic->mapLink(), $card[0]);
+        $this->assertSame(2, substr_count($card[0], 'class="dcard-fact"'));
+        $this->assertStringNotContainsString('التخصص', $card[0]);
     }
 
     public function test_it_carries_the_search_metadata(): void

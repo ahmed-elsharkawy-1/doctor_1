@@ -254,14 +254,53 @@ class BookingTrackingPageTest extends TestCase
     {
         $doctor = $this->clinic->doctor;
         $doctor->update(['title' => 'أخصائية النساء والتوليد', 'sex' => DoctorSex::FEMALE]);
-        $this->clinic->update(['address' => '12 شارع الجمهورية، المنصورة']);
 
-        $this->get($this->booking()->trackingUrl())
-            ->assertOk()
-            ->assertSee($doctor->name)
-            ->assertSee('أخصائية النساء والتوليد')
-            ->assertSee('12 شارع الجمهورية، المنصورة')
-            ->assertSee(DoctorSex::FEMALE->avatarUrl(), escape: false);
+        $html = $this->get($this->booking()->trackingUrl())->assertOk()->getContent();
+
+        preg_match('#<section class="dcard">.*?</section>#s', $html, $card);
+        $this->assertNotEmpty($card, 'The page has no doctor card.');
+
+        // The same card as the doctor page, without its working-days and
+        // location boxes: a patient who has booked needs to know which doctor.
+        $this->assertStringContainsString($doctor->name, $card[0]);
+        $this->assertStringContainsString('أخصائية النساء والتوليد', $card[0]);
+        $this->assertStringContainsString(DoctorSex::FEMALE->avatarUrl(), $card[0]);
+        $this->assertStringNotContainsString('dcard-facts', $card[0]);
+    }
+
+    public function test_the_contact_row_offers_call_location_and_whatsapp_before_the_visit(): void
+    {
+        $this->clinic->update(['phone' => '01001234500', 'address' => '12 شارع الجمهورية، المنصورة']);
+        $booking = $this->booking();
+
+        $html = $this->get($booking->trackingUrl())->assertOk()->getContent();
+
+        preg_match('#<div class="contact">.*?</div>#s', $html, $row);
+        $this->assertNotEmpty($row, 'The page has no contact row.');
+
+        $this->assertStringContainsString('tel:+201001234500', $row[0]);
+        $this->assertStringContainsString(e($this->clinic->fresh()->mapLink()), $row[0]);
+        // WhatsApp is written as a patient who already has a booking, with
+        // their code, so the clinic knows who is messaging.
+        $this->assertStringContainsString('https://wa.me/201001234500?text='.rawurlencode(__('booking.tracking.whatsapp_greeting', [
+            'clinic' => $this->clinic->name,
+            'code' => $booking->patient->code,
+        ])), $row[0]);
+    }
+
+    public function test_directions_are_dropped_once_the_visit_is_over(): void
+    {
+        $this->clinic->update(['phone' => '01001234500', 'address' => '12 شارع الجمهورية، المنصورة']);
+        $booking = $this->booking();
+        $booking->update(['status' => BookingStatus::DONE]);
+
+        $html = $this->get($booking->trackingUrl())->assertOk()->getContent();
+
+        preg_match('#<div class="contact">.*?</div>#s', $html, $row);
+
+        $this->assertStringContainsString('tel:', $row[0]);
+        $this->assertStringContainsString('https://wa.me/', $row[0]);
+        $this->assertStringNotContainsString('maps.google.com', $row[0]);
     }
 
     public function test_the_emergency_tile_is_shown_alongside_the_others(): void

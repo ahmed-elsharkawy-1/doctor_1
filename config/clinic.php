@@ -134,7 +134,11 @@ return [
     | *only* on the brand colour or another dark surface.
     */
     'brand' => [
+        // The platform's name and slogan, shown on every public page. Change
+        // them here and every page follows. Approved WhatsApp templates carry
+        // their own fixed copy of the slogan and do not.
         'name' => env('CLINIC_BRAND_NAME', 'العيادة'),
+        'slogan' => 'حجزك أسهل، وقتك أثمن',
         'color' => '#0174D6',
         'logo' => 'images/brand/logo.png',
         'logo_white' => 'images/brand/logo-white.png',

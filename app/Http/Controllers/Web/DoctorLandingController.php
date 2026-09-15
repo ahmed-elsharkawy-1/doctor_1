@@ -5,9 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Enums\DayOfWeek;
 use App\Http\Controllers\Controller;
 use App\Models\Clinic;
-use App\Models\ClinicSchedule;
 use App\Support\PhoneNumber;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\App;
 use Illuminate\View\View;
 
@@ -57,36 +55,8 @@ class DoctorLandingController extends Controller
             'visitTypes' => $clinic->visitTypes,
             'treatmentAreas' => $clinic->doctor?->treatmentAreas ?? collect(),
             'photos' => $clinic->photos,
-            'workingDaysLabel' => $this->workingDaysLabel($openDays),
             'visitLengthLabel' => $this->visitLengthLabel($clinic),
             'todayDayOfWeek' => DayOfWeek::fromDate(now($clinic->timezone)),
-        ]);
-    }
-
-    /**
-     * "السبت للخميس" for a run of days, or the single day's name.
-     *
-     * @param  Collection<int, ClinicSchedule>  $openDays
-     */
-    private function workingDaysLabel(Collection $openDays): ?string
-    {
-        if ($openDays->isEmpty()) {
-            return null;
-        }
-
-        $sorted = $openDays->sortBy(fn (ClinicSchedule $day): int => $day->day_of_week->value);
-        $first = $sorted->first()->day_of_week;
-        $last = $sorted->last()->day_of_week;
-
-        if ($first === $last) {
-            return $first->label();
-        }
-
-        return __('landing.days_range', [
-            'from' => $first->label(),
-            // Arabic contracts "لـ" with the article: الخميس becomes للخميس.
-            // Keyed on the string, not the locale, so it is a no-op elsewhere.
-            'to' => preg_replace('/^ال/u', 'لل', $last->label()),
         ]);
     }
 

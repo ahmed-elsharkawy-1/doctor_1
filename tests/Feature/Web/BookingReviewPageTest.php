@@ -77,11 +77,19 @@ class BookingReviewPageTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_it_shows_who_the_visit_was_with(): void
+    /**
+     * The patient rates the service, not the doctor, so the page carries no
+     * doctor card — no photo, no name, no specialty.
+     */
+    public function test_it_does_not_show_a_doctor_card(): void
     {
-        $this->get($this->url($this->booking()))
-            ->assertOk()
-            ->assertSee($this->clinic->doctor->name);
+        $html = $this->get($this->url($this->booking()))->assertOk()->getContent();
+
+        $body = substr($html, strpos($html, '<body>'));
+
+        $this->assertStringNotContainsString('class="dcard', $body);
+        $this->assertStringNotContainsString($this->clinic->doctor->name, $body);
+        $this->assertStringNotContainsString($this->clinic->doctor->avatarUrl(), $body);
     }
 
     public function test_the_page_is_kept_out_of_search_engines(): void

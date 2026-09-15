@@ -116,6 +116,53 @@ class Clinic extends Model
         return $this->schedules()->where('day_of_week', $day->value)->first();
     }
 
+    /**
+     * "السبت للخميس" for a run of open days, or the single day's name.
+     * Reads the loaded schedules, so eager-load them on a public page.
+     */
+    public function workingDaysLabel(): ?string
+    {
+        $openDays = $this->schedules
+            ->where('is_open', true)
+            ->sortBy(fn (ClinicSchedule $day): int => $day->day_of_week->value);
+
+        if ($openDays->isEmpty()) {
+            return null;
+        }
+
+        $first = $openDays->first()->day_of_week;
+        $last = $openDays->last()->day_of_week;
+
+        if ($first === $last) {
+            return $first->label();
+        }
+
+        return __('landing.days_range', [
+            'from' => $first->label(),
+            // Arabic contracts "لـ" with the article: الخميس becomes للخميس.
+            // Keyed on the string, not the locale, so it is a no-op elsewhere.
+            'to' => preg_replace('/^ال/u', 'لل', $last->label()),
+        ]);
+    }
+
+    /**
+     * What a map is pointed at: the exact coordinates when the clinic has
+     * them, otherwise its written address.
+     */
+    public function mapQuery(): ?string
+    {
+        return $this->latitude !== null && $this->longitude !== null
+            ? $this->latitude.','.$this->longitude
+            : $this->address;
+    }
+
+    public function mapLink(): ?string
+    {
+        $query = $this->mapQuery();
+
+        return $query === null ? null : 'https://maps.google.com/?q='.urlencode($query);
+    }
+
     /** @param Builder<self> $query */
     public function scopeActive(Builder $query): void
     {

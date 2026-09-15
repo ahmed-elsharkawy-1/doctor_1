@@ -6,17 +6,15 @@
 
 return [
     'meta_description' => 'حجز كشف مع :doctor، :specialty. :address. احجزي موعدك عبر واتساب.',
-    'brand' => 'العيادة',
 
     // Stats
-    'stat_specialty' => 'التخصص',
     'stat_working_days' => 'أيام العمل',
     'stat_location' => 'الموقع',
     'days_range' => ':from :to',
 
     // Actions
     'book_on_whatsapp' => 'احجز عبر واتساب',
-    'book_by_call' => 'احجز بالاتصال بالعيادة',
+    'book_by_call' => 'اتصل بالعيادة للحجز',
     'call' => 'اتصل بالعيادة',
     'whatsapp_greeting' => 'السلام عليكم، أريد حجز موعد في :clinic',
 

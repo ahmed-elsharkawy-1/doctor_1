@@ -23,7 +23,7 @@ class BookingTrackingController extends Controller
         // Patients are not sent an Accept-Language header worth trusting.
         App::setLocale(config('clinic.api.default_locale'));
 
-        $booking->load(['patient', 'clinic.doctor', 'visitType']);
+        $booking->load(['patient', 'clinic.doctor', 'clinic.specialty', 'visitType']);
 
         $clinic = $booking->clinic;
         // Parsed against the clinic's own country, not the platform
@@ -34,16 +34,22 @@ class BookingTrackingController extends Controller
             ? null
             : PhoneNumber::tryParse($clinic->phone, $clinic->country_code);
 
-        $mapQuery = $clinic->latitude !== null && $clinic->longitude !== null
-            ? $clinic->latitude.','.$clinic->longitude
-            : $clinic->address;
+        // Written as someone who already has a booking, with their code, so
+        // the clinic knows who is messaging without asking.
+        $whatsappLink = $phone === null ? null : 'https://wa.me/'.ltrim((string) $phone, '+').'?text='.rawurlencode(
+            __('booking.tracking.whatsapp_greeting', [
+                'clinic' => $clinic->name,
+                'code' => $booking->patient?->code,
+            ]),
+        );
 
         return view('tracking.show', [
             'booking' => $booking,
             'clinic' => $clinic,
             'doctor' => $clinic->doctor,
             'phone' => $phone,
-            'mapLink' => $mapQuery === null ? null : 'https://maps.google.com/?q='.urlencode($mapQuery),
+            'whatsappLink' => $whatsappLink,
+            'mapLink' => $clinic->mapLink(),
             'position' => $positions->for($booking),
             'refreshSeconds' => config('clinic.tracking.refresh_seconds'),
         ]);

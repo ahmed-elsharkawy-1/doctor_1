@@ -1,6 +1,3 @@
-@php
-    $doctorName = $doctor?->name ?? $clinic->name;
-@endphp
 <!doctype html>
 <html lang="{{ app()->getLocale() }}" dir="rtl">
 <head>
@@ -48,40 +45,6 @@
 
         h1, h2, p { margin: 0; }
 
-        /*
-           The first card is pulled up 22px to sit over this strip, which is a
-           deliberate layered look — but at 54px that overlap was landing on
-           the logo. The bar is taller now and reserves those 22px as padding,
-           so the brand centres in the part that stays visible rather than in
-           the part the card covers.
-        */
-        .topbar {
-            /* The same two layers the doctor page's banner is built from, so
-               the three pages a patient sees share one sky rather than three
-               shades of blue. Literal values, matching landing/show. */
-            background:
-                radial-gradient(120% 140% at 85% 0%, #2C7FD0 0%, transparent 55%),
-                linear-gradient(200deg, #1B6BB5 0%, #124C86 55%, #0E3E6E 100%);
-            background-color: #124C86;
-            height: 76px;
-            padding-bottom: 22px;
-            display: flex;
-            align-items: center;
-        }
-
-        /* Lined up with the cards below rather than the window edge. */
-        .topbar-inner {
-            width: min(30rem, 100% - 24px);
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #fff;
-            font-weight: 800;
-            font-size: 15px;
-        }
-
-        .topbar-inner img { height: 22px; width: auto; display: block; }
         .wrap { width: min(30rem, 100% - 24px); margin: 0 auto; padding-bottom: 40px; }
 
         .card {
@@ -93,17 +56,8 @@
         }
 
         /* who the visit was with */
-        .doctor { margin-top: -22px; display: flex; align-items: center; gap: 12px; }
-        .doctor img, .doctor .initial {
-            width: 48px; height: 48px;
-            flex: 0 0 auto;
-            border-radius: 13px;
-            object-fit: cover;
-            background: var(--primary-50);
-        }
-        .doctor .initial { display: grid; place-items: center; color: var(--primary); font-size: 20px; font-weight: 800; }
-        .doctor h2 { font-size: 16px; font-weight: 800; }
-        .doctor .role { color: var(--muted); font-size: 13px; }
+        /* The first card rides up over the blue header. */
+        .wrap > :first-child { margin-top: -22px; }
 
         h1 { font-size: 20px; font-weight: 800; }
         .lead { color: var(--muted); font-size: 13.5px; margin-top: 4px; }
@@ -229,20 +183,6 @@
 
 <div class="wrap">
 
-    <section class="card doctor">
-        @if ($doctor?->avatarUrl())
-            <img src="{{ $doctor->avatarUrl() }}" alt="{{ $doctorName }}" loading="lazy">
-        @else
-            <div class="initial" aria-hidden="true">{{ mb_substr(preg_replace('/^د\.\s*/u', '', $doctorName), 0, 1) }}</div>
-        @endif
-
-        <div>
-            <h2>{{ $doctorName }}</h2>
-            @if ($doctor?->title || $clinic->specialty)
-                <p class="role">{{ $doctor?->title ?: $clinic->specialty?->name }}</p>
-            @endif
-        </div>
-    </section>
 
     @if ($review !== null)
         {{-- Already answered: show it back rather than inviting a second one. --}}

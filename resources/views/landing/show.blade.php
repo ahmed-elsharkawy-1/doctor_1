@@ -15,10 +15,8 @@
         ? null
         : 'https://wa.me/'.$whatsapp.'?text='.rawurlencode($greeting);
 
-    $mapQuery = $clinic->latitude !== null && $clinic->longitude !== null
-        ? $clinic->latitude.','.$clinic->longitude
-        : $clinic->address;
-    $mapLink = $mapQuery === null ? null : 'https://maps.google.com/?q='.urlencode($mapQuery);
+    $mapQuery = $clinic->mapQuery();
+    $mapLink = $clinic->mapLink();
 
     // Schema.org opening hours want 2-letter day codes.
     $schemaDays = [0 => 'Sa', 1 => 'Su', 2 => 'Mo', 3 => 'Tu', 4 => 'We', 5 => 'Th', 6 => 'Fr'];
@@ -70,7 +68,6 @@
         | JSON_HEX_QUOT,
     );
 
-    $initials = mb_substr(trim(preg_replace('/^د\.\s*/u', '', $doctorName)), 0, 1);
 @endphp
 <!doctype html>
 <html lang="{{ app()->getLocale() }}" dir="rtl">
@@ -137,125 +134,6 @@
         a { color: inherit; text-decoration: none; }
 
         .shell { width: min(1000px, 100% - 32px); margin: 0 auto; }
-
-        /* ---------- Banner ---------- */
-        .banner {
-            position: relative;
-            background:
-                radial-gradient(120% 140% at 85% 0%, #2C7FD0 0%, transparent 55%),
-                linear-gradient(200deg, #1B6BB5 0%, #124C86 55%, #0E3E6E 100%);
-            background-color: #124C86;
-            padding: 18px 0 96px;
-        }
-
-        .banner-bar {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #fff;
-            font-weight: 800;
-            font-size: 17px;
-        }
-
-        /* The mark is knocked out in white, so it needs no tile behind it —
-           the banner's own blue is what makes it read. */
-        .brand .mark {
-            height: 26px;
-            width: auto;
-            display: block;
-        }
-
-        /* ---------- Doctor header ---------- */
-        .profile {
-            position: relative;
-            margin-top: -80px;
-            background: var(--surface);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            padding: 22px;
-        }
-
-        .identity {
-            display: flex;
-            align-items: flex-start;
-            gap: 16px;
-            justify-content: space-between;
-        }
-
-        .identity h1 { font-size: 26px; font-weight: 800; line-height: 1.25; }
-        .identity .role {
-            margin-top: 6px;
-            color: var(--primary);
-            font-size: 16px;
-            font-weight: 700;
-            line-height: 1.45;
-        }
-
-        .meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 14px;
-            margin-top: 8px;
-            color: var(--muted);
-            font-size: 13.5px;
-        }
-
-        .meta span { display: inline-flex; align-items: center; gap: 5px; }
-
-        .portrait {
-            flex: 0 0 auto;
-            width: 96px; height: 96px;
-            margin-top: -58px;
-            border-radius: 20px;
-            border: 4px solid var(--surface);
-            box-shadow: var(--shadow-sm);
-            object-fit: cover;
-            background: var(--primary-50);
-        }
-
-        .portrait-fallback {
-            display: grid;
-            place-items: center;
-            color: var(--primary);
-            font-size: 34px;
-            font-weight: 800;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
-            margin-top: 18px;
-        }
-
-        .stat {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: var(--surface-2);
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            padding: 10px 12px;
-        }
-
-        .stat .ico {
-            display: grid;
-            place-items: center;
-            width: 30px; height: 30px;
-            flex: 0 0 auto;
-            border-radius: 9px;
-            background: var(--primary-50);
-            color: var(--primary);
-        }
-
-        .stat .k { display: block; color: var(--faint); font-size: 12px; }
-        .stat .v { display: block; font-weight: 700; font-size: 14px; }
 
         .cta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
 
@@ -627,11 +505,8 @@
 
         @media (max-width: 900px) {
             .cols { grid-template-columns: minmax(0, 1fr); }
-            .stats { grid-template-columns: 1fr 1fr; }
             .tabs-wrap { --fade: 38px; }
             .cta-row { grid-template-columns: 1fr; }
-            .identity h1 { font-size: 22px; }
-            .banner { padding-bottom: 88px; }
 
             /* The sidebar reads as the last thing on a phone, not the first. */
             .side { order: 2; }
@@ -651,80 +526,34 @@
 
             /* The dock is the one place to book from on a phone. The hero
                buttons and the booking card said the same thing twice more. */
-            .profile .cta-row,
+            .dcard .cta-row,
             .side { display: none; }
 
-            .dock .btn { min-width: 0; padding-inline: 10px; font-size: 14px; white-space: nowrap; }
-            .dock .btn svg { flex-shrink: 0; }
-            .dock .btn-wa { flex: 1.15 1 0; }
-            .dock .btn-ghost { flex: 1 1 0; }
+            .dock .btn { min-width: 0; padding-inline: 10px; white-space: nowrap; }
+            /* WhatsApp is the main way to book; the call button is the second
+               choice, 3 to WhatsApp's 5. */
+            .dock .btn svg { flex: 0 0 auto; }
+            .dock .btn-wa { flex: 5 1 0; font-size: 14px; }
+            .dock .btn-ghost { flex: 3 1 0; gap: 5px; padding-inline: 6px; font-size: 12px; }
             body { padding-bottom: 78px; }
         }
 
         /* The narrowest phones cannot fit both labels at full size. */
         @media (max-width: 380px) {
             .dock { gap: 6px; padding-inline: 12px; }
-            .dock .btn { gap: 5px; padding-inline: 8px; font-size: 12.5px; }
-            .dock .btn svg { width: 15px; height: 15px; }
+            .dock .btn-ghost { gap: 4px; padding-inline: 4px; font-size: 11px; }
+            .dock .btn-ghost svg { width: 13px; height: 13px; }
         }
 
-        /* A phone reads the three facts as a list. Two-up strands the third on
-           a line of its own and squeezes the specialty into four lines. */
-        @media (max-width: 700px) {
-            .stats { grid-template-columns: minmax(0, 1fr); }
-        }
     </style>
 </head>
 <body>
 
-<header class="banner">
-    <div class="shell banner-bar">
-        <div class="brand">
-            <img class="mark" src="{{ asset(config('clinic.brand.logo_white')) }}"
-                 alt="{{ __('landing.brand') }}" width="55" height="26">
-            {{ __('landing.brand') }}
-        </div>
-    </div>
-</header>
+@include('partials.brand-bar', ['overlap' => 40])
 
 <main class="shell">
 
-    <section class="profile">
-        <div class="identity">
-            <div>
-                <h1>{{ $doctorName }}</h1>
-
-                @if ($doctor?->title || $clinic->specialty)
-                    <p class="role">{{ $doctor?->title ?: $clinic->specialty?->name }}</p>
-                @endif
-
-            </div>
-
-            @if ($doctor?->avatarUrl())
-                <img class="portrait" src="{{ $doctor->avatarUrl() }}" alt="{{ $doctorName }}" loading="lazy">
-            @else
-                <div class="portrait portrait-fallback" aria-hidden="true">{{ $initials }}</div>
-            @endif
-        </div>
-
-        <div class="stats">
-            @include('landing.partials.stat', [
-                'label' => __('landing.stat_specialty'),
-                'value' => $doctor?->title ?: $clinic->specialty?->name,
-                'icon' => 'stethoscope',
-            ])
-            @include('landing.partials.stat', [
-                'label' => __('landing.stat_working_days'),
-                'value' => $workingDaysLabel,
-                'icon' => 'calendar',
-            ])
-            @include('landing.partials.stat', [
-                'label' => __('landing.stat_location'),
-                'value' => $clinic->city ?: $clinic->address,
-                'icon' => 'pin',
-            ])
-        </div>
-
+    <x-doctor-card :clinic="$clinic" :doctor="$doctor">
         <div class="cta-row">
             @if ($waLink)
                 <a class="btn btn-wa" href="{{ $waLink }}">
@@ -740,7 +569,7 @@
                 </a>
             @endif
         </div>
-    </section>
+    </x-doctor-card>
 
     <div class="tabs-wrap">
         <div class="tabs" role="tablist">
@@ -765,11 +594,14 @@
 @if ($waLink || $phone)
     <nav class="dock">
         @if ($waLink)
-            <a class="btn btn-wa" href="{{ $waLink }}">{{ __('landing.book_on_whatsapp') }}</a>
+            <a class="btn btn-wa" href="{{ $waLink }}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.6 14.1c-.2.6-1.2 1.2-1.7 1.2-.4 0-.9.2-3.1-.7-2.6-1.1-4.2-3.8-4.3-4-.1-.2-1-1.4-1-2.6 0-1.2.6-1.8.9-2 .2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.3.3c-.1.1-.3.3-.1.6.1.3.7 1.2 1.5 1.9 1 .9 1.8 1.2 2.1 1.3.2.1.4.1.6-.1l.8-1c.2-.2.3-.2.5-.1l2 1c.2.1.4.2.4.3.1.1.1.6-.1 1.2Z"/></svg>
+                {{ __('landing.book_on_whatsapp') }}
+            </a>
         @endif
         @if ($phone)
             <a class="btn btn-ghost" href="tel:{{ $phone }}">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M22 16.9v2a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 3.2 2 2 0 0 1 4.1 1h2a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L7.1 8.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M22 16.9v2a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 3.2 2 2 0 0 1 4.1 1h2a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L7.1 8.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg>
                 {{ __('landing.book_by_call') }}
             </a>
         @endif
@@ -788,7 +620,30 @@
         });
         if (push) { history.replaceState(null, '', '#' + id.replace('tab-', '')); }
 
-        document.getElementById(id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        centerTab(document.getElementById(id), push);
+    }
+
+    /*
+       Slide the chosen tab to the middle of the strip, so its whole title shows
+       with a neighbour on each side. The strip clamps at its ends, so the first
+       and last tabs simply go as far as they can.
+
+       Only the strip scrolls — scrollIntoView would also move the page. The
+       offset is measured on screen and applied with scrollBy, which is relative
+       and so reads the same in RTL whatever a browser does with scrollLeft.
+    */
+    function centerTab(tab, smooth) {
+        const row = document.querySelector('.tabs');
+        if (!row || !tab) { return; }
+
+        const rowBox = row.getBoundingClientRect();
+        const tabBox = tab.getBoundingClientRect();
+        const delta = (tabBox.left + tabBox.width / 2) - (rowBox.left + rowBox.width / 2);
+        const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        // 'instant', not 'auto': the strip's CSS asks for smooth scrolling, which
+        // 'auto' would inherit.
+        row.scrollBy({ left: delta, behavior: smooth && !calm ? 'smooth' : 'instant' });
     }
 
     tabs.forEach(tab => tab.addEventListener('click', () => show(tab.id, true)));
@@ -842,7 +697,11 @@
     }
 
     const fromHash = 'tab-' + location.hash.replace('#', '');
-    if (location.hash && document.getElementById(fromHash)) { show(fromHash, false); }
+    if (location.hash && document.getElementById(fromHash)) {
+        show(fromHash, false);
+        // The tab titles change width once the web font arrives; centre again.
+        document.fonts?.ready.then(() => centerTab(document.getElementById(fromHash), false));
+    }
 
     // Anything linking to another tab, such as "all services".
     document.querySelectorAll('[data-tab]').forEach(link => {

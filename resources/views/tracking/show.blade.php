@@ -98,40 +98,6 @@
         h1, h2, p { margin: 0; }
         a { color: inherit; text-decoration: none; }
 
-        /*
-           The first card is pulled up 22px to sit over this strip, which is a
-           deliberate layered look — but at 54px that overlap was landing on
-           the logo. The bar is taller now and reserves those 22px as padding,
-           so the brand centres in the part that stays visible rather than in
-           the part the card covers.
-        */
-        .topbar {
-            /* The same two layers the doctor page's banner is built from, so
-               the three pages a patient sees share one sky rather than three
-               shades of blue. Literal values, matching landing/show. */
-            background:
-                radial-gradient(120% 140% at 85% 0%, #2C7FD0 0%, transparent 55%),
-                linear-gradient(200deg, #1B6BB5 0%, #124C86 55%, #0E3E6E 100%);
-            background-color: #124C86;
-            height: 76px;
-            padding-bottom: 22px;
-            display: flex;
-            align-items: center;
-        }
-
-        /* Lined up with the cards below rather than the window edge. */
-        .topbar-inner {
-            width: min(30rem, 100% - 24px);
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #fff;
-            font-weight: 800;
-            font-size: 15px;
-        }
-
-        .topbar-inner img { height: 22px; width: auto; display: block; }
         .wrap { width: min(30rem, 100% - 24px); margin: 0 auto; padding-bottom: 32px; }
 
         .card {
@@ -141,42 +107,6 @@
             padding: 16px;
             margin-bottom: 12px;
         }
-
-        /* ---------- doctor ---------- */
-        .doctor { margin-top: -22px; }
-
-        .doctor .who { display: flex; align-items: center; gap: 12px; }
-        .doctor img, .doctor .initial {
-            width: 52px; height: 52px;
-            flex: 0 0 auto;
-            border-radius: 14px;
-            object-fit: cover;
-            background: var(--primary-50);
-        }
-
-        .doctor .initial {
-            display: grid;
-            place-items: center;
-            color: var(--primary);
-            font-size: 22px;
-            font-weight: 800;
-        }
-
-        .doctor h1 { font-size: 17px; font-weight: 800; }
-        .doctor .role { color: var(--muted); font-size: 13px; }
-
-        .address {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid var(--line);
-            color: var(--primary);
-            font-size: 13px;
-        }
-
-        .address .grow { flex: 1 1 auto; min-width: 0; text-decoration: underline; }
 
         /* ---------- ring ---------- */
         .stage { text-align: center; padding: 22px 16px; }
@@ -254,18 +184,35 @@
         .box .v { font-weight: 700; font-size: 14px; }
         .box svg { flex: 0 0 auto; color: var(--primary); }
 
-        .call {
+        /* Three buttons, one style: the same outline, text and height. Only
+           the WhatsApp mark keeps its own green, so it still reads at a glance. */
+        .contact { display: flex; gap: 8px; margin-bottom: 12px; }
+
+        .contact-btn {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 6px;
+            min-width: 0;
+            min-height: 48px;
+            padding: 0 8px;
+            border-radius: 12px;
             background: var(--surface);
             border: 1px solid var(--primary);
             color: var(--primary);
-            border-radius: 12px;
-            padding: 13px;
+            font-size: 14px;
             font-weight: 700;
-            margin-bottom: 12px;
+            white-space: nowrap;
+        }
+
+        .contact-btn svg { flex: 0 0 auto; }
+        .contact-btn.call { flex: 1.4 1 0; }
+        .contact-btn.map, .contact-btn.wa { flex: 1 1 0; }
+        .contact-btn.wa svg { color: #1FAF54; }
+
+        @media (max-width: 380px) {
+            .contact { gap: 6px; }
+            .contact-btn { gap: 4px; padding: 0 6px; font-size: 13px; }
         }
 
         /* ---------- detail rows ---------- */
@@ -301,37 +248,12 @@
 </head>
 <body>
 
-@include('partials.brand-bar')
+@include('partials.brand-bar', ['overlap' => 40])
 
 <div class="wrap">
 
     {{-- Who the patient is seeing --}}
-    <section class="card doctor">
-        <div class="who">
-            @if ($doctor?->avatarUrl())
-                <img src="{{ $doctor->avatarUrl() }}" alt="{{ $doctorName }}" loading="lazy">
-            @else
-                <div class="initial" aria-hidden="true">{{ mb_substr(preg_replace('/^د\.\s*/u', '', $doctorName), 0, 1) }}</div>
-            @endif
-
-            <div>
-                <h1>{{ $doctorName }}</h1>
-                @if ($doctor?->title || $clinic->specialty)
-                    <p class="role">{{ $doctor?->title ?: $clinic->specialty?->name }}</p>
-                @endif
-            </div>
-        </div>
-
-        @if ($clinic->address)
-            <a class="address" @if ($mapLink) href="{{ $mapLink }}" target="_blank" rel="noopener" @endif>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span class="grow">{{ $clinic->address }}</span>
-                @if ($mapLink)
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
-                @endif
-            </a>
-        @endif
-    </section>
+    <x-doctor-card :clinic="$clinic" :doctor="$doctor" :facts="false" />
 
     {{-- The headline: a ring that fills as the patient moves up --}}
     <section class="card stage">
@@ -429,11 +351,34 @@
         </div>
     @endif
 
-    @if ($phone)
-        <a class="call" href="tel:{{ $phone }}">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.9v2a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 3.2 2 2 0 0 1 4.1 1h2a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L7.1 8.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg>
-            {{ __('booking.tracking.call_clinic') }}
-        </a>
+    {{-- Reaching the clinic: WhatsApp, call, then directions — the last only
+         while the visit is still ahead. --}}
+    @php
+        $showMap = $mapLink && in_array($status, BookingStatus::pending(), true);
+    @endphp
+    @if ($phone || $showMap)
+        <div class="contact">
+            @if ($whatsappLink)
+                <a class="contact-btn wa" href="{{ $whatsappLink }}" target="_blank" rel="noopener">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.6 14.1c-.2.6-1.2 1.2-1.7 1.2-.4 0-.9.2-3.1-.7-2.6-1.1-4.2-3.8-4.3-4-.1-.2-1-1.4-1-2.6 0-1.2.6-1.8.9-2 .2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.3.3c-.1.1-.3.3-.1.6.1.3.7 1.2 1.5 1.9 1 .9 1.8 1.2 2.1 1.3.2.1.4.1.6-.1l.8-1c.2-.2.3-.2.5-.1l2 1c.2.1.4.2.4.3.1.1.1.6-.1 1.2Z"/></svg>
+                    {{ __('booking.tracking.whatsapp') }}
+                </a>
+            @endif
+
+            @if ($phone)
+                <a class="contact-btn call" href="tel:{{ $phone }}">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.9v2a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 3.2 2 2 0 0 1 4.1 1h2a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L7.1 8.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg>
+                    {{ __('booking.tracking.call_clinic') }}
+                </a>
+            @endif
+
+            @if ($showMap)
+                <a class="contact-btn map" href="{{ $mapLink }}" target="_blank" rel="noopener">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                    {{ __('booking.tracking.location') }}
+                </a>
+            @endif
+        </div>
     @endif
 
     {{-- The booking itself --}}

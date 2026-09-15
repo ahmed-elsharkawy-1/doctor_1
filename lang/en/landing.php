@@ -6,15 +6,13 @@
 
 return [
     'meta_description' => 'Book an appointment with :doctor, :specialty. :address. Book over WhatsApp.',
-    'brand' => 'The Clinic',
 
-    'stat_specialty' => 'Specialty',
     'stat_working_days' => 'Working days',
     'stat_location' => 'Location',
     'days_range' => ':from to :to',
 
     'book_on_whatsapp' => 'Book on WhatsApp',
-    'book_by_call' => 'Book by calling the clinic',
+    'book_by_call' => 'Call to book',
     'call' => 'Call the clinic',
     'whatsapp_greeting' => 'Hello, I would like to book an appointment at :clinic',
 
