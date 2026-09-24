@@ -161,6 +161,28 @@ class ClinicForm
                         ->required()
                         ->default($defaults['booking_window_days']),
 
+                    // The master switch for the public booking page. Off by
+                    // default and for every clinic already running: opening a
+                    // doctor's day to a public form is a decision somebody
+                    // makes, never something a deploy does on their behalf.
+                    Toggle::make('self_booking_enabled')
+                        ->label(__('filament.clinic.self_booking_enabled'))
+                        ->default(false)
+                        ->helperText(__('filament.clinic.self_booking_enabled_hint')),
+
+                    // Patients get a shorter horizon than the secretary, so
+                    // she keeps room to place the people who phone her. The
+                    // rule is enforced again in Clinic::patientBookingWindowDays()
+                    // — this only catches it at the form.
+                    TextInput::make('patient_booking_window_days')
+                        ->label(__('filament.clinic.patient_booking_window_days'))
+                        ->numeric()
+                        ->minValue(1)
+                        ->maxValue(90)
+                        ->rules(['lte:booking_window_days'])
+                        ->default($defaults['patient_booking_window_days'])
+                        ->helperText(__('filament.clinic.patient_booking_window_days_hint')),
+
                     TextInput::make('first_visit_only_days')
                         ->label(__('filament.clinic.first_visit_only_days'))
                         ->numeric()

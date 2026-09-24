@@ -128,6 +128,9 @@ return [
         'vt_price' => 'Price',
         'vt_price_hint' => 'Changing this never rewrites past bookings.',
         'vt_new_patient' => 'First-visit type',
+        'vt_self_bookable' => 'Available for self-booking',
+        'vt_self_bookable_hint' => 'Shown to patients on the public booking page.',
+        'vt_not_self_bookable' => 'Not self-bookable',
         'holiday_date' => 'Date',
         'holiday_note' => 'Note',
         'add_holiday' => 'Add holiday',
@@ -150,6 +153,7 @@ return [
         'done' => 'Seen',
         'sign_out' => 'Sign out',
         'no_time' => 'No time',
+        // Patient-made bookings nobody at the clinic has looked at yet.
     ],
 
     'booking' => [

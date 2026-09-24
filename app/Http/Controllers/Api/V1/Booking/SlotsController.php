@@ -34,6 +34,8 @@ class SlotsController extends V1Controller
             $clinic,
             Carbon::parse($request->validated('date'), $clinic->timezone),
             $visitType,
+            // Everyone else's holds read as taken; this caller's own does not.
+            holdToken: $request->validated('hold_token'),
         );
 
         return ApiResponse::success(

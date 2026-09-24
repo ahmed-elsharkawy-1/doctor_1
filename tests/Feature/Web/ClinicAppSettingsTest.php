@@ -158,6 +158,62 @@ class ClinicAppSettingsTest extends TestCase
         $this->assertSame('350.00', $created->price);
     }
 
+    /**
+     * A type the clinic adds is offered to patients unless they say otherwise
+     * — the common case is a clinic that wants its services bookable.
+     */
+    public function test_a_new_visit_type_is_offered_to_patients_by_default(): void
+    {
+        Livewire::actingAs($this->owner)
+            ->test(VisitTypes::class)
+            ->call('startCreating')
+            ->assertSet('isSelfBookable', true)
+            ->set('name', 'استشارة')
+            ->set('durationMinutes', '25')
+            ->call('save')
+            ->assertSet('failed', false);
+
+        $created = $this->clinic->visitTypes()->where('name', 'استشارة')->firstOrFail();
+
+        $this->assertTrue((bool) $created->is_self_bookable);
+    }
+
+    public function test_a_visit_type_can_be_taken_off_the_public_page(): void
+    {
+        $visitType = $this->clinic->visitTypes()->active()->first();
+
+        Livewire::actingAs($this->owner)
+            ->test(VisitTypes::class)
+            ->call('startEditing', $visitType->id)
+            ->assertSet('isSelfBookable', true)
+            ->set('isSelfBookable', false)
+            ->call('save')
+            ->assertSet('failed', false);
+
+        $this->assertFalse((bool) $visitType->fresh()->is_self_bookable);
+        // Still the clinic's own — hiding from patients is not hiding.
+        $this->assertTrue((bool) $visitType->fresh()->is_active);
+    }
+
+    /**
+     * Editing the price must not quietly switch a type back on for patients.
+     */
+    public function test_editing_something_else_leaves_the_public_flag_alone(): void
+    {
+        $visitType = $this->clinic->visitTypes()->active()->first();
+        $visitType->update(['is_self_bookable' => false]);
+
+        Livewire::actingAs($this->owner)
+            ->test(VisitTypes::class)
+            ->call('startEditing', $visitType->id)
+            ->set('price', '450')
+            ->call('save')
+            ->assertSet('failed', false);
+
+        $this->assertFalse((bool) $visitType->fresh()->is_self_bookable);
+        $this->assertSame('450.00', $visitType->fresh()->price);
+    }
+
     public function test_hiding_never_deletes_and_leaves_past_bookings_intact(): void
     {
         $visitType = $this->clinic->visitTypes()->active()->first();

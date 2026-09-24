@@ -15,6 +15,11 @@
         ? null
         : 'https://wa.me/'.$whatsapp.'?text='.rawurlencode($greeting);
 
+    // Booking online, where the operator has switched it on. It becomes the
+    // page's primary action, and on a phone it takes WhatsApp's place at the
+    // head of the dock — the dock only has room for two.
+    $bookLink = $selfBookingEnabled ? route('patient.book', $clinic->slug) : null;
+
     $mapQuery = $clinic->mapQuery();
     $mapLink = $clinic->mapLink();
 
@@ -135,7 +140,28 @@
 
         .shell { width: min(1000px, 100% - 32px); margin: 0 auto; }
 
+        /* Booking leads at full width; calling and WhatsApp share the row
+           beneath it. One obvious action, two ways to reach a human. */
         .cta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .cta-lead { display: block; margin-top: 10px; width: 100%; }
+
+        /* Said under the buttons, because self-booking is the wrong answer to
+           something that cannot wait. */
+        .cta-urgent {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: #FDF6EA;
+            border: 1px solid #F3E2C2;
+            color: #7A5410;
+            font-size: 12.5px;
+            line-height: 1.55;
+        }
+
+        .cta-urgent svg { flex: 0 0 auto; margin-top: 2px; }
 
         .btn {
             display: inline-flex;
@@ -153,6 +179,8 @@
 
         .btn-wa { background: var(--whatsapp); color: #fff; }
         .btn-wa:hover { filter: brightness(.95); }
+        .btn-book { background: var(--primary); color: #fff; }
+        .btn-book:hover { filter: brightness(.95); }
         .btn-ghost { background: var(--surface); border-color: var(--line-strong); color: var(--ink); }
         .btn-ghost:hover { background: var(--surface-2); }
 
@@ -554,21 +582,37 @@
 <main class="shell">
 
     <x-doctor-card :clinic="$clinic" :doctor="$doctor">
+        {{-- Booking is the one action the page is for, so it gets the full
+             width; the phone dock below carries its own, shorter pair. --}}
+        @if ($bookLink)
+            <a class="btn btn-book cta-lead" href="{{ $bookLink }}">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                {{ __('landing.book_online') }}
+            </a>
+        @endif
+
         <div class="cta-row">
             @if ($waLink)
                 <a class="btn btn-wa" href="{{ $waLink }}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.6 14.1c-.2.6-1.2 1.2-1.7 1.2-.4 0-.9.2-3.1-.7-2.6-1.1-4.2-3.8-4.3-4-.1-.2-1-1.4-1-2.6 0-1.2.6-1.8.9-2 .2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.3.3c-.1.1-.3.3-.1.6.1.3.7 1.2 1.5 1.9 1 .9 1.8 1.2 2.1 1.3.2.1.4.1.6-.1l.8-1c.2-.2.3-.2.5-.1l2 1c.2.1.4.2.4.3.1.1.1.6-.1 1.2Z"/></svg>
-                    {{ __('landing.book_on_whatsapp') }}
+                    {{ $bookLink ? __('landing.whatsapp') : __('landing.book_on_whatsapp') }}
                 </a>
             @endif
 
             @if ($phone)
                 <a class="btn btn-ghost" href="tel:{{ $phone }}">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.9v2a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 3.2 2 2 0 0 1 4.1 1h2a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L7.1 8.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg>
-                    {{ __('landing.call') }}
+                    {{ $bookLink ? __('landing.call_short') : __('landing.call') }}
                 </a>
             @endif
         </div>
+
+        @if ($bookLink && ($waLink || $phone))
+            <p class="cta-urgent">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+                {{ __('landing.emergency_notice') }}
+            </p>
+        @endif
     </x-doctor-card>
 
     <div class="tabs-wrap">
@@ -591,15 +635,32 @@
 
 </main>
 
-@if ($waLink || $phone)
+{{--
+    The dock is the only place to book from on a phone — the hero buttons and
+    the sidebar are both hidden below 900px — and its flex ratios and the
+    body's bottom padding are tuned for exactly two children.
+
+    So it stays at two. Where booking online is offered it leads, in the brand
+    blue, and WhatsApp takes the second slot; calling is already in the contact
+    tab. Where it is not, this is the pair it has always been.
+--}}
+@if ($bookLink || $waLink || $phone)
     <nav class="dock">
-        @if ($waLink)
-            <a class="btn btn-wa" href="{{ $waLink }}">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.6 14.1c-.2.6-1.2 1.2-1.7 1.2-.4 0-.9.2-3.1-.7-2.6-1.1-4.2-3.8-4.3-4-.1-.2-1-1.4-1-2.6 0-1.2.6-1.8.9-2 .2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.3.3c-.1.1-.3.3-.1.6.1.3.7 1.2 1.5 1.9 1 .9 1.8 1.2 2.1 1.3.2.1.4.1.6-.1l.8-1c.2-.2.3-.2.5-.1l2 1c.2.1.4.2.4.3.1.1.1.6-.1 1.2Z"/></svg>
-                {{ __('landing.book_on_whatsapp') }}
+        @if ($bookLink)
+            <a class="btn btn-wa btn-book" href="{{ $bookLink }}">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                {{ __('landing.book_online') }}
             </a>
         @endif
-        @if ($phone)
+
+        @if ($waLink)
+            <a class="btn {{ $bookLink ? 'btn-ghost' : 'btn-wa' }}" href="{{ $waLink }}">
+                <svg width="{{ $bookLink ? 14 : 18 }}" height="{{ $bookLink ? 14 : 18 }}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.6 14.1c-.2.6-1.2 1.2-1.7 1.2-.4 0-.9.2-3.1-.7-2.6-1.1-4.2-3.8-4.3-4-.1-.2-1-1.4-1-2.6 0-1.2.6-1.8.9-2 .2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.3.3c-.1.1-.3.3-.1.6.1.3.7 1.2 1.5 1.9 1 .9 1.8 1.2 2.1 1.3.2.1.4.1.6-.1l.8-1c.2-.2.3-.2.5-.1l2 1c.2.1.4.2.4.3.1.1.1.6-.1 1.2Z"/></svg>
+                {{ $bookLink ? __('landing.whatsapp') : __('landing.book_on_whatsapp') }}
+            </a>
+        @endif
+
+        @if ($phone && ! $bookLink)
             <a class="btn btn-ghost" href="tel:{{ $phone }}">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M22 16.9v2a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 3.2 2 2 0 0 1 4.1 1h2a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L7.1 8.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg>
                 {{ __('landing.book_by_call') }}

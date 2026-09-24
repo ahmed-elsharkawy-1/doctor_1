@@ -6,6 +6,7 @@ use App\Enums\DayOfWeek;
 use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\ClinicSchedulePeriod;
+use App\Models\SlotHold;
 use App\Models\VisitType;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -24,8 +25,19 @@ use Illuminate\Support\Collection;
  */
 class SlotAvailabilityService
 {
-    public function for(Clinic $clinic, Carbon $date, VisitType $visitType, ?int $ignoreBookingId = null): DayAvailability
-    {
+    /**
+     * @param  string|null  $holdToken  the caller's own slot hold. Everyone
+     *                                  else's live holds read as taken; the
+     *                                  caller's own does not, or they could
+     *                                  not book the slot they are sitting on.
+     */
+    public function for(
+        Clinic $clinic,
+        Carbon $date,
+        VisitType $visitType,
+        ?int $ignoreBookingId = null,
+        ?string $holdToken = null,
+    ): DayAvailability {
         $date = $this->clinicDate($clinic, $date);
 
         if (! $this->isWithinWindow($clinic, $date)) {
@@ -42,7 +54,8 @@ class SlotAvailabilityService
             return DayAvailability::closed($date, $visitType, ClosedReason::WEEKLY_CLOSED);
         }
 
-        $taken = $this->takenIntervals($clinic, $date, $ignoreBookingId);
+        $taken = $this->takenIntervals($clinic, $date, $ignoreBookingId)
+            ->concat($this->heldIntervals($clinic, $date, $holdToken));
 
         $slots = [];
 
@@ -177,6 +190,32 @@ class SlotAvailabilityService
             ->map(fn (Booking $booking) => [
                 'start' => $this->clinicTime($clinic, $booking->start_at),
                 'end' => $this->clinicTime($clinic, $booking->end_at),
+            ]);
+    }
+
+    /**
+     * Slots somebody is part way through booking.
+     *
+     * A hold is advisory — the day lock is still what decides a write — but it
+     * has to read as taken here, or two people spend a minute each on a form
+     * only one of them can finish.
+     *
+     * Expiry is answered by the query, never by a cleanup job: a lapsed hold
+     * stops blocking its slot the moment it lapses.
+     *
+     * @return Collection<int, array{start: Carbon, end: Carbon}>
+     */
+    private function heldIntervals(Clinic $clinic, Carbon $date, ?string $holdToken): Collection
+    {
+        return SlotHold::query()
+            ->where('clinic_id', $clinic->id)
+            ->onDate($date->toDateString())
+            ->live()
+            ->notHeldBy($holdToken)
+            ->get(['id', 'start_at', 'end_at'])
+            ->map(fn (SlotHold $hold) => [
+                'start' => $this->clinicTime($clinic, $hold->start_at),
+                'end' => $this->clinicTime($clinic, $hold->end_at),
             ]);
     }
 

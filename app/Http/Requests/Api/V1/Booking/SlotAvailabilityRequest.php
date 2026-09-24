@@ -19,6 +19,9 @@ class SlotAvailabilityRequest extends FormRequest
         return [
             'date' => ['required', 'date_format:Y-m-d'],
             'visit_type_id' => ['required', 'integer'],
+            // The caller's own slot hold, so the grid does not grey out the
+            // time this very screen is sitting on.
+            'hold_token' => ['nullable', 'string', 'max:64'],
         ];
     }
 }

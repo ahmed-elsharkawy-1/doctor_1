@@ -31,6 +31,9 @@ final class VisitTypeResult extends ServiceResult
             // Booking a returning patient under this type triggers the
             // mismatch warning (SPEC 4.3).
             'is_new_patient_type' => $this->visitType->is_new_patient_type,
+            // Whether a patient may choose this type for themselves on the
+            // public booking page.
+            'is_self_bookable' => $this->visitType->is_self_bookable,
             'sort_order' => $this->visitType->sort_order,
         ];
 

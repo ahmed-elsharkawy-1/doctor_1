@@ -13,6 +13,7 @@ use App\Services\V1\Booking\BookingDaysService;
 use App\Services\V1\Booking\BookingService;
 use App\Services\V1\Booking\DayAvailability;
 use App\Services\V1\Booking\SlotAvailabilityService;
+use App\Services\V1\Booking\SlotHoldService;
 use App\Services\V1\Patients\PatientSearchService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
@@ -66,6 +67,16 @@ class NewBooking extends ClinicComponent
     public ?string $notice = null;
 
     public bool $failed = false;
+
+    /**
+     * The slot this screen is sitting on.
+     *
+     * Claimed the moment a time is tapped, so a patient on the public page and
+     * a secretary on the mobile app both see it go rather than each filling in
+     * a form only one of them can finish. Holds block everyone alike — there
+     * is no override in either direction.
+     */
+    public ?string $holdToken = null;
 
     /** Shown after a save, so the secretary can hand the link over. */
     public ?string $trackingUrl = null;
@@ -172,6 +183,7 @@ class NewBooking extends ClinicComponent
 
         // Slots are per visit type, so the chosen one may no longer exist.
         $this->startTime = null;
+        $this->releaseHold();
     }
 
     public function selectKind(string $kind): void
@@ -183,6 +195,8 @@ class NewBooking extends ClinicComponent
             $this->startTime = null;
             $this->date = Carbon::now($this->clinic()->timezone)->toDateString();
             $this->patientLocation ??= PatientLocation::INSIDE_CLINIC->value;
+            // An emergency takes no slot, so it has no business holding one.
+            $this->releaseHold();
         } else {
             $this->patientLocation = null;
         }
@@ -192,11 +206,48 @@ class NewBooking extends ClinicComponent
     {
         $this->date = $date;
         $this->startTime = null;
+        $this->releaseHold();
     }
 
+    /**
+     * Claims the slot as soon as it is tapped.
+     *
+     * The claim moves rather than multiplying — browsing the day never locks
+     * up more than one time. If somebody else got there first the screen says
+     * so now, while re-picking costs a tap, instead of at save time after the
+     * whole form has been filled in.
+     */
     public function selectSlot(string $startTime): void
     {
+        try {
+            $hold = app(SlotHoldService::class)->hold(
+                $this->clinic(),
+                (int) $this->visitTypeId,
+                $this->date,
+                $startTime,
+                token: $this->holdToken,
+            );
+        } catch (ApiException $e) {
+            // Taken between the page rendering and the tap. Re-rendering the
+            // grid is what tells her; the message says why it moved.
+            $this->startTime = null;
+            $this->notice = $e->getMessage();
+            $this->failed = true;
+
+            return;
+        }
+
+        $this->holdToken = $hold->token;
         $this->startTime = $startTime;
+        $this->notice = null;
+        $this->failed = false;
+    }
+
+    private function releaseHold(): void
+    {
+        app(SlotHoldService::class)->release($this->holdToken);
+
+        $this->holdToken = null;
     }
 
     public function isEmergency(): bool
@@ -232,6 +283,9 @@ class NewBooking extends ClinicComponent
                         : PatientLocation::from($this->patientLocation),
                     notes: $this->notes === '' ? null : $this->notes,
                     rebookingForBookingId: $this->rebookingFor,
+                    // The slot this screen has been sitting on. Without it the
+                    // write path would refuse the very time it offered.
+                    holdToken: $this->holdToken,
                 ),
                 auth()->user(),
             );
@@ -295,9 +349,11 @@ class NewBooking extends ClinicComponent
         // Ready for the next patient, but keep the day the secretary is on.
         // The rebooking link is one-shot: the original is now spoken for, so
         // carrying it into the next booking would only fail.
+        // The hold was consumed by the booking itself, so this only drops the
+        // token the screen was carrying.
         $this->reset([
             'patientSearch', 'patientId', 'patientName', 'phone', 'age',
-            'startTime', 'notes', 'patientLocation', 'rebookingFor',
+            'startTime', 'notes', 'patientLocation', 'rebookingFor', 'holdToken',
         ]);
 
         $this->kind = BookingKind::NORMAL->value;
@@ -343,6 +399,9 @@ class NewBooking extends ClinicComponent
             $this->clinic(),
             $this->safeDate($this->date),
             $visitType,
+            // Everyone else's holds grey a slot out; the one this screen is
+            // holding must stay pickable, or she could not book it.
+            holdToken: $this->holdToken,
         );
     }
 }

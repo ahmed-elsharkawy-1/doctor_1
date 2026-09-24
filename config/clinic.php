@@ -28,6 +28,11 @@ return [
     'defaults' => [
         'timezone' => env('CLINIC_DEFAULT_TIMEZONE', 'Africa/Cairo'),
         'booking_window_days' => 7,
+        // How far ahead a patient may book for themselves. Deliberately
+        // shorter than the clinic's own window, so the secretary keeps room
+        // to place the people who phone her. Never exceeds it — see
+        // Clinic::patientBookingWindowDays().
+        'patient_booking_window_days' => 3,
         'first_visit_only_days' => 60,
         // Null means every visit type sets its own grid from its own
         // duration. A number overrides that with fixed rolling starts.
@@ -82,6 +87,17 @@ return [
         'week_start_day' => 6,
         'min_period_minutes' => 5,
         'max_periods_per_day' => 6,
+    ],
+
+    /*
+    | The lock every write competing for a clinic's day queues behind.
+    |
+    | One booking takes milliseconds, so the wait only has to cover a genuine
+    | collision — two people reaching for the same minute — not a queue.
+    */
+    'locking' => [
+        'day_lock_ttl_seconds' => 10,
+        'day_lock_wait_seconds' => 5,
     ],
 
     /*
@@ -208,6 +224,68 @@ return [
     'review' => [
         'path' => 'review',
         'comment_max' => 600,
+    ],
+
+    /*
+    | Patient self-booking — the public page at `/{slug}/book`.
+    |
+    | Off per clinic until the operator switches it on (see the
+    | `self_booking_enabled` column); these are only the shared dials.
+    |
+    | Two short-lived credentials live here. A slot hold is a claim on a time
+    | nobody has paid for yet, and a verified session is a claim to own a phone
+    | number — both are kept brief on purpose, because both are things somebody
+    | could walk away from and leave sitting.
+    */
+    'self_booking' => [
+        // The second path segment: /{slug}/book.
+        'path' => 'book',
+
+        // How long a tapped slot is held before it returns to the pool. Long
+        // enough to finish the form, short enough that an abandoned browser
+        // does not block a nearly-full day.
+        'hold_ttl_minutes' => 5,
+
+        // How long "this browser proved it owns that number" stays true.
+        // Checked on read against the clock, not delegated to the session
+        // lifetime — that is a global a deploy could change underneath us.
+        'verified_session_minutes' => 20,
+
+        'otp' => [
+            // Mirrors clinic.messaging.driver: `log` writes the code to the
+            // log so the whole flow works before Meta approves anything.
+            'driver' => env('CLINIC_OTP_DRIVER', 'log'),
+            // Four, not six. The page draws one box per digit, and four is
+            // what a patient can hold in their head between the message and
+            // the field. The code is short-lived, capped at five guesses and
+            // burned on the fifth, so the odds a guesser beats it are the
+            // limits' business, not the length's.
+            'length' => 4,
+            'ttl_minutes' => 10,
+
+            /*
+            | A code that is always the same, for walking the flow by hand
+            | without fishing the real one out of the log.
+            |
+            | Refused outright in production — a known code is no check at
+            | all, and the one thing this mechanism exists to prove is that a
+            | stranger is not the person they claim to be. Leave it unset
+            | anywhere that matters.
+            */
+            'fixed_code' => env('CLINIC_OTP_FIXED_CODE'),
+
+            // Seconds before a new code may be requested.
+            'resend_cooldown' => (int) env('CLINIC_OTP_RESEND_COOLDOWN', 60),
+            // A public form that sends messages is a way to bill us and to
+            // pester a stranger, so it is capped from both directions.
+            // Env-backed so a local run can walk the flow more than three
+            // times in an hour.
+            'max_per_phone_hour' => (int) env('CLINIC_OTP_MAX_PER_PHONE_HOUR', 3),
+            'max_per_ip_hour' => (int) env('CLINIC_OTP_MAX_PER_IP_HOUR', 10),
+            // Wrong guesses before the code is burned. The phone may ask for
+            // another, subject to the hourly cap.
+            'max_attempts' => 5,
+        ],
     ],
 
     /*

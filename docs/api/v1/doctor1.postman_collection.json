@@ -652,7 +652,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/slots?date=2026-08-08&visit_type_id=1",
+                            "raw": "{{base_url}}/api/v1/slots?date=2026-08-08&visit_type_id=1&hold_token=",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -673,10 +673,88 @@
                                     "value": "1",
                                     "description": "",
                                     "disabled": false
+                                },
+                                {
+                                    "key": "hold_token",
+                                    "value": "",
+                                    "description": "Your own slot hold, if you are holding one. Everyone else's live\nholds come back as unavailable; yours does not, or you could not\nbook the slot you are sitting on.\n",
+                                    "disabled": true
                                 }
                             ]
                         },
                         "description": "**The list changes with the visit type** — a 30-minute procedure offers\nfewer start times than a 10-minute follow-up. Re-fetch whenever the\nsecretary changes the type.\n\nUnavailable slots are **returned, not omitted**: render them greyed and\nstruck through.\n\nServer-side rules: start times step by the clinic's `slot_step_minutes`;\na visit must *finish* inside its period; a slot is blocked by any\noverlapping booking of any visit type; cancelled bookings free their\nslot; touching intervals do not collide."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Hold a slot while the booking is filled in",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/slot-holds",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "slot-holds"
+                            ]
+                        },
+                        "description": "Claims a start time the moment the user taps it, before the rest of the\nform exists. Three clients now compete for the same times — this app,\nthe clinic web app and the patient's own booking page — and a hold is\nwhat stops two of them spending a minute each on a slot only one can\nhave.\n\n**Holds block everyone alike.** Staff do not override a patient and a\npatient does not override staff. A hold lapses on its own after\n`clinic.self_booking.hold_ttl_minutes`; nothing has to be called to\nexpire it.\n\nThe response carries a **token**:\n\n- send it as `hold_token` when creating the booking, or the write path\n  will refuse the very slot this screen offered\n- send it back here as `token` when the user picks a different time,\n  and the claim **moves** instead of leaving a second one behind\n- send it to `DELETE /slot-holds/{token}` when leaving the screen\n\nA slot already booked, already held by someone else, outside the\nclinic's hours or outside the booking window is refused with the same\ncodes `POST /bookings` uses.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"date\": \"2026-08-08\",\n    \"start_time\": \"09:20\",\n    \"visit_type_id\": 1\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Release a held slot",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/slot-holds/{token}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "slot-holds",
+                                "{token}"
+                            ]
+                        },
+                        "description": "Gives the slot back — the screen was closed, or the booking abandoned.\n\nAddressed by token rather than id, because the token is the only thing\nthat proves the caller owns the hold; it is never returned by any\nlisting. Always answers 200: a hold that has already lapsed, been\nbooked, or never existed leaves nothing to free, and a client tidying\nup on its way out should not have to care which."
                     },
                     "response": []
                 },

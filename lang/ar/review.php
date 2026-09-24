@@ -2,14 +2,18 @@
 
 /*
 | The patient-facing review page, opened from the visit-completed message.
+|
+| Formal Arabic, matching booking.tracking.* and booking.self_booking.*. The
+| patient meets all three pages in one journey — booking, then the queue, then
+| this — and they should read as one product rather than three.
 */
 
 return [
     'title' => 'تقييم زيارتك',
-    'lead' => 'رأيك بيساعدنا نحسّن الخدمة. التقييم بياخد أقل من دقيقة.',
+    'lead' => 'رأيك يساعدنا على تحسين الخدمة، ولا يستغرق التقييم أكثر من دقيقة.',
     'choose' => 'اختر التقييم المناسب',
     'comment' => 'ملاحظات وتفاصيل عن الزيارة',
-    'comment_placeholder' => 'اكتب أي تفاصيل تانية (اختياري)',
+    'comment_placeholder' => 'اكتب أي تفاصيل إضافية (اختياري)',
     'submit' => 'إرسال التقييم',
 
     'rating' => [
@@ -20,14 +24,14 @@ return [
 
     // After submitting
     'thanks_title' => 'شكراً لتقييمك',
-    'thanks_lead' => 'وصلنا رأيك، وهيساعدنا نحسّن الخدمة.',
+    'thanks_lead' => 'وصلنا رأيك، وسيساعدنا على تحسين الخدمة.',
     'your_rating' => 'تقييمك',
 
     // Refusals
-    'not_done_title' => 'الكشف لسه ما تمّش',
-    'not_done_lead' => 'هتقدر تقيّم الزيارة بعد ما تخلص.',
-    'unavailable_title' => 'مفيش زيارة للتقييم',
-    'unavailable_lead' => 'الحجز ده اتلغى أو ما تمّش، فمفيش تجربة نقيّمها.',
+    'not_done_title' => 'لم تتم الزيارة بعد',
+    'not_done_lead' => 'يمكنك تقييم الزيارة بعد انتهائها.',
+    'unavailable_title' => 'لا توجد زيارة لتقييمها',
+    'unavailable_lead' => 'هذا الحجز أُلغي أو لم يتم، فلا توجد زيارة يمكن تقييمها.',
 
-    'rating_required' => 'من فضلك اختر تقييم.',
+    'rating_required' => 'من فضلك اختر تقييمًا.',
 ];

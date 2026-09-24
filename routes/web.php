@@ -19,6 +19,7 @@ use App\Livewire\App\Settings\General;
 use App\Livewire\App\Settings\Holidays;
 use App\Livewire\App\Settings\Hours;
 use App\Livewire\App\Settings\VisitTypes;
+use App\Livewire\Patient\BookVisit;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -125,6 +126,24 @@ Route::prefix(config('clinic.docs.path'))->group(function (): void {
     Route::get('design-map', [ApiReferenceController::class, 'designMap'])->name('docs.api.design-map');
     Route::get('openapi.json', [ApiReferenceController::class, 'document'])->name('docs.api.spec');
 });
+
+/*
+| The patient's own booking page.
+|
+| Public and unauthenticated like the tracking page, but it writes — so the
+| phone is proved by a one-time code before anything is booked, and the
+| component treats every one of its own properties as untrusted (see
+| App\Livewire\Patient\BookVisit).
+|
+| Two path segments, so it cannot shadow the landing page below and no
+| reserved slug is needed: a clinic called "book" gets /book and /book/book,
+| and both resolve.
+|
+| 404 unless the operator has switched self-booking on for this clinic.
+*/
+Route::get('/{slug}/'.config('clinic.self_booking.path'), BookVisit::class)
+    ->where('slug', '[a-z0-9][a-z0-9-]*')
+    ->name('patient.book');
 
 /*
 | The public doctor landing page.

@@ -31,6 +31,13 @@ class VisitTypes extends SettingsComponent
 
     public bool $isNewPatientType = false;
 
+    /**
+     * Offered on the public booking page. True by default, so a type the
+     * clinic adds is bookable unless they say otherwise — `reset()` restores
+     * this value, which is what a new type should start from.
+     */
+    public bool $isSelfBookable = true;
+
     public ?int $confirmingHide = null;
 
     public function render(): View
@@ -43,7 +50,7 @@ class VisitTypes extends SettingsComponent
 
     public function startCreating(): void
     {
-        $this->reset(['editing', 'name', 'description', 'price', 'isNewPatientType']);
+        $this->reset(['editing', 'name', 'description', 'price', 'isNewPatientType', 'isSelfBookable']);
         $this->durationMinutes = '20';
         $this->editing = 0;
     }
@@ -62,11 +69,12 @@ class VisitTypes extends SettingsComponent
         $this->durationMinutes = (string) $visitType->duration_minutes;
         $this->price = (string) $visitType->price;
         $this->isNewPatientType = (bool) $visitType->is_new_patient_type;
+        $this->isSelfBookable = (bool) $visitType->is_self_bookable;
     }
 
     public function cancelEditing(): void
     {
-        $this->reset(['editing', 'name', 'description', 'price', 'isNewPatientType']);
+        $this->reset(['editing', 'name', 'description', 'price', 'isNewPatientType', 'isSelfBookable']);
     }
 
     public function save(): void
@@ -79,6 +87,7 @@ class VisitTypes extends SettingsComponent
             'duration_minutes' => (int) $this->durationMinutes,
             'price' => $this->price === '' ? null : $this->price,
             'is_new_patient_type' => $this->isNewPatientType,
+            'is_self_bookable' => $this->isSelfBookable,
         ], canSetPrice: auth()->user()?->hasAbility('prices.view') ?? false);
 
         $editing = $this->editing;

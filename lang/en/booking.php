@@ -4,6 +4,8 @@ return [
     'arrived' => 'Patient checked in',
     'called_in' => 'Patient called in',
     'completed' => 'Visit completed',
+    'slot_held' => 'Slot held',
+    'slot_released' => 'Slot released',
     'cancelled_ok' => 'Booking cancelled',
     'status_updated' => 'Booking status updated',
     'not_cancellable' => 'A booking with status ":status" cannot be cancelled',
@@ -55,6 +57,12 @@ return [
         'emergency' => 'Emergency',
     ],
 
+    // Which door the booking came through.
+    'source' => [
+        'clinic' => 'Booked by clinic',
+        'patient_web' => 'Self-booked',
+    ],
+
     'patient_location' => [
         'inside_clinic' => 'Patient inside clinic',
         'on_way' => 'Patient on the way',
@@ -98,5 +106,90 @@ return [
         'not_today_note' => 'The waiting count appears on the day of your booking',
         'am' => 'AM',
         'pm' => 'PM',
+    ],
+
+    /*
+    | The public self-booking page, where the patient books for themselves.
+    */
+    'self_booking' => [
+        'title' => 'Book with :doctor',
+        'disabled' => 'Online booking is not available for this clinic right now.',
+        'already_booked' => 'You already have an appointment with this clinic.',
+        'outside_window' => 'Appointments can only be booked within :days days.',
+        'back' => 'Back',
+
+        'step_of' => 'Step :step of :total',
+        'previous' => 'Back',
+        'today' => 'Today',
+        'holiday' => 'Closed',
+        'full' => 'Fully booked',
+        'contact_clinic' => 'Message on WhatsApp',
+
+        'steps' => [
+            'details' => 'Details',
+            'appointment' => 'Appointment',
+            'confirmation' => 'Confirmation',
+        ],
+
+        'peek_title' => 'A quick look at what is free',
+        'peek_lead' => 'This page is a preview only. Choose "Book an appointment" to enter your details, confirm your number, and pick a time.',
+        'available_title' => 'Earliest appointments',
+        'days_count' => ':count days',
+        'slots_available' => ':count available',
+        'earliest' => 'from :time',
+        'no_slots' => 'No appointments available',
+        'closed' => 'Clinic closed',
+        'verify_notice' => 'We will send a confirmation code on WhatsApp before you choose a time, to check the number is right.',
+        'start' => 'Book an appointment',
+        'nothing_bookable' => 'No visit types are open for online booking right now.',
+
+        'details_title' => 'Patient details',
+        'details_lead' => 'Booking for someone else? Enter their name and number — the details go straight to them.',
+        'name_label' => 'Patient name',
+        'name_placeholder' => 'e.g. Sara Ahmed Mohamed',
+        'phone_label' => 'WhatsApp number',
+        'phone_placeholder' => '01xxxxxxxxx',
+        'phone_hint' => 'This number receives the confirmation code and the tracking link.',
+        'family_title' => 'Booking for a family member?',
+        'family_lead' => 'Enter their number, so their visit history stays in their name.',
+        'send_code' => 'Send confirmation code',
+
+        'code_title' => 'Confirm the phone number',
+        'code_lead' => 'We sent a :length-digit code to your number on WhatsApp.',
+        'code_label' => 'Confirmation code',
+        'no_code' => "Didn't get the code?",
+        'resend' => 'Send a new code',
+        'resend_after' => 'A new code can be requested :seconds seconds after the last one.',
+        'code_security' => 'The code makes sure nobody books with a number that is not theirs. It is valid for :minutes minutes.',
+        'verify' => 'Confirm number',
+        'change_number' => 'Change the number',
+
+        'appointment_title' => 'Booking details',
+        'appointment_lead' => 'Pick the visit type, the day and a time that suits you.',
+        'visit_type' => 'Visit type',
+        'day' => 'Day',
+        'slot' => 'Time',
+        'taken_note' => 'Struck through means taken',
+        'no_slots_day' => 'No appointments available on this day.',
+        'held_for_you' => 'Held for you',
+        'confirm' => 'Confirm booking',
+        'edit' => 'Edit',
+        'minutes' => ':count min',
+
+        'upcoming_title' => 'You already have an appointment',
+        'upcoming_lead' => ':patient already has an appointment with :doctor. You can follow the queue here.',
+        'upcoming_change' => 'To change it, contact the clinic.',
+        'track' => 'Follow the queue',
+
+        'done_title' => 'Your booking is confirmed',
+        'done_lead' => "You are on the clinic's list for that day. Updates on your place in the queue arrive on WhatsApp.",
+        'done_sent' => 'We sent the details on WhatsApp to :patient.',
+        'done_patient' => 'Patient',
+        'done_code' => 'Patient code',
+        'done_location' => 'Location',
+        'done_track_title' => 'Follow your place in the queue',
+        'done_track_lead' => 'The tracking page shows how many patients are ahead of you and when to arrive — no waiting at the clinic.',
+        'done_change' => 'To change or cancel, contact the clinic on WhatsApp.',
+        'done_back' => "Back to the doctor's page",
     ],
 ];

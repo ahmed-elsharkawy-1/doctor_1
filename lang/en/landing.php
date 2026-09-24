@@ -11,7 +11,15 @@ return [
     'stat_location' => 'Location',
     'days_range' => ':from to :to',
 
+    // Self-booking. Only shown for clinics that switched it on, where it
+    // becomes the primary action.
+    'book_online' => 'Book an appointment',
+    'whatsapp' => 'WhatsApp',
+    'call_short' => 'Call',
     'book_on_whatsapp' => 'Book on WhatsApp',
+    // Under the booking buttons: self-booking is not for something that
+    // cannot wait.
+    'emergency_notice' => 'An emergency? For urgent cases, contact the clinic directly by phone or WhatsApp.',
     'book_by_call' => 'Call to book',
     'call' => 'Call the clinic',
     'whatsapp_greeting' => 'Hello, I would like to book an appointment at :clinic',

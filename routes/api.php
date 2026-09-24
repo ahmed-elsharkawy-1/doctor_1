@@ -5,7 +5,9 @@ use App\Http\Controllers\Api\V1\Auth\LoginController;
 use App\Http\Controllers\Api\V1\Auth\LogoutController;
 use App\Http\Controllers\Api\V1\Booking\BookingCalendarController;
 use App\Http\Controllers\Api\V1\Booking\CreateBookingController;
+use App\Http\Controllers\Api\V1\Booking\CreateSlotHoldController;
 use App\Http\Controllers\Api\V1\Booking\PatientLookupController;
+use App\Http\Controllers\Api\V1\Booking\ReleaseSlotHoldController;
 use App\Http\Controllers\Api\V1\Booking\ShowBookingController;
 use App\Http\Controllers\Api\V1\Booking\SlotsController;
 use App\Http\Controllers\Api\V1\Booking\UpdateBookingController;
@@ -112,6 +114,19 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
 
         Route::get('bookings/calendar', BookingCalendarController::class)->name('api.v1.bookings.calendar');
         Route::get('slots', SlotsController::class)->name('api.v1.slots');
+
+        /*
+        | Slot holds — claimed on tap, before the form is filled in, so two
+        | people never spend a minute each on a slot only one can have. The
+        | response carries a token; send it back when booking, and when
+        | moving the claim to another time.
+        |
+        | Released by token rather than by id: the token is the only thing
+        | that proves the caller owns the hold.
+        */
+        Route::post('slot-holds', CreateSlotHoldController::class)->name('api.v1.slot-holds.store');
+        Route::delete('slot-holds/{token}', ReleaseSlotHoldController::class)
+            ->name('api.v1.slot-holds.destroy');
 
         // Recognises a returning patient and flags a visit-type mismatch
         // while the secretary is still filling the form.

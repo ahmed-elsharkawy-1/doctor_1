@@ -34,6 +34,9 @@ final class BookingResult extends ServiceResult
             'patient_location' => $booking->patient_location === null
                 ? null
                 : Wire::enum($booking->patient_location, $booking->patient_location->label()),
+            // Which door the booking came through. Informational: it drives a
+            // badge and a filter, never a rule.
+            'source' => Wire::enum($booking->source, $booking->source->label()),
             'patient' => $patient === null ? null : [
                 'id' => $patient->id,
                 'code' => $patient->code,

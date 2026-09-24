@@ -611,6 +611,14 @@ paths:
           required: true
           schema: { type: integer }
           example: 1
+        - name: hold_token
+          in: query
+          required: false
+          schema: { type: string }
+          description: |
+            Your own slot hold, if you are holding one. Everyone else's live
+            holds come back as unavailable; yours does not, or you could not
+            book the slot you are sitting on.
       responses:
         "200":
           description: OK
@@ -628,6 +636,93 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /slot-holds:
+    post:
+      tags: [Booking]
+      summary: Hold a slot while the booking is filled in
+      description: |
+        Claims a start time the moment the user taps it, before the rest of the
+        form exists. Three clients now compete for the same times — this app,
+        the clinic web app and the patient's own booking page — and a hold is
+        what stops two of them spending a minute each on a slot only one can
+        have.
+
+        **Holds block everyone alike.** Staff do not override a patient and a
+        patient does not override staff. A hold lapses on its own after
+        `clinic.self_booking.hold_ttl_minutes`; nothing has to be called to
+        expire it.
+
+        The response carries a **token**:
+
+        - send it as `hold_token` when creating the booking, or the write path
+          will refuse the very slot this screen offered
+        - send it back here as `token` when the user picks a different time,
+          and the claim **moves** instead of leaving a second one behind
+        - send it to `DELETE /slot-holds/{token}` when leaving the screen
+
+        A slot already booked, already held by someone else, outside the
+        clinic's hours or outside the booking window is refused with the same
+        codes `POST /bookings` uses.
+      operationId: holdSlot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, start_time, visit_type_id]
+              properties:
+                date: { type: string, format: date, example: "2026-08-08" }
+                start_time: { type: string, example: "09:20" }
+                visit_type_id: { type: integer, example: 1 }
+                token:
+                  type: string
+                  description: Your existing hold, to move it rather than add one.
+      responses:
+        "201":
+          description: Held
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/SlotHold" }
+        "409":
+          description: "`SLOT_UNAVAILABLE`, `SLOT_OUTSIDE_WORKING_HOURS`, `SLOT_OUTSIDE_WINDOW`, `CLINIC_CLOSED_THAT_DAY`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /slot-holds/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema: { type: string }
+        description: The token returned when the hold was taken.
+    delete:
+      tags: [Booking]
+      summary: Release a held slot
+      description: |
+        Gives the slot back — the screen was closed, or the booking abandoned.
+
+        Addressed by token rather than id, because the token is the only thing
+        that proves the caller owns the hold; it is never returned by any
+        listing. Always answers 200: a hold that has already lapsed, been
+        booked, or never existed leaves nothing to free, and a client tidying
+        up on its way out should not have to care which.
+      operationId: releaseSlotHold
+      responses:
+        "200":
+          description: Released
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuccessEnvelope" }
 
   /patients/lookup:
     post:
@@ -1370,6 +1465,13 @@ components:
             The clinic's "new concern" type. Booking a **returning** patient
             under it raises the visit-type mismatch warning. Exactly one per
             clinic; setting it elsewhere moves it.
+        is_self_bookable:
+          type: boolean
+          description: |
+            Whether a patient may choose this type for themselves on the
+            clinic's public booking page. True by default; a clinic switches
+            it off for anything unsuitable, such as a long procedure. Hidden
+            types are never offered regardless.
         sort_order: { type: integer }
         price:
           allOf: [{ $ref: "#/components/schemas/Money" }]
@@ -1395,6 +1497,12 @@ components:
           description: Accepted only from callers with `prices.view`; silently ignored otherwise.
           example: 250
         is_new_patient_type: { type: boolean }
+        is_self_bookable:
+          type: boolean
+          description: |
+            Whether a patient may choose this type on the clinic's public
+            booking page. True by default. Hidden types are never offered
+            regardless.
 
     ScheduleDay:
       type: object
@@ -1467,6 +1575,26 @@ components:
               end_time: { $ref: "#/components/schemas/Display" }
               is_available: { type: boolean }
 
+    SlotHold:
+      type: object
+      properties:
+        token:
+          type: string
+          description: |
+            Keep this. It books the held slot, moves the claim to another
+            time, and releases it. It is never returned anywhere else.
+        date: { $ref: "#/components/schemas/Display" }
+        start_time: { $ref: "#/components/schemas/Display" }
+        end_time: { $ref: "#/components/schemas/Display" }
+        visit_type_id: { type: integer }
+        expires_at:
+          type: string
+          format: date-time
+          description: When the claim lapses on its own.
+        expires_in_seconds:
+          type: integer
+          description: Seconds remaining, for a countdown on the screen.
+
     PatientLookup:
       type: object
       properties:
@@ -1532,6 +1660,14 @@ components:
         rebooking_for_booking_id:
           type: integer
           description: The postponed booking this replaces — takes her off the call list.
+        hold_token:
+          type: string
+          description: |
+            The slot hold this booking redeems, from `POST /slot-holds`. The
+            held slot is free to whoever holds it and to nobody else, so
+            sending it back is what stops the write being refused the very
+            time the screen offered. The hold is released as the booking is
+            written.
 
     Booking:
       type: object
@@ -1547,6 +1683,14 @@ components:
           oneOf:
             - allOf: [{ $ref: "#/components/schemas/Display" }]
             - type: "null"
+        source:
+          allOf: [{ $ref: "#/components/schemas/Display" }]
+          description: |
+            Which door the booking came through — `clinic` or `patient_web`.
+            A second dimension beside `status`, like `booking_kind`: a
+            self-booked visit is `booked` like any other and needs no
+            approval from the clinic to become real. Informational — it
+            drives a badge and a filter, never a rule.
         patient:
           type: [object, "null"]
           properties:

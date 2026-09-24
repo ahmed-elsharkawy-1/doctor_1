@@ -9,8 +9,10 @@ use App\Enums\PatientLocation;
 use App\Livewire\App\NewBooking;
 use App\Models\Booking;
 use App\Models\Patient;
+use App\Models\SlotHold;
 use App\Models\VisitType;
 use App\Services\V1\Booking\SlotAvailabilityService;
+use App\Services\V1\Booking\SlotHoldService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Livewire\Features\SupportTesting\Testable;
@@ -307,5 +309,138 @@ class ClinicAppNewBookingTest extends TestCase
 
         // The clash was caught by BookingService, so nothing extra was written.
         $this->assertSame(1, Booking::count());
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Holding the slot while the form is filled in
+    |--------------------------------------------------------------------------
+    */
+
+    public function test_picking_a_slot_claims_it(): void
+    {
+        $slot = $this->firstFreeSlot();
+
+        $page = $this->page()->call('selectSlot', $slot);
+
+        $token = $page->get('holdToken');
+
+        $this->assertNotNull($token);
+        $this->assertDatabaseHas('slot_holds', [
+            'clinic_id' => $this->clinic->id,
+            'token' => $token,
+        ]);
+    }
+
+    /**
+     * Browsing the grid must not lock up the whole day — the claim moves with
+     * the choice rather than piling up behind it.
+     */
+    public function test_changing_the_slot_moves_the_claim_instead_of_adding_one(): void
+    {
+        $slots = $this->twoFreeSlots();
+
+        $page = $this->page()
+            ->call('selectSlot', $slots[0])
+            ->call('selectSlot', $slots[1]);
+
+        $this->assertSame(1, SlotHold::count());
+        $this->assertSame(
+            $slots[1],
+            SlotHold::firstOrFail()->start_at->format('H:i'),
+        );
+        $this->assertNotNull($page->get('holdToken'));
+    }
+
+    public function test_changing_the_day_lets_the_slot_go(): void
+    {
+        $slot = $this->firstFreeSlot();
+
+        $this->page()
+            ->call('selectSlot', $slot)
+            ->call('selectDay', '2026-09-10');
+
+        $this->assertSame(0, SlotHold::count());
+    }
+
+    public function test_switching_to_an_emergency_lets_the_slot_go(): void
+    {
+        $slot = $this->firstFreeSlot();
+
+        $this->page()
+            ->call('selectSlot', $slot)
+            ->call('selectKind', BookingKind::EMERGENCY->value);
+
+        $this->assertSame(0, SlotHold::count());
+    }
+
+    /**
+     * The screen must keep offering the time it is holding, or the secretary
+     * could not book the slot she just picked.
+     */
+    public function test_the_screen_can_still_book_the_slot_it_is_holding(): void
+    {
+        $slot = $this->firstFreeSlot();
+
+        $this->page()
+            ->set('patientName', 'سارة أحمد')
+            ->set('phone', '01001234599')
+            ->call('selectSlot', $slot)
+            ->call('save')
+            ->assertSet('failed', false)
+            ->assertSet('notice', __('booking.created'));
+
+        // Booking it consumes the claim; nothing is left sitting on the slot.
+        $this->assertSame(0, SlotHold::count());
+        $this->assertSame(1, Booking::count());
+    }
+
+    /**
+     * Somebody else got there first. The screen says so at the tap, which
+     * costs a re-pick — rather than at save time, after the whole form.
+     */
+    public function test_a_slot_held_elsewhere_is_refused_at_the_tap(): void
+    {
+        $slot = $this->firstFreeSlot();
+
+        app(SlotHoldService::class)->hold(
+            $this->clinic,
+            $this->visitType->id,
+            '2026-09-03',
+            $slot,
+        );
+
+        $this->page()
+            ->call('selectSlot', $slot)
+            ->assertSet('failed', true)
+            ->assertSet('startTime', null)
+            ->assertSet('holdToken', null)
+            ->assertSet('notice', __('booking.slot_unavailable'));
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function twoFreeSlots(): array
+    {
+        $availability = app(SlotAvailabilityService::class)->for(
+            $this->clinic,
+            Carbon::now($this->clinic->timezone),
+            $this->visitType,
+        );
+
+        $free = [];
+
+        foreach ($availability->slots as $slot) {
+            if ($slot->isAvailable) {
+                $free[] = $slot->startAt->format('H:i');
+            }
+
+            if (count($free) === 2) {
+                return [$free[0], $free[1]];
+            }
+        }
+
+        $this->fail('The demo clinic has fewer than two free slots today.');
     }
 }

@@ -45,6 +45,10 @@ class StoreBookingRequest extends FormRequest
             // Set when booking from the call list, so the postponed booking is
             // linked to its replacement and drops off the worklist.
             'rebooking_for_booking_id' => ['nullable', 'integer'],
+            // The slot hold this booking redeems. The held slot is free to
+            // whoever holds it and to nobody else, so sending this back is
+            // what stops a caller being refused the time it is sitting on.
+            'hold_token' => ['nullable', 'string', 'max:64'],
         ];
     }
 }

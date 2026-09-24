@@ -36,12 +36,21 @@
         color: #132433;
     }
 
-    .dcard-top { display: flex; align-items: center; gap: 16px; }
+    /* Portrait above the name, both centred: the doctor is the first thing
+       the page is about, and side-by-side left the name fighting for width
+       against a 120px photo on a phone. */
+    .dcard-top {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        text-align: center;
+    }
 
     .dcard-photo {
         flex: 0 0 auto;
-        width: 120px; height: 120px;
-        border-radius: 20px;
+        width: 116px; height: 116px;
+        border-radius: 24px;
         object-fit: cover;
         background: #EEF4FB;
     }
@@ -54,9 +63,9 @@
         font-weight: 800;
     }
 
-    .dcard-who { min-width: 0; }
-    .dcard h1 { margin: 0; font-size: 26px; font-weight: 800; line-height: 1.25; }
-    .dcard-role { margin: 6px 0 0; color: #185FA5; font-size: 16px; font-weight: 700; line-height: 1.45; }
+    .dcard-who { min-width: 0; max-width: 34ch; }
+    .dcard h1 { margin: 0; font-size: 25px; font-weight: 800; line-height: 1.25; }
+    .dcard-role { margin: 6px 0 0; color: #185FA5; font-size: 15px; font-weight: 700; line-height: 1.5; }
 
     .dcard-facts {
         display: grid;
@@ -85,7 +94,9 @@
     @media (max-width: 900px) {
         .dcard { padding: 16px; }
         .dcard-top { gap: 12px; }
+        .dcard-photo { width: 104px; height: 104px; }
         .dcard h1 { font-size: 22px; }
+        .dcard-role { font-size: 14px; }
     }
 </style>
 

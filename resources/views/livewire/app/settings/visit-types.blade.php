@@ -58,6 +58,15 @@
                 <span>{{ __('app.settings.vt_new_patient') }}</span>
             </label>
 
+            {{-- Whether a patient may pick this type for themselves. --}}
+            <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem">
+                <input type="checkbox" wire:model="isSelfBookable">
+                <span>{{ __('app.settings.vt_self_bookable') }}</span>
+            </label>
+            <small class="muted" style="display:block;margin-bottom:0.75rem">
+                {{ __('app.settings.vt_self_bookable_hint') }}
+            </small>
+
             <div style="display:flex;gap:0.4rem">
                 <button type="button" class="btn btn-primary" wire:click="save">
                     {{ __('app.settings.save') }}
@@ -80,6 +89,10 @@
                     @endif
                     @if ($visitType->is_new_patient_type)
                         <span class="pill">{{ __('app.settings.vt_new_patient') }}</span>
+                    @endif
+                    {{-- Only worth saying when it is off: on is the default. --}}
+                    @if ($visitType->is_active && ! $visitType->is_self_bookable)
+                        <span class="pill pill-off">{{ __('app.settings.vt_not_self_bookable') }}</span>
                     @endif
                     <div class="muted" style="font-size:0.85rem">
                         {{ $visitType->duration_minutes }} {{ __('app.patients.minutes') }}

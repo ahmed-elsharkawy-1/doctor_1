@@ -29,9 +29,11 @@ class Clinic extends Model
         'timezone',
         'country_code',
         'booking_window_days',
+        'patient_booking_window_days',
         'first_visit_only_days',
         'slot_step_minutes',
         'patient_arrival_lead_minutes',
+        'self_booking_enabled',
         'is_active',
     ];
 
@@ -39,11 +41,43 @@ class Clinic extends Model
     {
         return [
             'is_active' => 'boolean',
+            'self_booking_enabled' => 'boolean',
             'booking_window_days' => 'integer',
+            'patient_booking_window_days' => 'integer',
             'first_visit_only_days' => 'integer',
             'slot_step_minutes' => 'integer',
             'patient_arrival_lead_minutes' => 'integer',
         ];
+    }
+
+    /**
+     * How many days ahead a patient may book for themselves.
+     *
+     * The column is the per-clinic override and the config value is the system
+     * default, which is the convention everything else here follows. Null
+     * therefore means "the platform's default", not "the same as the clinic's
+     * own window" — a clinic nobody has tuned should still keep the secretary
+     * some room rather than opening the whole horizon to the public page.
+     *
+     * Clamped here rather than only validated on the form: a seeder, an import
+     * or a hand-written SQL fix must never be able to open the public page
+     * further ahead than the clinic itself takes bookings.
+     */
+    public function patientBookingWindowDays(): int
+    {
+        $window = $this->patient_booking_window_days
+            ?: (int) config('clinic.defaults.patient_booking_window_days');
+
+        return (int) max(1, min($window, $this->booking_window_days));
+    }
+
+    /**
+     * Whether the public booking page is open for this clinic. A deactivated
+     * clinic has no public presence at all, so it can never self-book.
+     */
+    public function allowsSelfBooking(): bool
+    {
+        return $this->is_active && $this->self_booking_enabled;
     }
 
     /** @return BelongsTo<Specialty, $this> */

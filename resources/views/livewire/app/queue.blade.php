@@ -30,6 +30,14 @@
         .tally .n { font-size: 1.4rem; font-weight: 700; }
         .tally .k { color: var(--muted); font-size: 0.8rem; }
 
+        /* The badge on a booking the patient made themselves. Tinted rather
+           than loud: it says where the booking came from, not that anything
+           is wrong with it. */
+        .pill-new {
+            background: var(--brand-soft);
+            color: var(--brand);
+        }
+
         .queue { display: grid; gap: 0.6rem; }
 
         .booking { padding: 0.9rem 1rem; }
@@ -125,6 +133,16 @@
                             @if ($booking->booking_kind === BookingKind::EMERGENCY)
                                 <div style="margin-top:0.3rem">
                                     <span class="pill pill-warn">{{ $booking->booking_kind->label() }}</span>
+                                </div>
+                            @endif
+
+                            {{-- The patient booked this themselves. Shown for
+                                 as long as the booking exists: it is a fact
+                                 about where the booking came from, not a
+                                 state anybody clears. --}}
+                            @if ($booking->isSelfBooked())
+                                <div style="margin-top:0.3rem">
+                                    <span class="pill pill-new">{{ $booking->source->label() }}</span>
                                 </div>
                             @endif
                         </div>

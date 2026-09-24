@@ -16,8 +16,14 @@
             @endforeach
         </div>
 
+        @if ($bookLink)
+            <a class="btn btn-book" href="{{ $bookLink }}">{{ __('landing.book_online') }}</a>
+        @endif
+
         @if ($waLink)
-            <a class="btn btn-wa" href="{{ $waLink }}">{{ __('landing.book_on_whatsapp') }}</a>
+            <a class="btn {{ $bookLink ? 'btn-ghost' : 'btn-wa' }}" href="{{ $waLink }}">
+                {{ $bookLink ? __('landing.whatsapp') : __('landing.book_on_whatsapp') }}
+            </a>
         @endif
 
         @if ($phone)

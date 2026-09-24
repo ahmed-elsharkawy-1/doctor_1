@@ -28,8 +28,17 @@ class BookingDaysService
      *     pending_count: int
      * }>
      */
-    public function window(Clinic $clinic): array
+    /**
+     * @param  int|null  $dayCount  how many days to return. Null is the
+     *                              clinic's own booking window, which is what
+     *                              every staff-facing caller wants. The public
+     *                              booking page passes a shorter one, so the
+     *                              secretary keeps room for the people who
+     *                              phone her.
+     */
+    public function window(Clinic $clinic, ?int $dayCount = null): array
     {
+        $dayCount = max(1, $dayCount ?? $clinic->booking_window_days);
         $today = $this->slots->today($clinic);
         $days = [];
 
@@ -45,9 +54,9 @@ class BookingDaysService
             ->map(static fn ($day) => $day instanceof DayOfWeek ? $day->value : (int) $day)
             ->flip();
 
-        $counts = $this->bookingCounts($clinic, $today);
+        $counts = $this->bookingCounts($clinic, $today, $dayCount);
 
-        for ($offset = 0; $offset < $clinic->booking_window_days; $offset++) {
+        for ($offset = 0; $offset < $dayCount; $offset++) {
             $date = $today->copy()->addDays($offset);
             $key = $date->toDateString();
             $isHoliday = $holidays->has($key);
@@ -71,9 +80,9 @@ class BookingDaysService
      *
      * @return array<string, array{total: int, pending: int}>
      */
-    private function bookingCounts(Clinic $clinic, Carbon $today): array
+    private function bookingCounts(Clinic $clinic, Carbon $today, int $dayCount): array
     {
-        $lastDay = $today->copy()->addDays($clinic->booking_window_days - 1);
+        $lastDay = $today->copy()->addDays($dayCount - 1);
 
         return $clinic->bookings()
             ->whereBetween('visit_date', [$today->toDateString(), $lastDay->toDateString()])

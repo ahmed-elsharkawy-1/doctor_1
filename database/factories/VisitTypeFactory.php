@@ -22,6 +22,7 @@ class VisitTypeFactory extends Factory
             'price' => 300.00,
             'is_active' => true,
             'is_new_patient_type' => false,
+            'is_self_bookable' => true,
             'sort_order' => 0,
         ];
     }
@@ -47,5 +48,11 @@ class VisitTypeFactory extends Factory
     public function hidden(): static
     {
         return $this->state(fn () => ['is_active' => false]);
+    }
+
+    /** Active for the clinic, but not offered on the public booking page. */
+    public function notSelfBookable(): static
+    {
+        return $this->state(fn () => ['is_self_bookable' => false]);
     }
 }

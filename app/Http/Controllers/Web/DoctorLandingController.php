@@ -13,9 +13,12 @@ use Illuminate\View\View;
  * The clinic's public page — the entrance to the whole funnel.
  *
  * Read-only, unauthenticated, and indexable: this is the one page in the
- * system that search engines are meant to find. It carries no booking form.
- * A patient asks on WhatsApp and the clinic takes the booking, which is the
- * flow the clinic already runs (SPEC v1.2).
+ * system that search engines are meant to find.
+ *
+ * It carries no booking form of its own. Where the operator has switched
+ * self-booking on, it links to `/{slug}/book`, which becomes the page's
+ * primary action; otherwise the flow is the one the clinic already runs — the
+ * patient asks on WhatsApp and the clinic takes the booking (SPEC v1.2).
  */
 class DoctorLandingController extends Controller
 {
@@ -57,6 +60,9 @@ class DoctorLandingController extends Controller
             'photos' => $clinic->photos,
             'visitLengthLabel' => $this->visitLengthLabel($clinic),
             'todayDayOfWeek' => DayOfWeek::fromDate(now($clinic->timezone)),
+            // Switched on per clinic by the operator. When it is, booking
+            // online becomes the page's primary action.
+            'selfBookingEnabled' => $clinic->allowsSelfBooking(),
         ]);
     }
 

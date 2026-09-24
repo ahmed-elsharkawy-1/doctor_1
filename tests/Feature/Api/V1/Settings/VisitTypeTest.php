@@ -91,6 +91,48 @@ class VisitTypeTest extends TestCase
         ]);
     }
 
+    public function test_the_payload_says_whether_patients_may_book_the_type(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $this->assertTrue(
+            $this->getJson(route('api.v1.visit-types.index'))->json('data.items.0.is_self_bookable'),
+        );
+    }
+
+    public function test_a_type_can_be_created_closed_to_patients(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $this->postJson(route('api.v1.visit-types.store'), [
+            'name' => 'عملية',
+            'duration_minutes' => 60,
+            'is_self_bookable' => false,
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.is_self_bookable', false);
+    }
+
+    /**
+     * A client that predates self-booking sends no such key, and must not
+     * switch the flag off by its silence — the same rule `description`
+     * already follows.
+     */
+    public function test_omitting_the_flag_leaves_it_as_it_was(): void
+    {
+        $visitType = $this->clinic->visitTypes()->first();
+        $visitType->update(['is_self_bookable' => false]);
+
+        Sanctum::actingAs($this->owner);
+
+        $this->putJson(route('api.v1.visit-types.update', $visitType), [
+            'name' => $visitType->name,
+            'duration_minutes' => $visitType->duration_minutes,
+        ])->assertOk()->assertJsonPath('data.is_self_bookable', false);
+
+        $this->assertFalse((bool) $visitType->fresh()->is_self_bookable);
+    }
+
     public function test_the_clinic_account_can_create_a_type_with_a_price(): void
     {
         Sanctum::actingAs($this->secretary);

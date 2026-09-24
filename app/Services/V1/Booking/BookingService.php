@@ -18,18 +18,23 @@ use App\Services\V1\Messaging\WhatsAppMessagingService;
 use App\Services\V1\Patients\PatientService;
 use App\Support\PhoneNumber;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 
 class BookingService
 {
     public function __construct(
-        private readonly SlotAvailabilityService $slots,
         private readonly PatientService $patients,
         private readonly WhatsAppMessagingService $messaging,
+        private readonly SlotGuard $guard,
+        private readonly ClinicDayLock $lock,
+        private readonly SlotHoldService $holds,
     ) {}
 
-    public function create(Clinic $clinic, BookingData $data, User $actor): Booking
+    /**
+     * @param  User|null  $actor  null when the patient booked themselves — there
+     *                            is no account behind a public page, and
+     *                            `created_by` is nullable for exactly that.
+     */
+    public function create(Clinic $clinic, BookingData $data, ?User $actor = null): Booking
     {
         $visitType = $this->activeVisitType($clinic, $data->visitTypeId);
         $startAt = $data->bookingKind === BookingKind::NORMAL
@@ -43,7 +48,9 @@ class BookingService
             $clinic, $data, $visitType, $startAt, $doctor, $actor, $phone
         ) {
             if ($data->bookingKind === BookingKind::NORMAL) {
-                $this->guardSlot($clinic, $startAt, $visitType);
+                // Asked with this caller's own hold, so the slot they have
+                // been sitting on is free to them and to nobody else.
+                $this->guard->ensureFree($clinic, $startAt, $visitType, holdToken: $data->holdToken);
             }
 
             $patient = $this->patientFor($clinic, $data, $phone);
@@ -65,13 +72,21 @@ class BookingService
                 'status' => $startsInsideClinic ? BookingStatus::ARRIVED : BookingStatus::BOOKED,
                 'booking_kind' => $data->bookingKind,
                 'patient_location' => $data->bookingKind === BookingKind::EMERGENCY ? $data->patientLocation : null,
+                // Which door this came through. Never read from the request —
+                // the caller decides (see BookingData::fromArray).
+                'source' => $data->source,
                 'arrived_at' => $startsInsideClinic ? $now : null,
                 'queue_entered_at' => $startsInsideClinic ? $now : null,
                 'notes' => $data->notes,
-                'created_by' => $actor->id,
+                'created_by' => $actor?->id,
             ]);
 
             $this->linkRebooking($clinic, $data->rebookingForBookingId, $booking);
+
+            // The hold has done its job. Released inside the transaction so a
+            // rolled-back booking never leaves its slot unguarded, and without
+            // re-taking the day lock we are already inside.
+            $this->holds->consume($data->holdToken);
 
             return $booking;
         });
@@ -108,7 +123,7 @@ class BookingService
         ) {
             // The booking must not collide with itself.
             if ($data->bookingKind === BookingKind::NORMAL) {
-                $this->guardSlot($clinic, $startAt, $visitType, $booking->id);
+                $this->guard->ensureFree($clinic, $startAt, $visitType, $booking->id, $data->holdToken);
             }
 
             $patient = $this->patientFor($clinic, $data, $phone);
@@ -116,6 +131,8 @@ class BookingService
             $startsInsideClinic = $booking->status === BookingStatus::BOOKED
                 && $data->bookingKind === BookingKind::EMERGENCY
                 && $data->patientLocation === PatientLocation::INSIDE_CLINIC;
+
+            $this->holds->consume($data->holdToken);
 
             $booking->update([
                 'patient_id' => $patient->id,
@@ -156,9 +173,10 @@ class BookingService
     }
 
     /**
-     * Two tabs, or a double-tap, must not claim the same time. The lock
-     * serialises writes for one clinic-day; the transaction keeps the
-     * availability check and the insert atomic.
+     * Two tabs, or a double-tap, must not claim the same time.
+     *
+     * The key lives in ClinicDayLock because slot holds queue behind the same
+     * one — see the note there on why there is only ever one copy of it.
      *
      * @template T
      *
@@ -167,60 +185,7 @@ class BookingService
      */
     private function claimingTheDay(Clinic $clinic, Carbon $date, \Closure $callback): mixed
     {
-        $lock = Cache::lock(
-            "booking_lock_{$clinic->id}_{$date->toDateString()}",
-            seconds: 10,
-        );
-
-        return $lock->block(5, fn () => DB::transaction($callback));
-    }
-
-    /**
-     * @throws ApiException unless the slot is free
-     */
-    private function guardSlot(
-        Clinic $clinic,
-        Carbon $startAt,
-        VisitType $visitType,
-        ?int $ignoreBookingId = null,
-    ): void {
-        $availability = $this->slots->for($clinic, $startAt->copy()->startOfDay(), $visitType, $ignoreBookingId);
-
-        if (! $availability->isOpen) {
-            throw ApiException::make(
-                match ($availability->closedReason) {
-                    ClosedReason::OUTSIDE_WINDOW => ApiErrorCode::SLOT_OUTSIDE_WINDOW,
-                    default => ApiErrorCode::CLINIC_CLOSED_THAT_DAY,
-                },
-                $availability->closedReason?->label() ?? __('booking.clinic_closed'),
-                details: ['reason' => $availability->closedReason?->value],
-                http: 409,
-            );
-        }
-
-        foreach ($availability->slots as $slot) {
-            if ($slot->startAt->equalTo($startAt)) {
-                if ($slot->isAvailable) {
-                    return;
-                }
-
-                throw ApiException::make(
-                    ApiErrorCode::SLOT_UNAVAILABLE,
-                    __('booking.slot_unavailable'),
-                    details: ['start_time' => $startAt->format('H:i')],
-                    http: 409,
-                );
-            }
-        }
-
-        // A time the clinic never offers for this visit type — off-grid, or
-        // the visit would not finish before the period ends.
-        throw ApiException::make(
-            ApiErrorCode::SLOT_OUTSIDE_WORKING_HOURS,
-            __('booking.slot_outside_hours'),
-            details: ['start_time' => $startAt->format('H:i')],
-            http: 409,
-        );
+        return $this->lock->claim($clinic, $date, $callback);
     }
 
     private function activeVisitType(Clinic $clinic, int $visitTypeId): VisitType

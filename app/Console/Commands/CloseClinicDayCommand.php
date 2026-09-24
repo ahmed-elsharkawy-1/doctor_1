@@ -5,6 +5,8 @@ namespace App\Console\Commands;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Models\Clinic;
+use App\Services\V1\Booking\SlotHoldService;
+use App\Services\V1\Patients\PhoneVerificationService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -39,7 +41,18 @@ class CloseClinicDayCommand extends Command
             $closed += $this->closeFor($clinic);
         }
 
+        // Housekeeping, not correctness: a lapsed hold stops blocking its slot
+        // the moment it lapses, because availability filters on `expires_at`.
+        // This only stops the table growing for ever.
+        $released = app(SlotHoldService::class)->purgeExpired();
+
+        // A verification row holds a phone number with no patient attached —
+        // the only place in the system that is true — so it goes once it is
+        // past the window the hourly caps count.
+        $codes = app(PhoneVerificationService::class)->purgeStale();
+
         $this->info("Closed {$closed} leftover booking(s) across {$clinics->count()} clinic(s).");
+        $this->info("Cleared {$released} expired slot hold(s) and {$codes} stale verification(s).");
 
         return self::SUCCESS;
     }

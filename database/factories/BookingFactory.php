@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\BookingKind;
+use App\Enums\BookingSource;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Models\Booking;
@@ -38,6 +39,7 @@ class BookingFactory extends Factory
             'price' => 300.00,
             'status' => BookingStatus::BOOKED,
             'booking_kind' => BookingKind::NORMAL,
+            'source' => BookingSource::CLINIC,
         ];
     }
 
@@ -121,6 +123,18 @@ class BookingFactory extends Factory
             'status' => BookingStatus::NO_SHOW,
             'cancel_reason' => null,
             'cancelled_at' => now(),
+        ]);
+    }
+
+    /**
+     * Taken by the patient on the public page, and not yet acknowledged by
+     * the clinic. `created_by` stays null — there is no account behind it.
+     */
+    public function selfBooked(): static
+    {
+        return $this->state(fn () => [
+            'source' => BookingSource::PATIENT_WEB,
+            'created_by' => null,
         ]);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\BookingKind;
+use App\Enums\BookingSource;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Enums\PatientLocation;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class Booking extends Model
@@ -33,6 +35,7 @@ class Booking extends Model
         'cancel_reason',
         'booking_kind',
         'patient_location',
+        'source',
         'arrived_at',
         'called_in_at',
         'completed_at',
@@ -94,6 +97,7 @@ class Booking extends Model
             'cancel_reason' => CancelReason::class,
             'booking_kind' => BookingKind::class,
             'patient_location' => PatientLocation::class,
+            'source' => BookingSource::class,
             'arrived_at' => 'datetime',
             'called_in_at' => 'datetime',
             'completed_at' => 'datetime',
@@ -203,6 +207,36 @@ class Booking extends Model
     }
 
     /**
+     * Booked by the patient themselves, through the public page.
+     *
+     * The filter behind "show me only what came from patients" — and the only
+     * thing that distinguishes those bookings, since they are otherwise
+     * ordinary: real from the moment they are made, holding their slot,
+     * needing no approval from anyone.
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopeSelfBooked(Builder $query): void
+    {
+        $query->where('source', BookingSource::PATIENT_WEB);
+    }
+
+    /**
+     * Still to come, from the given moment — today included.
+     *
+     * Not the same question as `pending()`: that one is about today's queue,
+     * this one is about whether somebody already has an appointment waiting,
+     * which is what stops a patient booking a second one.
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopeUpcoming(Builder $query, Carbon $from): void
+    {
+        $query->whereIn('status', BookingStatus::pending())
+            ->whereDate('visit_date', '>=', $from->toDateString());
+    }
+
+    /**
      * Awaiting a new appointment after a postponement (SPEC §4.5).
      *
      * @param  Builder<self>  $query
@@ -223,6 +257,12 @@ class Booking extends Model
     public function isEditable(): bool
     {
         return $this->status->isEditable();
+    }
+
+    /** Drives the badge on the queue card. */
+    public function isSelfBooked(): bool
+    {
+        return $this->source === BookingSource::PATIENT_WEB;
     }
 
     public function canBeCancelled(): bool

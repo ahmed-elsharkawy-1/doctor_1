@@ -49,6 +49,11 @@ class ProvisionClinicAction
                 // Every specialty lists its new-concern visit type first; the
                 // owner can move the flag afterwards.
                 'is_new_patient_type' => $index === 0,
+                // Offered on the public page by default. A returning patient
+                // usually wants a follow-up, so starting with only the
+                // new-patient type would be wrong for most of them. The clinic
+                // takes individual types back off the list if it wants to.
+                'is_self_bookable' => true,
                 'sort_order' => $default->sort_order,
             ]);
         }

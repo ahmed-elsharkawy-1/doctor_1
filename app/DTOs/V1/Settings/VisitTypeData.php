@@ -19,6 +19,10 @@ final class VisitTypeData
         public readonly bool $descriptionProvided = false,
         public readonly ?string $price = null,
         public readonly ?bool $isNewPatientType = null,
+        // Whether a patient may pick this type on the public booking page.
+        // Null for the same reason as the description: a client that knows
+        // nothing about self-booking must not switch it off by omission.
+        public readonly ?bool $isSelfBookable = null,
     ) {}
 
     /**
@@ -39,6 +43,9 @@ final class VisitTypeData
                 : null,
             isNewPatientType: isset($validated['is_new_patient_type'])
                 ? (bool) $validated['is_new_patient_type']
+                : null,
+            isSelfBookable: isset($validated['is_self_bookable'])
+                ? (bool) $validated['is_self_bookable']
                 : null,
         );
     }
@@ -64,6 +71,10 @@ final class VisitTypeData
 
         if ($this->isNewPatientType !== null) {
             $attributes['is_new_patient_type'] = $this->isNewPatientType;
+        }
+
+        if ($this->isSelfBookable !== null) {
+            $attributes['is_self_bookable'] = $this->isSelfBookable;
         }
 
         return $attributes;

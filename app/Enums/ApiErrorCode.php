@@ -46,4 +46,15 @@ enum ApiErrorCode: string
     case PATIENT_NOT_FOUND = 'PATIENT_NOT_FOUND';
     case INVALID_PHONE_NUMBER = 'INVALID_PHONE_NUMBER';
     case DUPLICATE_PHONE = 'DUPLICATE_PHONE';
+
+    // Phone verification, for patient self-booking
+    case OTP_RATE_LIMITED = 'OTP_RATE_LIMITED';
+    case OTP_INVALID = 'OTP_INVALID';
+    case OTP_EXPIRED = 'OTP_EXPIRED';
+    case OTP_TOO_MANY_ATTEMPTS = 'OTP_TOO_MANY_ATTEMPTS';
+
+    // Patient self-booking. Reaching either of these from the page itself is
+    // not possible — they are what a tampered request gets.
+    case PHONE_NOT_VERIFIED = 'PHONE_NOT_VERIFIED';
+    case SELF_BOOKING_DISABLED = 'SELF_BOOKING_DISABLED';
 }

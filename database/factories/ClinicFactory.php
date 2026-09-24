@@ -28,6 +28,13 @@ class ClinicFactory extends Factory
             'first_visit_only_days' => $defaults['first_visit_only_days'],
             'slot_step_minutes' => $defaults['slot_step_minutes'],
             'patient_arrival_lead_minutes' => $defaults['patient_arrival_lead_minutes'],
+            // Off, exactly as a real clinic starts. Left null the model would
+            // report null rather than false until it was read back from the
+            // database, which is a difference nobody should have to know about.
+            'self_booking_enabled' => false,
+            // Null on purpose: the common case is a clinic nobody has tuned,
+            // which falls back to the platform default.
+            'patient_booking_window_days' => null,
             'is_active' => true,
         ];
     }
@@ -35,5 +42,11 @@ class ClinicFactory extends Factory
     public function inactive(): static
     {
         return $this->state(fn () => ['is_active' => false]);
+    }
+
+    /** A clinic whose public booking page is open. */
+    public function selfBooking(): static
+    {
+        return $this->state(fn () => ['self_booking_enabled' => true]);
     }
 }

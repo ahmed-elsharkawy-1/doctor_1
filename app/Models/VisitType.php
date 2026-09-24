@@ -22,6 +22,7 @@ class VisitType extends Model
         'price',
         'is_active',
         'is_new_patient_type',
+        'is_self_bookable',
         'sort_order',
     ];
 
@@ -32,6 +33,7 @@ class VisitType extends Model
             'price' => 'decimal:2',
             'is_active' => 'boolean',
             'is_new_patient_type' => 'boolean',
+            'is_self_bookable' => 'boolean',
             'sort_order' => 'integer',
         ];
     }
@@ -52,6 +54,17 @@ class VisitType extends Model
     public function scopeActive(Builder $query): void
     {
         $query->where('is_active', true);
+    }
+
+    /**
+     * Types a patient may choose on the public booking page. Always a subset
+     * of the active ones — hiding a type hides it from patients too.
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopeSelfBookable(Builder $query): void
+    {
+        $query->active()->where('is_self_bookable', true);
     }
 
     /**

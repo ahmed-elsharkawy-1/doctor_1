@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Web;
 
+use App\Enums\BookingSource;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Enums\UserRole;
@@ -275,5 +276,53 @@ class ClinicAppQueueTest extends TestCase
         $page->call('complete', $first->id);
 
         $this->assertSame(0, $positions->for($second->fresh())->ahead);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Bookings the patient made themselves
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * The badge is the whole mechanism. There is no acknowledgement to make:
+     * a self-booking is real when it arrives, so nothing on this card asks
+     * the secretary to accept it.
+     */
+    public function test_a_self_booking_is_badged_on_the_queue(): void
+    {
+        Booking::factory()->forClinic($this->clinic)->selfBooked()
+            ->at(Carbon::parse('2026-09-03 09:40', $this->clinic->timezone))->create();
+
+        Livewire::actingAs($this->owner)
+            ->test(Queue::class)
+            ->assertSee(BookingSource::PATIENT_WEB->label());
+    }
+
+    public function test_the_clinics_own_booking_is_not_badged(): void
+    {
+        $this->booking('09:40');
+
+        Livewire::actingAs($this->owner)
+            ->test(Queue::class)
+            ->assertDontSee(BookingSource::PATIENT_WEB->label());
+    }
+
+    /**
+     * The badge describes where the booking came from, so it survives the
+     * booking being acted on — including being cancelled, which is how the
+     * secretary turns one down.
+     */
+    public function test_the_badge_outlives_every_action_on_the_card(): void
+    {
+        $booking = Booking::factory()->forClinic($this->clinic)->selfBooked()
+            ->at(Carbon::parse('2026-09-03 09:40', $this->clinic->timezone))->create();
+
+        Livewire::actingAs($this->owner)
+            ->test(Queue::class)
+            ->call('arrive', $booking->id)
+            ->assertSee(BookingSource::PATIENT_WEB->label());
+
+        $this->assertSame(BookingStatus::ARRIVED, $booking->fresh()->status);
     }
 }
