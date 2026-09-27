@@ -284,6 +284,18 @@ return [
             */
             'fixed_code' => env('CLINIC_OTP_FIXED_CODE'),
 
+            /*
+            | Lets the `log` driver run on a production host, for walking the
+            | booking flow before an authentication template exists.
+            |
+            | Codes stay random — this only permits writing them to the log,
+            | where the person running the test can read their own. It does
+            | NOT relax `fixed_code`, which stays refused in production: a
+            | code everyone knows would let a stranger verify somebody else's
+            | number and read their appointment off the next screen.
+            */
+            'allow_log_in_production' => (bool) env('CLINIC_OTP_ALLOW_LOG_IN_PRODUCTION', false),
+
             // Seconds before a new code may be requested.
             'resend_cooldown' => (int) env('CLINIC_OTP_RESEND_COOLDOWN', 60),
             // A public form that sends messages is a way to bill us and to

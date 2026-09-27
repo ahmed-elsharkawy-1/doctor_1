@@ -444,6 +444,36 @@ class PhoneVerificationTest extends TestCase
     }
 
     /**
+     * The production guard has one deliberate way past it, and it does not
+     * extend to a code everybody knows.
+     */
+    public function test_the_log_driver_can_be_opened_on_a_production_host(): void
+    {
+        $this->app->detectEnvironment(fn (): string => 'production');
+
+        config(['clinic.self_booking.otp.allow_log_in_production' => false]);
+        $this->expectException(\RuntimeException::class);
+        (new LogOtpSender)->send($this->clinic, self::E164, '4321');
+    }
+
+    public function test_opening_it_does_not_also_allow_a_fixed_code(): void
+    {
+        $this->app->detectEnvironment(fn (): string => 'production');
+
+        config([
+            'clinic.self_booking.otp.allow_log_in_production' => true,
+            'clinic.self_booking.otp.fixed_code' => '1234',
+        ]);
+
+        // The log driver is permitted now...
+        (new LogOtpSender)->send($this->clinic, self::E164, '4321');
+
+        // ...but a code a stranger could guess is still refused.
+        $this->expectException(\RuntimeException::class);
+        $this->service()->request($this->clinic, self::PHONE);
+    }
+
+    /**
      * Refused rather than ignored. Falling back to a random code would hide
      * the misconfiguration until it was the only thing between a stranger and
      * somebody's medical record.
