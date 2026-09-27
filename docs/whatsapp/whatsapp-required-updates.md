@@ -1,7 +1,11 @@
 # WhatsApp — required updates
 
 Six items, all of them changes in the Meta dashboard. None can be done from the
-codebase, and nothing on our side is waiting to be built.
+codebase.
+
+Once a template is approved we have a short piece of work to point the app at
+it — the rewrites move the parameters around, so it is not only a settings
+change. Plan for a day between approval and the new templates going live.
 
 | # | Action | Consequence today |
 |---|---|---|
