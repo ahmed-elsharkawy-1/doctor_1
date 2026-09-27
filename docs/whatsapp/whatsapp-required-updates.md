@@ -1,5 +1,10 @@
 # WhatsApp — required updates
 
+> **Sending this to someone now?** Use
+> [whatsapp-priority-updates.md](whatsapp-priority-updates.md) instead — the
+> four items that are costing us something today, with no template rewrites.
+> This file is the full picture, including the tone work parked for later.
+
 Six items, all of them changes in the Meta dashboard. None can be done from the
 codebase.
 
