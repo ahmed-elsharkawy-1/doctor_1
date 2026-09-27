@@ -1,22 +1,29 @@
-# WhatsApp — everything waiting on the product team
+# WhatsApp — required updates
 
-One page, three areas. Nothing here can be done from the codebase: each item
-needs someone with access to the Meta dashboard.
+Six items, all of them changes in the Meta dashboard. None can be done from the
+codebase, and nothing on our side is waiting to be built.
 
-Ordered by what is currently costing us most.
+| # | Action | Consequence today |
+|---|---|---|
+| 1 | Re-categorise 2 templates to **UTILITY** | confirmations are being dropped |
+| 2 | Create an **AUTHENTICATION** template | patient self-booking cannot launch |
+| 3 | Submit 3 rewritten templates | cancelling one booking notifies nobody |
+| 4 | Register the webhook, send the app secret | we cannot see delivery failures |
+| 5 | Re-verify the phone number | verification has **expired** |
+| 6 | Meta Business Verification | sender shows as a bare number |
+
+**Items 1, 2 and 3 can go in a single review cycle.** Submit the new wording
+already categorised UTILITY, with the verification template alongside.
 
 ---
 
-# 1. Templates are being silently dropped — fix the category
+## 1. Two templates are MARKETING and are being dropped
 
-**This is the urgent one. It is breaking the product today.**
+Meta caps how many marketing messages one person receives and **withholds the
+excess silently** — the API returns success with a valid message ID, and the
+message never arrives.
 
-Two of our three templates are categorised **MARKETING**. Meta caps how many
-marketing messages one person receives and **withholds the excess without
-telling anyone** — the API returns success with a valid message ID, and the
-message simply never arrives.
-
-Demonstrated on 12 September, same recipient, same sender, same minute:
+Measured 12 September; same recipient, same sender, same minute:
 
 | Template | Category | Delivered |
 |---|---|---|
@@ -24,82 +31,96 @@ Demonstrated on 12 September, same recipient, same sender, same minute:
 | `appointment_rating` ×2 | MARKETING | **no** |
 | `booking_cancellation` ×1 | **UTILITY** | **yes** |
 
-All six accepted by Meta. Only the UTILITY one arrived.
+All six were accepted. Only the UTILITY one arrived.
 
-**Why this gets worse, not better:** the cap trips on repeat messages to the
-same person in a short window — which is exactly a clinic's normal day. The
-busier the clinic, the more confirmations vanish.
+The cap trips on repeat messages to the same person in a short window — which
+is a clinic's normal day. **The busier the clinic, the more confirmations
+vanish.**
 
-**The argument for UTILITY:** both describe a transaction the patient has
-already entered into — an appointment they just booked, and a visit that just
-happened. Neither promotes anything. `booking_cancellation` was approved as
-UTILITY with comparable content, which is the precedent to cite.
+**The case for UTILITY:** both describe a transaction the patient has already
+entered into. Neither promotes anything. `booking_cancellation` was approved as
+UTILITY with comparable content — cite it as precedent.
 
----
-
-# 2. New wording for all three templates
-
-The three were written separately and read that way. One opens with the
-patient's name, one opens with nothing at all, and the third is in heavy
-Egyptian colloquial. **None says who sent it** — so the patient's first sight
-is an unknown number with no stated source, which is what makes a confirmation
-feel like spam.
-
-Full text, parameter tables and rationale: **[proposed_templates.md](proposed_templates.md)**
-
-The shape all three share:
-
-```
-*<doctor>*
-
-مرحبًا <patient>، <what this message is about>
-
-<details, if any>
-
-منصة العيادة · elayadah.com
-حجزك أسهل، ووقتك أثمن
-```
-
-The doctor alone heads it — every clinic is already named after its doctor.
-The signature names the sender, since patients see only a bare number.
-
-Three things to know before submitting:
-
-**Submit as new templates, not edits.** Two rewrites take the same number of
-parameters as the live ones, in a different order. Edited in place, Meta would
-accept our old values without complaint and put **the patient's name where the
-doctor's belongs** — no error, just wrong messages. New names remove that
-entirely: the old templates keep working until we switch one database field,
-and rolling back is the same field.
-
-Suggested: `appointment_confirmed_v2`, `appointment_rating_v2`,
-`appointment_cancelled_v2`.
-
-**Still three templates, not four.** The rewritten cancellation covers a single
-booking *and* a whole day, because it says *your appointment* rather than
-*today's appointments*. That one wording change also unblocks notifying a
-patient when the clinic cancels their booking — which today sends nothing at
-all, because no honest template exists for it.
-
-**Register the rating template as `ar`.** It is currently `en_US` while being
-written entirely in Arabic. It works only because our code sends `en_US` to
-match.
+> Please confirm the two categories in the dashboard before acting. The test
+> above is the most recent evidence we have; if either was re-categorised since,
+> this item is already done.
 
 ---
 
-# 3. Delivery receipts — two values needed
+## 2. New: a verification-code template
 
-The endpoint is built, deployed and tested. It is refusing every callback on
-purpose until the app secret is set, because an unverifiable delivery receipt
-is worth less than none.
+Patients can now book themselves on the web. Before a booking is saved we send
+a one-time code to the number the visit will be filed under, because patients
+are matched on **phone alone** — an unverified number files a visit into the
+wrong person's medical history.
 
-Until this is live we **cannot tell a delivered message from a dropped one**.
-Establishing that section 1 was even happening took most of a day for that
-reason.
+**The feature is built and tested. It cannot go live without this template.**
 
-### 3a. Register the callback
+| Field | Value |
+|---|---|
+| Category | **AUTHENTICATION** — not UTILITY, not MARKETING |
+| Language | `ar` |
+| Suggested name | `booking_verification_code` |
+| Parameters | one: the code |
+| Button | **Copy code** |
+| Expiry warning | **10 minutes** — must match our setting |
 
-Meta dashboard → **WhatsApp → Configuration → Webhook**
+**This template will not match the other three, and cannot.** Meta writes the
+body of an authentication template itself and allows no custom wording — so no
+doctor name heading, no signature, no slogan. Only the language, the button and
+the add-ons are ours to choose. The shape in
+[proposed_templates.md](proposed_templates.md) applies to the other three only.
+
+Two notes: AUTHENTICATION is **not** subject to the cap in section 1, so codes
+will not be silently dropped. And it is **billed per message** at its own rate —
+one per booking attempt, capped on our side at 3 per number per hour.
+
+---
+
+## 3. Three rewritten templates
+
+Full text and parameter tables: **[proposed_templates.md](proposed_templates.md)**
+
+Submit as **new templates, not edits.** Two of them take the same parameters in
+a different order, so an in-place edit would put the patient's name where the
+doctor's belongs — with no error, just wrong messages. Suggested names:
+`appointment_confirmed_v2`, `appointment_rating_v2`, `appointment_cancelled_v2`.
+
+Why they need rewriting:
+
+- **None of them says who sent it.** Patients see an unknown number with no
+  stated source, which is what makes a confirmation feel like spam.
+- **Cancelling a single booking notifies nobody today** — from the mobile app
+  and the clinic web app alike. The live template says *we cancelled **today's
+  appointments** due to an **emergency***, and both halves are false for one
+  routine cancellation, so nothing is sent at all. The rewrite says *your
+  appointment* and names **no reason**, which makes one template correct for a
+  single booking and for a whole day.
+- **The rating template is registered `en_US` while written entirely in
+  Arabic.** Register the replacement as `ar`.
+
+Two of the three carry a URL button. The label and suffix in the proposal must
+be copied exactly, or the tracking and review links will not resolve.
+
+---
+
+## 4. Delivery receipts
+
+Meta calls a URL on our server whenever a message is delivered, read or fails.
+That is the only way we learn whether a message arrived. Without it **we cannot
+tell a delivered message from a dropped one** — establishing that section 1 was
+happening at all took most of a day for this reason.
+
+The endpoint is built, deployed and live. It refuses every callback on purpose
+until the app secret is set, because an unverifiable receipt is worth less than
+none.
+
+### Step 1 — register the callback URL
+
+Meta cannot discover the URL; it has to be entered. **Saving it is what turns
+the feature on** — there is no separate switch.
+
+**Meta → WhatsApp → Configuration → Webhook**
 
 | Field | Value |
 |---|---|
@@ -107,69 +128,50 @@ Meta dashboard → **WhatsApp → Configuration → Webhook**
 | Verify token | `da9314a7302b9e886336570420a7956126976c446f853edb` |
 | Subscribe to | the **`messages`** field |
 
-### 3b. Send us the app secret
+The verify token above is already set on our server — paste it exactly as
+written. Meta tests it once, the moment the URL is saved.
 
-Meta dashboard → **Settings → Basic → App Secret**
+### Step 2 — send us one value
 
-Meta signs every callback with it. Without it the endpoint cannot tell Meta
-from a stranger, and a stranger could mark any message delivered — or failed.
+**Meta → Settings → Basic → App Secret**
 
-Details: **[delivery-receipts.md](delivery-receipts.md)**
+Meta signs every callback with it, and we check that signature to know the
+request genuinely came from Meta. Without it a stranger could mark any message
+delivered, or failed.
+
+**This is the only value we are missing.** It is not the system user token used
+to *send* messages — that one is already configured and working.
 
 ---
 
-# 4. The sender shows as a phone number, not a name
+## 5. The phone number's verification has expired
 
-Patients see **`+20 12 83176126`**, not *Elayadah*. For an unsolicited message
-about a medical appointment, an unnamed number is the single biggest reason to
-distrust it — and to report it, which damages the sender's quality rating for
-every clinic on the platform.
+Meta currently reports `code_verification_status: EXPIRED` for the business
+number. It should read `VERIFIED`.
 
-What Meta currently holds for the number:
+Re-verify the number in **Meta → WhatsApp → Phone Numbers**. This is also very
+likely to block section 6, since Meta will not approve a display name for a
+number whose verification has lapsed.
+
+---
+
+## 6. The sender shows as a number, not a name
+
+Patients see `+20 12 83176126`, not the clinic's name. For an unsolicited
+message about a medical appointment, an unnamed number is the biggest reason to
+distrust it — and to report it, which damages the quality rating for every
+clinic on the platform.
+
+What Meta holds for the number today:
 
 ```
-verified_name              Elayadah          ← the name is set
-name_status                AVAILABLE_WITHOUT_REVIEW   ← not APPROVED
+verified_name                 العيادة - Elayadah   ← the name is set
+name_status                   AVAILABLE_WITHOUT_REVIEW   ← not APPROVED
+code_verification_status      EXPIRED              ← see section 5
 is_official_business_account  false
-code_verification_status   VERIFIED
-quality_rating             GREEN
+quality_rating                GREEN
 ```
 
-So the name exists but is not in the approved state that makes it display. The
+The name exists but is not in the approved state that makes it display. The
 step that changes this is **Meta Business Verification** — submitting the
-company's legal documents in Business Manager. Worth confirming the exact
-requirement in the dashboard, since Meta changes these rules.
-
-### 4b. The business profile is empty — and this one we can fix
-
-Everything a patient sees when they tap the number is blank. Meta holds only:
-
-```
-vertical: HEALTH
-```
-
-No description, no address, no email, no website, **no profile picture**.
-
-This needs no approval and no dashboard access — it is an API call we can make
-from here. Say the word and it will carry the logo, a description, the website
-and a contact address. It will not replace the name with *Elayadah*, but it
-turns a blank unknown number into something that looks like a real business.
-
----
-
-# Summary
-
-| # | Action | Owner | Blocking |
-|---|---|---|---|
-| 1 | Re-categorise two templates to UTILITY | product | **messages are being dropped now** |
-| 2 | Submit three rewritten templates | product | tone, trust, cancellation notices |
-| 3a | Register the webhook callback | product | we cannot see delivery failures |
-| 3b | Send the app secret | product | same |
-| 4a | Meta Business Verification | product | sender shows as a bare number |
-| 4b | Fill the business profile | **us** | ready when you are |
-
-Items 1 and 2 can go in **one review cycle** — submit the new wording already
-categorised UTILITY.
-
-Nothing on our side is waiting to be built. The moment templates are approved,
-switching to them is one field per row, and the cancellation notice follows.
+company's legal documents in Business Manager. Settle section 5 first.

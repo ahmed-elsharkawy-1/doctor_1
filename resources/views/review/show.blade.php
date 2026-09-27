@@ -19,6 +19,9 @@
             --muted: #5F6F80;
             --faint: #8B9AAA;
             --primary: #185FA5;
+            /* Same action green as the landing page and the booking flow.
+               Sending the review is the one thing this page asks for. */
+            --cta: #1FAF54;
             --primary-50: #EEF4FB;
             --success: #1B9E57;
             --success-bg: #E7F4EC;
@@ -120,7 +123,7 @@
             width: 100%;
             border: 0;
             border-radius: 12px;
-            background: var(--primary);
+            background: var(--cta);
             color: #fff;
             padding: 14px;
             font: inherit;

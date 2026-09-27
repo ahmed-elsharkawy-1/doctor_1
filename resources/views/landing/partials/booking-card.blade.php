@@ -21,7 +21,7 @@
         @endif
 
         @if ($waLink)
-            <a class="btn {{ $bookLink ? 'btn-ghost' : 'btn-wa' }}" href="{{ $waLink }}">
+            <a class="btn {{ $bookLink ? 'btn-ghost is-wa' : 'btn-wa' }}" href="{{ $waLink }}">
                 {{ $bookLink ? __('landing.whatsapp') : __('landing.book_on_whatsapp') }}
             </a>
         @endif

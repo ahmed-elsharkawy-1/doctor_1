@@ -38,6 +38,14 @@
             --primary-50: #EEF4FB;
             --primary-100: #D8E8F7;
             --whatsapp: #1FAF54;
+            /* The action colour for this flow. Same green as the doctor's
+               page, and deliberately not --primary: nearly every surface here
+               is blue — the brand bar, the day rows, the selected slot, the
+               tags — so a blue button is one more blue thing. The green is the
+               only element on the page that is not, which is what makes it
+               read as the thing to press. */
+            --cta: #1FAF54;
+            --cta-dark: #179044;
             --success: #1B9E57;
             --success-bg: #E7F4EC;
             --success-ink: #14663A;
@@ -63,14 +71,19 @@
             font-family: Tajawal, "Segoe UI", Tahoma, system-ui, sans-serif;
             font-size: 15px;
             line-height: 1.6;
-            /* Room for the fixed action bar; released once it unpins. */
-            padding-bottom: 132px;
+            /* Room for the fixed action bar; released once it unpins.
+               Measured rather than guessed: the bar is a different height on
+               every stage — tallest on the slot screen, where it carries three
+               review rows and the hold notice — and a fixed figure sized for
+               one of them buries the bottom of the others. The fallback is
+               only for the instant before the script runs. */
+            padding-bottom: calc(var(--bar-h, 132px) + 18px);
         }
 
         a { color: inherit; text-decoration: none; }
         button { font: inherit; color: inherit; }
 
-        .wrap { width: min(30rem, 100% - 32px); margin: 0 auto; }
+        .wrap { width: min(30rem, 100% - 32px); margin: 0 auto; padding-bottom: 32px; }
 
         .card {
             background: var(--surface);
@@ -105,33 +118,34 @@
             width: 100%;
         }
 
-        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary { background: var(--cta); color: #fff; }
+        .btn-primary:active { background: var(--cta-dark); }
         .btn-quiet { background: var(--surface); color: var(--muted); min-height: 44px; font-size: 14px; }
-        .btn-wa { background: var(--whatsapp); color: #fff; min-height: 48px; font-size: 15px; }
+        /* One filled button per screen.
+           Two solid buttons stacked ask the same question twice: a screen has
+           one thing it wants you to do, and everything else is a way out. So
+           the filled treatment is reserved for that one thing and every other
+           action is outlined.
+
+           Outlined in the WhatsApp green rather than the neutral grey of
+           .btn-outline, so it still reads as "message the clinic" at a glance
+           — recognisable, but plainly the lesser of the two.
+
+           Note this is the patient flow's own .btn-wa. The doctor's landing
+           page declares its own, still filled, and rightly so: there WhatsApp
+           is the main thing on offer. Here it is the alternative to it. */
+        .btn-wa {
+            background: var(--surface);
+            border: 1px solid var(--whatsapp);
+            color: var(--whatsapp);
+            min-height: 48px;
+            font-size: 15px;
+        }
         .btn-outline { background: var(--surface); border: 1px solid var(--line-strong); color: var(--ink); min-height: 48px; font-size: 15px; }
         .btn:disabled { background: var(--line-strong); color: #fff; cursor: not-allowed; }
 
         /* The page's own title row, above everything ------------------------ */
-        .page-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 14px 0 12px;
-        }
-        .page-head h1 { margin: 0; font-size: 19px; font-weight: 800; }
 
-        .icon-btn {
-            flex: 0 0 auto;
-            width: 38px; height: 38px;
-            display: grid; place-items: center;
-            border: 1px solid var(--line);
-            border-radius: 50%;
-            background: var(--surface);
-            color: var(--ink-soft);
-            cursor: pointer;
-        }
-        .icon-btn:disabled { opacity: .45; cursor: default; }
 
         /* Step of N, over one bar — the steps are few and named on screen,
            so a segment each said the same thing twice. */
@@ -140,7 +154,20 @@
         .rail i { display: block; height: 100%; border-radius: 3px; background: var(--primary); }
 
         /* The doctor, carried through every step --------------------------- */
-        .who { display: flex; align-items: center; gap: 12px; }
+        /* The first card on the page, so it is the one that meets the header.
+           Lifted by the same 40px the brand bar reserves via its `overlap`
+           argument, and by the same amount the doctor-card component lifts itself on the
+           tracking and doctor pages — three pages, one silhouette. Change the
+           lift here and change the `overlap` passed to the partial to match. */
+        .who {
+            position: relative;
+            margin-top: -40px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: 0;
+            box-shadow: var(--shadow);
+        }
         .who-face {
             flex: 0 0 auto;
             width: 56px; height: 56px;
@@ -154,35 +181,52 @@
         .who-name { font-size: 16px; font-weight: 800; line-height: 1.3; }
         .who-role { margin-top: 2px; font-size: 12.5px; color: var(--muted); }
 
-        /* The read-only week ------------------------------------------------ */
-        .daylist { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-        .dayrow {
+        /* The read-only week -----------------------------------------------
+
+           This block is information, and it has to look like information.
+
+           It used to be a bordered list of evenly spaced rows with filled
+           pills on the right — which is exactly how a menu is drawn, here and
+           everywhere else. People tapped the days and nothing happened. The
+           explanatory note underneath did not help, because a visual grammar
+           beats a sentence every time.
+
+           So: no container box, no full-bleed dividers, no tinted row, no
+           pills. Hairline dashes between figures, the way a statement of
+           account is set. The only filled, rounded, coloured thing left on the
+           screen is the button at the bottom — which is the only thing there
+           is to do.
+
+           Deliberately NOT greyed out or disabled-looking, which was the
+           obvious alternative: this screen exists to convince a stranger that
+           appointments are available, and dimming the availability says the
+           opposite of that. Quiet chrome, confident numbers. */
+
+        .soonest { margin: 0; font-size: 13.5px; color: var(--ink-soft); }
+        .soonest b { color: var(--ink); font-weight: 800; }
+
+        .daysum { margin: 0; }
+        .daysum-row {
             display: flex;
-            align-items: center;
+            align-items: baseline;
             justify-content: space-between;
             gap: 12px;
-            padding: 11px 13px;
-            border-bottom: 1px solid var(--line);
+            padding: 9px 2px;
+            font-size: 13.5px;
         }
-        .dayrow:last-child { border-bottom: 0; }
-        .dayrow.is-today { background: var(--primary-50); }
-        .dayrow.is-off { background: #FDF6EA; }
-        .dayrow-when { display: flex; align-items: baseline; gap: 7px; font-size: 13.5px; }
-        .dayrow-when b { font-weight: 800; }
-        .dayrow-when span { color: var(--muted); font-size: 12.5px; }
+        /* Dashed, and only between rows: a separator that measures rather than
+           one that frames something tappable. */
+        .daysum-row + .daysum-row { border-top: 1px dashed var(--line); }
 
-        .tag {
-            flex: 0 0 auto;
-            padding: 3px 10px;
-            border-radius: 999px;
-            font-size: 11.5px;
-            font-weight: 700;
-            white-space: nowrap;
-        }
-        .tag-now { background: var(--primary); color: #fff; }
-        .tag-free { background: var(--primary-50); color: var(--primary); }
-        .tag-full { background: #fff; border: 1px solid #E7B8B1; color: var(--danger); }
-        .tag-off { background: #fff; border: 1px solid #F3E2C2; color: #7A5410; }
+        .daysum dt { display: flex; align-items: baseline; gap: 7px; font-weight: 800; }
+        .daysum .daysum-date { font-weight: 600; font-size: 12.5px; color: var(--muted); }
+        .daysum .daysum-today { font-weight: 700; font-size: 11.5px; color: var(--primary); }
+
+        /* Plain text, not a badge. Green because the answer is good news. */
+        .daysum dd { margin: 0; font-weight: 700; color: var(--success-ink); white-space: nowrap; }
+        .daysum dd.is-off { font-weight: 600; color: #7A5410; }
+        .daysum dd.is-full { font-weight: 600; color: var(--danger); }
+
 
         /* Visit types, as a row that scrolls rather than a grid that wraps -- */
         .pills { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
@@ -325,14 +369,40 @@
         }
 
         /* Covers the whole row: a tap anywhere lands in the one real field.
-           16px keeps iOS from zooming the page on focus. */
-        .code-entry {
-            position: absolute; inset: 0;
+           16px keeps iOS from zooming the page on focus.
+
+           Selected as `.field .code-boxes input` rather than `.code-entry` on
+           purpose. `.field input` above is (0,1,1) and a lone class is (0,1,0),
+           so a class selector loses to it on every property they share — the
+           field's border, background, height and colour would all win and the
+           invisible overlay would render as a second visible box above the
+           digits. This is (0,2,1) and wins. */
+        .field .code-boxes input.code-entry {
+            position: absolute;
+            top: 0; left: 0;
             width: 100%; height: 100%;
-            border: 0; padding: 0; background: none;
-            font-size: 16px; color: transparent;
+            margin: 0; padding: 0;
+            border: 0; border-radius: 14px;
+            background: none;
+            font-size: 16px;
+            color: transparent;
             caret-color: transparent;
             outline: none;
+            /* Both of these are undoing `.field input` rules that would
+               otherwise show through an element meant to be invisible:
+
+               `max-width: 420px` in the desktop block caps form fields to a
+               readable measure. Applied here it clamped the overlay to ~60% of
+               the box row, so its right edge — and its focus ring — cut across
+               the middle of the row.
+
+               The focus ring is drawn with box-shadow, which a `border: 0`
+               does nothing about. It only appeared once the field was focused,
+               which is to say the moment somebody started typing. */
+            max-width: none;
+            box-shadow: none;
+            /* Above the drawn boxes so the tap target is the whole row. */
+            z-index: 1;
         }
 
         /* Notes ------------------------------------------------------------ */
@@ -356,7 +426,13 @@
             padding: 10px 16px calc(16px + env(safe-area-inset-bottom));
         }
         .bar-inner { width: min(30rem, 100% - 0px); margin: 0 auto; display: flex; flex-direction: column; gap: 9px; }
-        .bar-sum { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+        /* The final review, above the confirm button. Labelled rows, because
+           a date, a time and a duration set as one line read as a single
+           string rather than three things to check. */
+        .review { margin: 0 0 2px; display: grid; gap: 7px; }
+        .review > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+        .review dt { font-size: 12.5px; color: var(--muted); }
+        .review dd { margin: 0; font-size: 14px; font-weight: 800; text-align: end; }
         .hold {
             display: flex; align-items: center; justify-content: center; gap: 7px;
             background: var(--primary-50); border-radius: 11px; padding: 7px 12px;
@@ -376,9 +452,15 @@
             .day { width: auto; }
             .field input { max-width: 420px; }
 
+            /* The bar is a sibling of .wrap, not a child of it — it has to be,
+               because on a phone it is pinned to the viewport. Once it stops
+               being pinned it is just another block in the page, so it takes
+               the column's width itself rather than spanning the body. Same
+               measure as .wrap above; change one, change both. */
             .bar {
                 position: static;
-                margin-top: 16px;
+                width: min(680px, 100% - 48px);
+                margin: 16px auto 0;
                 border: 1px solid var(--line);
                 border-radius: var(--radius);
                 box-shadow: none;
@@ -394,6 +476,116 @@
     {{ $slot }}
 
     @livewireScripts
+
+    @if (config('broadcasting.default') === 'pusher' && filled(config('broadcasting.connections.pusher.key')))
+        {{--
+            Live slot updates.
+
+            Loaded from a CDN rather than bundled: this app has no Vite build
+            and the staff side ships no JavaScript, so adding a build step for
+            one script would be a new thing to maintain for every page.
+
+            Entirely optional. With this blocked, or Pusher down, or the key
+            unset, the page still books visits correctly — it just learns a
+            slot went when it next asks, instead of the moment it happens.
+            Nothing here enforces anything; the day lock does that.
+        --}}
+        <script src="https://js.pusher.com/8.4/pusher.min.js" crossorigin="anonymous"></script>
+        <script>
+            (function () {
+                if (typeof Pusher === 'undefined') {
+                    return;
+                }
+
+                var pusher = new Pusher(@json(config('broadcasting.connections.pusher.key')), {
+                    cluster: @json(config('broadcasting.connections.pusher.options.cluster')),
+                });
+
+                var current = null;
+
+                // The patient moves between days, so the channel we care about
+                // changes under us. Re-read it after every Livewire render and
+                // swap subscriptions when it has moved.
+                function sync() {
+                    var el = document.querySelector('[data-slots-channel]');
+                    var wanted = el ? el.getAttribute('data-slots-channel') : null;
+
+                    if (wanted === current) {
+                        return;
+                    }
+
+                    if (current) {
+                        pusher.unsubscribe(current);
+                    }
+
+                    current = wanted;
+
+                    if (!current) {
+                        return;
+                    }
+
+                    pusher.subscribe(current).bind('SlotsChanged', function () {
+                        // The event says only which day moved. What that means
+                        // for this patient depends on the visit type they have
+                        // chosen, so we re-ask rather than guess.
+                        if (window.Livewire) {
+                            window.Livewire.dispatch('slots-changed');
+                        }
+                    });
+                }
+
+                document.addEventListener('livewire:initialized', function () {
+                    sync();
+                    Livewire.hook('morph.updated', sync);
+                });
+            })();
+        </script>
+    @endif
+
+    {{--
+        Keeps the page clear of the fixed action bar.
+
+        The bar's height changes with the stage and with what the patient has
+        chosen — picking a slot adds three rows of review to it — so the space
+        the page has to leave underneath itself cannot be a constant. This
+        measures the bar and publishes it as --bar-h, which body's padding
+        reads.
+
+        A ResizeObserver rather than a re-render hook: the bar also changes
+        height when the viewport rotates or a long doctor name wraps, neither
+        of which is a Livewire update.
+    --}}
+    <script>
+        (function () {
+            var bar = null;
+
+            function measure() {
+                bar = bar && bar.isConnected ? bar : document.querySelector('.bar');
+
+                if (!bar) {
+                    return;
+                }
+
+                document.documentElement.style.setProperty('--bar-h', bar.offsetHeight + 'px');
+            }
+
+            function watch() {
+                measure();
+
+                if (bar && window.ResizeObserver && !bar.__measured) {
+                    bar.__measured = true;
+                    new ResizeObserver(measure).observe(bar);
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', watch);
+            window.addEventListener('resize', measure);
+            document.addEventListener('livewire:initialized', function () {
+                watch();
+                Livewire.hook('morph.updated', watch);
+            });
+        })();
+    </script>
 
     {{--
         Mirrors the verification code into its boxes as it is typed.

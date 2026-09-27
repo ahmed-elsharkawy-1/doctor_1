@@ -405,6 +405,147 @@ class PatientBookingFlowTest extends TestCase
     */
 
     /** A page that has been carried as far as a proved phone number. */
+    /**
+     * Every price the patient is shown carries its currency.
+     *
+     * This screen is where somebody decides whether to pay, so a bare number
+     * is worse here than anywhere else in the app — and this page was the only
+     * surface printing one.
+     */
+    public function test_prices_on_the_booking_screen_carry_their_currency(): void
+    {
+        // Priced here rather than taken from the fixture: a free visit type
+        // shows no price at all, and a test that silently skips proves
+        // nothing about the thing it is named after.
+        VisitType::whereKey($this->visitTypeId())->update(['price' => 400]);
+        config(['clinic.self_booking.show_price' => true]);
+
+        $html = $this->verified()
+            ->call('selectSlot', $this->firstFreeSlot())
+            ->assertViewHas('stage', 'appointment')
+            ->html();
+
+        $this->assertStringContainsString('400 '.__('messages.currency'), $html);
+    }
+
+    /**
+     * A returning patient's name survives a reload.
+     *
+     * The proof of the phone lives in the session; the name is a component
+     * property, and a fresh mount resets it to ''. Without seeding it back
+     * from the clinic's own record, coming back inside the verified window
+     * landed on the slot screen with no name — where confirm() then failed
+     * validation on a field that screen does not show. A dead end with
+     * nothing to press.
+     */
+    public function test_a_returning_patients_name_survives_a_reload(): void
+    {
+        Patient::factory()->create([
+            'clinic_id' => $this->clinic->id,
+            'phone' => self::E164,
+            'name' => 'فاطمة عبد الرحمن',
+        ]);
+
+        $this->verified();
+
+        // A fresh component, as a reload gives you.
+        $page = Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->assertViewHas('stage', 'appointment');
+
+        $this->assertSame('فاطمة عبد الرحمن', $page->get('name'));
+
+        $page->call('selectSlot', $this->firstFreeSlot())
+            ->call('confirm')
+            ->assertSet('failed', false)
+            ->assertViewHas('stage', 'done');
+    }
+
+    /**
+     * A first-timer has no record to recover a name from, so they are asked
+     * again rather than shown a screen whose only button refuses. The number
+     * they already proved is still filled in.
+     */
+    public function test_a_first_timer_who_reloads_is_asked_for_their_name_again(): void
+    {
+        $this->verified();
+
+        Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->assertViewHas('stage', 'details')
+            ->assertSet('phone', self::E164);
+    }
+
+    /**
+     * Off by default, and the clinics piloting this asked for that: a number
+     * on a screen gets treated as a commitment, and they would rather discuss
+     * cost at the desk. The figure is still stored and still snapshotted onto
+     * the booking — this hides it, it does not stop charging for anything.
+     */
+    public function test_no_price_is_quoted_to_the_patient_by_default(): void
+    {
+        VisitType::whereKey($this->visitTypeId())->update(['price' => 400]);
+
+        $html = $this->verified()
+            ->call('selectSlot', $this->firstFreeSlot())
+            ->assertViewHas('stage', 'appointment')
+            ->html();
+
+        $this->assertStringNotContainsString('400', $html);
+        $this->assertStringNotContainsString(__('messages.currency'), $html);
+
+        // The visit still has its price on the record behind the screen.
+        $this->assertSame(400.0, (float) VisitType::whereKey($this->visitTypeId())->value('price'));
+    }
+
+    /**
+     * The final review before committing names each fact separately.
+     */
+    public function test_the_confirm_screen_reviews_day_time_and_duration(): void
+    {
+        $html = $this->verified()
+            ->call('selectSlot', $this->firstFreeSlot())
+            ->assertViewHas('stage', 'appointment')
+            ->html();
+
+        foreach ([
+            __('booking.self_booking.day'),
+            __('booking.self_booking.slot'),
+            __('booking.self_booking.expected_duration'),
+        ] as $label) {
+            $this->assertStringContainsString($label, $html);
+        }
+    }
+
+    /**
+     * The code screen is four drawn boxes over exactly one real field.
+     *
+     * Four inputs would break SMS autofill and paste, which only ever target a
+     * single element — so the count matters, not just the look. A second input
+     * appearing here is the regression this guards.
+     */
+    public function test_the_code_screen_has_one_field_behind_its_boxes(): void
+    {
+        $html = Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->call('start')
+            ->set('name', 'فاطمة عبد الرحمن')
+            ->set('phone', self::PHONE)
+            ->call('sendCode')
+            ->assertViewHas('stage', 'code')
+            ->html();
+
+        $start = (int) strpos($html, 'class="code-boxes"');
+        $codeArea = substr($html, $start, 1400);
+
+        $this->assertSame(1, substr_count($codeArea, '<input'), 'the code screen must hold exactly one input');
+        $this->assertStringContainsString('code-entry', $codeArea);
+        $this->assertSame(
+            (int) config('clinic.self_booking.otp.length'),
+            // The wrapper is `code-boxes`, which contains this needle too —
+            // so the opening tag is matched, not the class name alone.
+            substr_count($codeArea, '<div class="code-box'),
+            'one drawn box per digit',
+        );
+    }
+
     private function verified(): Testable
     {
         return Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])

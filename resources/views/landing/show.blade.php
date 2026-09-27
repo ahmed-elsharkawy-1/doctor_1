@@ -112,6 +112,12 @@
             --primary-50: #EEF4FB;
             --primary-100: #D8E8F7;
             --whatsapp: #1FAF54;
+            /* The action colour, shared with the booking flow, the review page
+               and anywhere else a patient is asked to do something. Green
+               rather than --primary because this page is already blue
+               throughout — the button that matters should not be one more
+               blue rectangle among many. */
+            --cta: #1FAF54;
             --success-bg: #E7F4EC;
             --surface: #FFFFFF;
             --surface-2: #F6F9FC;
@@ -179,9 +185,12 @@
 
         .btn-wa { background: var(--whatsapp); color: #fff; }
         .btn-wa:hover { filter: brightness(.95); }
-        .btn-book { background: var(--primary); color: #fff; }
+        .btn-book { background: var(--cta); color: #fff; }
         .btn-book:hover { filter: brightness(.95); }
         .btn-ghost { background: var(--surface); border-color: var(--line-strong); color: var(--ink); }
+        /* A secondary button keeps its own icon colour, so "message us" is
+           still recognisable at a glance without the button shouting. */
+        .btn-ghost.is-wa svg { color: var(--whatsapp); }
         .btn-ghost:hover { background: var(--surface-2); }
 
         /* ---------- Tabs ---------- */
@@ -593,7 +602,7 @@
 
         <div class="cta-row">
             @if ($waLink)
-                <a class="btn btn-wa" href="{{ $waLink }}">
+                <a class="btn {{ $bookLink ? 'btn-ghost is-wa' : 'btn-wa' }}" href="{{ $waLink }}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.6 14.1c-.2.6-1.2 1.2-1.7 1.2-.4 0-.9.2-3.1-.7-2.6-1.1-4.2-3.8-4.3-4-.1-.2-1-1.4-1-2.6 0-1.2.6-1.8.9-2 .2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.3.3c-.1.1-.3.3-.1.6.1.3.7 1.2 1.5 1.9 1 .9 1.8 1.2 2.1 1.3.2.1.4.1.6-.1l.8-1c.2-.2.3-.2.5-.1l2 1c.2.1.4.2.4.3.1.1.1.6-.1 1.2Z"/></svg>
                     {{ $bookLink ? __('landing.whatsapp') : __('landing.book_on_whatsapp') }}
                 </a>
@@ -654,7 +663,7 @@
         @endif
 
         @if ($waLink)
-            <a class="btn {{ $bookLink ? 'btn-ghost' : 'btn-wa' }}" href="{{ $waLink }}">
+            <a class="btn {{ $bookLink ? 'btn-ghost is-wa' : 'btn-wa' }}" href="{{ $waLink }}">
                 <svg width="{{ $bookLink ? 14 : 18 }}" height="{{ $bookLink ? 14 : 18 }}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.6 14.1c-.2.6-1.2 1.2-1.7 1.2-.4 0-.9.2-3.1-.7-2.6-1.1-4.2-3.8-4.3-4-.1-.2-1-1.4-1-2.6 0-1.2.6-1.8.9-2 .2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.3.3c-.1.1-.3.3-.1.6.1.3.7 1.2 1.5 1.9 1 .9 1.8 1.2 2.1 1.3.2.1.4.1.6-.1l.8-1c.2-.2.3-.2.5-.1l2 1c.2.1.4.2.4.3.1.1.1.6-.1 1.2Z"/></svg>
                 {{ $bookLink ? __('landing.whatsapp') : __('landing.book_on_whatsapp') }}
             </a>

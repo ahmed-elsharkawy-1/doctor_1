@@ -153,7 +153,7 @@ the same template serves both.
 
 مرحبًا {{2}}، نعتذر عن إلغاء موعدك 🙏
 
-كان موعدك يوم {{3}}، واضطررنا إلى إلغائه لظرف طارئ.
+كان موعدك يوم {{3}}، ونأسف لاضطرارنا إلى إلغائه.
 
 سنتواصل معك قريبًا لتحديد موعد جديد، ولأي استفسار يمكنك
 التواصل معنا على {{4}}.
@@ -179,7 +179,7 @@ No button.
 
 مرحبًا أحمد محمد، نعتذر عن إلغاء موعدك 🙏
 
-كان موعدك يوم 12 سبتمبر 2026، واضطررنا إلى إلغائه لظرف طارئ.
+كان موعدك يوم 12 سبتمبر 2026، ونأسف لاضطرارنا إلى إلغائه.
 
 سنتواصل معك قريبًا لتحديد موعد جديد، ولأي استفسار يمكنك
 التواصل معنا على +201017455239.
@@ -189,9 +189,19 @@ No button.
 حجزك أسهل، ووقتك أثمن
 ```
 
-The live version says *اضطرينا نلغي **مواعيد اليوم***, true only for a
-whole-day cancellation. That is why a single cancellation sends nothing today:
-there is no honest template for it. This wording removes that block.
+**No reason is stated, on purpose.** The live version says *اضطرينا نلغي
+**مواعيد اليوم** لظرف طارئ* — two claims, both of which can be false. A booking
+can be cancelled for any of three reasons (`ظرف طارئ`, `لم تكتمل`,
+`المريضة ألغت`), and only one of them is an emergency. Naming a reason in fixed
+template text means the message is wrong two times in three; saying nothing is
+true every time, and the clinic is about to phone them anyway.
+
+That is why a single cancellation sends **nothing at all** today: there is no
+template that would not lie. This wording removes the block for both scopes.
+
+**Send it only for clinic-initiated cancellations** — `ظرف طارئ` and
+`لم تكتمل`. Never for `المريضة ألغت`: the patient asked for it, so apologising
+and promising to rebook would be strange.
 
 ---
 

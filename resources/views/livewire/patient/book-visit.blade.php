@@ -14,38 +14,29 @@
     $longDate = fn ($date) => $date->locale(app()->getLocale())->isoFormat('dddd D MMMM');
     $monthOf = fn ($date) => $date->locale(app()->getLocale())->isoFormat('MMMM YYYY');
 
+    /* Same shape as the staff app's: two decimals, trailing zeros trimmed,
+       and always the currency. A bare "400" on the one screen where somebody
+       decides whether to pay is the worst place in the app to leave it off. */
+    $money = fn ($amount): string => rtrim(rtrim(number_format((float) $amount, 2, '.', ','), '0'), '.')
+        .' '.__('messages.currency');
+
     $onDetails = in_array($stage, ['details', 'code'], true);
     $visitType = $this->selectedVisitType();
 
-    $heading = $stage === 'overview'
-        ? __('booking.self_booking.available_title')
-        : __('landing.book_online');
 @endphp
 
-<div>
-    @include('partials.brand-bar', ['overlap' => 0])
+{{-- The day this browser is watching. The attribute changes as the patient
+     moves between days, and the script in the layout re-subscribes. --}}
+<div data-slots-channel="{{ \App\Events\SlotsChanged::channelFor($clinic->id, $date) }}">
+    @include('partials.brand-bar', ['overlap' => 40])
 
     <div class="wrap">
-
-        {{-- The page says what it is, and offers the way back out. --}}
-        <div class="page-head">
-            <h1>{{ $heading }}</h1>
-
-            @if ($stage === 'details' || $stage === 'code')
-                <button type="button" class="icon-btn" wire:click="back" aria-label="{{ __('booking.self_booking.back') }}">
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
-                </button>
-            @else
-                <a class="icon-btn" href="{{ url('/'.$clinic->slug) }}" aria-label="{{ __('booking.self_booking.back') }}">
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
-                </a>
-            @endif
-        </div>
 
         <div class="stack">
 
             {{-- Who the patient is booking with, carried through every step. --}}
             <div class="card who">
+
                 @if ($doctor?->avatarUrl())
                     <img class="who-face" src="{{ $doctor->avatarUrl() }}" alt="{{ $doctor->name }}" loading="lazy">
                 @else
@@ -82,39 +73,63 @@
                     @if ($visitTypes->isEmpty())
                         <div class="note note-plain">{{ __('booking.self_booking.nothing_bookable') }}</div>
                     @else
-                        <h2 class="h2">{{ __('booking.self_booking.peek_title') }}</h2>
+                        {{-- The page's heading, now that the title row above
+                             the card is gone. `peek_title` said nearly the
+                             same thing one line below it; one of the two had
+                             to go. --}}
+                        <h1 class="h1">{{ __('booking.self_booking.available_title') }}</h1>
 
                         <div class="note note-info">
                             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
                             <span>{{ __('booking.self_booking.peek_lead') }}</span>
                         </div>
 
-                        <div class="daylist">
-                            @foreach ($days as $day)
-                                <div @class([
-                                        'dayrow',
-                                        'is-today' => $day['is_today'],
-                                        'is-off' => ! $day['is_open'],
-                                     ])
-                                     wire:key="peek-{{ $day['date']->toDateString() }}">
-                                    <div class="dayrow-when">
-                                        <b>{{ $day['day']->label() }}</b>
-                                        <span>{{ $day['date']->locale(app()->getLocale())->isoFormat('D MMMM') }}</span>
-                                        @if ($day['is_today'])
-                                            <span class="tag tag-now">{{ __('booking.self_booking.today') }}</span>
-                                        @endif
-                                    </div>
+                        @php
+                            $soonest = collect($days)->first(fn ($d) => ($d['available_count'] ?? 0) > 0);
+                        @endphp
 
-                                    @if (! $day['is_open'])
-                                        <span class="tag tag-off">{{ $day['is_holiday'] ? __('booking.self_booking.holiday') : __('booking.self_booking.closed') }}</span>
-                                    @elseif (($day['available_count'] ?? 0) === 0)
-                                        <span class="tag tag-full">{{ __('booking.self_booking.full') }}</span>
-                                    @else
-                                        <span class="tag tag-free">{{ __('booking.self_booking.slots_available', ['count' => $day['available_count']]) }}</span>
-                                    @endif
+                        @if ($soonest)
+                            {{-- The one fact a stranger came for, said outright
+                                 rather than left to be read off a table. --}}
+                            <p class="soonest">
+                                {{ __('booking.self_booking.soonest') }}
+                                <b>{{ $longDate($soonest['date']) }}@if ($soonest['first_free']) — {{ $clock($soonest['first_free']) }}@endif</b>
+                            </p>
+                        @endif
+
+                        {{-- A description list, not a list of rows in a box.
+                             The old shape — bordered container, full-bleed
+                             dividers, a tinted "today" row, filled pills — is
+                             the shape of a menu, and on every other screen here
+                             that shape means "pick one". No amount of hint text
+                             wins against that, so the shape changed instead. --}}
+                        <dl class="daysum">
+                            @foreach ($days as $day)
+                                <div class="daysum-row" wire:key="peek-{{ $day['date']->toDateString() }}">
+                                    <dt>
+                                        {{ $day['day']->label() }}
+                                        <span class="daysum-date">{{ $day['date']->locale(app()->getLocale())->isoFormat('D MMMM') }}</span>
+                                        @if ($day['is_today'])
+                                            <span class="daysum-today">{{ __('booking.self_booking.today') }}</span>
+                                        @endif
+                                    </dt>
+
+                                    <dd @class([
+                                            'daysum-n',
+                                            'is-off' => ! $day['is_open'],
+                                            'is-full' => $day['is_open'] && ($day['available_count'] ?? 0) === 0,
+                                        ])>
+                                        @if (! $day['is_open'])
+                                            {{ $day['is_holiday'] ? __('booking.self_booking.holiday') : __('booking.self_booking.closed') }}
+                                        @elseif (($day['available_count'] ?? 0) === 0)
+                                            {{ __('booking.self_booking.full') }}
+                                        @else
+                                            {{ __('booking.self_booking.slots_available', ['count' => $day['available_count']]) }}
+                                        @endif
+                                    </dd>
                                 </div>
                             @endforeach
-                        </div>
+                        </dl>
 
                         <div class="note note-plain">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 1.6.376 3.112 1.043 4.453L2 22l5.667-1.017A9.955 9.955 0 0 0 12 22Z"/></svg>
@@ -267,7 +282,7 @@
                                         {{ $type->name }}
                                         <small>
                                             {{ __('booking.self_booking.minutes', ['count' => $type->duration_minutes]) }}
-                                            @if ((float) $type->price > 0) · {{ (int) $type->price }} @endif
+                                            @if ($showPrice && (float) $type->price > 0) · {{ $money($type->price) }} @endif
                                         </small>
                                     </button>
                                 @endforeach
@@ -400,9 +415,22 @@
                     {{ __('booking.self_booking.start') }}
                 </button>
 
+                {{-- The way out, in the bar with everything else that acts.
+                     A labelled button in the content column beats an icon on
+                     the header: the header runs the full width of the screen,
+                     so on a desktop its corner is nowhere near what the eye is
+                     reading. --}}
+                <a class="btn btn-outline" href="{{ url('/'.$clinic->slug) }}">
+                    {{ __('booking.self_booking.done_back') }}
+                </a>
+
             @elseif ($stage === 'details')
                 <button type="button" class="btn btn-primary" wire:click="sendCode">
                     {{ __('booking.self_booking.send_code') }}
+                </button>
+
+                <button type="button" class="btn btn-outline" wire:click="back">
+                    {{ __('booking.self_booking.previous') }}
                 </button>
 
             @elseif ($stage === 'code')
@@ -426,13 +454,32 @@
 
             @elseif ($stage === 'appointment')
                 @if ($startTime !== null && $visitType !== null)
-                    <div class="bar-sum">
-                        <span class="muted">{{ $longDate(\Illuminate\Support\Carbon::parse($date, $clinic->timezone)) }} · {{ $clock(\Illuminate\Support\Carbon::parse($date.' '.$startTime, $clinic->timezone)) }}</span>
-                        <span style="font-weight: 700">
-                            {{ __('booking.self_booking.minutes', ['count' => $visitType->duration_minutes]) }}
-                            @if ((float) $visitType->price > 0) · {{ (int) $visitType->price }} @endif
-                        </span>
-                    </div>
+                    {{-- The last look before committing. Laid out as labelled
+                         rows rather than a single dense line: this is the only
+                         screen where the patient checks what they are about to
+                         book, and a date, a time and a duration run together
+                         read as one string, not three facts. --}}
+                    <dl class="review">
+                        <div>
+                            <dt>{{ __('booking.self_booking.day') }}</dt>
+                            <dd>{{ $longDate(\Illuminate\Support\Carbon::parse($date, $clinic->timezone)) }}</dd>
+                        </div>
+                        <div>
+                            <dt>{{ __('booking.self_booking.slot') }}</dt>
+                            <dd>{{ $clock(\Illuminate\Support\Carbon::parse($date.' '.$startTime, $clinic->timezone)) }}</dd>
+                        </div>
+                        <div>
+                            <dt>{{ __('booking.self_booking.expected_duration') }}</dt>
+                            <dd>{{ __('booking.self_booking.minutes', ['count' => $visitType->duration_minutes]) }}</dd>
+                        </div>
+                        @if ($showPrice && (float) $visitType->price > 0)
+                            <div>
+                                <dt>{{ __('booking.self_booking.price') }}</dt>
+                                <dd>{{ $money($visitType->price) }}</dd>
+                            </div>
+                        @endif
+                    </dl>
+
                     <div class="hold">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                         <span>{{ __('booking.self_booking.held_for_you') }} · {{ __('booking.self_booking.minutes', ['count' => $holdMinutes]) }}</span>

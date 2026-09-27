@@ -9,6 +9,7 @@ use App\Models\VisitType;
 use App\Services\V1\Booking\PatientBookingService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
@@ -71,7 +72,27 @@ class BookVisit extends Component
         $clinic = $this->clinic();
 
         $this->date = Carbon::now($clinic->timezone)->toDateString();
-        $this->visitTypeId = $this->service()->defaultVisitType($clinic)?->id;
+
+        // The proof of the phone is in the session and survives a reload; the
+        // name is a property on this class and does not. Without this, coming
+        // back inside the verified window lands on the appointment screen with
+        // no name — and confirm() then refuses on a field that screen does not
+        // show, which is a dead end with nothing to press.
+        //
+        // The clinic's record wins over anything typed, which is also what
+        // PatientService does: a name only ever creates a patient, it never
+        // renames one.
+        $patient = $this->service()->verifiedPatient($clinic);
+
+        if ($patient !== null) {
+            $this->name = $patient->name;
+        }
+
+        // Prefilled either way, so the details screen is never blank for
+        // somebody whose number this browser has already proved.
+        $this->phone = $this->service()->verifiedPhone($clinic) ?? '';
+
+        $this->visitTypeId = $this->service()->defaultVisitType($clinic, $patient)?->id;
     }
 
     public function render(): View
@@ -103,6 +124,7 @@ class BookVisit extends Component
             },
             'stepCount' => 3,
             'holdMinutes' => (int) config('clinic.self_booking.hold_ttl_minutes'),
+            'showPrice' => (bool) config('clinic.self_booking.show_price'),
             'codeLength' => (int) config('clinic.self_booking.otp.length'),
             'codeMinutes' => (int) config('clinic.self_booking.otp.ttl_minutes'),
             'resendSeconds' => (int) config('clinic.self_booking.otp.resend_cooldown'),
@@ -143,6 +165,14 @@ class BookVisit extends Component
             return 'done';
         }
 
+        // Verified, but we have no name to book under: a first-time patient
+        // who proved their number and then reloaded before finishing. There is
+        // no record to recover it from, so ask again rather than show a screen
+        // whose only button refuses.
+        if (trim($this->name) === '') {
+            return 'details';
+        }
+
         if ($this->upcoming() !== null) {
             return 'upcoming';
         }
@@ -155,6 +185,19 @@ class BookVisit extends Component
     | Moving through it
     |--------------------------------------------------------------------------
     */
+
+    /**
+     * Somebody else's move changed this day.
+     *
+     * The body is empty on purpose: the work is the re-render this triggers,
+     * which re-reads availability through the same service the first render
+     * used. There is no separate "refresh" path to keep in step.
+     *
+     * A slot this browser is holding stays held — availability is asked with
+     * our own hold token, so our claim survives the redraw.
+     */
+    #[On('slots-changed')]
+    public function slotsChanged(): void {}
 
     public function start(): void
     {

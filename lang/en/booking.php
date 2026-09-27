@@ -131,7 +131,7 @@ return [
             'confirmation' => 'Confirmation',
         ],
 
-        'peek_title' => 'A quick look at what is free',
+        'soonest' => 'Soonest available:',
         'peek_lead' => 'This page is a preview only. Choose "Book an appointment" to enter your details, confirm your number, and pick a time.',
         'available_title' => 'Earliest appointments',
         'days_count' => ':count days',
@@ -174,6 +174,8 @@ return [
         'held_for_you' => 'Held for you',
         'confirm' => 'Confirm booking',
         'edit' => 'Edit',
+        'expected_duration' => 'Expected duration',
+        'price' => 'Fee',
         'minutes' => ':count min',
 
         'upcoming_title' => 'You already have an appointment',

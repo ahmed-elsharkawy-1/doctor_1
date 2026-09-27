@@ -241,6 +241,16 @@ return [
         // The second path segment: /{slug}/book.
         'path' => 'book',
 
+        // Whether the public page quotes a price.
+        //
+        // Off until a clinic asks for it. A price shown to a patient is a
+        // quote, and the clinics piloting this would rather discuss cost at
+        // the desk than have a number on a screen treated as a commitment.
+        // The figure is still stored on the visit type and still snapshotted
+        // onto the booking either way — this hides it, it does not stop
+        // charging for anything.
+        'show_price' => (bool) env('CLINIC_SELF_BOOKING_SHOW_PRICE', false),
+
         // How long a tapped slot is held before it returns to the pool. Long
         // enough to finish the form, short enough that an abandoned browser
         // does not block a nearly-full day.
