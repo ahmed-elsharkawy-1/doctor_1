@@ -1,8 +1,7 @@
 # WhatsApp — priority updates
 
-Five items. Two are costing us something today, two make those verifiable, and
-one is here only because it is slow to obtain. All are changes in the Meta
-dashboard.
+Four items. Two are costing us something today; two make the first two
+verifiable. All are changes in the Meta dashboard.
 
 Tone and wording improvements are deliberately **not** here — they are parked
 in [whatsapp-required-updates.md](whatsapp-required-updates.md) for later.
@@ -13,7 +12,6 @@ in [whatsapp-required-updates.md](whatsapp-required-updates.md) for later.
 | 2 | Create an **AUTHENTICATION** template | patient self-booking cannot launch |
 | 3 | Register the webhook + send the app secret | otherwise we cannot tell whether 1 worked |
 | 4 | Re-verify the phone number | verification has expired |
-| 5 | Start **Meta Business Verification** | slowest item on the list — start it now |
 
 Nothing here requires rewriting or resubmitting an existing template.
 
@@ -133,44 +131,10 @@ out as a second cause of delivery problems while item 1 is being investigated.
 
 ---
 
-## 5. Patients see a phone number, not the clinic's name
-
-A patient receiving a message about a medical appointment sees
-`+20 12 83176126` and no sender name. For an unsolicited message that is the
-single biggest reason to distrust it — and to report it, which damages the
-quality rating for **every** clinic on the platform.
-
-What Meta holds for the number today:
-
-```
-verified_name                 العيادة - Elayadah   ← the name is set
-name_status                   AVAILABLE_WITHOUT_REVIEW   ← not APPROVED
-code_verification_status      EXPIRED              ← see item 4
-is_official_business_account  false
-```
-
-The name exists but is not in the approved state that makes it display. The
-step that changes that is **Meta Business Verification**: submitting the
-company's legal documents in Business Manager.
-
-**This one is not quick** — it needs real paperwork and Meta's review runs to
-days or weeks. That is exactly why it is on this list: it is the longest lead
-time here, and everything else will be finished long before it. Starting it
-late costs weeks; starting it now costs nothing, because it runs in the
-background while items 1–4 proceed.
-
-Settle item 4 first — Meta is unlikely to approve a display name for a number
-whose own verification has lapsed.
-
----
-
 ## Order
 
-Items **1 and 2 can go together.** Items **3, 4 and 5 are independent** and can
-start immediately — none waits on a template review.
+Items **1 and 2 can go together.** Items **3 and 4 are independent** and can
+start immediately — neither waits on a template review.
 
 Doing **3 before 1** is ideal: with delivery receipts live, the effect of the
 category change is visible instead of assumed.
-
-Start **5 today** regardless of the rest. It is the only item whose clock runs
-on Meta's schedule rather than ours.
