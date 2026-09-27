@@ -5,8 +5,11 @@ namespace App\Services\V1\Booking;
 use App\DTOs\V1\Booking\BookingData;
 use App\Enums\ApiErrorCode;
 use App\Enums\BookingKind;
+use App\Enums\BookingSource;
 use App\Enums\BookingStatus;
 use App\Enums\PatientLocation;
+use App\Events\SelfBookingReceived;
+use App\Events\SlotsChanged;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Models\Clinic;
@@ -97,6 +100,17 @@ class BookingService
         // lock — a queued message must never outlive a rolled-back booking.
         $this->messaging->sendConfirmation($clinic, $booking);
 
+        // Outside the lock, for the same reason the message is: everyone
+        // watching this day is about to re-read it, and none of them should
+        // wait on us to do so.
+        SlotsChanged::dispatch($clinic, $booking->visit_date->toDateString());
+
+        // The secretary is not necessarily looking at the queue. The badge on
+        // the card only works for somebody who already is.
+        if ($booking->source === BookingSource::PATIENT_WEB) {
+            SelfBookingReceived::dispatch($booking);
+        }
+
         return $booking;
     }
 
@@ -118,7 +132,12 @@ class BookingService
             : null;
         $phone = $data->phone === null ? null : $this->patients->parsePhone($clinic, $data->phone);
 
-        return $this->claimingTheDay($clinic, $this->clinicDate($clinic, $data->date), function () use (
+        // Read before the write. A reschedule frees the day it left as surely
+        // as it fills the one it lands on, and afterwards there is nothing
+        // left on the row to say where it came from.
+        $movedFrom = $booking->visit_date->toDateString();
+
+        $updated = $this->claimingTheDay($clinic, $this->clinicDate($clinic, $data->date), function () use (
             $clinic, $booking, $data, $visitType, $startAt, $phone
         ) {
             // The booking must not collide with itself.
@@ -152,6 +171,12 @@ class BookingService
 
             return $booking->refresh();
         });
+
+        foreach (array_unique([$movedFrom, $updated->visit_date->toDateString()]) as $date) {
+            SlotsChanged::dispatch($clinic, $date);
+        }
+
+        return $updated;
     }
 
     public function find(Clinic $clinic, int $bookingId): Booking

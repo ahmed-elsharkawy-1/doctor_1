@@ -214,4 +214,46 @@
             @endforeach
         </div>
     @endif
+
+@if (config('broadcasting.default') === 'pusher' && filled(config('broadcasting.connections.pusher.key')))
+    {{--
+        Tells the secretary a patient booked themselves while she was not
+        looking at this screen. The badge on the card covers the case where
+        she is; this covers the case where she is not.
+
+        Private channel, because unlike the patient page's it names a patient.
+        Authorised at /broadcasting/auth against her session — see
+        routes/channels.php.
+
+        Optional throughout: with this blocked the queue is exactly as correct,
+        it just waits to be reloaded.
+    --}}
+    <script src="https://js.pusher.com/8.4/pusher.min.js" crossorigin="anonymous"></script>
+    <script>
+        (function () {
+            if (typeof Pusher === 'undefined' || window.__clinicChannelBound) {
+                return;
+            }
+
+            window.__clinicChannelBound = true;
+
+            var pusher = new Pusher(@json(config('broadcasting.connections.pusher.key')), {
+                cluster: @json(config('broadcasting.connections.pusher.options.cluster')),
+                authEndpoint: '/broadcasting/auth',
+                auth: {
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+                    },
+                },
+            });
+
+            pusher.subscribe(@json('private-clinic.'.$this->clinic()->id))
+                .bind('SelfBookingReceived', function (data) {
+                    if (window.Livewire) {
+                        window.Livewire.dispatch('self-booking-received', { name: data.patient_name });
+                    }
+                });
+        })();
+    </script>
+@endif
 </div>

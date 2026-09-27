@@ -25,6 +25,20 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         apiPrefix: 'api/v1',
     )
+    /*
+     * Private channels are authorised at /broadcasting/auth, and two very
+     * different clients knock on it: the staff web app with a session cookie,
+     * and the Flutter app with a bearer token. `auth:sanctum` is the one guard
+     * that answers for both — the default `web` middleware alone would leave
+     * every mobile subscription unauthenticated.
+     *
+     * Public channels never reach this route, so requiring a user here costs
+     * the patient booking page nothing.
+     */
+    ->withBroadcasting(
+        __DIR__.'/../routes/channels.php',
+        ['middleware' => ['web', 'auth:sanctum']],
+    )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
 

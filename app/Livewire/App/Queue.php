@@ -12,6 +12,7 @@ use App\Services\V1\Queue\QueueService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 
 /**
@@ -129,6 +130,22 @@ class Queue extends ClinicComponent
      * Livewire response. Caught here and shown as a flash instead; the message
      * is already translated.
      */
+    /**
+     * A patient booked themselves while she was on this screen.
+     *
+     * Re-rendering is what puts the new card in the list — the queue is read
+     * fresh on every render, so there is nothing to merge by hand. The notice
+     * is so she notices it arriving rather than finding it later.
+     */
+    #[On('self-booking-received')]
+    public function selfBookingReceived(?string $name = null): void
+    {
+        $this->notice = __('app.queue.self_booking_arrived', [
+            'name' => $name ?: __('app.queue.a_patient'),
+        ]);
+        $this->failed = false;
+    }
+
     private function run(callable $action, string $success): void
     {
         try {

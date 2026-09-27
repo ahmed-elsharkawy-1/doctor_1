@@ -4,6 +4,7 @@ namespace App\Services\V1\Booking;
 
 use App\Enums\ApiErrorCode;
 use App\Enums\BookingSource;
+use App\Events\SlotsChanged;
 use App\Exceptions\ApiException;
 use App\Models\Clinic;
 use App\Models\SlotHold;
@@ -65,7 +66,7 @@ class SlotHoldService
         $day = Carbon::parse($date, $clinic->timezone)->startOfDay();
         $token ??= $this->newToken();
 
-        return $this->lock->claim($clinic, $day, function () use (
+        $hold = $this->lock->claim($clinic, $day, function () use (
             $clinic, $visitType, $startAt, $day, $source, $actor, $token
         ): SlotHold {
             // Asked with this holder's own token, so moving a hold back onto
@@ -83,6 +84,13 @@ class SlotHoldService
                 'expires_at' => $this->expiry(),
             ]);
         });
+
+        // Announced after the lock is given up, never inside it: everyone
+        // else is about to ask for this day again, and they should not be
+        // queueing behind us to do it.
+        SlotsChanged::dispatch($clinic, $day->toDateString());
+
+        return $hold;
     }
 
     /**
@@ -99,7 +107,17 @@ class SlotHoldService
             return;
         }
 
-        SlotHold::where('token', $token)->delete();
+        $hold = SlotHold::where('token', $token)->first();
+
+        if ($hold === null) {
+            return;
+        }
+
+        $hold->delete();
+
+        // Read before the delete, because a token on its own does not say
+        // which clinic's day just opened back up.
+        SlotsChanged::dispatch($hold->clinic, $hold->visit_date->toDateString());
     }
 
     /**
@@ -111,7 +129,11 @@ class SlotHoldService
      */
     public function consume(?string $token): void
     {
-        $this->release($token);
+        // Deletes without announcing, unlike release(). The slot is not going
+        // free — it is becoming a booking, and the booking announces that
+        // itself once it has committed. Saying it twice would send every
+        // watching browser to re-read the same day for no reason.
+        SlotHold::where('token', $token)->delete();
     }
 
     /**
@@ -123,10 +145,35 @@ class SlotHoldService
      */
     public function purgeExpired(?Clinic $clinic = null): int
     {
-        return SlotHold::query()
+        $lapsed = SlotHold::query()
             ->when($clinic !== null, fn ($query) => $query->where('clinic_id', $clinic->id))
             ->where('expires_at', '<=', Carbon::now())
-            ->delete();
+            ->get(['id', 'clinic_id', 'visit_date']);
+
+        if ($lapsed->isEmpty()) {
+            return 0;
+        }
+
+        SlotHold::whereKey($lapsed->pluck('id'))->delete();
+
+        // A lapsed hold is the one way a slot comes free with nobody doing
+        // anything, so it is the one case that would otherwise never be
+        // announced. Without this a browser watching the day keeps the slot
+        // greyed out until its owner happens to interact with the page —
+        // correct on the next read, wrong on the screen in front of them.
+        $lapsed->groupBy('clinic_id')->each(function ($holds, $clinicId) use ($clinic): void {
+            $announceFor = $clinic ?? Clinic::find($clinicId);
+
+            if ($announceFor === null) {
+                return;
+            }
+
+            foreach ($holds->pluck('visit_date')->unique() as $date) {
+                SlotsChanged::dispatch($announceFor, Carbon::parse($date)->toDateString());
+            }
+        });
+
+        return $lapsed->count();
     }
 
     /**

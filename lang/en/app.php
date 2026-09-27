@@ -143,6 +143,8 @@ return [
     ],
 
     'queue' => [
+        'self_booking_arrived' => 'New booking from :name',
+        'a_patient' => 'a patient',
         'title' => "Today's list",
         'today' => 'Today',
         'previous_day' => 'Previous day',

@@ -143,6 +143,8 @@ return [
     ],
 
     'queue' => [
+        'self_booking_arrived' => 'حجز جديد من :name',
+        'a_patient' => 'أحد المرضى',
         'title' => 'قائمة اليوم',
         'today' => 'النهاردة',
         'previous_day' => 'اليوم السابق',

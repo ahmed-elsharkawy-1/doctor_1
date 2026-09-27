@@ -5,6 +5,7 @@ namespace App\Services\V1\Queue;
 use App\Enums\ApiErrorCode;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
+use App\Events\SlotsChanged;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
@@ -105,6 +106,10 @@ class BookingStatusService
             'cancel_reason' => $reason,
             'cancelled_at' => $this->now($booking),
         ]);
+
+        // Cancelling is the one status change that gives a slot back, so it
+        // is the only one anybody else's screen needs to hear about.
+        SlotsChanged::dispatch($booking->clinic, $booking->visit_date->toDateString());
 
         return $booking->refresh();
     }
