@@ -7,6 +7,7 @@ use App\Services\Messaging\LogMessageSender;
 use App\Services\Messaging\LogOtpSender;
 use App\Services\Messaging\MessageSender;
 use App\Services\Messaging\OtpSender;
+use App\Services\Messaging\ZadxOtpSender;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -28,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
         // approves an authentication template.
         $this->app->bind(OtpSender::class, function () {
             return match (config('clinic.self_booking.otp.driver')) {
+                'zadx' => new ZadxOtpSender,
                 default => new LogOtpSender,
             };
         });

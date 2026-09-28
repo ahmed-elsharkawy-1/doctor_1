@@ -59,4 +59,28 @@ return [
         ],
     ],
 
+    /*
+    | ZADX — SMS delivery for one-time codes.
+    |
+    | Chosen because the alternatives are slow in Egypt: a carrier sender ID
+    | needs NTRA registration and a tax ID, and WhatsApp needs Meta Business
+    | Verification. ZADX registers the sender on our behalf.
+    |
+    | `base_url` is shown in their dashboard and has no sensible default, so
+    | the driver refuses to run without it rather than posting codes at a
+    | guessed host.
+    */
+    'zadx' => [
+        'base_url' => env('ZADX_BASE_URL'),
+        'api_key' => env('ZADX_API_KEY'),
+        'api_secret' => env('ZADX_API_SECRET'),
+
+        // Optional, and must already be assigned to the app by ZADX or they
+        // answer 403. Unset, they use the app's default sender. Egypt's rules
+        // do not permit Arabic sender IDs, so a Latin one is the safe choice.
+        'sender_id' => env('ZADX_SENDER_ID'),
+
+        'timeout' => (int) env('ZADX_TIMEOUT', 15),
+    ],
+
 ];
