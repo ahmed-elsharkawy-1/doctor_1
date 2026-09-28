@@ -126,6 +126,7 @@ class BookVisit extends Component
             },
             'stepCount' => $this->service()->requiresOtp() ? 3 : 2,
             'requiresOtp' => $this->service()->requiresOtp(),
+            'otpChannel' => $this->service()->otpChannel(),
             'holdMinutes' => (int) config('clinic.self_booking.hold_ttl_minutes'),
             'showPrice' => (bool) config('clinic.self_booking.show_price'),
             'codeLength' => (int) config('clinic.self_booking.otp.length'),

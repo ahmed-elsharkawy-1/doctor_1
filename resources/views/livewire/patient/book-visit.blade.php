@@ -137,7 +137,7 @@
 
                         <div class="note note-plain">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 1.6.376 3.112 1.043 4.453L2 22l5.667-1.017A9.955 9.955 0 0 0 12 22Z"/></svg>
-                            <span>{{ $requiresOtp ? __('booking.self_booking.verify_notice') : __('booking.self_booking.no_verify_notice') }}</span>
+                            <span>{{ $requiresOtp ? __('booking.self_booking.verify_notice', ['channel' => $otpChannel]) : __('booking.self_booking.no_verify_notice') }}</span>
                         </div>
                     @endif
                 @endif
@@ -164,7 +164,7 @@
                         <input id="phone" type="tel" class="ltr" style="text-align: left"
                                wire:model="phone" autocomplete="tel"
                                placeholder="{{ __('booking.self_booking.phone_placeholder') }}">
-                        <div class="hint">{{ $requiresOtp ? __('booking.self_booking.phone_hint') : __('booking.self_booking.phone_hint_plain') }}</div>
+                        <div class="hint">{{ $requiresOtp ? __('booking.self_booking.phone_hint', ['channel' => $otpChannel]) : __('booking.self_booking.phone_hint_plain') }}</div>
                         @error('phone') <div class="err">{{ $message }}</div> @enderror
                     </div>
 
@@ -180,7 +180,7 @@
                 @if ($stage === 'code')
                     <div>
                         <h1 class="h1">{{ __('booking.self_booking.code_title') }}</h1>
-                        <p class="hint" style="margin: 6px 0 0">{{ __('booking.self_booking.code_lead', ['length' => $codeLength]) }}</p>
+                        <p class="hint" style="margin: 6px 0 0">{{ __('booking.self_booking.code_lead', ['length' => $codeLength, 'channel' => $otpChannel]) }}</p>
                     </div>
 
                     <div class="field">

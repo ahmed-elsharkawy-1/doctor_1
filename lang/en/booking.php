@@ -112,6 +112,9 @@ return [
     | The public self-booking page, where the patient books for themselves.
     */
     'self_booking' => [
+        // How the code arrives — follows the bound driver, not fixed copy.
+        'channel_sms' => 'SMS',
+        'channel_whatsapp' => 'WhatsApp',
         'title' => 'Book with :doctor',
         'disabled' => 'Online booking is not available for this clinic right now.',
         'already_booked' => 'You already have an appointment with this clinic.',
@@ -138,7 +141,7 @@ return [
         'earliest' => 'from :time',
         'no_slots' => 'No appointments available',
         'closed' => 'Clinic closed',
-        'verify_notice' => 'We will send a confirmation code on WhatsApp before you choose a time, to check the number is right.',
+        'verify_notice' => 'We will send a confirmation code by :channel before you choose a time, to check the number is right.',
         'start' => 'Book an appointment',
         'nothing_bookable' => 'No visit types are open for online booking right now.',
 
@@ -146,9 +149,9 @@ return [
         'details_lead' => 'Booking for someone else? Enter their name and number — the details go straight to them.',
         'name_label' => 'Patient name',
         'name_placeholder' => 'e.g. Sara Ahmed Mohamed',
-        'phone_label' => 'WhatsApp number',
+        'phone_label' => 'Phone number',
         'phone_placeholder' => '01xxxxxxxxx',
-        'phone_hint' => 'This number receives the confirmation code and the tracking link.',
+        'phone_hint' => 'Your confirmation code arrives on this number by :channel, and your tracking link on WhatsApp.',
         'family_title' => 'Booking for a family member?',
         'family_lead' => 'Enter their number, so their visit history stays in their name.',
         'no_verify_notice' => 'Enter your details, then pick the time that suits you.',
@@ -157,7 +160,7 @@ return [
         'send_code' => 'Send confirmation code',
 
         'code_title' => 'Confirm the phone number',
-        'code_lead' => 'We sent a :length-digit code to your number on WhatsApp.',
+        'code_lead' => 'We sent a :length-digit code to your number by :channel.',
         'code_label' => 'Confirmation code',
         'no_code' => "Didn't get the code?",
         'resend' => 'Send a new code',

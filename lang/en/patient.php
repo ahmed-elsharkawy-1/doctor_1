@@ -9,7 +9,7 @@ return [
 
     // Phone verification on the public self-booking page.
     'otp' => [
-        'sent' => 'We sent a confirmation code on WhatsApp',
+        'sent' => 'We sent a confirmation code to your number',
         'verified' => 'Phone number confirmed',
         'invalid' => 'That code is not right — try again',
         'expired' => 'That code has expired — ask for a new one',

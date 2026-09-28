@@ -314,6 +314,22 @@ class PatientBookingService
      *
      * See config('clinic.self_booking.require_otp') for why this can be off.
      */
+    /**
+     * What the patient should be told the code arrives by.
+     *
+     * Derived from the bound driver rather than written into the copy, so the
+     * wording cannot go stale the day the channel changes — which it will,
+     * once Meta approves an authentication template and codes move back to
+     * WhatsApp.
+     */
+    public function otpChannel(): string
+    {
+        return match (config('clinic.self_booking.otp.driver')) {
+            'zadx' => __('booking.self_booking.channel_sms'),
+            default => __('booking.self_booking.channel_whatsapp'),
+        };
+    }
+
     public function requiresOtp(): bool
     {
         return (bool) config('clinic.self_booking.require_otp');

@@ -516,6 +516,28 @@ class PatientBookingFlowTest extends TestCase
     }
 
     /**
+     * A patient reading an Arabic page must not be told "The name field is
+     * required" — and must not be told it about a field called `startTime`.
+     */
+    public function test_validation_errors_reach_the_patient_in_arabic(): void
+    {
+        app()->setLocale('ar');
+
+        $html = Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->call('start')
+            ->set('name', '')
+            ->set('phone', '')
+            ->call('sendCode')
+            ->html();
+
+        $this->assertStringContainsString(__('validation.required', [
+            'attribute' => __('validation.attributes.name'),
+        ]), $html);
+
+        $this->assertStringNotContainsString('field is required', $html);
+    }
+
+    /**
      * A refused code empties the boxes.
      *
      * The field behind them cannot be edited a character at a time, so leaving
