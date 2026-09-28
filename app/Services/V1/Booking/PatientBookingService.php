@@ -276,6 +276,44 @@ class PatientBookingService
      * The session is what every later step is gated on — never the component's
      * own idea of which step it is on.
      */
+    /**
+     * Whether a patient has to prove the number before booking.
+     *
+     * See config('clinic.self_booking.require_otp') for why this can be off.
+     */
+    public function requiresOtp(): bool
+    {
+        return (bool) config('clinic.self_booking.require_otp');
+    }
+
+    /**
+     * Takes the number on trust, when verification is switched off.
+     *
+     * Deliberately routed through the same session the verified flow uses, so
+     * nothing downstream has to know the difference: the duplicate-booking
+     * check, the returning-patient lookup and the write all keep reading one
+     * place for "whose booking is this".
+     *
+     * Named for what it is. The number here has *not* been verified — it has
+     * been parsed, normalised and believed. Nothing should read it as proof.
+     */
+    public function acceptPhoneUnverified(Clinic $clinic, string $phone): string
+    {
+        $this->assertOpen($clinic);
+
+        if ($this->requiresOtp()) {
+            throw new \LogicException(
+                'Refusing to skip phone verification while it is switched on.',
+            );
+        }
+
+        $e164 = $this->verification->normalise($clinic, $phone);
+
+        $this->verified->remember($clinic, $e164);
+
+        return $e164;
+    }
+
     public function verifyCode(Clinic $clinic, string $phone, string $code): string
     {
         $this->assertOpen($clinic);

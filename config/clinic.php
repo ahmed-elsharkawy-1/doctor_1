@@ -261,6 +261,21 @@ return [
         // lifetime — that is a global a deploy could change underneath us.
         'verified_session_minutes' => 20,
 
+        /*
+        | Whether a patient must prove their phone before booking.
+        |
+        | TEMPORARY — off only because Meta will not issue an authentication
+        | template for this account yet (see
+        | docs/whatsapp/whatsapp-authentication-unblock.md). With it off the
+        | number is still parsed and normalised, and still the identity the
+        | booking is filed under; it is simply taken on trust.
+        |
+        | That trust has a real cost: patients are matched on phone alone, so
+        | an unverified number files a visit into somebody else's medical
+        | history. Turn this back on the moment a code can actually be sent.
+        */
+        'require_otp' => (bool) env('CLINIC_SELF_BOOKING_REQUIRE_OTP', true),
+
         'otp' => [
             // Mirrors clinic.messaging.driver: `log` writes the code to the
             // log so the whole flow works before Meta approves anything.

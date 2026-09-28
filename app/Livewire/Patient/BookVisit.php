@@ -116,13 +116,16 @@ class BookVisit extends Component
             'confirmed' => $stage === 'done' ? $this->confirmed() : null,
             'verifiedPhone' => $this->service()->verifiedPhone($clinic),
             'whatsappUrl' => $this->service()->clinicWhatsAppUrl($clinic),
+            // One fewer step when there is no code to confirm, so the counter
+            // never promises a screen the patient will not see.
             'stepNumber' => match ($stage) {
                 'details' => 1,
                 'code' => 2,
-                'appointment' => 3,
+                'appointment' => $this->service()->requiresOtp() ? 3 : 2,
                 default => null,
             },
-            'stepCount' => 3,
+            'stepCount' => $this->service()->requiresOtp() ? 3 : 2,
+            'requiresOtp' => $this->service()->requiresOtp(),
             'holdMinutes' => (int) config('clinic.self_booking.hold_ttl_minutes'),
             'showPrice' => (bool) config('clinic.self_booking.show_price'),
             'codeLength' => (int) config('clinic.self_booking.otp.length'),
@@ -156,7 +159,9 @@ class BookVisit extends Component
         if ($this->service()->verifiedPhone($clinic) === null) {
             return match ($this->step) {
                 2 => 'details',
-                3 => 'code',
+                // Never the code screen when there is no code to ask for —
+                // $step is client-editable, so this is a guard, not a branch.
+                3 => $this->service()->requiresOtp() ? 'code' : 'details',
                 default => 'overview',
             };
         }
@@ -208,6 +213,7 @@ class BookVisit extends Component
     public function back(): void
     {
         $this->step = max(1, $this->step - 1);
+        $this->clearCode();
         $this->clearNotice();
     }
 
@@ -219,15 +225,23 @@ class BookVisit extends Component
         ]);
 
         $this->run(function (): void {
-            $this->service()->requestCode(
-                $this->clinic(),
-                $this->phone,
-                request()->ip(),
-            );
+            $clinic = $this->clinic();
+
+            // Verification switched off: the number is parsed and believed,
+            // and the patient goes straight to choosing a time. Same session,
+            // same guards after this point — only the proof is missing.
+            if (! $this->service()->requiresOtp()) {
+                $this->service()->acceptPhoneUnverified($clinic, $this->phone);
+                $this->startPickingATime($clinic);
+
+                return;
+            }
+
+            $this->service()->requestCode($clinic, $this->phone, request()->ip());
 
             $this->clearCode();
             $this->step = 3;
-        }, __('patient.otp.sent'));
+        }, $this->service()->requiresOtp() ? __('patient.otp.sent') : null);
     }
 
     public function resendCode(): void
@@ -247,13 +261,14 @@ class BookVisit extends Component
 
             $this->service()->verifyCode($clinic, $this->phone, $this->code);
 
-            // The appointment screen needs a starting point, and a returning
-            // patient usually wants what they had last time.
-            $this->visitTypeId = $this->service()
-                ->defaultVisitType($clinic, $this->service()->verifiedPatient($clinic))?->id;
-            $this->date = Carbon::now($clinic->timezone)->toDateString();
+            $this->startPickingATime($clinic);
             $this->clearCode();
-        }, __('patient.otp.verified'));
+        }, __('patient.otp.verified'), function (): void {
+            // Refused. The digits on screen are known to be wrong, and the
+            // field behind the boxes cannot be edited a character at a time —
+            // so leaving them there only invites the same code again.
+            $this->clearCode();
+        });
     }
 
     /**
@@ -270,6 +285,19 @@ class BookVisit extends Component
     {
         $this->code = '';
         $this->dispatch('code-cleared');
+    }
+
+    /**
+     * Everything the slot screen needs on arrival, however the patient got
+     * there. A returning patient usually wants the visit type they had last
+     * time, and the day starts at today.
+     */
+    private function startPickingATime(Clinic $clinic): void
+    {
+        $this->visitTypeId = $this->service()
+            ->defaultVisitType($clinic, $this->service()->verifiedPatient($clinic))?->id;
+
+        $this->date = Carbon::now($clinic->timezone)->toDateString();
     }
 
     /** Back to the details screen with the proof dropped. */

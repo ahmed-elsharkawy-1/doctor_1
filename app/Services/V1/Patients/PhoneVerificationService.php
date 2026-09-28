@@ -131,6 +131,17 @@ class PhoneVerificationService
     }
 
     /**
+     * The E.164 form, or the same refusal the OTP path would give.
+     *
+     * Public so a flow that skips verification still rejects a number the
+     * verified flow would have rejected — one parser, one error, one contract.
+     */
+    public function normalise(Clinic $clinic, string $phone): string
+    {
+        return $this->parse($clinic, $phone)->e164;
+    }
+
+    /**
      * Normalised against the clinic's own country: a Saudi clinic's number
      * parsed as an Egyptian one is a different number, and the caps would
      * count it separately.
