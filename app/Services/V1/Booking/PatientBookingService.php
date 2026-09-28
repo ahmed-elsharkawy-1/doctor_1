@@ -137,7 +137,40 @@ class PatientBookingService
             ];
         }
 
-        return $ranges;
+        return $this->merged($ranges);
+    }
+
+    /**
+     * Folds ranges that touch or overlap into one.
+     *
+     * Two periods on the same day may overlap — nothing stops a clinic saving
+     * 15:00–23:00 and 17:00–23:00 — and the free slots inside the overlap then
+     * belong to both, which printed the same times twice. Merging is also the
+     * honest reading: one continuous stretch the doctor is available, however
+     * many rows the schedule happens to store it in.
+     *
+     * @param  list<array{start: Carbon, end: Carbon}>  $ranges
+     * @return list<array{start: Carbon, end: Carbon}>
+     */
+    private function merged(array $ranges): array
+    {
+        usort($ranges, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
+
+        $merged = [];
+
+        foreach ($ranges as $range) {
+            $last = end($merged);
+
+            if ($last !== false && $range['start'] <= $last['end']) {
+                $merged[array_key_last($merged)]['end'] = max($last['end'], $range['end']);
+
+                continue;
+            }
+
+            $merged[] = $range;
+        }
+
+        return $merged;
     }
 
     public function days(Clinic $clinic): array

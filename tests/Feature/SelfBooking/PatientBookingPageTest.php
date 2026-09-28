@@ -229,6 +229,26 @@ class PatientBookingPageTest extends TestCase
             });
     }
 
+    /**
+     * Nothing stops a clinic saving two periods that overlap, and the free
+     * slots inside the overlap belong to both — which printed the same times
+     * twice until these were folded together.
+     */
+    public function test_overlapping_shifts_are_reported_once(): void
+    {
+        $schedule = $this->clinic->scheduleFor(DayOfWeek::fromDate(Carbon::parse(self::DAY)));
+        // setUp already opened 09:00–13:00; this one sits inside it.
+        $schedule->periods()->create(['start_time' => '10:00', 'end_time' => '13:00']);
+
+        Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->assertViewHas('days', function (array $days): bool {
+                $ranges = $days[0]['free_ranges'];
+
+                return count($ranges) === 1
+                    && $ranges[0]['start']->format('H:i') === '09:00';
+            });
+    }
+
     /** Bounded by what is free, not by when the doctor opens. */
     public function test_a_morning_already_booked_reports_from_the_first_free_time(): void
     {
