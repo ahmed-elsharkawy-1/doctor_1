@@ -151,6 +151,9 @@ return [
         'phone_hint' => 'This number receives the confirmation code and the tracking link.',
         'family_title' => 'Booking for a family member?',
         'family_lead' => 'Enter their number, so their visit history stays in their name.',
+        'no_verify_notice' => 'Enter your details, then pick the time that suits you.',
+        'phone_hint_plain' => 'Your queue tracking link is sent to this number.',
+        'continue' => 'Continue',
         'send_code' => 'Send confirmation code',
 
         'code_title' => 'Confirm the phone number',
@@ -161,7 +164,6 @@ return [
         'resend_after' => 'A new code can be requested :seconds seconds after the last one.',
         'code_security' => 'The code makes sure nobody books with a number that is not theirs. It is valid for :minutes minutes.',
         'verify' => 'Confirm number',
-        'change_number' => 'Change the number',
 
         'appointment_title' => 'Booking details',
         'appointment_lead' => 'Pick the visit type, the day and a time that suits you.',

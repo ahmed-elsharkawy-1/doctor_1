@@ -9,7 +9,7 @@ in [whatsapp-required-updates.md](whatsapp-required-updates.md) for later.
 | # | Action | Why now |
 |---|---|---|
 | 1 | Change 2 templates to **UTILITY** | booking confirmations are being dropped |
-| 2 | Create an **AUTHENTICATION** template | patient self-booking cannot launch |
+| 2 | Create an **AUTHENTICATION** template | ⛔ blocked — see below |
 | 3 | Register the webhook + send the app secret | otherwise we cannot tell whether 1 worked |
 | 4 | Re-verify the phone number | verification has expired |
 

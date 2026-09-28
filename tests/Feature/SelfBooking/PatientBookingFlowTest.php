@@ -516,6 +516,28 @@ class PatientBookingFlowTest extends TestCase
     }
 
     /**
+     * A refused code empties the boxes.
+     *
+     * The field behind them cannot be edited a character at a time, so leaving
+     * a known-wrong code on screen only invites the patient to submit it again.
+     */
+    public function test_a_refused_code_empties_the_field(): void
+    {
+        $page = Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->call('start')
+            ->set('name', 'فاطمة عبد الرحمن')
+            ->set('phone', self::PHONE)
+            ->call('sendCode')
+            ->set('code', '0000')
+            ->call('verifyCode');
+
+        $page->assertSet('failed', true)
+            ->assertViewHas('stage', 'code')
+            ->assertSet('code', '')
+            ->assertDispatched('code-cleared');
+    }
+
+    /**
      * Asking for a new code must empty the old one.
      *
      * The server clearing it is only half: `wire:model` is deferred, so the

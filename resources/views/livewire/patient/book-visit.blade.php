@@ -137,7 +137,7 @@
 
                         <div class="note note-plain">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 1.6.376 3.112 1.043 4.453L2 22l5.667-1.017A9.955 9.955 0 0 0 12 22Z"/></svg>
-                            <span>{{ __('booking.self_booking.verify_notice') }}</span>
+                            <span>{{ $requiresOtp ? __('booking.self_booking.verify_notice') : __('booking.self_booking.no_verify_notice') }}</span>
                         </div>
                     @endif
                 @endif
@@ -164,7 +164,7 @@
                         <input id="phone" type="tel" class="ltr" style="text-align: left"
                                wire:model="phone" autocomplete="tel"
                                placeholder="{{ __('booking.self_booking.phone_placeholder') }}">
-                        <div class="hint">{{ __('booking.self_booking.phone_hint') }}</div>
+                        <div class="hint">{{ $requiresOtp ? __('booking.self_booking.phone_hint') : __('booking.self_booking.phone_hint_plain') }}</div>
                         @error('phone') <div class="err">{{ $message }}</div> @enderror
                     </div>
 
@@ -205,13 +205,12 @@
                         @error('code') <div class="err">{{ $message }}</div> @enderror
                     </div>
 
-                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap">
-                        <span class="ltr hint">{{ $phone }}</span>
-                        <button type="button" wire:click="changeNumber"
-                                style="border: 0; background: none; padding: 0; font-size: 13px; font-weight: 700; color: var(--primary); cursor: pointer">
-                            {{ __('booking.self_booking.change_number') }}
-                        </button>
-                    </div>
+                    {{-- The number the code went to, so it can be checked for a
+                         typo. No "change it" control beside it: at this stage
+                         nothing is verified and nothing is held, so that button
+                         did exactly what «السابق» in the bar already does, and
+                         two controls for one action is one too many. --}}
+                    <p class="code-sent-to"><bdi>{{ $phone }}</bdi></p>
 
                     <div style="text-align: center">
                         <div class="hint">{{ __('booking.self_booking.no_code') }}</div>
@@ -273,7 +272,11 @@
 
                         <span class="who-verified-who">
                             <span class="who-verified-name">{{ $name }}</span>
-                            <span class="who-verified-phone ltr">{{ $verifiedPhone }}</span>
+                            {{-- <bdi>, not the .ltr class: that sets direction
+                                 on the block, which re-aligns it as well as
+                                 reordering it, and the number ends up against
+                                 the opposite edge from the name. --}}
+                            <span class="who-verified-phone"><bdi>{{ $verifiedPhone }}</bdi></span>
                         </span>
 
                         <span class="who-verified-edit">{{ __('booking.self_booking.edit') }}</span>
@@ -434,7 +437,7 @@
 
             @elseif ($stage === 'details')
                 <button type="button" class="btn btn-primary" wire:click="sendCode">
-                    {{ __('booking.self_booking.send_code') }}
+                    {{ $requiresOtp ? __('booking.self_booking.send_code') : __('booking.self_booking.continue') }}
                 </button>
 
                 <button type="button" class="btn btn-outline" wire:click="back">
@@ -496,6 +499,15 @@
 
                 <button type="button" class="btn btn-primary" wire:click="confirm" @disabled($startTime === null)>
                     {{ __('booking.self_booking.confirm') }}
+                </button>
+
+                {{-- Same action as «تعديل» on the card above, deliberately: this
+                     is the only screen where going back means changing who the
+                     booking is for. It gives up the held slot on the way out,
+                     so a patient who wanders back does not leave a time blocked
+                     behind them. --}}
+                <button type="button" class="btn btn-outline" wire:click="changeNumber">
+                    {{ __('booking.self_booking.previous') }}
                 </button>
 
             @elseif ($stage === 'done' && $confirmed !== null)

@@ -424,6 +424,7 @@
             align-items: center;
             gap: 12px;
             width: 100%;
+            padding: 12px 14px;
             text-align: start;
             cursor: pointer;
             background: var(--surface);
@@ -448,10 +449,13 @@
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
 
+        /* Same alignment as the name above it — they are one block about one
+           person, so nothing here sets a direction. */
         .who-verified-phone {
             display: block;
-            margin-top: 2px;
+            margin-top: 3px;
             font-size: 12.5px; font-weight: 600; color: var(--muted);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
 
         /* Bordered rather than bare text: on a card that is entirely tappable,
@@ -466,6 +470,14 @@
             background: var(--surface);
         }
         .who-verified:hover .who-verified-edit { border-color: var(--primary); }
+
+        /* The number the code was sent to. Centred under the boxes, because
+           it belongs to them rather than to the page. */
+        .code-sent-to {
+            margin: 0;
+            text-align: center;
+            font-size: 13px; font-weight: 700; color: var(--ink-soft);
+        }
 
         /* Notes ------------------------------------------------------------ */
         .note { display: flex; gap: 10px; align-items: flex-start; border-radius: 14px; padding: 12px 14px; font-size: 12.5px; line-height: 1.6; }
