@@ -226,7 +226,12 @@
         .daysum dd { margin: 0; font-weight: 700; color: var(--success-ink); white-space: nowrap; }
         /* Two stretches in a day stack rather than run together, so "morning
            and evening" reads as two facts and not one long span. */
-        .daysum-range { display: block; direction: ltr; text-align: end; }
+        /* No `direction: ltr` here. Each time is "9:00 ص" — digits then an
+           Arabic marker — so forcing the line LTR makes the bidi algorithm
+           reorder the parts and the marker lands against the wrong number.
+           The <bdi> around each time isolates it; the pair then falls in the
+           page's own direction, which is what reads correctly in Arabic. */
+        .daysum-range { display: block; text-align: end; }
         .daysum-range + .daysum-range { margin-top: 2px; }
         .daysum dd.is-off { font-weight: 600; color: #7A5410; }
         .daysum dd.is-full { font-weight: 600; color: var(--danger); }

@@ -127,7 +127,7 @@
                                             {{-- The doctor's own hours, one line per stretch she works.
                                                  A count is a number a patient cannot act on; a time is. --}}
                                             @foreach ($day['free_ranges'] ?? [] as $range)
-                                                <span class="daysum-range">{{ $clock($range['start']) }} – {{ $clock($range['end']) }}</span>
+                                                <span class="daysum-range"><bdi>{{ $clock($range['start']) }}</bdi> – <bdi>{{ $clock($range['end']) }}</bdi></span>
                                             @endforeach
                                         @endif
                                     </dd>
