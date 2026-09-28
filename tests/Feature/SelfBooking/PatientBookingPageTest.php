@@ -4,6 +4,7 @@ namespace Tests\Feature\SelfBooking;
 
 use App\Enums\DayOfWeek;
 use App\Livewire\Patient\BookVisit;
+use App\Models\Booking;
 use App\Models\VisitType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -206,6 +207,38 @@ class PatientBookingPageTest extends TestCase
 
         Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
             ->assertSee(__('booking.self_booking.nothing_bookable'));
+    }
+
+    /**
+     * A clinic commonly works two separate stretches in a day — a morning and
+     * an evening — and a patient wants to know which. One span covering both
+     * would claim the doctor is there through a four-hour gap she is not.
+     */
+    public function test_a_day_with_two_shifts_reports_both(): void
+    {
+        $schedule = $this->clinic->scheduleFor(DayOfWeek::fromDate(Carbon::parse(self::DAY)));
+        $schedule->periods()->create(['start_time' => '19:00', 'end_time' => '22:00']);
+
+        Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->assertViewHas('days', function (array $days): bool {
+                $ranges = $days[0]['free_ranges'];
+
+                return count($ranges) === 2
+                    && $ranges[0]['start']->format('H:i') === '09:00'
+                    && $ranges[1]['start']->format('H:i') === '19:00';
+            });
+    }
+
+    /** Bounded by what is free, not by when the doctor opens. */
+    public function test_a_morning_already_booked_reports_from_the_first_free_time(): void
+    {
+        Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse(self::DAY.' 09:00', $this->clinic->timezone))->create();
+
+        Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->assertViewHas('days', function (array $days): bool {
+                return $days[0]['free_ranges'][0]['start']->format('H:i') !== '09:00';
+            });
     }
 
     public function test_the_opening_screen_counts_what_is_free(): void

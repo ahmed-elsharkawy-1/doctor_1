@@ -224,6 +224,10 @@
 
         /* Plain text, not a badge. Green because the answer is good news. */
         .daysum dd { margin: 0; font-weight: 700; color: var(--success-ink); white-space: nowrap; }
+        /* Two stretches in a day stack rather than run together, so "morning
+           and evening" reads as two facts and not one long span. */
+        .daysum-range { display: block; direction: ltr; text-align: end; }
+        .daysum-range + .daysum-range { margin-top: 2px; }
         .daysum dd.is-off { font-weight: 600; color: #7A5410; }
         .daysum dd.is-full { font-weight: 600; color: var(--danger); }
 

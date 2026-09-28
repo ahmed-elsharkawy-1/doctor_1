@@ -139,7 +139,6 @@ return [
         // الشاشة الأولى: المواعيد المتاحة، قبل طلب أي بيانات.
         'available_title' => 'أقرب المواعيد المتاحة',
         'days_count' => ':count أيام',
-        'slots_available' => ':count موعد متاح',
         'earliest' => 'أقربها :time',
         'no_slots' => 'لا توجد مواعيد متاحة',
         'closed' => 'العيادة مغلقة',

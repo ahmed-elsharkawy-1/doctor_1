@@ -135,7 +135,6 @@ return [
         'peek_lead' => 'This page is a preview only. Choose "Book an appointment" to enter your details, confirm your number, and pick a time.',
         'available_title' => 'Earliest appointments',
         'days_count' => ':count days',
-        'slots_available' => ':count available',
         'earliest' => 'from :time',
         'no_slots' => 'No appointments available',
         'closed' => 'Clinic closed',

@@ -5,6 +5,7 @@ namespace App\Services\V1\Booking;
 use App\DTOs\V1\Booking\BookingData;
 use App\Enums\ApiErrorCode;
 use App\Enums\BookingSource;
+use App\Enums\DayOfWeek;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Models\Clinic;
@@ -82,6 +83,63 @@ class PatientBookingService
      *
      * @return list<array<string, mixed>>
      */
+    /**
+     * When a day is open for booking, expressed as the doctor's own hours.
+     *
+     * A count ("15 موعد متاح") tells a patient nothing they can act on — what
+     * they want to know is whether the doctor is there in the morning or the
+     * evening. A clinic commonly works two separate stretches in a day, so
+     * this returns one range per stretch rather than a single span hiding a
+     * four-hour gap in the middle.
+     *
+     * Each range is bounded by the first and last slot actually free inside
+     * that stretch, not by the stretch itself: a morning fully booked until
+     * noon should read from noon, not from ten.
+     *
+     * @param  list<Slot>  $free
+     * @return list<array{start: Carbon, end: Carbon}>
+     */
+    private function freeRanges(Clinic $clinic, Carbon $date, array $free): array
+    {
+        if ($free === []) {
+            return [];
+        }
+
+        $schedule = $clinic->scheduleFor(DayOfWeek::fromDate($date));
+        $periods = $schedule?->periods ?? collect();
+
+        // No periods on record: one range across everything that is free.
+        if ($periods->isEmpty()) {
+            return [[
+                'start' => $free[0]->startAt,
+                'end' => end($free)->endAt,
+            ]];
+        }
+
+        $ranges = [];
+
+        foreach ($periods as $period) {
+            $opens = Carbon::parse($date->toDateString().' '.$period->start_time, $clinic->timezone);
+            $closes = Carbon::parse($date->toDateString().' '.$period->end_time, $clinic->timezone);
+
+            $inside = array_values(array_filter(
+                $free,
+                static fn (Slot $slot): bool => $slot->startAt >= $opens && $slot->startAt < $closes,
+            ));
+
+            if ($inside === []) {
+                continue;
+            }
+
+            $ranges[] = [
+                'start' => $inside[0]->startAt,
+                'end' => end($inside)->endAt,
+            ];
+        }
+
+        return $ranges;
+    }
+
     public function days(Clinic $clinic): array
     {
         return $this->dayWindow->window($clinic, $clinic->patientBookingWindowDays());
@@ -194,6 +252,7 @@ class PatientBookingService
             return $day + [
                 'available_count' => count($free),
                 'first_free' => $free === [] ? null : $free[0]->startAt,
+                'free_ranges' => $this->freeRanges($clinic, $day['date'], $free),
             ];
         }, $this->days($clinic));
     }

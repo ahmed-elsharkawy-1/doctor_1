@@ -124,7 +124,11 @@
                                         @elseif (($day['available_count'] ?? 0) === 0)
                                             {{ __('booking.self_booking.full') }}
                                         @else
-                                            {{ __('booking.self_booking.slots_available', ['count' => $day['available_count']]) }}
+                                            {{-- The doctor's own hours, one line per stretch she works.
+                                                 A count is a number a patient cannot act on; a time is. --}}
+                                            @foreach ($day['free_ranges'] ?? [] as $range)
+                                                <span class="daysum-range">{{ $clock($range['start']) }} – {{ $clock($range['end']) }}</span>
+                                            @endforeach
                                         @endif
                                     </dd>
                                 </div>
