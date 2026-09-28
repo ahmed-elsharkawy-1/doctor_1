@@ -414,6 +414,59 @@
             z-index: 1;
         }
 
+        /* The verified patient, on the slot screen --------------------------
+
+           Three parts on one row: a tick, the person, and the way to change
+           them. The name and number stack because they are one fact about one
+           person — side by side they read as two separate fields. */
+        .who-verified {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            text-align: start;
+            cursor: pointer;
+            background: var(--surface);
+        }
+
+        .who-verified-tick {
+            flex: 0 0 auto;
+            width: 30px; height: 30px;
+            display: grid; place-items: center;
+            border-radius: 50%;
+            background: var(--success-bg);
+            color: var(--success);
+        }
+
+        /* min-width: 0 so a long name truncates instead of shoving the edit
+           link off the end of the row. */
+        .who-verified-who { flex: 1 1 auto; min-width: 0; display: block; }
+
+        .who-verified-name {
+            display: block;
+            font-size: 14px; font-weight: 800; color: var(--ink);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+
+        .who-verified-phone {
+            display: block;
+            margin-top: 2px;
+            font-size: 12.5px; font-weight: 600; color: var(--muted);
+        }
+
+        /* Bordered rather than bare text: on a card that is entirely tappable,
+           a coloured word alone does not read as the thing to press. */
+        .who-verified-edit {
+            flex: 0 0 auto;
+            padding: 5px 12px;
+            border: 1px solid var(--line-strong);
+            border-radius: 999px;
+            font-size: 12.5px; font-weight: 700;
+            color: var(--primary);
+            background: var(--surface);
+        }
+        .who-verified:hover .who-verified-edit { border-color: var(--primary); }
+
         /* Notes ------------------------------------------------------------ */
         .note { display: flex; gap: 10px; align-items: flex-start; border-radius: 14px; padding: 12px 14px; font-size: 12.5px; line-height: 1.6; }
         .note svg { flex: 0 0 auto; margin-top: 2px; }

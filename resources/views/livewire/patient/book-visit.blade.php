@@ -263,16 +263,20 @@
                         <p class="hint" style="margin: 6px 0 0">{{ __('booking.self_booking.appointment_lead') }}</p>
                     </div>
 
-                    <button type="button" class="card" wire:click="changeNumber"
-                            style="display: flex; align-items: center; gap: 10px; text-align: start; cursor: pointer">
-                        <span style="flex: 0 0 auto; width: 22px; height: 22px; border-radius: 8px; background: var(--success-bg); display: grid; place-items: center">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                    {{-- Who the visit will be filed under. The whole row is the
+                         edit control, so the tap target is the card rather than
+                         two words at the end of it. --}}
+                    <button type="button" class="card who-verified" wire:click="changeNumber">
+                        <span class="who-verified-tick" aria-hidden="true">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
                         </span>
-                        <span style="flex: 1 1 auto; min-width: 0">
-                            <span style="display: block; font-size: 13.5px; font-weight: 700">{{ $name }}</span>
-                            <span class="ltr hint" style="display: block">{{ $verifiedPhone }}</span>
+
+                        <span class="who-verified-who">
+                            <span class="who-verified-name">{{ $name }}</span>
+                            <span class="who-verified-phone ltr">{{ $verifiedPhone }}</span>
                         </span>
-                        <span style="flex: 0 0 auto; font-size: 12.5px; font-weight: 700; color: var(--primary)">{{ __('booking.self_booking.edit') }}</span>
+
+                        <span class="who-verified-edit">{{ __('booking.self_booking.edit') }}</span>
                     </button>
 
                     @if ($visitTypes->count() > 1)
