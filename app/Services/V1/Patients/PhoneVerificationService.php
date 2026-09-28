@@ -229,7 +229,7 @@ class PhoneVerificationService
         $fixed = config('clinic.self_booking.otp.fixed_code');
 
         if (filled($fixed)) {
-            if (app()->isProduction()) {
+            if (app()->isProduction() && ! config('clinic.self_booking.otp.allow_fixed_in_production')) {
                 throw new \RuntimeException(
                     'CLINIC_OTP_FIXED_CODE is set in production. A fixed verification '
                     .'code means anybody can book with anybody\'s number. Unset it.',

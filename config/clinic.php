@@ -296,6 +296,17 @@ return [
             */
             'allow_log_in_production' => (bool) env('CLINIC_OTP_ALLOW_LOG_IN_PRODUCTION', false),
 
+            /*
+            | Lets `fixed_code` work on a production host.
+            |
+            | Its own switch, separate from the one above, because it is the
+            | more dangerous of the two: a code everyone knows lets anyone
+            | verify a number they do not own and read that patient's name and
+            | appointment off the next screen. Only safe while a deployment has
+            | no real patients on it. Unset it before it does.
+            */
+            'allow_fixed_in_production' => (bool) env('CLINIC_OTP_ALLOW_FIXED_IN_PRODUCTION', false),
+
             // Seconds before a new code may be requested.
             'resend_cooldown' => (int) env('CLINIC_OTP_RESEND_COOLDOWN', 60),
             // A public form that sends messages is a way to bill us and to

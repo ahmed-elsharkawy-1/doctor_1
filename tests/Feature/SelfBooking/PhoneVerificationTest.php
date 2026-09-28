@@ -456,21 +456,42 @@ class PhoneVerificationTest extends TestCase
         (new LogOtpSender)->send($this->clinic, self::E164, '4321');
     }
 
-    public function test_opening_it_does_not_also_allow_a_fixed_code(): void
+    /**
+     * Two switches, not one. Opening the log driver is mild — a stranger
+     * cannot read our logs. A code everyone knows is not, so it needs its own
+     * deliberate act.
+     */
+    public function test_opening_the_log_driver_does_not_also_allow_a_fixed_code(): void
     {
         $this->app->detectEnvironment(fn (): string => 'production');
 
         config([
             'clinic.self_booking.otp.allow_log_in_production' => true,
+            'clinic.self_booking.otp.allow_fixed_in_production' => false,
             'clinic.self_booking.otp.fixed_code' => '1234',
         ]);
 
         // The log driver is permitted now...
         (new LogOtpSender)->send($this->clinic, self::E164, '4321');
 
-        // ...but a code a stranger could guess is still refused.
+        // ...but a code a stranger could guess still is not.
         $this->expectException(\RuntimeException::class);
         $this->service()->request($this->clinic, self::PHONE);
+    }
+
+    public function test_a_fixed_code_needs_its_own_switch(): void
+    {
+        $this->app->detectEnvironment(fn (): string => 'production');
+
+        config([
+            'clinic.self_booking.otp.allow_log_in_production' => true,
+            'clinic.self_booking.otp.allow_fixed_in_production' => true,
+            'clinic.self_booking.otp.fixed_code' => '1234',
+        ]);
+
+        $this->service()->request($this->clinic, self::PHONE);
+
+        $this->assertSame('1234', $this->sender->lastCode());
     }
 
     /**
