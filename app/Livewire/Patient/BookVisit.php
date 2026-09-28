@@ -225,7 +225,7 @@ class BookVisit extends Component
                 request()->ip(),
             );
 
-            $this->code = '';
+            $this->clearCode();
             $this->step = 3;
         }, __('patient.otp.sent'));
     }
@@ -234,7 +234,7 @@ class BookVisit extends Component
     {
         $this->run(function (): void {
             $this->service()->requestCode($this->clinic(), $this->phone, request()->ip());
-            $this->code = '';
+            $this->clearCode();
         }, __('patient.otp.sent'));
     }
 
@@ -252,8 +252,24 @@ class BookVisit extends Component
             $this->visitTypeId = $this->service()
                 ->defaultVisitType($clinic, $this->service()->verifiedPatient($clinic))?->id;
             $this->date = Carbon::now($clinic->timezone)->toDateString();
-            $this->code = '';
+            $this->clearCode();
         }, __('patient.otp.verified'));
+    }
+
+    /**
+     * Empties the code, on the server and in the browser.
+     *
+     * Both halves are needed. `wire:model` here is deferred, so after a
+     * re-render the input still holds whatever was typed into it — and the
+     * script that mirrors it into the boxes reads that value back and paints
+     * the old code straight over the cleared one. Asking a patient for a new
+     * code while the previous one is still sitting in the boxes is how they
+     * submit the expired one again.
+     */
+    private function clearCode(): void
+    {
+        $this->code = '';
+        $this->dispatch('code-cleared');
     }
 
     /** Back to the details screen with the proof dropped. */
@@ -263,7 +279,7 @@ class BookVisit extends Component
         $this->service()->forgetVerification($this->clinic());
 
         $this->step = 2;
-        $this->code = '';
+        $this->clearCode();
         $this->clearNotice();
     }
 

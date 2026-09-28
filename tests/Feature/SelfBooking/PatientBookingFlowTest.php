@@ -516,6 +516,29 @@ class PatientBookingFlowTest extends TestCase
     }
 
     /**
+     * Asking for a new code must empty the old one.
+     *
+     * The server clearing it is only half: `wire:model` is deferred, so the
+     * browser keeps what was typed. Without the event the boxes still show the
+     * expired code, and the patient submits it again.
+     */
+    public function test_asking_for_a_new_code_empties_the_field(): void
+    {
+        config(['clinic.self_booking.otp.resend_cooldown' => 0]);
+
+        $page = Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->call('start')
+            ->set('name', 'فاطمة عبد الرحمن')
+            ->set('phone', self::PHONE)
+            ->call('sendCode')
+            ->set('code', '9999')
+            ->call('resendCode');
+
+        $page->assertSet('code', '')
+            ->assertDispatched('code-cleared');
+    }
+
+    /**
      * The code screen is four drawn boxes over exactly one real field.
      *
      * Four inputs would break SMS autofill and paste, which only ever target a

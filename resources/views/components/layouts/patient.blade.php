@@ -642,6 +642,18 @@
             document.addEventListener('DOMContentLoaded', paintAll);
             document.addEventListener('livewire:initialized', function () {
                 Livewire.hook('morph.updated', paintAll);
+
+                // The server emptied the code — asking for a new one, or
+                // changing the number. The field has to be emptied here too:
+                // `wire:model` is deferred, so the input still holds what was
+                // typed, and the mirror above would paint the old code straight
+                // back over the cleared boxes.
+                Livewire.on('code-cleared', function () {
+                    document.querySelectorAll('[data-code-boxes] .code-entry').forEach(function (input) {
+                        input.value = '';
+                        paint(input);
+                    });
+                });
             });
         })();
     </script>
