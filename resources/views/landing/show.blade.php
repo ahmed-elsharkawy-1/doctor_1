@@ -570,15 +570,21 @@
                choice, 3 to WhatsApp's 5. */
             .dock .btn svg { flex: 0 0 auto; }
             .dock .btn-wa { flex: 5 1 0; font-size: 14px; }
-            .dock .btn-ghost { flex: 3 1 0; gap: 5px; padding-inline: 6px; font-size: 12px; }
+            /* Narrower than the primary, but not quieter: the label and mark
+               are set at the same size, and only the share of the width
+               differs. Shrinking the type as well made the second action look
+               like a footnote rather than a choice. */
+            .dock .btn-ghost { flex: 3 1 0; gap: 6px; padding-inline: 6px; font-size: 14px; }
+            .dock .btn-ghost svg { width: 17px; height: 17px; }
             body { padding-bottom: 78px; }
         }
 
-        /* The narrowest phones cannot fit both labels at full size. */
+        /* The narrowest phones give back the padding and the gap rather than
+           the type — a label is still worth reading at 320px. */
         @media (max-width: 380px) {
             .dock { gap: 6px; padding-inline: 12px; }
-            .dock .btn-ghost { gap: 4px; padding-inline: 4px; font-size: 11px; }
-            .dock .btn-ghost svg { width: 13px; height: 13px; }
+            .dock .btn-ghost { gap: 5px; padding-inline: 4px; font-size: 13px; }
+            .dock .btn-ghost svg { width: 16px; height: 16px; }
         }
 
     </style>

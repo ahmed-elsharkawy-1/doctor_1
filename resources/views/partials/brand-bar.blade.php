@@ -44,8 +44,14 @@
     }
 
     /* The air between the header and whatever the page starts with. One rule
-       here rather than four in four stylesheets, so the pages cannot drift. */
-    .brand-header + * { margin-top: 18px; }
+       here rather than four in four stylesheets, so the pages cannot drift.
+
+       On the header itself, not on the next sibling. Two of these pages
+       include the spinner partial straight after this one, and a `+ *` rule
+       spent the gap on its <style> element — which draws nothing, so the card
+       below sat flush against the blue. A bottom margin cannot be absorbed by
+       an element that generates no box. */
+    .brand-header { margin-bottom: 18px; }
 
     @media (max-width: 380px) {
         .brand-header img { height: 34px; }
