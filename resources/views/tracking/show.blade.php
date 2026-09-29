@@ -248,7 +248,7 @@
 </head>
 <body>
 
-@include('partials.brand-bar', ['overlap' => 40])
+@include('partials.brand-bar')
 
 <div class="wrap">
 

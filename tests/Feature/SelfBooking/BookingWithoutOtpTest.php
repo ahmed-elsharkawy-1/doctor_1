@@ -9,6 +9,7 @@ use App\Models\Booking;
 use App\Models\Patient;
 use App\Models\SlotHold;
 use App\Services\V1\Booking\PatientBookingService;
+use App\Support\HeldSlotSession;
 use Database\Seeders\MessageTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -191,9 +192,9 @@ class BookingWithoutOtpTest extends TestCase
         $this->assertSame(1, SlotHold::count());
 
         $page->call('changeNumber')
-            ->assertViewHas('stage', 'details')
-            ->assertSet('holdToken', null);
+            ->assertViewHas('stage', 'details');
 
+        $this->assertNull(app(HeldSlotSession::class)->tokenFor($this->clinic));
         $this->assertSame(0, SlotHold::count());
     }
 

@@ -19,9 +19,8 @@
             --muted: #5F6F80;
             --faint: #8B9AAA;
             --primary: #185FA5;
-            /* Same action green as the landing page and the booking flow.
-               Sending the review is the one thing this page asks for. */
-            --cta: #1FAF54;
+            /* Sending the review is the one thing this page asks for. */
+            --cta: var(--primary);
             --primary-50: #EEF4FB;
             --success: #1B9E57;
             --success-bg: #E7F4EC;
@@ -59,8 +58,6 @@
         }
 
         /* who the visit was with */
-        /* The first card rides up over the blue header. */
-        .wrap > :first-child { margin-top: -22px; }
 
         h1 { font-size: 20px; font-weight: 800; }
         .lead { color: var(--muted); font-size: 13.5px; margin-top: 4px; }
@@ -119,7 +116,10 @@
         .counter { text-align: start; color: var(--faint); font-size: 12px; margin-top: 6px; }
 
         .btn {
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
             width: 100%;
             border: 0;
             border-radius: 12px;
@@ -183,6 +183,7 @@
 <body>
 
 @include('partials.brand-bar')
+@include('partials.button-busy')
 
 <div class="wrap">
 

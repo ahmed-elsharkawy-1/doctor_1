@@ -28,7 +28,7 @@
 {{-- The day this browser is watching. The attribute changes as the patient
      moves between days, and the script in the layout re-subscribes. --}}
 <div data-slots-channel="{{ \App\Events\SlotsChanged::channelFor($clinic->id, $date) }}">
-    @include('partials.brand-bar', ['overlap' => 40])
+    @include('partials.brand-bar')
 
     <div class="wrap">
 
@@ -81,7 +81,7 @@
 
                         <div class="note note-info">
                             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                            <span>{{ __('booking.self_booking.peek_lead') }}</span>
+                            <span>{{ $requiresOtp ? __('booking.self_booking.peek_lead') : __('booking.self_booking.peek_lead_plain') }}</span>
                         </div>
 
                         @php
@@ -135,10 +135,15 @@
                             @endforeach
                         </dl>
 
-                        <div class="note note-plain">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 1.6.376 3.112 1.043 4.453L2 22l5.667-1.017A9.955 9.955 0 0 0 12 22Z"/></svg>
-                            <span>{{ $requiresOtp ? __('booking.self_booking.verify_notice', ['channel' => $otpChannel]) : __('booking.self_booking.no_verify_notice') }}</span>
-                        </div>
+                        {{-- Only when there is a code coming: it exists to say
+                             where to look for one. Without verification it just
+                             repeats the lead above it. --}}
+                        @if ($requiresOtp)
+                            <div class="note note-plain">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 1.6.376 3.112 1.043 4.453L2 22l5.667-1.017A9.955 9.955 0 0 0 12 22Z"/></svg>
+                                <span>{{ __('booking.self_booking.verify_notice', ['channel' => $otpChannel]) }}</span>
+                            </div>
+                        @endif
                     @endif
                 @endif
 
@@ -262,25 +267,6 @@
                         <p class="hint" style="margin: 6px 0 0">{{ __('booking.self_booking.appointment_lead') }}</p>
                     </div>
 
-                    {{-- Who the visit will be filed under. The whole row is the
-                         edit control, so the tap target is the card rather than
-                         two words at the end of it. --}}
-                    <button type="button" class="card who-verified" wire:click="changeNumber">
-                        <span class="who-verified-tick" aria-hidden="true">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                        </span>
-
-                        <span class="who-verified-who">
-                            <span class="who-verified-name">{{ $name }}</span>
-                            {{-- <bdi>, not the .ltr class: that sets direction
-                                 on the block, which re-aligns it as well as
-                                 reordering it, and the number ends up against
-                                 the opposite edge from the name. --}}
-                            <span class="who-verified-phone"><bdi>{{ $verifiedPhone }}</bdi></span>
-                        </span>
-
-                        <span class="who-verified-edit">{{ __('booking.self_booking.edit') }}</span>
-                    </button>
 
                     @if ($visitTypes->count() > 1)
                         <div>
@@ -290,11 +276,12 @@
                                     <button type="button" class="pill" wire:key="type-{{ $type->id }}"
                                             aria-pressed="{{ $visitTypeId === $type->id ? 'true' : 'false' }}"
                                             wire:click="selectVisitType({{ $type->id }})">
+                                        {{-- The name alone. Duration is shown
+                                             on the confirm bar, where it is a
+                                             fact about the visit being booked
+                                             rather than four numbers competing
+                                             with four labels. --}}
                                         {{ $type->name }}
-                                        <small>
-                                            {{ __('booking.self_booking.minutes', ['count' => $type->duration_minutes]) }}
-                                            @if ($showPrice && (float) $type->price > 0) · {{ $money($type->price) }} @endif
-                                        </small>
                                     </button>
                                 @endforeach
                             </div>
@@ -321,11 +308,18 @@
                                     <span class="day-num">{{ $day['date']->format('j') }}</span>
                                     <span class="day-note">
                                         @if (! $day['is_open'])
-                                            {{ $day['is_holiday'] ? __('booking.self_booking.holiday') : __('booking.self_booking.closed') }}
+                                            {{-- The short form: «العيادة مغلقة»
+                                                 wraps to two lines in a 62px
+                                                 card, and the heading above
+                                                 already says these are days. --}}
+                                            {{ $day['is_holiday'] ? __('booking.self_booking.holiday') : __('booking.self_booking.closed_short') }}
                                         @elseif ($full)
                                             {{ __('booking.self_booking.full') }}
                                         @else
-                                            <span class="day-dot" aria-hidden="true"></span>
+                                            {{-- A word, not a dot. A dot says
+                                                 "something", and leaves the
+                                                 patient to guess what. --}}
+                                            {{ __('booking.self_booking.available') }}
                                         @endif
                                     </span>
                                 </button>
@@ -344,16 +338,51 @@
                                 {{ $availability?->closedReason?->label() ?? __('booking.self_booking.no_slots_day') }}
                             </div>
                         @else
-                            <div class="slots">
-                                @foreach ($availability->slots as $slot)
-                                    <button type="button" class="slot" wire:key="slot-{{ $slot->startAt->format('Hi') }}"
-                                            aria-pressed="{{ $startTime === $slot->startAt->format('H:i') ? 'true' : 'false' }}"
-                                            @disabled(! $slot->isAvailable)
-                                            wire:click="selectSlot('{{ $slot->startAt->format('H:i') }}')">
-                                        {{ $clock($slot->startAt) }}
-                                    </button>
-                                @endforeach
-                            </div>
+                            @php
+                                $slotButton = function ($slot) use ($startTime, $clock) {
+                                    return view('livewire.patient.slot-button', compact('slot', 'startTime', 'clock'));
+                                };
+                            @endphp
+
+                            @if ($slotGroups === [])
+                                {{-- Short enough to read at a glance; grouping
+                                     would only add a tap. --}}
+                                <div class="slots">
+                                    @foreach ($availability->slots as $slot)
+                                        {!! $slotButton($slot) !!}
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="groups">
+                                    @foreach ($slotGroups as $group)
+                                        @php $open = $openGroup === $group->index; @endphp
+                                        <div @class(['group', 'is-open' => $open]) wire:key="group-{{ $group->index }}">
+                                            <button type="button" class="group-head"
+                                                    aria-expanded="{{ $open ? 'true' : 'false' }}"
+                                                    @disabled(! $group->hasAnythingFree())
+                                                    wire:click="toggleGroup({{ $group->index }})">
+                                                <span class="group-when">
+                                                    <span class="group-name">{{ __('booking.self_booking.group_label', ['ordinal' => __('booking.self_booking.group_ordinal.'.$group->index)]) }}</span>
+                                                    <span class="group-time">(<bdi>{{ $clock($group->startAt()) }}</bdi> – <bdi>{{ $clock($group->endAt()) }}</bdi>)</span>
+                                                </span>
+
+                                                <span class="group-state">
+                                                    <span class="group-level is-{{ $group->level() }}">{{ __('booking.self_booking.group_level.'.$group->level()) }}</span>
+                                                    <svg class="group-chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                                                </span>
+                                            </button>
+
+                                            @if ($open)
+                                                <div class="slots group-slots">
+                                                    @foreach ($group->slots as $slot)
+                                                        {!! $slotButton($slot) !!}
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
                         @endif
                     </div>
                 @endif
@@ -422,7 +451,8 @@
     <div class="bar">
         <div class="bar-inner">
             @if ($stage === 'overview')
-                <button type="button" class="btn btn-primary" wire:click="start" @disabled($visitTypes->isEmpty())>
+                <button type="button" class="btn btn-primary" wire:click="start" wire:loading.attr="disabled" wire:target="start" @disabled($visitTypes->isEmpty())>
+                    <span class="btn-spin" wire:loading wire:target="start" aria-hidden="true"></span>
                     {{ __('booking.self_booking.start') }}
                 </button>
 
@@ -436,19 +466,23 @@
                 </a>
 
             @elseif ($stage === 'details')
-                <button type="button" class="btn btn-primary" wire:click="sendCode">
+                <button type="button" class="btn btn-primary" wire:click="sendCode" wire:loading.attr="disabled" wire:target="sendCode">
+                    <span class="btn-spin" wire:loading wire:target="sendCode" aria-hidden="true"></span>
                     {{ $requiresOtp ? __('booking.self_booking.send_code') : __('booking.self_booking.continue') }}
                 </button>
 
-                <button type="button" class="btn btn-outline" wire:click="back">
+                <button type="button" class="btn btn-outline" wire:click="back" wire:loading.attr="disabled" wire:target="back">
+                    <span class="btn-spin" wire:loading wire:target="back" aria-hidden="true"></span>
                     {{ __('booking.self_booking.previous') }}
                 </button>
 
             @elseif ($stage === 'code')
-                <button type="button" class="btn btn-primary" wire:click="verifyCode">
+                <button type="button" class="btn btn-primary" wire:click="verifyCode" wire:loading.attr="disabled" wire:target="verifyCode">
+                    <span class="btn-spin" wire:loading wire:target="verifyCode" aria-hidden="true"></span>
                     {{ __('booking.self_booking.verify') }}
                 </button>
-                <button type="button" class="btn btn-outline" wire:click="back">
+                <button type="button" class="btn btn-outline" wire:click="back" wire:loading.attr="disabled" wire:target="back">
+                    <span class="btn-spin" wire:loading wire:target="back" aria-hidden="true"></span>
                     {{ __('booking.self_booking.previous') }}
                 </button>
 
@@ -468,8 +502,14 @@
                     {{-- The last look before committing. Laid out as labelled
                          rows rather than a single dense line: this is the only
                          screen where the patient checks what they are about to
-                         book, and a date, a time and a duration run together
-                         read as one string, not three facts. --}}
+                         book, and a date and a time run together read as one
+                         string rather than two facts.
+
+                         How long the visit takes is not one of them. It is the
+                         clinic's business, it is not something the patient
+                         chose, and on the screen where they are checking what
+                         they are about to agree to, a number they cannot act
+                         on is one more thing to read past. --}}
                     <dl class="review">
                         <div>
                             <dt>{{ __('booking.self_booking.day') }}</dt>
@@ -478,10 +518,6 @@
                         <div>
                             <dt>{{ __('booking.self_booking.slot') }}</dt>
                             <dd>{{ $clock(\Illuminate\Support\Carbon::parse($date.' '.$startTime, $clinic->timezone)) }}</dd>
-                        </div>
-                        <div>
-                            <dt>{{ __('booking.self_booking.expected_duration') }}</dt>
-                            <dd>{{ __('booking.self_booking.minutes', ['count' => $visitType->duration_minutes]) }}</dd>
                         </div>
                         @if ($showPrice && (float) $visitType->price > 0)
                             <div>
@@ -493,11 +529,14 @@
 
                     <div class="hold">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                        <span>{{ __('booking.self_booking.held_for_you') }} · {{ __('booking.self_booking.minutes', ['count' => $holdMinutes]) }}</span>
+                        <span>{{ __('booking.self_booking.hold_note', [
+                            'minutes' => trans_choice('booking.self_booking.minutes_count', $holdMinutes),
+                        ]) }}</span>
                     </div>
                 @endif
 
-                <button type="button" class="btn btn-primary" wire:click="confirm" @disabled($startTime === null)>
+                <button type="button" class="btn btn-primary" wire:click="confirm" wire:loading.attr="disabled" wire:target="confirm" @disabled($startTime === null)>
+                    <span class="btn-spin" wire:loading wire:target="confirm" aria-hidden="true"></span>
                     {{ __('booking.self_booking.confirm') }}
                 </button>
 
@@ -506,7 +545,8 @@
                      booking is for. It gives up the held slot on the way out,
                      so a patient who wanders back does not leave a time blocked
                      behind them. --}}
-                <button type="button" class="btn btn-outline" wire:click="changeNumber">
+                <button type="button" class="btn btn-outline" wire:click="changeNumber" wire:loading.attr="disabled" wire:target="changeNumber">
+                    <span class="btn-spin" wire:loading wire:target="changeNumber" aria-hidden="true"></span>
                     {{ __('booking.self_booking.previous') }}
                 </button>
 

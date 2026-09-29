@@ -41,6 +41,7 @@ class PatientBookingService
         private readonly PatientService $patients,
         private readonly PhoneVerificationService $verification,
         private readonly VerifiedPhoneSession $verified,
+        private readonly SlotGrouper $grouper,
     ) {}
 
     /*
@@ -324,10 +325,65 @@ class PatientBookingService
      */
     public function otpChannel(): string
     {
+        // WhatsApp is named only by a driver that actually sends over it.
+        // Everything else is SMS — including `log`, which stands in for the
+        // SMS driver while testing and must not claim a channel of its own.
+        // Defaulting the other way round was wrong: switching to the log
+        // driver made the page promise WhatsApp again.
         return match (config('clinic.self_booking.otp.driver')) {
-            'zadx' => __('booking.self_booking.channel_sms'),
-            default => __('booking.self_booking.channel_whatsapp'),
+            'whatsapp', 'cloud_api' => __('booking.self_booking.channel_whatsapp'),
+            default => __('booking.self_booking.channel_sms'),
         };
+    }
+
+    /**
+     * The first day in the window with something free, or today if none has.
+     *
+     * Landing on today regardless meant a patient whose clinic was already
+     * booked out arrived on a dead day — selected, empty, and with no hint
+     * that the next day was fine. The strip is there to be scanned, not
+     * corrected.
+     *
+     * @param  list<array<string, mixed>>|null  $days  an overview already built
+     *                                                 for this clinic and visit
+     *                                                 type, to save building it
+     *                                                 twice in one request
+     */
+    public function firstBookableDate(Clinic $clinic, ?VisitType $visitType = null, ?array $days = null): string
+    {
+        foreach ($days ?? $this->overview($clinic, $visitType) as $day) {
+            if (($day['available_count'] ?? 0) > 0) {
+                return $day['date']->toDateString();
+            }
+        }
+
+        return Carbon::now($clinic->timezone)->toDateString();
+    }
+
+    /**
+     * The day's slots as a few collapsed stretches, or none when it is short.
+     *
+     * A view concern and nothing more: the slots handed back are the same
+     * objects the availability service produced, and an empty result means
+     * "render the flat list", not "no slots".
+     *
+     * @return list<SlotGroup>
+     */
+    public function slotGroups(Clinic $clinic, DayAvailability $availability): array
+    {
+        $date = $availability->date;
+        $schedule = $clinic->scheduleFor(DayOfWeek::fromDate($date));
+
+        $periods = [];
+
+        foreach ($schedule?->periods ?? [] as $period) {
+            $periods[] = [
+                Carbon::parse($date->toDateString().' '.$period->start_time, $clinic->timezone),
+                Carbon::parse($date->toDateString().' '.$period->end_time, $clinic->timezone),
+            ];
+        }
+
+        return $this->grouper->group($availability->slots, $periods);
     }
 
     public function requiresOtp(): bool

@@ -6,6 +6,7 @@ use App\Enums\DayOfWeek;
 use App\Livewire\Patient\BookVisit;
 use App\Models\Booking;
 use App\Models\VisitType;
+use App\Services\V1\Booking\PatientBookingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
@@ -259,6 +260,44 @@ class PatientBookingPageTest extends TestCase
             ->assertViewHas('days', function (array $days): bool {
                 return $days[0]['free_ranges'][0]['start']->format('H:i') !== '09:00';
             });
+    }
+
+    /**
+     * The strip is there to be scanned, not corrected.
+     *
+     * Landing on today regardless meant a patient whose clinic was booked out
+     * arrived on a dead day — selected, empty, and with no hint that tomorrow
+     * was fine.
+     */
+    public function test_it_lands_on_the_first_day_with_something_free(): void
+    {
+        $service = app(PatientBookingService::class);
+
+        // The same visit type throughout: slots are cut to a type's duration,
+        // so booking one type out says nothing about another.
+        $visitType = $service->defaultVisitType($this->clinic);
+
+        // Today is open and free, so today it is.
+        $this->assertSame(self::DAY, $service->firstBookableDate($this->clinic, $visitType));
+
+        // Somewhere to go: with every day empty the fallback correctly
+        // returns today, which would prove nothing.
+        $tomorrow = Carbon::parse(self::DAY)->addDay();
+        $next = $this->clinic->scheduleFor(DayOfWeek::fromDate($tomorrow));
+        $next->update(['is_open' => true]);
+        $next->periods()->create(['start_time' => '09:00', 'end_time' => '13:00']);
+
+        // Close today — the question is whether an empty day is skipped, not
+        // how it came to be empty.
+        $this->clinic->scheduleFor(DayOfWeek::fromDate(Carbon::parse(self::DAY)))
+            ->update(['is_open' => false]);
+
+        $this->clinic->refresh()->load('schedules.periods');
+
+        $this->assertSame(
+            $tomorrow->toDateString(),
+            $service->firstBookableDate($this->clinic, $visitType),
+        );
     }
 
     public function test_the_opening_screen_counts_what_is_free(): void

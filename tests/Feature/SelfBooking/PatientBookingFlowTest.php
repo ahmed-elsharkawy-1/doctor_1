@@ -12,8 +12,10 @@ use App\Models\Patient;
 use App\Models\SlotHold;
 use App\Models\VisitType;
 use App\Services\Messaging\OtpSender;
+use App\Services\V1\Booking\Slot;
 use App\Services\V1\Booking\SlotAvailabilityService;
 use App\Services\V1\Booking\SlotHoldService;
+use App\Support\HeldSlotSession;
 use Database\Seeders\MessageTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -152,9 +154,13 @@ class PatientBookingFlowTest extends TestCase
     {
         $slot = $this->firstFreeSlot();
 
-        $page = $this->verified()->call('selectSlot', $slot);
+        $this->verified()->call('selectSlot', $slot);
 
-        $this->assertNotNull($page->get('holdToken'));
+        // In the session rather than on the component, so it survives a
+        // reload — and so the token that can book the slot never travels to
+        // the browser at all.
+        $this->assertNotNull(app(HeldSlotSession::class)->tokenFor($this->clinic));
+
         $this->assertDatabaseHas('slot_holds', [
             'clinic_id' => $this->clinic->id,
             'source' => BookingSource::PATIENT_WEB->value,
@@ -176,8 +182,9 @@ class PatientBookingFlowTest extends TestCase
             ->call('selectSlot', $slot)
             ->assertSet('failed', true)
             ->assertSet('startTime', null)
-            ->assertSet('holdToken', null)
             ->assertSet('notice', __('booking.slot_unavailable'));
+
+        $this->assertNull(app(HeldSlotSession::class)->tokenFor($this->clinic));
     }
 
     public function test_the_claim_is_given_up_once_the_booking_is_made(): void
@@ -499,7 +506,7 @@ class PatientBookingFlowTest extends TestCase
     /**
      * The final review before committing names each fact separately.
      */
-    public function test_the_confirm_screen_reviews_day_time_and_duration(): void
+    public function test_the_confirm_screen_reviews_the_day_and_the_time(): void
     {
         $html = $this->verified()
             ->call('selectSlot', $this->firstFreeSlot())
@@ -509,10 +516,39 @@ class PatientBookingFlowTest extends TestCase
         foreach ([
             __('booking.self_booking.day'),
             __('booking.self_booking.slot'),
-            __('booking.self_booking.expected_duration'),
         ] as $label) {
             $this->assertStringContainsString($label, $html);
         }
+
+        // How long the visit takes is the clinic's business, and not something
+        // the patient chose — on the screen where they check what they are
+        // agreeing to, it is one more number to read past.
+        $this->assertStringNotContainsString(__('booking.self_booking.expected_duration'), $html);
+    }
+
+    /**
+     * The notice has to carry the deadline, since it is the one thing on this
+     * screen the patient can act on — but as a reassurance about what is being
+     * held for them, not as a warning about losing it.
+     */
+    public function test_the_hold_notice_names_the_deadline(): void
+    {
+        $minutes = (int) config('clinic.self_booking.hold_ttl_minutes');
+
+        $this->verified()
+            ->call('selectSlot', $this->firstFreeSlot())
+            ->assertSee(__('booking.self_booking.hold_note', [
+                'minutes' => trans_choice('booking.self_booking.minutes_count', $minutes),
+            ]));
+    }
+
+    /** «٥ دقائق», not «٥ دقيقة» — the count decides the form in Arabic. */
+    public function test_the_hold_notice_counts_minutes_in_correct_arabic(): void
+    {
+        $this->assertSame('دقيقة واحدة', trans_choice('booking.self_booking.minutes_count', 1, [], 'ar'));
+        $this->assertSame('دقيقتين', trans_choice('booking.self_booking.minutes_count', 2, [], 'ar'));
+        $this->assertSame('5 دقائق', trans_choice('booking.self_booking.minutes_count', 5, [], 'ar'));
+        $this->assertSame('15 دقيقة', trans_choice('booking.self_booking.minutes_count', 15, [], 'ar'));
     }
 
     /**
@@ -611,6 +647,330 @@ class PatientBookingFlowTest extends TestCase
             substr_count($codeArea, '<div class="code-box'),
             'one drawn box per digit',
         );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Holding a slot across a reload
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * A hold blocks everybody except its holder, and a reload does not make
+     * the patient somebody else.
+     *
+     * The token lived only on the component, so a reload arrived with none —
+     * and a request holding no token is told, correctly, that every live hold
+     * belongs to someone else. The patient's own claim struck out their own
+     * slot, and stayed struck out until it lapsed.
+     */
+    public function test_a_reload_does_not_hide_the_slot_the_patient_is_holding(): void
+    {
+        Patient::factory()->create([
+            'clinic_id' => $this->clinic->id,
+            'phone' => self::E164,
+            'name' => 'فاطمة عبد الرحمن',
+        ]);
+
+        $slot = $this->firstFreeSlot();
+
+        $this->verified()->call('selectSlot', $slot);
+
+        // A fresh component, as a reload gives you.
+        $reloaded = Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->assertViewHas('stage', 'appointment');
+
+        $this->assertTrue(
+            $this->slotIsFree($reloaded->viewData('availability')->slots, $slot),
+            "the patient's own held slot must still be bookable after a reload",
+        );
+    }
+
+    /** The other half of the same rule: it stays blocked for everybody else. */
+    public function test_a_hold_still_blocks_a_different_browser(): void
+    {
+        $slot = $this->firstFreeSlot();
+
+        $this->verified()->call('selectSlot', $slot);
+
+        // A second visitor, with nothing of the first one's session.
+        session()->flush();
+
+        $availability = app(SlotAvailabilityService::class)->for(
+            $this->clinic,
+            Carbon::parse(self::DAY, $this->clinic->timezone),
+            $this->clinic->visitTypes()->selfBookable()->firstOrFail(),
+        );
+
+        $this->assertFalse(
+            $this->slotIsFree($availability->slots, $slot),
+            'somebody else must still see the held slot as taken',
+        );
+    }
+
+    /**
+     * Picking a different slot after a reload has to free the first one, which
+     * only works if the restored token is the same claim rather than a new one.
+     */
+    public function test_a_reload_then_a_new_choice_moves_the_hold_rather_than_adding_one(): void
+    {
+        Patient::factory()->create([
+            'clinic_id' => $this->clinic->id,
+            'phone' => self::E164,
+            'name' => 'فاطمة عبد الرحمن',
+        ]);
+
+        $first = $this->firstFreeSlot();
+
+        $this->verified()->call('selectSlot', $first);
+
+        $second = collect($this->freeSlotsIn('00:00', '23:59'))
+            ->first(fn (string $time): bool => $time !== $first);
+
+        Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->call('selectSlot', $second);
+
+        $this->assertSame(
+            1,
+            SlotHold::query()->live()->where('clinic_id', $this->clinic->id)->count(),
+            'the hold must move, not multiply',
+        );
+    }
+
+    /** @param  list<Slot>  $slots */
+    private function slotIsFree(array $slots, string $time): bool
+    {
+        foreach ($slots as $slot) {
+            if ($slot->startAt->format('H:i') === $time) {
+                return $slot->isAvailable;
+            }
+        }
+
+        $this->fail("no slot at {$time}");
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Which day starts selected
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * A reload is not a fresh start for the session — it is verified already,
+     * so the page opens straight on the appointment screen without passing
+     * through the step that picks a day. Today would be selected with nothing
+     * under it, and on a closed or fully booked today that reads as a clinic
+     * with no appointments at all.
+     */
+    public function test_a_reload_stays_on_the_first_day_with_room(): void
+    {
+        $this->closeDay(self::DAY);
+
+        // Known to the clinic, so the reload lands on the appointment screen
+        // rather than being asked for a name again.
+        Patient::factory()->create([
+            'clinic_id' => $this->clinic->id,
+            'phone' => self::E164,
+            'name' => 'فاطمة عبد الرحمن',
+        ]);
+
+        $this->verified()->assertSet('date', '2026-09-05');
+
+        // A fresh component, as a reload gives you.
+        Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->assertViewHas('stage', 'appointment')
+            ->assertSet('date', '2026-09-05');
+    }
+
+    /** The same rule before verification, so the read-only week agrees. */
+    public function test_the_opening_screen_points_at_the_first_day_with_room(): void
+    {
+        $this->closeDay(self::DAY);
+
+        Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->assertViewHas('stage', 'overview')
+            ->assertSet('date', '2026-09-05');
+    }
+
+    /**
+     * Nothing bookable anywhere in the window still has to select something,
+     * and today is the honest answer — the screen then says the day is empty
+     * rather than silently showing another clinic's week.
+     */
+    public function test_a_week_with_no_room_at_all_falls_back_to_today(): void
+    {
+        foreach ([self::DAY, '2026-09-04', '2026-09-05'] as $date) {
+            $this->closeDay($date);
+        }
+
+        Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->assertSet('date', self::DAY);
+    }
+
+    /**
+     * How long a visit takes decides how many fit, so the count under every
+     * day has to follow the choice. Worth pinning because the strip is now
+     * built once per request and handed to two callers.
+     */
+    public function test_the_count_under_each_day_follows_the_visit_type(): void
+    {
+        $types = $this->clinic->visitTypes()->selfBookable()->orderBy('duration_minutes')->get();
+
+        $short = $types->first();
+        $long = $types->last();
+
+        $this->assertNotSame(
+            $short->duration_minutes,
+            $long->duration_minutes,
+            'this clinic needs two self-bookable types of different lengths',
+        );
+
+        $page = $this->verified();
+
+        $page->call('selectVisitType', $long->id);
+        $withLong = array_sum(array_column($page->viewData('days'), 'available_count'));
+
+        $page->call('selectVisitType', $short->id);
+        $withShort = array_sum(array_column($page->viewData('days'), 'available_count'));
+
+        $this->assertGreaterThan($withLong, $withShort, 'shorter visits must fit more often');
+    }
+
+    private function closeDay(string $date): void
+    {
+        $this->clinic->scheduleFor(DayOfWeek::fromDate(Carbon::parse($date)))
+            ->update(['is_open' => false]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Which stretch of the day is open
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * A page with every stretch shut shows no slots at all, and reads as a
+     * finished screen rather than one waiting to be opened.
+     */
+    public function test_the_first_stretch_with_a_free_slot_opens_by_itself(): void
+    {
+        $page = $this->verified();
+
+        $this->assertNotSame([], $page->viewData('slotGroups'), 'the test day must be grouped at all');
+        $page->assertSet('openGroup', 1);
+    }
+
+    /** Shutting it has to stick, or the next render undoes the tap. */
+    public function test_a_stretch_the_patient_closes_stays_closed(): void
+    {
+        $this->verified()
+            ->call('toggleGroup', 1)
+            ->assertSet('openGroup', null)
+            // A render with nothing else changing must not reopen it.
+            ->call('$refresh')
+            ->assertSet('openGroup', null);
+    }
+
+    public function test_opening_another_stretch_closes_the_first(): void
+    {
+        $this->verified()
+            ->call('toggleGroup', 2)
+            ->assertSet('openGroup', 2);
+    }
+
+    /**
+     * Opening a stretch with nothing left in it would answer the patient's
+     * only question with a row of struck-through times.
+     */
+    public function test_a_fully_booked_first_stretch_is_passed_over(): void
+    {
+        $this->reshapeDay('09:00', '10:00', '11:00', '14:00');
+
+        $other = Patient::factory()->create([
+            'clinic_id' => $this->clinic->id,
+            'phone' => '+201119998877',
+        ]);
+
+        foreach ($this->freeSlotsIn('09:00', '10:00') as $time) {
+            Booking::factory()->forClinic($this->clinic)
+                ->at(Carbon::parse(self::DAY.' '.$time, $this->clinic->timezone))
+                ->create(['patient_id' => $other->id]);
+        }
+
+        $page = $this->verified();
+
+        $groups = $page->viewData('slotGroups');
+
+        $this->assertFalse($groups[0]->hasAnythingFree(), 'the morning must be full for this to test anything');
+        $page->assertSet('openGroup', 2);
+    }
+
+    /** A different day is a different set of stretches. */
+    public function test_choosing_another_day_opens_that_days_first_stretch(): void
+    {
+        $this->verified()
+            ->call('toggleGroup', 1)
+            ->assertSet('openGroup', null)
+            ->call('selectDay', '2026-09-05')
+            ->assertSet('openGroup', 1);
+    }
+
+    /**
+     * Somebody else taking the last slot in the open stretch must not shut it
+     * and open another under the patient's finger.
+     */
+    public function test_the_open_stretch_does_not_move_when_the_day_changes_around_it(): void
+    {
+        $this->reshapeDay('09:00', '10:00', '11:00', '14:00');
+
+        $page = $this->verified()->assertSet('openGroup', 1);
+
+        $other = Patient::factory()->create([
+            'clinic_id' => $this->clinic->id,
+            'phone' => '+201119998877',
+        ]);
+
+        foreach ($this->freeSlotsIn('09:00', '10:00') as $time) {
+            Booking::factory()->forClinic($this->clinic)
+                ->at(Carbon::parse(self::DAY.' '.$time, $this->clinic->timezone))
+                ->create(['patient_id' => $other->id]);
+        }
+
+        $page->call('$refresh')->assertSet('openGroup', 1);
+    }
+
+    /** Replaces the test day's single period with two. */
+    private function reshapeDay(string $from, string $to, string $secondFrom, string $secondTo): void
+    {
+        $schedule = $this->clinic->scheduleFor(DayOfWeek::fromDate(Carbon::parse(self::DAY)));
+
+        $schedule->periods()->delete();
+        $schedule->periods()->create(['start_time' => $from, 'end_time' => $to]);
+        $schedule->periods()->create(['start_time' => $secondFrom, 'end_time' => $secondTo]);
+    }
+
+    /** @return list<string> the free start times inside a window, as H:i */
+    private function freeSlotsIn(string $from, string $to): array
+    {
+        $visitType = $this->clinic->visitTypes()->selfBookable()->firstOrFail();
+
+        $availability = app(SlotAvailabilityService::class)->for(
+            $this->clinic,
+            Carbon::parse(self::DAY, $this->clinic->timezone),
+            $visitType,
+        );
+
+        $times = [];
+
+        foreach ($availability->slots as $slot) {
+            $at = $slot->startAt->format('H:i');
+
+            if ($slot->isAvailable && $at >= $from && $at < $to) {
+                $times[] = $at;
+            }
+        }
+
+        return $times;
     }
 
     private function verified(): Testable

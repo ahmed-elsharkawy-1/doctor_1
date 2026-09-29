@@ -125,6 +125,20 @@ return [
         'previous' => 'Back',
         'today' => 'Today',
         'holiday' => 'Closed',
+        // Display-only grouping of a day's slots.
+        'group_label' => 'Period :ordinal',
+        'group_ordinal' => [
+            1 => 'one', 2 => 'two', 3 => 'three', 4 => 'four',
+            5 => 'five', 6 => 'six', 7 => 'seven', 8 => 'eight',
+        ],
+        'group_level' => [
+            'many' => 'Available',
+            'some' => 'Filling up',
+            'few' => 'Almost full',
+            'none' => 'Full',
+        ],
+        'group_free' => ':count free',
+        'available' => 'Available',
         'full' => 'Fully booked',
         'contact_clinic' => 'Message on WhatsApp',
 
@@ -136,10 +150,12 @@ return [
 
         'soonest' => 'Soonest available:',
         'peek_lead' => 'This page is a preview only. Choose "Book an appointment" to enter your details, confirm your number, and pick a time.',
+        'peek_lead_plain' => 'This page is a preview only. Choose "Book an appointment" to enter your details and pick a time.',
         'available_title' => 'Earliest appointments',
         'days_count' => ':count days',
         'earliest' => 'from :time',
         'no_slots' => 'No appointments available',
+        'closed_short' => 'Closed',
         'closed' => 'Clinic closed',
         'verify_notice' => 'We will send a confirmation code by :channel before you choose a time, to check the number is right.',
         'start' => 'Book an appointment',
@@ -175,12 +191,12 @@ return [
         'slot' => 'Time',
         'taken_note' => 'Struck through means taken',
         'no_slots_day' => 'No appointments available on this day.',
-        'held_for_you' => 'Held for you',
+        'hold_note' => 'Best to confirm within :minutes so this time stays yours.',
         'confirm' => 'Confirm booking',
-        'edit' => 'Edit',
         'expected_duration' => 'Expected duration',
         'price' => 'Fee',
         'minutes' => ':count min',
+        'minutes_count' => '{1} one minute|[2,*] :count minutes',
 
         'upcoming_title' => 'You already have an appointment',
         'upcoming_lead' => ':patient already has an appointment with :doctor. You can follow the queue here.',

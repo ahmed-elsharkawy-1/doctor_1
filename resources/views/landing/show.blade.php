@@ -112,12 +112,11 @@
             --primary-50: #EEF4FB;
             --primary-100: #D8E8F7;
             --whatsapp: #1FAF54;
-            /* The action colour, shared with the booking flow, the review page
-               and anywhere else a patient is asked to do something. Green
-               rather than --primary because this page is already blue
-               throughout — the button that matters should not be one more
-               blue rectangle among many. */
-            --cta: #1FAF54;
+            /* The action colour on every patient-facing page: the doctor
+               page, the booking flow, the review page. Kept as its own token
+               rather than using --primary directly, so the whole journey can
+               be recoloured from one line per page. */
+            --cta: var(--primary);
             --success-bg: #E7F4EC;
             --surface: #FFFFFF;
             --surface-2: #F6F9FC;
@@ -586,7 +585,8 @@
 </head>
 <body>
 
-@include('partials.brand-bar', ['overlap' => 40])
+@include('partials.brand-bar')
+@include('partials.button-busy')
 
 <main class="shell">
 

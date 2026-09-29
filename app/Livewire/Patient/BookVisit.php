@@ -7,8 +7,9 @@ use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\VisitType;
 use App\Services\V1\Booking\PatientBookingService;
+use App\Services\V1\Booking\SlotGroup;
+use App\Support\HeldSlotSession;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Carbon;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -50,8 +51,26 @@ class BookVisit extends Component
 
     public ?string $startTime = null;
 
-    /** The slot this browser is sitting on. */
-    public ?string $holdToken = null;
+    /**
+     * Which stretch of the day is open, if any.
+     *
+     * The first one with anything free opens by itself. A page where every
+     * stretch is shut shows no slots at all, which reads as a finished screen
+     * rather than one waiting to be opened — the patient came to pick a time
+     * and cannot see a single one. One stretch open says what these rows are
+     * and that the others behave the same way, at the cost of about three rows
+     * of scrolling.
+     */
+    public ?int $openGroup = null;
+
+    /**
+     * Whether the patient has worked the accordion themselves.
+     *
+     * Only to tell "not opened yet" from "deliberately closed": without it,
+     * closing the stretch that opened by itself would reopen on the very next
+     * render.
+     */
+    public bool $pickedGroup = false;
 
     /**
      * Set after a successful booking. Re-checked against the verified phone on
@@ -65,13 +84,18 @@ class BookVisit extends Component
 
     private ?Clinic $resolved = null;
 
+    /**
+     * The day strip, built once per request.
+     *
+     * @var list<array<string, mixed>>|null
+     */
+    private ?array $days = null;
+
     public function mount(string $slug): void
     {
         $this->slug = $slug;
 
         $clinic = $this->clinic();
-
-        $this->date = Carbon::now($clinic->timezone)->toDateString();
 
         // The proof of the phone is in the session and survives a reload; the
         // name is a property on this class and does not. Without this, coming
@@ -93,12 +117,58 @@ class BookVisit extends Component
         $this->phone = $this->service()->verifiedPhone($clinic) ?? '';
 
         $this->visitTypeId = $this->service()->defaultVisitType($clinic, $patient)?->id;
+
+        // The first day with room, not today.
+        //
+        // startPickingATime() does this too, but only on the way *into* the
+        // appointment screen. A reload never crosses that line — the session
+        // is already verified, so stage() lands straight on 'appointment' —
+        // and today, which may well be full or closed, would be selected with
+        // nothing under it. After the visit type, because how long a visit
+        // takes decides how many fit and therefore which day is the first with
+        // room.
+        $this->date = $this->service()->firstBookableDate(
+            $clinic,
+            $this->selectedVisitType(),
+            $this->days($clinic),
+        );
+    }
+
+    /**
+     * The window, counted against the visit type in play.
+     *
+     * Memoised because a full page load needs it twice — once in mount() to
+     * pick the opening day, once to render the strip — and building it walks
+     * every day in the window working out how many visits still fit.
+     *
+     * Nothing clears it, and nothing needs to. A Livewire component is built
+     * fresh for every request and this property is private, so it never
+     * outlives one; and inside a request the two things that would change the
+     * answer — the visit type, and writing a booking — are both settled by an
+     * action before render() asks. Call this before either and the strip goes
+     * stale.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function days(Clinic $clinic): array
+    {
+        return $this->days ??= $this->service()->overview($clinic, $this->selectedVisitType());
     }
 
     public function render(): View
     {
         $clinic = $this->clinic();
         $stage = $this->stage();
+        $availability = $stage === 'appointment' ? $this->availability() : null;
+
+        $slotGroups = $availability === null
+            ? []
+            : $this->service()->slotGroups($clinic, $availability);
+
+        // Here rather than in the day and visit-type handlers: this is the one
+        // place the groups are already built, and working out which stretch
+        // has a free slot anywhere else would mean querying the day twice.
+        $this->openFirstFreeGroup($slotGroups);
 
         return view('livewire.patient.book-visit', [
             'clinic' => $clinic,
@@ -108,10 +178,11 @@ class BookVisit extends Component
             // type is in play — how long a visit takes changes how many of
             // them fit, so the dot on each day has to follow the choice.
             'days' => in_array($stage, ['overview', 'appointment'], true)
-                ? $this->service()->overview($clinic, $this->selectedVisitType())
+                ? $this->days($clinic)
                 : [],
             'visitTypes' => $this->service()->visitTypes($clinic),
-            'availability' => $stage === 'appointment' ? $this->availability() : null,
+            'availability' => $stage === 'appointment' ? $availability : null,
+            'slotGroups' => $slotGroups,
             'upcoming' => $stage === 'upcoming' ? $this->upcoming() : null,
             'confirmed' => $stage === 'done' ? $this->confirmed() : null,
             'verifiedPhone' => $this->service()->verifiedPhone($clinic),
@@ -291,14 +362,22 @@ class BookVisit extends Component
     /**
      * Everything the slot screen needs on arrival, however the patient got
      * there. A returning patient usually wants the visit type they had last
-     * time, and the day starts at today.
+     * time, and the day starts at the first one with room.
+     *
+     * mount() settles both as well, for a reload that lands here without
+     * passing through. This runs when verification has just told us who the
+     * patient is, which can change the visit type and so the day.
      */
     private function startPickingATime(Clinic $clinic): void
     {
         $this->visitTypeId = $this->service()
             ->defaultVisitType($clinic, $this->service()->verifiedPatient($clinic))?->id;
 
-        $this->date = Carbon::now($clinic->timezone)->toDateString();
+        $this->date = $this->service()->firstBookableDate(
+            $clinic,
+            $this->selectedVisitType(),
+            $this->days($clinic),
+        );
     }
 
     /** Back to the details screen with the proof dropped. */
@@ -321,17 +400,62 @@ class BookVisit extends Component
     public function selectVisitType(int $visitTypeId): void
     {
         $this->visitTypeId = $visitTypeId;
+        $this->forgetOpenGroup();
         $this->startTime = null;
         $this->releaseHold();
         $this->clearNotice();
     }
 
+    /** Opens a stretch, or closes the one already open. */
+    public function toggleGroup(int $index): void
+    {
+        $this->pickedGroup = true;
+        $this->openGroup = $this->openGroup === $index ? null : $index;
+    }
+
     public function selectDay(string $date): void
     {
         $this->date = $date;
+        $this->forgetOpenGroup();
         $this->startTime = null;
         $this->releaseHold();
         $this->clearNotice();
+    }
+
+    /**
+     * A different day is a different set of stretches, so the choice made on
+     * the old one means nothing here and the first free stretch opens again.
+     */
+    private function forgetOpenGroup(): void
+    {
+        $this->openGroup = null;
+        $this->pickedGroup = false;
+    }
+
+    /**
+     * Opens the first stretch with a free slot, once.
+     *
+     * Deliberately not re-run against a stretch that is already open: a slot
+     * taken elsewhere can empty the open stretch mid-visit, and moving the
+     * page out from under somebody reading it is worse than leaving them on a
+     * stretch whose rows have gone. Day and visit type reset it; nothing else
+     * does.
+     *
+     * @param  list<SlotGroup>  $groups
+     */
+    private function openFirstFreeGroup(array $groups): void
+    {
+        if ($this->pickedGroup || $this->openGroup !== null) {
+            return;
+        }
+
+        foreach ($groups as $group) {
+            if ($group->hasAnythingFree()) {
+                $this->openGroup = $group->index;
+
+                return;
+            }
+        }
     }
 
     /**
@@ -341,13 +465,17 @@ class BookVisit extends Component
     public function selectSlot(string $startTime): void
     {
         $this->run(function () use ($startTime): void {
-            $this->holdToken = $this->service()->holdSlot(
+            // Its own token goes in, so the claim moves rather than a second
+            // one appearing beside it.
+            $token = $this->service()->holdSlot(
                 $this->clinic(),
                 (int) $this->visitTypeId,
                 $this->date,
                 $startTime,
-                $this->holdToken,
+                $this->holdToken(),
             );
+
+            $this->heldSlot()->remember($this->clinic(), $token);
 
             $this->startTime = $startTime;
         }, null, function (): void {
@@ -371,11 +499,11 @@ class BookVisit extends Component
                 (int) $this->visitTypeId,
                 $this->date,
                 (string) $this->startTime,
-                $this->holdToken,
+                $this->holdToken(),
             );
 
             $this->confirmedBookingId = $booking->id;
-            $this->holdToken = null;
+            $this->heldSlot()->forget($this->clinic());
             $this->startTime = null;
         }, null);
     }
@@ -399,7 +527,7 @@ class BookVisit extends Component
 
         return $visitType === null
             ? null
-            : $this->service()->availability($this->clinic(), $visitType, $this->date, $this->holdToken);
+            : $this->service()->availability($this->clinic(), $visitType, $this->date, $this->holdToken());
     }
 
     public function selectedVisitType(): ?VisitType
@@ -442,11 +570,30 @@ class BookVisit extends Component
         return app(PatientBookingService::class);
     }
 
+    private function heldSlot(): HeldSlotSession
+    {
+        return app(HeldSlotSession::class);
+    }
+
+    /**
+     * The slot this browser is sitting on.
+     *
+     * Read from the session rather than held on this class. As a public
+     * property it was rebuilt from the browser on every request and lost on a
+     * reload — and a request carrying no token is told, correctly, that every
+     * live hold belongs to somebody else, so the patient's own claim struck
+     * out their own slot until it lapsed.
+     */
+    private function holdToken(): ?string
+    {
+        return $this->heldSlot()->tokenFor($this->clinic());
+    }
+
     private function releaseHold(): void
     {
-        $this->service()->releaseSlot($this->holdToken);
+        $this->service()->releaseSlot($this->holdToken());
 
-        $this->holdToken = null;
+        $this->heldSlot()->forget($this->clinic());
     }
 
     private function clearNotice(): void

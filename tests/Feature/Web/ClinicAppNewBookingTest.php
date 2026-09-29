@@ -13,6 +13,7 @@ use App\Models\SlotHold;
 use App\Models\VisitType;
 use App\Services\V1\Booking\SlotAvailabilityService;
 use App\Services\V1\Booking\SlotHoldService;
+use App\Support\HeldSlotSession;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Livewire\Features\SupportTesting\Testable;
@@ -321,9 +322,11 @@ class ClinicAppNewBookingTest extends TestCase
     {
         $slot = $this->firstFreeSlot();
 
-        $page = $this->page()->call('selectSlot', $slot);
+        $this->page()->call('selectSlot', $slot);
 
-        $token = $page->get('holdToken');
+        // In the session rather than on the component, so it survives a
+        // reload of the form.
+        $token = app(HeldSlotSession::class)->tokenFor($this->clinic, HeldSlotSession::STAFF);
 
         $this->assertNotNull($token);
         $this->assertDatabaseHas('slot_holds', [
@@ -340,7 +343,7 @@ class ClinicAppNewBookingTest extends TestCase
     {
         $slots = $this->twoFreeSlots();
 
-        $page = $this->page()
+        $this->page()
             ->call('selectSlot', $slots[0])
             ->call('selectSlot', $slots[1]);
 
@@ -349,7 +352,34 @@ class ClinicAppNewBookingTest extends TestCase
             $slots[1],
             SlotHold::firstOrFail()->start_at->format('H:i'),
         );
-        $this->assertNotNull($page->get('holdToken'));
+        $this->assertNotNull(
+            app(HeldSlotSession::class)->tokenFor($this->clinic, HeldSlotSession::STAFF),
+        );
+    }
+
+    /**
+     * The same rule as on the public page: a hold blocks everybody except its
+     * holder, and reloading the form does not make the secretary somebody
+     * else. The token lived on the component, so a reload arrived without it
+     * and her own claim struck out the slot she had just picked.
+     */
+    public function test_a_reload_does_not_hide_the_slot_the_secretary_is_holding(): void
+    {
+        $slot = $this->firstFreeSlot();
+
+        $this->page()->call('selectSlot', $slot);
+
+        $availability = $this->page()->viewData('availability');
+
+        foreach ($availability->slots as $offered) {
+            if ($offered->startAt->format('H:i') === $slot) {
+                $this->assertTrue($offered->isAvailable, 'her own held slot must stay pickable');
+
+                return;
+            }
+        }
+
+        $this->fail("no slot at {$slot} after the reload");
     }
 
     public function test_changing_the_day_lets_the_slot_go(): void

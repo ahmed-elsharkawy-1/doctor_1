@@ -38,14 +38,12 @@
             --primary-50: #EEF4FB;
             --primary-100: #D8E8F7;
             --whatsapp: #1FAF54;
-            /* The action colour for this flow. Same green as the doctor's
-               page, and deliberately not --primary: nearly every surface here
-               is blue — the brand bar, the day rows, the selected slot, the
-               tags — so a blue button is one more blue thing. The green is the
-               only element on the page that is not, which is what makes it
-               read as the thing to press. */
-            --cta: #1FAF54;
-            --cta-dark: #179044;
+            /* The action colour on every patient-facing page: the doctor
+               page, the booking flow, the review page. Kept as its own token
+               rather than using --primary directly, so the whole journey can
+               be recoloured from one line per page. */
+            --cta: var(--primary);
+            --cta-dark: #124C86;
             --success: #1B9E57;
             --success-bg: #E7F4EC;
             --success-ink: #14663A;
@@ -155,13 +153,11 @@
 
         /* The doctor, carried through every step --------------------------- */
         /* The first card on the page, so it is the one that meets the header.
-           Lifted by the same 40px the brand bar reserves via its `overlap`
-           argument, and by the same amount the doctor-card component lifts itself on the
-           tracking and doctor pages — three pages, one silhouette. Change the
-           lift here and change the `overlap` passed to the partial to match. */
+           It sits below the header rather than lapping into it, like the
+           doctor card on the tracking and doctor pages — one silhouette
+           across all of them. The space above comes from the brand bar. */
         .who {
             position: relative;
-            margin-top: -40px;
             display: flex;
             align-items: center;
             gap: 12px;
@@ -242,26 +238,29 @@
         .pills::-webkit-scrollbar { display: none; }
         .pill {
             flex: 0 0 auto;
-            padding: 10px 16px;
+            padding: 11px 18px;
             border: 1px solid var(--line-strong);
-            border-radius: 999px;
+            /* A rounded rectangle, not a capsule: with only a name inside,
+               999px made short words look like stray lozenges. */
+            border-radius: 12px;
             background: var(--surface);
             font-size: 14px; font-weight: 700;
             white-space: nowrap;
             cursor: pointer;
         }
-        .pill small { display: block; margin-top: 1px; font-size: 11px; font-weight: 600; color: var(--muted); }
         .pill[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
-        .pill[aria-pressed="true"] small { color: rgba(255, 255, 255, .84); }
 
         /* Days and slots --------------------------------------------------- */
         .days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
         .days::-webkit-scrollbar { display: none; }
 
         .day {
-            flex: 0 0 auto;
-            width: 62px;
-            padding: 10px 0;
+            /* Share the row rather than sitting at a fixed width with space
+               left over. A longer booking window simply scrolls again, since
+               min-width holds the floor. */
+            flex: 1 1 0;
+            min-width: 62px;
+            padding: 10px 2px;
             display: flex; flex-direction: column; align-items: center; gap: 2px;
             border: 1px solid var(--line); border-radius: var(--radius);
             background: var(--surface);
@@ -271,17 +270,9 @@
         .day-num { font-size: 20px; font-weight: 800; line-height: 1; }
         .day-note {
             display: flex; align-items: center; justify-content: center;
-            min-height: 13px;
+            min-height: 14px;
             font-size: 10px; font-weight: 700; color: var(--success);
-        }
-
-        /* A dot rather than a number: how many are left matters far less than
-           whether there is anything at all. */
-        .day-dot {
-            display: block;
-            width: 6px; height: 6px;
-            border-radius: 50%;
-            background: var(--success);
+            text-align: center; line-height: 1.25;
         }
 
         .day.is-full { border-color: #E7B8B1; }
@@ -290,19 +281,79 @@
         .day.is-off .day-note { color: #7A5410; }
         .day.is-off .day-num { color: #7A5410; }
 
-        .day[aria-pressed="true"] {
+        /* Only a day that can actually be booked turns solid blue. A full or
+           closed day that happens to be selected keeps its own colouring —
+           painting it blue hid the very word saying why it was unusable. */
+        .day[aria-pressed="true"]:not(:disabled) {
             background: var(--primary); border-color: var(--primary);
             box-shadow: 0 6px 14px rgba(24, 95, 165, .24);
         }
-        .day[aria-pressed="true"] .day-name,
-        .day[aria-pressed="true"] .day-note { color: rgba(255, 255, 255, .84); }
-        .day[aria-pressed="true"] .day-num { color: #fff; }
-        .day[aria-pressed="true"] .day-dot { background: #fff; }
+        .day[aria-pressed="true"]:not(:disabled) .day-name,
+        .day[aria-pressed="true"]:not(:disabled) .day-note { color: rgba(255, 255, 255, .88); }
+        .day[aria-pressed="true"]:not(:disabled) .day-num { color: #fff; }
+
+        /* Selected but unusable: outlined, so it still reads as "the one you
+           are on" without pretending to be available. */
+        .day[aria-pressed="true"]:disabled { border-color: var(--primary); }
         .day:disabled { cursor: not-allowed; }
-        .day:disabled:not(.is-off) { background: var(--surface-2); opacity: .7; }
-        .day:disabled:not(.is-off) .day-num { color: var(--faint); }
+        .day:disabled:not(.is-off) { background: var(--surface-2); }
+        .day:disabled:not(.is-off) .day-num { color: var(--muted); }
+        /* No blanket opacity: it faded the note too, and the note is the only
+           thing telling the patient why the day cannot be picked. */
 
         .month { font-size: 12.5px; color: var(--muted); }
+
+        /* Slot groups ------------------------------------------------------
+           A few collapsed stretches instead of one long grid. Presentation
+           only — see App\Services\V1\Booking\SlotGrouper. */
+        .groups { display: flex; flex-direction: column; gap: 8px; }
+
+        .group {
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: var(--surface);
+            overflow: hidden;
+        }
+        .group.is-open { border-color: var(--primary); }
+
+        .group-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+            padding: 9px 12px;
+            border: 0;
+            background: none;
+            text-align: start;
+            cursor: pointer;
+            font: inherit;
+        }
+        .group.is-open .group-head { background: var(--primary-50); }
+        .group-head:disabled { cursor: not-allowed; }
+
+        /* Name and range on one line. Stacked, every head was tall enough that
+           a day with several stretches pushed the later ones off the screen —
+           and the point of collapsing them is to see them all at once. Wraps
+           back to two lines only where the width genuinely runs out. */
+        .group-when { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; min-width: 0; }
+        .group-name { font-size: 14px; font-weight: 800; color: var(--ink); }
+        .group-time { font-size: 12px; font-weight: 600; color: var(--muted); }
+
+        .group-state { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+
+        .group-level { font-size: 12px; font-weight: 800; }
+        .group-level.is-many { color: var(--success-ink); }
+        .group-level.is-some { color: #9A6100; }
+        .group-level.is-few,
+        .group-level.is-none { color: var(--danger); }
+
+        .group-chev { color: var(--muted); transition: transform .15s ease; }
+        .group.is-open .group-chev { transform: rotate(180deg); }
+
+        /* Even all round: the slots sat flush against the head, which read as
+           part of it rather than as what it opens onto. */
+        .group-slots { padding: 12px; }
 
         .slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
         .slot {
@@ -414,71 +465,6 @@
             z-index: 1;
         }
 
-        /* The verified patient, on the slot screen --------------------------
-
-           Three parts on one row: a tick, the person, and the way to change
-           them. The name and number stack because they are one fact about one
-           person — side by side they read as two separate fields. */
-        .who-verified {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            width: 100%;
-            padding: 12px 14px;
-            text-align: start;
-            cursor: pointer;
-            background: var(--surface);
-        }
-
-        .who-verified-tick {
-            flex: 0 0 auto;
-            width: 30px; height: 30px;
-            display: grid; place-items: center;
-            border-radius: 50%;
-            background: var(--success-bg);
-            color: var(--success);
-        }
-
-        /* min-width: 0 so a long name truncates instead of shoving the edit
-           link off the end of the row. */
-        .who-verified-who { flex: 1 1 auto; min-width: 0; display: block; }
-
-        .who-verified-name {
-            display: block;
-            font-size: 14px; font-weight: 800; color: var(--ink);
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        }
-
-        /* Same alignment as the name above it — they are one block about one
-           person, so nothing here sets a direction. */
-        .who-verified-phone {
-            display: block;
-            margin-top: 3px;
-            font-size: 12.5px; font-weight: 600; color: var(--muted);
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        }
-
-        /* Bordered rather than bare text: on a card that is entirely tappable,
-           a coloured word alone does not read as the thing to press. */
-        .who-verified-edit {
-            flex: 0 0 auto;
-            padding: 5px 12px;
-            border: 1px solid var(--line-strong);
-            border-radius: 999px;
-            font-size: 12.5px; font-weight: 700;
-            color: var(--primary);
-            background: var(--surface);
-        }
-        .who-verified:hover .who-verified-edit { border-color: var(--primary); }
-
-        /* The number the code was sent to. Centred under the boxes, because
-           it belongs to them rather than to the page. */
-        .code-sent-to {
-            margin: 0;
-            text-align: center;
-            font-size: 13px; font-weight: 700; color: var(--ink-soft);
-        }
-
         /* Notes ------------------------------------------------------------ */
         .note { display: flex; gap: 10px; align-items: flex-start; border-radius: 14px; padding: 12px 14px; font-size: 12.5px; line-height: 1.6; }
         .note svg { flex: 0 0 auto; margin-top: 2px; }
@@ -507,11 +493,16 @@
         .review > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
         .review dt { font-size: 12.5px; color: var(--muted); }
         .review dd { margin: 0; font-size: 14px; font-weight: 800; text-align: end; }
+        /* A whole sentence now rather than a label, so it is set smaller and
+           allowed to wrap. The icon is held at its own size: a flex item with
+           a width attribute still shrinks once the text needs the room. */
         .hold {
             display: flex; align-items: center; justify-content: center; gap: 7px;
-            background: var(--primary-50); border-radius: 11px; padding: 7px 12px;
-            font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+            background: var(--primary-50); border-radius: 11px; padding: 8px 12px;
+            font-size: 11.5px; font-weight: 600; line-height: 1.55;
+            color: var(--ink-soft); text-align: center;
         }
+        .hold svg { flex: 0 0 auto; }
 
         .ltr { direction: ltr; unicode-bidi: isolate; }
 
@@ -548,6 +539,8 @@
 </head>
 <body>
     {{ $slot }}
+
+    @include('partials.button-busy')
 
     @livewireScripts
 

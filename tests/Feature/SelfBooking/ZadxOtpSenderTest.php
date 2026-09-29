@@ -207,7 +207,13 @@ class ZadxOtpSenderTest extends TestCase
         config(['clinic.self_booking.otp.driver' => 'zadx']);
         $this->assertSame(__('booking.self_booking.channel_sms'), $service->otpChannel());
 
+        // `log` stands in for SMS while testing — it must not claim WhatsApp,
+        // which is what happened when WhatsApp was the default arm.
         config(['clinic.self_booking.otp.driver' => 'log']);
+        $this->assertSame(__('booking.self_booking.channel_sms'), $service->otpChannel());
+
+        // Only a driver that really sends over WhatsApp says so.
+        config(['clinic.self_booking.otp.driver' => 'cloud_api']);
         $this->assertSame(__('booking.self_booking.channel_whatsapp'), $service->otpChannel());
 
         // And the key resolves — a missing one renders as its own path.

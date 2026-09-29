@@ -15,6 +15,7 @@ use App\Services\V1\Booking\DayAvailability;
 use App\Services\V1\Booking\SlotAvailabilityService;
 use App\Services\V1\Booking\SlotHoldService;
 use App\Services\V1\Patients\PatientSearchService;
+use App\Support\HeldSlotSession;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -67,16 +68,6 @@ class NewBooking extends ClinicComponent
     public ?string $notice = null;
 
     public bool $failed = false;
-
-    /**
-     * The slot this screen is sitting on.
-     *
-     * Claimed the moment a time is tapped, so a patient on the public page and
-     * a secretary on the mobile app both see it go rather than each filling in
-     * a form only one of them can finish. Holds block everyone alike — there
-     * is no override in either direction.
-     */
-    public ?string $holdToken = null;
 
     /** Shown after a save, so the secretary can hand the link over. */
     public ?string $trackingUrl = null;
@@ -225,7 +216,7 @@ class NewBooking extends ClinicComponent
                 (int) $this->visitTypeId,
                 $this->date,
                 $startTime,
-                token: $this->holdToken,
+                token: $this->holdToken(),
             );
         } catch (ApiException $e) {
             // Taken between the page rendering and the tap. Re-rendering the
@@ -237,17 +228,40 @@ class NewBooking extends ClinicComponent
             return;
         }
 
-        $this->holdToken = $hold->token;
+        $this->heldSlot()->remember($this->clinic(), $hold->token, HeldSlotSession::STAFF);
         $this->startTime = $startTime;
         $this->notice = null;
         $this->failed = false;
     }
 
+    /**
+     * The slot this screen is sitting on.
+     *
+     * Claimed the moment a time is tapped, so a patient on the public page and
+     * a secretary on the mobile app both see it go rather than each filling in
+     * a form only one of them can finish. Holds block everyone alike — there
+     * is no override in either direction.
+     *
+     * Kept in the session rather than on this class. As a public property it
+     * was lost on a reload, and a request arriving without its token is told,
+     * correctly, that every live hold belongs to somebody else — so the
+     * secretary's own claim struck out the slot they had just picked.
+     */
+    private function holdToken(): ?string
+    {
+        return $this->heldSlot()->tokenFor($this->clinic(), HeldSlotSession::STAFF);
+    }
+
+    private function heldSlot(): HeldSlotSession
+    {
+        return app(HeldSlotSession::class);
+    }
+
     private function releaseHold(): void
     {
-        app(SlotHoldService::class)->release($this->holdToken);
+        app(SlotHoldService::class)->release($this->holdToken());
 
-        $this->holdToken = null;
+        $this->heldSlot()->forget($this->clinic(), HeldSlotSession::STAFF);
     }
 
     public function isEmergency(): bool
@@ -285,7 +299,7 @@ class NewBooking extends ClinicComponent
                     rebookingForBookingId: $this->rebookingFor,
                     // The slot this screen has been sitting on. Without it the
                     // write path would refuse the very time it offered.
-                    holdToken: $this->holdToken,
+                    holdToken: $this->holdToken(),
                 ),
                 auth()->user(),
             );
@@ -346,14 +360,16 @@ class NewBooking extends ClinicComponent
         $this->failed = false;
         $this->trackingUrl = $booking->trackingUrl();
 
+        // The hold was consumed by the booking itself, so this only drops the
+        // name the screen was carrying for it.
+        $this->heldSlot()->forget($this->clinic(), HeldSlotSession::STAFF);
+
         // Ready for the next patient, but keep the day the secretary is on.
         // The rebooking link is one-shot: the original is now spoken for, so
         // carrying it into the next booking would only fail.
-        // The hold was consumed by the booking itself, so this only drops the
-        // token the screen was carrying.
         $this->reset([
             'patientSearch', 'patientId', 'patientName', 'phone', 'age',
-            'startTime', 'notes', 'patientLocation', 'rebookingFor', 'holdToken',
+            'startTime', 'notes', 'patientLocation', 'rebookingFor',
         ]);
 
         $this->kind = BookingKind::NORMAL->value;
@@ -401,7 +417,7 @@ class NewBooking extends ClinicComponent
             $visitType,
             // Everyone else's holds grey a slot out; the one this screen is
             // holding must stay pickable, or she could not book it.
-            holdToken: $this->holdToken,
+            holdToken: $this->holdToken(),
         );
     }
 }

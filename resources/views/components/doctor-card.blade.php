@@ -10,8 +10,8 @@
     with no link text of its own, so the two boxes stay the same height. Anything
     passed in the slot (the doctor page's booking buttons) goes underneath.
 
-    It overlaps the blue header by 40px; the pages include the brand header
-    with the same overlap.
+    It sits below the blue header with the air the brand bar leaves, rather
+    than lapping into it.
 --}}
 @props(['clinic', 'doctor', 'facts' => true])
 
@@ -27,7 +27,6 @@
 <style>
     .dcard {
         position: relative;
-        margin-top: -40px;
         margin-bottom: 12px;
         background: #fff;
         border-radius: 16px;

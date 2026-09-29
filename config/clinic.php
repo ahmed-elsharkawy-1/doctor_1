@@ -28,11 +28,17 @@ return [
     'defaults' => [
         'timezone' => env('CLINIC_DEFAULT_TIMEZONE', 'Africa/Cairo'),
         'booking_window_days' => 7,
-        // How far ahead a patient may book for themselves. Deliberately
-        // shorter than the clinic's own window, so the secretary keeps room
-        // to place the people who phone her. Never exceeds it — see
+        // How far ahead a patient may book for themselves: today plus four.
+        //
+        // It was three, on the reasoning that the days beyond it stayed
+        // reservable by phone so the secretary always had somewhere to put a
+        // caller. Three proved too short a horizon for a patient planning
+        // around work; much past five and the list stops being something you
+        // read at a glance and becomes something you scroll.
+        //
+        // Never exceeds the clinic's own window — see
         // Clinic::patientBookingWindowDays().
-        'patient_booking_window_days' => 3,
+        'patient_booking_window_days' => 5,
         'first_visit_only_days' => 60,
         // Null means every visit type sets its own grid from its own
         // duration. A number overrides that with fixed rolling starts.
@@ -275,6 +281,32 @@ return [
         | history. Turn this back on the moment a code can actually be sent.
         */
         'require_otp' => (bool) env('CLINIC_SELF_BOOKING_REQUIRE_OTP', true),
+
+        /*
+        | Grouping the day's slots for display.
+        |
+        | A ten-minute visit across an eight-hour day is forty-eight buttons,
+        | and a patient scanning forty-eight buttons is not choosing, they are
+        | searching. So they are shown as a few collapsed stretches instead.
+        |
+        | Presentation only. Nothing here reaches the slot grid itself, what
+        | can be held, or what can be booked — see App\Services\V1\Booking\
+        | SlotGrouper, which is a pure function over slots that already exist.
+        */
+        'slot_groups' => [
+            // Nine is three full rows of the three-column grid on a phone, so
+            // an opened stretch looks deliberate rather than ragged.
+            'max_per_group' => (int) env('CLINIC_SLOTS_PER_GROUP', 9),
+
+            // Below this a day is short enough to read at a glance, and
+            // grouping would add a tap that buys nothing.
+            'min_to_group' => (int) env('CLINIC_SLOTS_MIN_TO_GROUP', 10),
+
+            // Share of a stretch still free. Contiguous on purpose: a gap
+            // between them would leave some stretches with no label at all.
+            'busy_at' => 0.6,
+            'scarce_at' => 0.3,
+        ],
 
         'otp' => [
             // Mirrors clinic.messaging.driver: `log` writes the code to the

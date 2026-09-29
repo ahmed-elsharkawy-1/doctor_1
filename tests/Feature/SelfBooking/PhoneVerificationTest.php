@@ -196,13 +196,31 @@ class PhoneVerificationTest extends TestCase
      */
     public function test_asking_for_a_new_code_retires_the_old_one(): void
     {
+        // Four random digits collide about once in ten thousand runs, and a
+        // second code with the same digits as the first is indistinguishable
+        // from a first code that never retired — the suite would go red for
+        // something that is not a bug. So keep asking until the digits differ.
+        //
+        // Waiting out the real cooldown between attempts would age the first
+        // code past its ten-minute life and turn the expected OTP_INVALID into
+        // OTP_EXPIRED, so the two limits this test is not about are lifted
+        // instead. Both are covered by their own tests below.
+        config([
+            'clinic.self_booking.otp.resend_cooldown' => 0,
+            'clinic.self_booking.otp.max_per_phone_hour' => 100,
+        ]);
+
         $this->service()->request($this->clinic, self::PHONE);
         $first = $this->sender->lastCode();
 
-        Carbon::setTestNow(Carbon::now()->addSeconds(61));
+        $second = $first;
 
-        $this->service()->request($this->clinic, self::PHONE);
-        $second = $this->sender->lastCode();
+        for ($attempt = 0; $attempt < 20 && $second === $first; $attempt++) {
+            $this->service()->request($this->clinic, self::PHONE);
+            $second = $this->sender->lastCode();
+        }
+
+        $this->assertNotSame($first, $second, 'Could not obtain a different code to test with.');
 
         try {
             $this->service()->verify($this->clinic, self::PHONE, $first);
