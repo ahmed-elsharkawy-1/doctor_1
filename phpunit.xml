@@ -35,6 +35,10 @@
              sending caps so the flow can be walked by hand. The suite tests
              those caps, so it always runs on the shipped values. -->
         <env name="CLINIC_SELF_BOOKING_REQUIRE_OTP" value="true" force="true"/>
+        <!-- force: a local .env may select a real provider to walk the flow
+             by hand. The suite must never send a real SMS or WhatsApp. -->
+        <env name="CLINIC_OTP_DRIVER" value="log" force="true"/>
+        <env name="CLINIC_MESSAGING_DRIVER" value="log" force="true"/>
         <env name="CLINIC_OTP_FIXED_CODE" value="" force="true"/>
         <env name="CLINIC_OTP_RESEND_COOLDOWN" value="60" force="true"/>
         <env name="CLINIC_OTP_MAX_PER_PHONE_HOUR" value="3" force="true"/>

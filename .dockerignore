@@ -26,3 +26,7 @@ tests
 docs/*
 !docs/api
 !docs/api/**
+
+# Database dumps taken by hand on the server hold patient data; they must
+# never be baked into an image.
+backups

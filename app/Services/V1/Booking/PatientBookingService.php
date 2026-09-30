@@ -297,7 +297,21 @@ class PatientBookingService
     |--------------------------------------------------------------------------
     */
 
-    public function requestCode(Clinic $clinic, string $phone, ?string $ip = null): void
+    /**
+     * A code for this number — the one already on its way when it still works.
+     *
+     * @return bool whether a new code was sent; false means the live one was
+     *              handed back
+     */
+    public function requestCode(Clinic $clinic, string $phone, ?string $ip = null): bool
+    {
+        $this->assertOpen($clinic);
+
+        return $this->verification->requestOrReuse($clinic, $phone, $ip)->wasRecentlyCreated;
+    }
+
+    /** Always a new code: the way out of a message that never arrived. */
+    public function resendCode(Clinic $clinic, string $phone, ?string $ip = null): void
     {
         $this->assertOpen($clinic);
 

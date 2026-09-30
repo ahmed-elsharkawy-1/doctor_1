@@ -9,6 +9,7 @@ use App\Models\VisitType;
 use App\Services\V1\Booking\PatientBookingService;
 use App\Services\V1\Booking\SlotGroup;
 use App\Support\HeldSlotSession;
+use Closure;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -296,7 +297,19 @@ class BookVisit extends Component
             'phone' => ['required', 'string', 'max:32'],
         ]);
 
-        $this->run(function (): void {
+        $sent = true;
+
+        // By reference, not an arrow function: that would copy `$sent` before
+        // the action had set it.
+        $notice = function () use (&$sent): ?string {
+            return match (true) {
+                ! $this->service()->requiresOtp() => null,
+                $sent => __('patient.otp.sent'),
+                default => __('patient.otp.still_valid'),
+            };
+        };
+
+        $this->run(function () use (&$sent): void {
             $clinic = $this->clinic();
 
             // Verification switched off: the number is parsed and believed,
@@ -309,17 +322,17 @@ class BookVisit extends Component
                 return;
             }
 
-            $this->service()->requestCode($clinic, $this->phone, request()->ip());
+            $sent = $this->service()->requestCode($clinic, $this->phone, request()->ip());
 
             $this->clearCode();
             $this->step = 3;
-        }, $this->service()->requiresOtp() ? __('patient.otp.sent') : null);
+        }, $notice);
     }
 
     public function resendCode(): void
     {
         $this->run(function (): void {
-            $this->service()->requestCode($this->clinic(), $this->phone, request()->ip());
+            $this->service()->resendCode($this->clinic(), $this->phone, request()->ip());
             $this->clearCode();
         }, __('patient.otp.sent'));
     }
@@ -607,14 +620,16 @@ class BookVisit extends Component
      * Livewire response — so it is caught and shown on the page instead. The
      * message is already translated.
      *
+     * @param  string|Closure|null  $success  a closure is read after the action,
+     *                                        for a notice that depends on what it did
      * @param  callable|null  $onFailure  tidy-up when the action was refused
      */
-    private function run(callable $action, ?string $success, ?callable $onFailure = null): void
+    private function run(callable $action, string|Closure|null $success, ?callable $onFailure = null): void
     {
         try {
             $action();
 
-            $this->notice = $success;
+            $this->notice = $success instanceof Closure ? $success() : $success;
             $this->failed = false;
         } catch (ApiException $e) {
             $this->notice = $e->getMessage();

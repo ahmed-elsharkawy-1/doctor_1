@@ -12,6 +12,7 @@ use App\Models\Patient;
 use App\Models\SlotHold;
 use App\Models\VisitType;
 use App\Services\Messaging\OtpSender;
+use App\Services\Messaging\ZadxOtpSender;
 use App\Services\V1\Booking\Slot;
 use App\Services\V1\Booking\SlotAvailabilityService;
 use App\Services\V1\Booking\SlotHoldService;
@@ -19,6 +20,7 @@ use App\Support\HeldSlotSession;
 use Database\Seeders\MessageTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\Concerns\InteractsWithClinic;
@@ -574,6 +576,91 @@ class PatientBookingFlowTest extends TestCase
     }
 
     /**
+     * Back from the code screen, then "send" again for the same number.
+     *
+     * The code already on the phone still works, so the patient is taken back
+     * to it — no second message, no "wait sixty seconds".
+     */
+    public function test_going_back_and_sending_again_returns_to_the_code_already_sent(): void
+    {
+        $page = Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->call('start')
+            ->set('name', 'فاطمة عبد الرحمن')
+            ->set('phone', self::PHONE)
+            ->call('sendCode')
+            ->call('back')
+            ->call('sendCode')
+            ->assertSet('failed', false)
+            ->assertSet('notice', __('patient.otp.still_valid'))
+            ->assertSet('step', 3);
+
+        $this->assertCount(1, $this->sender->sent);
+
+        $page->set('code', $this->sender->lastCode())
+            ->call('verifyCode')
+            ->assertSet('failed', false)
+            ->assertViewHas('stage', 'appointment');
+    }
+
+    /** "Send again" on the code screen is the way out of a lost message — always a new code. */
+    public function test_the_resend_button_still_sends_a_new_code(): void
+    {
+        config(['clinic.self_booking.otp.resend_cooldown' => 0]);
+
+        Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->call('start')
+            ->set('name', 'فاطمة عبد الرحمن')
+            ->set('phone', self::PHONE)
+            ->call('sendCode')
+            ->call('resendCode')
+            ->assertSet('notice', __('patient.otp.sent'));
+
+        $this->assertCount(2, $this->sender->sent);
+    }
+
+    /**
+     * The SMS provider refusing to send is a notice on the page, not a 500.
+     *
+     * Run through the real ZADX driver with its real out-of-credit answer —
+     * the failure this was written for — so the whole chain from their 402 to
+     * the patient's screen is the thing under test.
+     */
+    public function test_a_code_that_cannot_be_sent_is_explained_on_the_page(): void
+    {
+        $this->useZadxThatIsOutOfCredit();
+
+        Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->call('start')
+            ->set('name', 'فاطمة عبد الرحمن')
+            ->set('phone', self::PHONE)
+            ->call('sendCode')
+            ->assertOk()
+            ->assertSet('failed', true)
+            ->assertSet('notice', __('patient.otp.send_failed'))
+            // Still on the details step: there is no code to type.
+            ->assertSet('step', 2);
+    }
+
+    public function test_a_resend_that_cannot_be_sent_is_explained_on_the_page(): void
+    {
+        config(['clinic.self_booking.otp.resend_cooldown' => 0]);
+
+        $page = Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->call('start')
+            ->set('name', 'فاطمة عبد الرحمن')
+            ->set('phone', self::PHONE)
+            ->call('sendCode');
+
+        $this->useZadxThatIsOutOfCredit();
+
+        $page->call('resendCode')
+            ->assertOk()
+            ->assertSet('failed', true)
+            ->assertSet('notice', __('patient.otp.send_failed'))
+            ->assertSet('step', 3);
+    }
+
+    /**
      * A refused code empties the boxes.
      *
      * The field behind them cannot be edited a character at a time, so leaving
@@ -971,6 +1058,22 @@ class PatientBookingFlowTest extends TestCase
         }
 
         return $times;
+    }
+
+    private function useZadxThatIsOutOfCredit(): void
+    {
+        config([
+            'services.zadx.base_url' => 'https://example.test/api/v1',
+            'services.zadx.api_key' => 'pk_test',
+            'services.zadx.api_secret' => 'sk_test',
+        ]);
+
+        Http::fake(['*' => Http::response(
+            ['error' => ['code' => 'quota_exhausted', 'message' => 'Out of credits']],
+            402,
+        )]);
+
+        $this->app->instance(OtpSender::class, new ZadxOtpSender);
     }
 
     private function verified(): Testable

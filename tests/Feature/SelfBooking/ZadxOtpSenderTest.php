@@ -5,6 +5,7 @@ namespace Tests\Feature\SelfBooking;
 use App\Services\Messaging\OtpSender;
 use App\Services\Messaging\ZadxOtpSender;
 use App\Services\V1\Booking\PatientBookingService;
+use App\Services\V1\Patients\PhoneVerificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -52,7 +53,7 @@ class ZadxOtpSenderTest extends TestCase
     {
         Http::fake(['*' => Http::response($this->queued(), 202)]);
 
-        (new ZadxOtpSender)->send($this->clinic, self::PHONE, '4321');
+        (new ZadxOtpSender)->send($this->clinic, self::PHONE, '4321', 'ref-1');
 
         Http::assertSent(function (Request $request): bool {
             return $request->url() === 'https://example.test/api/v1/otp/send'
@@ -69,50 +70,74 @@ class ZadxOtpSenderTest extends TestCase
     {
         Http::fake(['*' => Http::response($this->queued(), 202)]);
 
-        (new ZadxOtpSender)->send($this->clinic, self::PHONE, '4321');
+        (new ZadxOtpSender)->send($this->clinic, self::PHONE, '4321', 'ref-1');
 
         Http::assertSent(fn (Request $r): bool => $r->hasHeader('X-Api-Key', 'pk_test')
             && $r->hasHeader('X-Api-Secret', 'sk_test'));
     }
 
     /**
-     * A queue retry after a timeout must not charge twice or deliver the code
-     * a second time, so the same code carries the same key.
+     * A retry after a timeout must not charge twice or deliver the code a
+     * second time, so a retry of the same send carries the same key.
      */
-    public function test_the_same_code_carries_the_same_idempotency_key(): void
+    public function test_a_retry_of_the_same_send_carries_the_same_idempotency_key(): void
     {
         Http::fake(['*' => Http::response($this->queued(), 202)]);
 
         $sender = new ZadxOtpSender;
-        $sender->send($this->clinic, self::PHONE, '4321');
-        $sender->send($this->clinic, self::PHONE, '4321');
+        $sender->send($this->clinic, self::PHONE, '4321', 'ref-1');
+        $sender->send($this->clinic, self::PHONE, '4321', 'ref-1');
 
-        $keys = [];
-        Http::assertSent(function (Request $r) use (&$keys): bool {
-            $keys[] = $r->header('Idempotency-Key')[0];
-
-            return true;
-        });
+        $keys = $this->sentKeys();
 
         $this->assertCount(2, $keys);
         $this->assertSame($keys[0], $keys[1]);
     }
 
-    public function test_a_different_code_carries_a_different_key(): void
+    /**
+     * A new code is a new send even when its digits repeat.
+     *
+     * Four digits repeat for the same number about once in ten thousand codes.
+     * Keyed on the digits, ZADX answered that repeat with the earlier send's
+     * "queued" and sent nothing — the patient waited on a message that was
+     * never coming, and we logged a success.
+     */
+    public function test_a_new_send_of_the_same_digits_carries_a_new_key(): void
     {
         Http::fake(['*' => Http::response($this->queued(), 202)]);
 
         $sender = new ZadxOtpSender;
-        $sender->send($this->clinic, self::PHONE, '4321');
-        $sender->send($this->clinic, self::PHONE, '8765');
+        $sender->send($this->clinic, self::PHONE, '4321', 'ref-1');
+        $sender->send($this->clinic, self::PHONE, '4321', 'ref-2');
 
-        $keys = [];
-        Http::assertSent(function (Request $r) use (&$keys): bool {
-            $keys[] = $r->header('Idempotency-Key')[0];
+        $keys = $this->sentKeys();
 
-            return true;
-        });
+        $this->assertNotSame($keys[0], $keys[1]);
+    }
 
+    /**
+     * The same, through the service that issues the codes.
+     *
+     * A pinned code is the repeat made certain: every send was the same key,
+     * and only the first code ever reached the phone.
+     */
+    public function test_two_codes_issued_with_the_same_digits_are_two_sends(): void
+    {
+        Http::fake(['*' => Http::response($this->queued(), 202)]);
+
+        config([
+            'clinic.self_booking.otp.driver' => 'zadx',
+            'clinic.self_booking.otp.fixed_code' => '1234',
+            'clinic.self_booking.otp.resend_cooldown' => 0,
+        ]);
+
+        $service = app(PhoneVerificationService::class);
+        $service->request($this->clinic, self::PHONE);
+        $service->request($this->clinic, self::PHONE);
+
+        $keys = $this->sentKeys();
+
+        $this->assertCount(2, $keys);
         $this->assertNotSame($keys[0], $keys[1]);
     }
 
@@ -122,7 +147,7 @@ class ZadxOtpSenderTest extends TestCase
         config(['services.zadx.sender_id' => null]);
         Http::fake(['*' => Http::response($this->queued(), 202)]);
 
-        (new ZadxOtpSender)->send($this->clinic, self::PHONE, '4321');
+        (new ZadxOtpSender)->send($this->clinic, self::PHONE, '4321', 'ref-1');
 
         Http::assertSent(fn (Request $r): bool => ! isset($r['sender_id']));
     }
@@ -152,7 +177,7 @@ class ZadxOtpSenderTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessageMatches('/'.preg_quote($expected, '/').'/');
 
-        (new ZadxOtpSender)->send($this->clinic, self::PHONE, '4321');
+        (new ZadxOtpSender)->send($this->clinic, self::PHONE, '4321', 'ref-1');
     }
 
     /** An unrecognised code still surfaces their own words rather than a bare status. */
@@ -162,7 +187,7 @@ class ZadxOtpSenderTest extends TestCase
 
         $this->expectExceptionMessage('ZADX: Short and strange');
 
-        (new ZadxOtpSender)->send($this->clinic, self::PHONE, '4321');
+        (new ZadxOtpSender)->send($this->clinic, self::PHONE, '4321', 'ref-1');
     }
 
     /*
@@ -182,7 +207,7 @@ class ZadxOtpSenderTest extends TestCase
 
         $this->expectExceptionMessageMatches('/ZADX_BASE_URL/');
 
-        (new ZadxOtpSender)->send($this->clinic, self::PHONE, '4321');
+        (new ZadxOtpSender)->send($this->clinic, self::PHONE, '4321', 'ref-1');
 
         Http::assertNothingSent();
     }
@@ -218,6 +243,19 @@ class ZadxOtpSenderTest extends TestCase
 
         // And the key resolves — a missing one renders as its own path.
         $this->assertStringNotContainsString('booking.self_booking', $service->otpChannel());
+    }
+
+    /** @return list<string> */
+    private function sentKeys(): array
+    {
+        $keys = [];
+        Http::assertSent(function (Request $r) use (&$keys): bool {
+            $keys[] = $r->header('Idempotency-Key')[0];
+
+            return true;
+        });
+
+        return $keys;
     }
 
     private function queued(): array

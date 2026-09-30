@@ -22,6 +22,7 @@ class PhoneVerification extends Model
         'phone',
         'code_hash',
         'expires_at',
+        'sent_at',
         'attempts',
         'verified_at',
         'ip',
@@ -39,6 +40,7 @@ class PhoneVerification extends Model
     {
         return [
             'expires_at' => 'datetime',
+            'sent_at' => 'datetime',
             'verified_at' => 'datetime',
             'attempts' => 'integer',
         ];

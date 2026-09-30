@@ -16,6 +16,8 @@ return [
         'too_many_attempts' => 'Too many tries — ask for a new code',
         'cooldown' => 'Wait :seconds seconds before asking for another code',
         'rate_limited' => 'Too many requests — try again in a little while',
+        'still_valid' => 'The code we sent you still works — enter it below',
+        'send_failed' => 'We could not send the code just now — try again in a minute',
         'not_verified' => 'Confirm the phone number first',
     ],
 ];

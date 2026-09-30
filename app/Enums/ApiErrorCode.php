@@ -52,6 +52,7 @@ enum ApiErrorCode: string
     case OTP_INVALID = 'OTP_INVALID';
     case OTP_EXPIRED = 'OTP_EXPIRED';
     case OTP_TOO_MANY_ATTEMPTS = 'OTP_TOO_MANY_ATTEMPTS';
+    case OTP_SEND_FAILED = 'OTP_SEND_FAILED';
 
     // Patient self-booking. Reaching either of these from the page itself is
     // not possible — they are what a tampered request gets.

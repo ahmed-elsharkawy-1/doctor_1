@@ -16,12 +16,12 @@ use App\Services\Messaging\OtpSender;
  */
 class RecordingOtpSender implements OtpSender
 {
-    /** @var list<array{phone: string, code: string}> */
+    /** @var list<array{phone: string, code: string, reference: string}> */
     public array $sent = [];
 
-    public function send(Clinic $clinic, string $phone, string $code): void
+    public function send(Clinic $clinic, string $phone, string $code, string $reference): void
     {
-        $this->sent[] = ['phone' => $phone, 'code' => $code];
+        $this->sent[] = ['phone' => $phone, 'code' => $code, 'reference' => $reference];
     }
 
     public function lastCode(): string

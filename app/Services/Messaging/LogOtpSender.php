@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Log;
  */
 class LogOtpSender implements OtpSender
 {
-    public function send(Clinic $clinic, string $phone, string $code): void
+    public function send(Clinic $clinic, string $phone, string $code, string $reference): void
     {
         if (app()->isProduction() && ! config('clinic.self_booking.otp.allow_log_in_production')) {
             throw new \RuntimeException(

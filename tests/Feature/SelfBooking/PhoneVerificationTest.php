@@ -4,13 +4,17 @@ namespace Tests\Feature\SelfBooking;
 
 use App\Enums\ApiErrorCode;
 use App\Exceptions\ApiException;
+use App\Models\Clinic;
 use App\Models\PhoneVerification;
 use App\Services\Messaging\LogOtpSender;
 use App\Services\Messaging\OtpSender;
 use App\Services\V1\Patients\PhoneVerificationService;
 use App\Support\VerifiedPhoneSession;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Exceptions;
+use RuntimeException;
 use Tests\Concerns\InteractsWithClinic;
 use Tests\Support\RecordingOtpSender;
 use Tests\TestCase;
@@ -251,6 +255,224 @@ class PhoneVerificationTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
+    | When the message cannot be sent
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Every driver reports failure with a plain exception, which nothing above
+     * the service knows to catch. It becomes a refusal the caller can show,
+     * with the provider's own reason kept for the logs instead of the patient.
+     */
+    public function test_a_send_that_fails_is_refused_with_its_own_code(): void
+    {
+        Exceptions::fake();
+        $this->bindFailingSender(new RuntimeException('ZADX has no credits left to send this code (402).'));
+
+        try {
+            $this->service()->request($this->clinic, self::PHONE);
+            $this->fail('A failed send must be refused.');
+        } catch (ApiException $e) {
+            $this->assertSame(ApiErrorCode::OTP_SEND_FAILED, $e->errorCode);
+            $this->assertSame(503, $e->httpStatus);
+            $this->assertSame(__('patient.otp.send_failed'), $e->getMessage());
+        }
+
+        Exceptions::assertReported(
+            fn (RuntimeException $e): bool => str_contains($e->getMessage(), 'no credits left'),
+        );
+    }
+
+    /** A timeout is not a RuntimeException, and a patient waiting on it is no less stuck. */
+    public function test_a_send_that_cannot_reach_the_provider_is_refused_the_same_way(): void
+    {
+        Exceptions::fake();
+        $this->bindFailingSender(new ConnectionException('cURL error 28: Operation timed out'));
+
+        try {
+            $this->service()->request($this->clinic, self::PHONE);
+            $this->fail('An unreachable provider must be refused.');
+        } catch (ApiException $e) {
+            $this->assertSame(ApiErrorCode::OTP_SEND_FAILED, $e->errorCode);
+        }
+
+        Exceptions::assertReported(ConnectionException::class);
+    }
+
+    /**
+     * The row stays, and counts against the caps like any other.
+     *
+     * A timeout may still have delivered the message, so the code has to stay
+     * recognisable. And a failure that freed the caps would let a script hammer
+     * the provider with them off.
+     */
+    public function test_a_failed_send_still_counts_against_the_cooldown(): void
+    {
+        Exceptions::fake();
+        $this->bindFailingSender(new RuntimeException('ZADX returned HTTP 500.'));
+
+        try {
+            $this->service()->request($this->clinic, self::PHONE);
+        } catch (ApiException) {
+        }
+
+        $this->assertSame(1, PhoneVerification::count());
+
+        try {
+            $this->service()->request($this->clinic, self::PHONE);
+            $this->fail('A retry inside the cooldown must be refused.');
+        } catch (ApiException $e) {
+            $this->assertSame(ApiErrorCode::OTP_RATE_LIMITED, $e->errorCode);
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Asking again while a code is on its way
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Back, then "send" again, with a code already on the phone.
+     *
+     * Refusing with "wait sixty seconds" is correct and hostile; sending a new
+     * one spends a credit and retires the code the patient is reading. The
+     * live code is simply handed back.
+     */
+    public function test_asking_again_while_a_sent_code_is_live_reuses_it(): void
+    {
+        $first = $this->service()->request($this->clinic, self::PHONE);
+        $code = $this->sender->lastCode();
+
+        $again = $this->service()->requestOrReuse($this->clinic, self::PHONE);
+
+        $this->assertTrue($again->is($first));
+        $this->assertFalse($again->wasRecentlyCreated);
+        $this->assertCount(1, $this->sender->sent);
+        $this->assertNotNull($this->service()->verify($this->clinic, self::PHONE, $code)->verified_at);
+    }
+
+    /** Guesses already spent stay spent — reuse must not be a way to reset them. */
+    public function test_a_reused_code_keeps_its_spent_guesses(): void
+    {
+        $this->service()->request($this->clinic, self::PHONE);
+        $this->wrongGuess();
+
+        $again = $this->service()->requestOrReuse($this->clinic, self::PHONE);
+
+        $this->assertSame(1, $again->attempts);
+    }
+
+    public function test_the_first_request_for_a_number_sends_a_code(): void
+    {
+        $verification = $this->service()->requestOrReuse($this->clinic, self::PHONE);
+
+        $this->assertTrue($verification->wasRecentlyCreated);
+        $this->assertCount(1, $this->sender->sent);
+    }
+
+    public function test_another_numbers_live_code_is_not_reused(): void
+    {
+        $this->service()->request($this->clinic, '01112225521');
+
+        $this->service()->requestOrReuse($this->clinic, self::PHONE);
+
+        $this->assertCount(2, $this->sender->sent);
+        $this->assertSame(self::E164, $this->sender->sent[1]['phone']);
+    }
+
+    /** A send that failed never reached anybody, so there is nothing to hand back. */
+    public function test_a_code_whose_send_failed_is_not_reused(): void
+    {
+        config(['clinic.self_booking.otp.resend_cooldown' => 0]);
+        Exceptions::fake();
+        $this->bindFailingSender(new RuntimeException('ZADX returned HTTP 500.'));
+
+        try {
+            $this->service()->request($this->clinic, self::PHONE);
+        } catch (ApiException) {
+        }
+
+        $this->assertNull(PhoneVerification::sole()->sent_at);
+
+        $this->app->instance(OtpSender::class, $this->sender);
+        $verification = $this->service()->requestOrReuse($this->clinic, self::PHONE);
+
+        $this->assertTrue($verification->wasRecentlyCreated);
+        $this->assertCount(1, $this->sender->sent);
+    }
+
+    /**
+     * Past the cooldown and still short of its life, a live code is still
+     * handed back rather than replaced.
+     */
+    public function test_a_live_code_is_reused_after_the_cooldown_too(): void
+    {
+        $this->service()->request($this->clinic, self::PHONE);
+
+        Carbon::setTestNow(Carbon::now()->addMinutes(5));
+
+        $again = $this->service()->requestOrReuse($this->clinic, self::PHONE);
+
+        $this->assertFalse($again->wasRecentlyCreated);
+        $this->assertCount(1, $this->sender->sent);
+    }
+
+    /** Seconds from expiring is no use to somebody who still has to type it. */
+    public function test_a_code_about_to_expire_is_replaced_not_reused(): void
+    {
+        $this->service()->request($this->clinic, self::PHONE);
+
+        Carbon::setTestNow(Carbon::now()
+            ->addMinutes((int) config('clinic.self_booking.otp.ttl_minutes'))
+            ->subSeconds(30));
+
+        $again = $this->service()->requestOrReuse($this->clinic, self::PHONE);
+
+        $this->assertTrue($again->wasRecentlyCreated);
+        $this->assertCount(2, $this->sender->sent);
+    }
+
+    public function test_a_code_already_used_is_not_reused(): void
+    {
+        config(['clinic.self_booking.otp.resend_cooldown' => 0]);
+
+        $this->service()->request($this->clinic, self::PHONE);
+        $this->service()->verify($this->clinic, self::PHONE, $this->sender->lastCode());
+
+        $this->service()->requestOrReuse($this->clinic, self::PHONE);
+
+        $this->assertCount(2, $this->sender->sent);
+    }
+
+    public function test_a_code_with_no_guesses_left_is_not_reused(): void
+    {
+        config(['clinic.self_booking.otp.resend_cooldown' => 0]);
+
+        $this->service()->request($this->clinic, self::PHONE);
+
+        foreach (range(1, (int) config('clinic.self_booking.otp.max_attempts')) as $ignored) {
+            $this->wrongGuess();
+        }
+
+        $this->service()->requestOrReuse($this->clinic, self::PHONE);
+
+        $this->assertCount(2, $this->sender->sent);
+    }
+
+    /** An explicit resend is a request for a *new* code, live one or not. */
+    public function test_an_explicit_request_still_sends_a_new_code(): void
+    {
+        config(['clinic.self_booking.otp.resend_cooldown' => 0]);
+
+        $this->service()->request($this->clinic, self::PHONE);
+        $this->service()->request($this->clinic, self::PHONE);
+
+        $this->assertCount(2, $this->sender->sent);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Holding the sending down
     |--------------------------------------------------------------------------
     */
@@ -470,8 +692,8 @@ class PhoneVerificationTest extends TestCase
         $this->app->detectEnvironment(fn (): string => 'production');
 
         config(['clinic.self_booking.otp.allow_log_in_production' => false]);
-        $this->expectException(\RuntimeException::class);
-        (new LogOtpSender)->send($this->clinic, self::E164, '4321');
+        $this->expectException(RuntimeException::class);
+        (new LogOtpSender)->send($this->clinic, self::E164, '4321', 'ref-1');
     }
 
     /**
@@ -490,10 +712,10 @@ class PhoneVerificationTest extends TestCase
         ]);
 
         // The log driver is permitted now...
-        (new LogOtpSender)->send($this->clinic, self::E164, '4321');
+        (new LogOtpSender)->send($this->clinic, self::E164, '4321', 'ref-1');
 
         // ...but a code a stranger could guess still is not.
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->service()->request($this->clinic, self::PHONE);
     }
 
@@ -522,7 +744,7 @@ class PhoneVerificationTest extends TestCase
         config(['clinic.self_booking.otp.fixed_code' => '123456']);
         $this->app['env'] = 'production';
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
 
         $this->service()->request($this->clinic, self::PHONE);
     }
@@ -536,9 +758,34 @@ class PhoneVerificationTest extends TestCase
     {
         $this->app['env'] = 'production';
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
 
-        (new LogOtpSender)->send($this->clinic, self::E164, '123456');
+        (new LogOtpSender)->send($this->clinic, self::E164, '123456', 'ref-1');
+    }
+
+    /** A guess that cannot be right: the real code with its first digit changed. */
+    private function wrongGuess(): void
+    {
+        $code = $this->sender->lastCode();
+        $wrong = (($code[0] + 1) % 10).substr($code, 1);
+
+        try {
+            $this->service()->verify($this->clinic, self::PHONE, $wrong);
+        } catch (ApiException) {
+        }
+    }
+
+    private function bindFailingSender(\Throwable $failure): void
+    {
+        $this->app->instance(OtpSender::class, new class($failure) implements OtpSender
+        {
+            public function __construct(private readonly \Throwable $failure) {}
+
+            public function send(Clinic $clinic, string $phone, string $code, string $reference): void
+            {
+                throw $this->failure;
+            }
+        });
     }
 
     private function service(): PhoneVerificationService

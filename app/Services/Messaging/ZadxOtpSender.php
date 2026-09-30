@@ -19,7 +19,7 @@ use RuntimeException;
  */
 class ZadxOtpSender implements OtpSender
 {
-    public function send(Clinic $clinic, string $phone, string $code): void
+    public function send(Clinic $clinic, string $phone, string $code, string $reference): void
     {
         $base = rtrim((string) config('services.zadx.base_url'), '/');
         $key = (string) config('services.zadx.api_key');
@@ -35,7 +35,7 @@ class ZadxOtpSender implements OtpSender
         $response = Http::withHeaders([
             'X-Api-Key' => $key,
             'X-Api-Secret' => $secret,
-            'Idempotency-Key' => $this->idempotencyKey($clinic, $phone, $code),
+            'Idempotency-Key' => $this->idempotencyKey($clinic, $phone, $reference),
         ])
             ->acceptJson()
             ->timeout((int) config('services.zadx.timeout', 15))
@@ -52,18 +52,21 @@ class ZadxOtpSender implements OtpSender
     }
 
     /**
-     * Derived from the code itself, so a retry of the *same* send is free and
-     * a genuinely new code is a new send.
+     * Derived from the issued code's reference, so a retry of the *same* send
+     * is free and every new code is a new send.
      *
      * ZADX returns the original response for a repeated key, and 409s if the
      * key comes back with different content — so this must change exactly when
-     * the message does, and not otherwise. A queue retry after a timeout is
-     * the case that matters: without this it would charge twice and deliver
-     * two identical messages.
+     * the message does, and not otherwise. A retry after a timeout is the case
+     * the key exists for: without it that would charge twice and deliver two
+     * identical messages.
+     *
+     * Not the digits. It was, and a new code that happened to repeat the last
+     * one's four digits was answered "queued" and never sent.
      */
-    private function idempotencyKey(Clinic $clinic, string $phone, string $code): string
+    private function idempotencyKey(Clinic $clinic, string $phone, string $reference): string
     {
-        return 'otp-'.hash('sha256', implode('|', [$clinic->id, $phone, $code]));
+        return 'otp-'.hash('sha256', implode('|', [$clinic->id, $phone, $reference]));
     }
 
     /**

@@ -8,8 +8,10 @@ use App\Models\Clinic;
 use App\Models\PhoneVerification;
 use App\Services\Messaging\OtpSender;
 use App\Support\PhoneNumber;
+use Exception;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 /**
  * Proving that somebody owns the phone number a booking will be saved against.
@@ -28,6 +30,9 @@ use Illuminate\Support\Facades\Hash;
  */
 class PhoneVerificationService
 {
+    /** Less than this left on a code, and a new one is sent instead of reusing it. */
+    private const REUSE_MIN_SECONDS_LEFT = 60;
+
     public function __construct(private readonly OtpSender $sender) {}
 
     /**
@@ -59,9 +64,76 @@ class PhoneVerificationService
 
         // Outside any transaction and after the row exists, so a code that
         // reaches somebody is always one we can still recognise.
-        $this->sender->send($clinic, $number->e164, $code);
+        try {
+            // A fresh reference per code, so a repeat of the same four digits
+            // is still a new message to the provider, not a replay.
+            $this->sender->send($clinic, $number->e164, $code, (string) Str::ulid());
+        } catch (Exception $e) {
+            // Drivers fail with plain exceptions — out of credit, a timeout,
+            // a missing key — and nothing above here catches those, so the
+            // patient got a 500. The provider's reason goes to the log; the
+            // patient gets something they can act on.
+            //
+            // The row is kept on purpose: a timeout may still have delivered
+            // the code, and a failure that freed the caps would let a script
+            // hammer the provider with them off.
+            report($e);
+
+            throw ApiException::make(
+                ApiErrorCode::OTP_SEND_FAILED,
+                __('patient.otp.send_failed'),
+                http: 503,
+            );
+        }
+
+        $verification->update(['sent_at' => Carbon::now()]);
 
         return $verification;
+    }
+
+    /**
+     * The code already on its way to this number if it can still be used,
+     * otherwise a new one.
+     *
+     * For a patient who went back a step and pressed "send" again: refusing
+     * them with the cooldown is correct and hostile, and a new code spends a
+     * credit and retires the one they are reading. An explicit resend — the
+     * way out of a message that never arrived — uses {@see request()} instead.
+     *
+     * `wasRecentlyCreated` on the result says which happened.
+     */
+    public function requestOrReuse(Clinic $clinic, string $phone, ?string $ip = null): PhoneVerification
+    {
+        $number = $this->parse($clinic, $phone);
+
+        // The newest only, as in verify(): an older live code is not the one
+        // that would be checked.
+        $newest = PhoneVerification::query()
+            ->forPhone($clinic->id, $number->e164)
+            ->latest('id')
+            ->first();
+
+        if ($newest !== null && $this->isStillWorthTyping($newest)) {
+            return $newest;
+        }
+
+        return $this->request($clinic, $phone, $ip);
+    }
+
+    /**
+     * Delivered, unused, guesses left, and time left to type it.
+     *
+     * A code whose send failed is never handed back: telling the patient "we
+     * already sent you a code" about one nobody received strands them.
+     */
+    private function isStillWorthTyping(PhoneVerification $verification): bool
+    {
+        return $verification->sent_at !== null
+            && $verification->verified_at === null
+            && ! $verification->isExhausted()
+            && $verification->expires_at->greaterThan(
+                Carbon::now()->addSeconds(self::REUSE_MIN_SECONDS_LEFT),
+            );
     }
 
     /**
