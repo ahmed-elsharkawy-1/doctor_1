@@ -5,6 +5,7 @@ use App\Enums\AuthErrorCode;
 use App\Http\Middleware\EnsureAbility;
 use App\Http\Middleware\ResolveClinic;
 use App\Http\Middleware\SetApiLocale;
+use App\Http\Middleware\StagingGate;
 use App\Support\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -41,6 +42,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
+
+        // First, so nothing behind it runs for a visitor without the password.
+        // Does nothing unless STAGING_GATE_PASSWORD is set.
+        $middleware->prepend(StagingGate::class);
 
         $middleware->api(prepend: [
             SetApiLocale::class,

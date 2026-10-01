@@ -1,5 +1,9 @@
 name: Deploy production
 
+# main is production. Nothing reaches it until the tests have passed; changes
+# are meant to have been through staging first (develop → staging, then a pull
+# request develop → main).
+
 on:
   push:
     branches:
@@ -11,141 +15,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
   deploy:
-    name: Deploy to VPS
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - name: Deploy over SSH
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_PORT: ${{ secrets.VPS_PORT }}
-          VPS_USER: ${{ secrets.VPS_USER }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-        run: |
-          set -euo pipefail
-
-          : "${VPS_HOST:?Set VPS_HOST secret}"
-          : "${VPS_USER:?Set VPS_USER secret}"
-          : "${VPS_SSH_KEY:?Set VPS_SSH_KEY secret}"
-
-          VPS_PORT="${VPS_PORT:-22}"
-          SSH_HOST="${VPS_HOST#http://}"
-          SSH_HOST="${SSH_HOST#https://}"
-          SSH_HOST="${SSH_HOST%%/*}"
-          SSH_HOST="${SSH_HOST%/}"
-
-          if [ -z "$SSH_HOST" ]; then
-            echo "VPS_HOST must be a hostname, for example: srv1362420.hstgr.cloud" >&2
-            exit 1
-          fi
-
-          if ! [[ "$VPS_PORT" =~ ^[0-9]+$ ]]; then
-            echo "VPS_PORT must be only the port number, for example: 22" >&2
-            exit 1
-          fi
-
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/doctor_1_deploy
-          chmod 600 ~/.ssh/doctor_1_deploy
-
-          echo "Scanning VPS SSH host key..."
-          if ! ssh-keyscan -p "$VPS_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts; then
-            echo "Could not scan the VPS SSH host key. Check VPS_HOST and VPS_PORT secrets." >&2
-            exit 1
-          fi
-
-          SSH_OPTS=(
-            -i ~/.ssh/doctor_1_deploy
-            -p "$VPS_PORT"
-            -o BatchMode=yes
-            -o StrictHostKeyChecking=yes
-            -o ConnectTimeout=20
-          )
-
-          echo "Testing SSH authentication..."
-          if ! ssh "${SSH_OPTS[@]}" "$VPS_USER@$SSH_HOST" "echo SSH connection OK"; then
-            echo "SSH authentication failed. Check VPS_USER, VPS_SSH_KEY, and /root/.ssh/authorized_keys on the VPS." >&2
-            exit 1
-          fi
-
-          ssh "${SSH_OPTS[@]}" "$VPS_USER@$SSH_HOST" <<'DEPLOY'
-            set -euo pipefail
-
-            cd /docker/doctor_1
-
-            # One deploy at a time on the box. The concurrency group above only
-            # keeps *workflow runs* from overlapping; it says nothing about a
-            # deploy somebody runs by hand over ssh. Two of those racing on one
-            # git worktree and one compose project is how a release half lands.
-            exec 9>/tmp/doctor_1-deploy.lock
-            if ! flock -w 1200 9; then
-              echo "Another deploy still holds the lock after 20 minutes." >&2
-              exit 1
-            fi
-
-            # Named steps. A failure here used to report nothing but "exit
-            # code 1", which left the log saying only that something went
-            # wrong somewhere in thirty lines.
-            echo "--- git ---"
-
-            # A deploy has already been lost to one failed fetch. The whole
-            # release is worth more than five seconds of waiting.
-            for attempt in 1 2 3; do
-              if git fetch origin main && git pull --ff-only origin main; then
-                break
-              fi
-
-              if [ "$attempt" = 3 ]; then
-                echo "git fetch/pull failed three times; leaving the box on $(git rev-parse --short HEAD)." >&2
-                exit 1
-              fi
-
-              echo "git attempt ${attempt} failed, retrying in 5s..."
-              sleep 5
-            done
-
-            git --no-pager log --oneline -1
-
-            echo "--- build ---"
-            # < /dev/null for the same reason as the artisan commands below:
-            # this script arrives on ssh's stdin, so anything that reads stdin
-            # eats the rest of it.
-            docker compose -f compose.prod.yml up -d --build --force-recreate < /dev/null
-
-            echo "Waiting for web container health..."
-            WEB_HEALTH=""
-            for attempt in {1..30}; do
-              WEB_HEALTH="$(docker inspect --format='{{.State.Health.Status}}' doctor_1-web-1 2>/dev/null || true)"
-              echo "Web health attempt ${attempt}: ${WEB_HEALTH:-unknown}"
-
-              if [ "$WEB_HEALTH" = "healthy" ]; then
-                break
-              fi
-
-              sleep 2
-            done
-
-            if [ "$WEB_HEALTH" != "healthy" ]; then
-              docker compose -f compose.prod.yml ps
-              docker compose -f compose.prod.yml logs --tail=120 web app
-              echo "Web container did not become healthy." >&2
-              exit 1
-            fi
-
-            echo "--- migrate and caches ---"
-            # Each exec is given its own stdin. Without it the first one reads
-            # the rest of this script — which arrives over ssh on stdin — and
-            # every command below it silently never runs.
-            docker compose -f compose.prod.yml exec -T app php artisan migrate --force < /dev/null
-            # Upserts keyed on `key`, so this is safe on every deploy and never
-            # disturbs a template Meta has already approved. Not `db:seed`,
-            # which would also reset the super admin's password.
-            docker compose -f compose.prod.yml exec -T app php artisan db:seed --class=MessageTemplateSeeder --force < /dev/null
-            docker compose -f compose.prod.yml exec -T app php artisan optimize:clear < /dev/null
-            docker compose -f compose.prod.yml exec -T app php artisan filament:optimize < /dev/null
-
-            echo "--- deployed $(git rev-parse --short HEAD) ---"
-          DEPLOY
+    needs: tests
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    with:
+      environment: production
+      dir: /docker/doctor_1
+      branch: main
+      stack: doctor_1

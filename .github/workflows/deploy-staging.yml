@@ -1,0 +1,28 @@
+name: Deploy staging
+
+# develop is staging: https://staging.elayadah.com. Same box as production, its
+# own checkout, database, containers and route — see docs/deploy/staging.md.
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+concurrency:
+  group: doctor-1-staging
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  deploy:
+    needs: tests
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    with:
+      environment: staging
+      dir: /docker/doctor_1_staging
+      branch: develop
+      stack: doctor_1_staging

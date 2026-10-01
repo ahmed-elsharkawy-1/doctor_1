@@ -382,6 +382,18 @@ return [
     ],
 
     /*
+    | A password in front of every web page — staging only.
+    |
+    | Unset everywhere else, and unset means off: see App\Http\Middleware\
+    | StagingGate. The API, the WhatsApp webhook and the health check stay
+    | open whatever this says.
+    */
+    'staging_gate' => [
+        'user' => env('STAGING_GATE_USER', 'team'),
+        'password' => env('STAGING_GATE_PASSWORD'),
+    ],
+
+    /*
     | Browsable API reference, rendered from docs/api/v1/openapi.yaml.
     |
     | Off in production by default: the spec is not secret, but publishing a

@@ -1,8 +1,26 @@
-name: doctor_1
+# One file, two stacks on the same box: production and staging.
+#
+# Every name that has to be unique per stack is a variable whose default is
+# what production has always used, so production's .env needs none of them.
+# Staging's .env sets them all — see docs/deploy/staging.md. Leaving one out
+# there is not a harmless default: the stack would take over production's
+# containers, image tags or routes.
+#
+#   STACK_NAME       compose project, image tags        (default doctor_1)
+#   ROUTER_NAME      Traefik router/service/middleware  (default doctor1)
+#   DEPLOY_APP_ENV   APP_ENV inside the containers      (default production)
+#
+# APP_HOST_WWW and APP_HOST_LEGACY fall back to APP_HOST, never to
+# production's names: an unset one must not let staging claim www.elayadah.com.
+# Production's .env sets both explicitly.
+#
+# DEPLOY_APP_ENV rather than APP_ENV on purpose: a stray APP_ENV=local in
+# production's .env must not be able to switch production out of production.
+name: ${STACK_NAME:-doctor_1}
 
 services:
   web:
-    image: doctor_1-web:latest
+    image: ${STACK_NAME:-doctor_1}-web:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -16,17 +34,17 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=n8n_default
-      - traefik.http.routers.doctor1.rule=Host(`${APP_HOST:?Set APP_HOST in .env}`) || Host(`${APP_HOST_WWW:-www.elayadah.com}`) || Host(`${APP_HOST_LEGACY:-doctor1.srv1362420.hstgr.cloud}`)
-      - traefik.http.routers.doctor1.entrypoints=web,websecure
-      - traefik.http.routers.doctor1.tls=true
-      - traefik.http.routers.doctor1.tls.certresolver=mytlschallenge
-      - traefik.http.services.doctor1.loadbalancer.server.port=80
-      - traefik.http.middlewares.doctor1-headers.headers.STSSeconds=31536000
-      - traefik.http.middlewares.doctor1-headers.headers.browserXSSFilter=true
-      - traefik.http.middlewares.doctor1-headers.headers.contentTypeNosniff=true
-      - traefik.http.middlewares.doctor1-headers.headers.forceSTSHeader=true
-      - traefik.http.middlewares.doctor1-headers.headers.STSIncludeSubdomains=true
-      - traefik.http.routers.doctor1.middlewares=doctor1-headers@docker
+      - traefik.http.routers.${ROUTER_NAME:-doctor1}.rule=Host(`${APP_HOST:?Set APP_HOST in .env}`) || Host(`${APP_HOST_WWW:-${APP_HOST}}`) || Host(`${APP_HOST_LEGACY:-${APP_HOST}}`)
+      - traefik.http.routers.${ROUTER_NAME:-doctor1}.entrypoints=web,websecure
+      - traefik.http.routers.${ROUTER_NAME:-doctor1}.tls=true
+      - traefik.http.routers.${ROUTER_NAME:-doctor1}.tls.certresolver=mytlschallenge
+      - traefik.http.services.${ROUTER_NAME:-doctor1}.loadbalancer.server.port=80
+      - traefik.http.middlewares.${ROUTER_NAME:-doctor1}-headers.headers.STSSeconds=31536000
+      - traefik.http.middlewares.${ROUTER_NAME:-doctor1}-headers.headers.browserXSSFilter=true
+      - traefik.http.middlewares.${ROUTER_NAME:-doctor1}-headers.headers.contentTypeNosniff=true
+      - traefik.http.middlewares.${ROUTER_NAME:-doctor1}-headers.headers.forceSTSHeader=true
+      - traefik.http.middlewares.${ROUTER_NAME:-doctor1}-headers.headers.STSIncludeSubdomains=true
+      - traefik.http.routers.${ROUTER_NAME:-doctor1}.middlewares=${ROUTER_NAME:-doctor1}-headers@docker
     networks:
       - app
       - traefik
@@ -38,7 +56,7 @@ services:
       start_period: 30s
 
   app:
-    image: doctor_1-app:latest
+    image: ${STACK_NAME:-doctor_1}-app:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -50,7 +68,7 @@ services:
       APP_KEY: ${APP_KEY:?Set APP_KEY in .env}
       APP_URL: https://${APP_HOST:?Set APP_HOST in .env}
       APP_HOST: ${APP_HOST:?Set APP_HOST in .env}
-      APP_ENV: production
+      APP_ENV: ${DEPLOY_APP_ENV:-production}
       APP_DEBUG: "false"
       DB_CONNECTION: mysql
       DB_HOST: mysql
@@ -78,7 +96,7 @@ services:
       start_period: 30s
 
   scheduler:
-    image: doctor_1-app:latest
+    image: ${STACK_NAME:-doctor_1}-app:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -90,7 +108,7 @@ services:
       APP_KEY: ${APP_KEY:?Set APP_KEY in .env}
       APP_URL: https://${APP_HOST:?Set APP_HOST in .env}
       APP_HOST: ${APP_HOST:?Set APP_HOST in .env}
-      APP_ENV: production
+      APP_ENV: ${DEPLOY_APP_ENV:-production}
       APP_DEBUG: "false"
       DB_CONNECTION: mysql
       DB_HOST: mysql
@@ -119,7 +137,7 @@ services:
       - app
 
   queue:
-    image: doctor_1-app:latest
+    image: ${STACK_NAME:-doctor_1}-app:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -131,7 +149,7 @@ services:
       APP_KEY: ${APP_KEY:?Set APP_KEY in .env}
       APP_URL: https://${APP_HOST:?Set APP_HOST in .env}
       APP_HOST: ${APP_HOST:?Set APP_HOST in .env}
-      APP_ENV: production
+      APP_ENV: ${DEPLOY_APP_ENV:-production}
       APP_DEBUG: "false"
       DB_CONNECTION: mysql
       DB_HOST: mysql
