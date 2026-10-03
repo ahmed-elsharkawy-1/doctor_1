@@ -166,6 +166,19 @@ class PatientBookingFlowTest extends TestCase
 
         $this->assertStringContainsString(e(__('booking.self_booking.done_lead_no_whatsapp')), $done);
         $this->assertStringNotContainsString(e(__('booking.self_booking.done_lead')), $done);
+        // "We sent your booking details on WhatsApp" — false when nothing was sent.
+        $this->assertStringNotContainsString(e(__('booking.self_booking.done_sent', ['patient' => 'فاطمة عبد الرحمن'])), $done);
+    }
+
+    /** With WhatsApp on, the done screen does say the details went out. */
+    public function test_with_whatsapp_on_the_done_screen_says_the_details_were_sent(): void
+    {
+        $done = $this->verified()
+            ->call('selectSlot', $this->firstFreeSlot())
+            ->call('confirm')
+            ->html();
+
+        $this->assertStringContainsString(e(__('booking.self_booking.done_sent', ['patient' => 'فاطمة عبد الرحمن'])), $done);
     }
 
     /** Verifying by message is consent to be messaged about the visit. */

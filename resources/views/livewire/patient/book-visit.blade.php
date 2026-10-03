@@ -432,10 +432,13 @@
                         @endif
                     </div>
 
-                    <div class="note note-ok">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 1.6.376 3.112 1.043 4.453L2 22l5.667-1.017A9.955 9.955 0 0 0 12 22Z"/></svg>
-                        <span>{{ __('booking.self_booking.done_sent', ['patient' => $confirmed->patient?->name]) }}</span>
-                    </div>
+                    {{-- Only when it is true: with the clinic's WhatsApp off nothing was sent. --}}
+                    @if ($sendsWhatsApp)
+                        <div class="note note-ok">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 1.6.376 3.112 1.043 4.453L2 22l5.667-1.017A9.955 9.955 0 0 0 12 22Z"/></svg>
+                            <span>{{ __('booking.self_booking.done_sent', ['patient' => $confirmed->patient?->name]) }}</span>
+                        </div>
+                    @endif
 
                     <div class="note note-info">
                         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
