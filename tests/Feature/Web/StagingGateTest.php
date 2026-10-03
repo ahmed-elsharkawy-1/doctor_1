@@ -21,14 +21,31 @@ class StagingGateTest extends TestCase
 
     private const PASSWORD = 'correct-horse';
 
-    public function test_with_no_password_configured_nothing_changes(): void
+    /** Production sets no password, and must look exactly as it always has. */
+    public function test_in_production_nothing_changes(): void
     {
+        $this->app->detectEnvironment(fn (): string => 'production');
         config(['clinic.staging_gate.password' => null]);
 
         $this->get('/')
             ->assertOk()
             ->assertHeaderMissing('WWW-Authenticate')
             ->assertHeaderMissing('X-Robots-Tag');
+    }
+
+    /**
+     * Staging without a password: open to anyone with the link, but still
+     * never indexed — that is the one way a patient could stumble on it.
+     */
+    public function test_outside_production_pages_are_open_but_never_indexed(): void
+    {
+        $this->app->detectEnvironment(fn (): string => 'staging');
+        config(['clinic.staging_gate.password' => null]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertHeaderMissing('WWW-Authenticate')
+            ->assertHeader('X-Robots-Tag', 'noindex, nofollow');
     }
 
     public function test_a_visitor_without_the_password_is_asked_for_it(): void

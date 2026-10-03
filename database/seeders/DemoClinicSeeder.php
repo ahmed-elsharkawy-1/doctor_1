@@ -24,6 +24,7 @@ use App\Support\PhoneNumber;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
+use RuntimeException;
 
 /**
  * A realistic clinic to develop and demo against.
@@ -40,7 +41,14 @@ use Illuminate\Support\Facades\Hash;
  */
 class DemoClinicSeeder extends Seeder
 {
-    private const CLINIC_NAME = 'عيادة د. سارة النجار';
+    /**
+     * Says what it is. This used to be a live clinic's exact name — and
+     * freshClinic() deletes by name, so a run on production would have taken
+     * that clinic's patients and bookings with it.
+     */
+    private const CLINIC_NAME = 'عيادة تجريبية — د. منى عادل';
+
+    private const DOCTOR_NAME = 'د. منى عادل';
 
     private const OWNER_EMAIL = 'doctor@doctor1.test';
 
@@ -72,6 +80,12 @@ class DemoClinicSeeder extends Seeder
 
     public function run(): void
     {
+        // It deletes before it builds. Nothing it makes belongs on a host
+        // with real patients, and nothing it deletes should ever be theirs.
+        if (app()->isProduction()) {
+            throw new RuntimeException('DemoClinicSeeder never runs in production.');
+        }
+
         // Self-sufficient on purpose: this seeder alone leaves a usable system,
         // including the super admin needed to reach the panel.
         $this->call(DatabaseSeeder::class);
@@ -110,8 +124,8 @@ class DemoClinicSeeder extends Seeder
             'patient_arrival_lead_minutes' => config('clinic.defaults.patient_arrival_lead_minutes'),
             // Without this the clinic has no public page at all: the slug
             // migration only backfilled rows that already existed.
-            'slug' => 'dr-sara-elnaggar',
-            'city' => 'المنصورة',
+            'slug' => 'demo-clinic',
+            'city' => 'الجيزة',
             'latitude' => 31.0409,
             'longitude' => 31.3785,
             'is_active' => true,
@@ -125,10 +139,10 @@ class DemoClinicSeeder extends Seeder
     private function doctor(Clinic $clinic): Doctor
     {
         $doctor = $clinic->doctors()->create([
-            'name' => 'د. سارة النجار',
+            'name' => self::DOCTOR_NAME,
             'sex' => DoctorSex::FEMALE,
             'title' => 'أخصائية النساء والتوليد وعلاج التأخر في الإنجاب',
-            'bio' => 'أخصائية نساء وتوليد بعيادة المنصورة، متخصصة في متابعة الحمل وحالات '
+            'bio' => 'أخصائية نساء وتوليد بالجيزة، متخصصة في متابعة الحمل وحالات '
                 .'تأخر الإنجاب. كل حالة تبدأ بتقييم دقيق، ثم خطة متابعة واضحة مع الشرح '
                 .'الكامل لكل خطوة.',
             'is_active' => true,
@@ -160,7 +174,7 @@ class DemoClinicSeeder extends Seeder
         $owner = User::updateOrCreate(
             ['email' => self::OWNER_EMAIL],
             [
-                'name' => 'د. سارة النجار',
+                'name' => self::DOCTOR_NAME,
                 'password' => Hash::make(self::PASSWORD),
                 'role' => UserRole::CLINIC,
                 'doctor_id' => $doctor->id,

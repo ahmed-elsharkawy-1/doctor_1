@@ -590,6 +590,7 @@
     </style>
 </head>
 <body>
+@include('partials.test-site-banner')
 
 @include('partials.brand-bar')
 @include('partials.button-busy')

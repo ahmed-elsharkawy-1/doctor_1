@@ -197,4 +197,7 @@ return [
         'copy_link' => 'نسخ رابط المتابعة',
         'link_copied' => 'تم نسخ الرابط',
     ],
+    // Shown on every page outside production, so a patient handed the wrong
+    // link knows before booking that nothing here reaches a clinic.
+    'test_site_banner' => 'موقع تجريبي — الحجوزات والبيانات هنا ليست حقيقية',
 ];

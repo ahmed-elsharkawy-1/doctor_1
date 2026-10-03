@@ -73,6 +73,7 @@
     </style>
 </head>
 <body>
+@include('partials.test-site-banner')
     <div class="card">
         <img class="mark" src="{{ asset(config('clinic.brand.logo')) }}"
              alt="{{ config('clinic.brand.name') }}" width="72" height="72">

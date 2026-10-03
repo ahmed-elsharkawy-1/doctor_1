@@ -259,6 +259,7 @@
     @livewireStyles
 </head>
 <body>
+@include('partials.test-site-banner')
     @auth
         @include('app.partials.navigation')
     @endauth

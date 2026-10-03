@@ -538,6 +538,7 @@
     @livewireStyles
 </head>
 <body>
+@include('partials.test-site-banner')
     {{ $slot }}
 
     @include('partials.button-busy')

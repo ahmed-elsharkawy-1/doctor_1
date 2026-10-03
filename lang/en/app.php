@@ -197,4 +197,7 @@ return [
         'copy_link' => 'Copy tracking link',
         'link_copied' => 'Link copied',
     ],
+    // Shown on every page outside production, so a patient handed the wrong
+    // link knows before booking that nothing here reaches a clinic.
+    'test_site_banner' => 'Test site — bookings and data here are not real',
 ];

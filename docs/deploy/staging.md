@@ -31,7 +31,6 @@ STACK_NAME=doctor_1_staging
 ROUTER_NAME=doctor1-staging
 DEPLOY_APP_ENV=staging
 APP_HOST=staging.elayadah.com
-STAGING_GATE_PASSWORD=...
 CLINIC_OTP_DRIVER=log
 CLINIC_MESSAGING_DRIVER=log
 ```
@@ -44,10 +43,13 @@ on that when running `docker compose` by hand: run it from the right folder.
 ## Rules
 
 - **No production data.** Staging holds demo clinics and made-up patients only
-  (`DemoClinicSeeder`, `clinic:seed-web-demo`).
+  (`DemoClinicSeeder` → `/demo-clinic`, `clinic:seed-web-demo`). The demo
+  clinic is named as one; it must never carry a real doctor's name.
 - **No real messages.** OTP and WhatsApp use the `log` driver. Codes are in the
   app log: `docker compose -f compose.prod.yml logs app | grep "OTP log driver"`.
-- **Not public.** Every web page asks for the team password
-  (`STAGING_GATE_USER` / `STAGING_GATE_PASSWORD`) and tells search engines not
-  to index it. The API, the WhatsApp webhook and `/up` stay open — the mobile
-  app's staging build talks to the API directly.
+- **Not findable.** No password by default — the team logs in exactly as on
+  production. Instead every response outside production tells search engines
+  not to index it, and every page carries a "test site" banner so a patient
+  given the wrong link can tell. A password can be switched on with
+  `STAGING_GATE_PASSWORD` if ever needed; the API, the WhatsApp webhook and
+  `/up` stay open either way.

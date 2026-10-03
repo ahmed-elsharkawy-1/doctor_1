@@ -7,16 +7,18 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * A password in front of a non-production copy of the app.
+ * Keeps non-production copies of the app out of search results, and can put
+ * a password in front of them.
  *
- * Staging is the whole app on a public address. Without this, a patient who
- * found it through a search engine could book a visit at a clinic that will
- * never see it. Production never sets the password, and with none set this
- * does nothing at all.
+ * Staging is the whole app on a public address. A search engine is the one
+ * realistic way a patient would find it, so outside production every
+ * response asks not to be indexed. Production is left exactly as it was.
  *
- * Left open, because each has its own authentication and none can answer a
- * browser's password prompt: the API (a staging build of the mobile app uses
- * it), Meta's webhook (signed), and the container health check.
+ * The password is optional and off by default — the team found it more
+ * friction than protection. Set STAGING_GATE_PASSWORD to turn it on. Even
+ * then the API (a staging build of the mobile app uses it), Meta's webhook
+ * (signed) and the container health check stay open: each has its own
+ * authentication and none can answer a browser's password prompt.
  */
 class StagingGate
 {
@@ -26,11 +28,7 @@ class StagingGate
     {
         $password = (string) config('clinic.staging_gate.password');
 
-        if ($password === '') {
-            return $next($request);
-        }
-
-        $response = $request->is(...self::OPEN) || $this->admits($request, $password)
+        $response = $password === '' || $request->is(...self::OPEN) || $this->admits($request, $password)
             ? $next($request)
             : response('Staging is for the team only.', 401, [
                 'WWW-Authenticate' => 'Basic realm="staging", charset="UTF-8"',
@@ -38,7 +36,9 @@ class StagingGate
 
         // On everything, including what the team was let into: a page that
         // leaks into search results once stays there.
-        $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
+        if (! app()->isProduction() || $password !== '') {
+            $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
+        }
 
         return $response;
     }

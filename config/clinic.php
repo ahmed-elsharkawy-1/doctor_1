@@ -382,11 +382,11 @@ return [
     ],
 
     /*
-    | A password in front of every web page — staging only.
-    |
-    | Unset everywhere else, and unset means off: see App\Http\Middleware\
-    | StagingGate. The API, the WhatsApp webhook and the health check stay
-    | open whatever this says.
+    | An optional password in front of every web page, for a non-production
+    | copy. Unset means off — the default, staging included. See App\Http\
+    | Middleware\StagingGate, which also keeps non-production out of search
+    | results whether or not this is set. The API, the WhatsApp webhook and
+    | the health check stay open whatever this says.
     */
     'staging_gate' => [
         'user' => env('STAGING_GATE_USER', 'team'),
