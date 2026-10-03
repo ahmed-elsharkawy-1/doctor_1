@@ -28,13 +28,23 @@ class WhatsAppMessagingService
     public const VISIT_COMPLETED_KEY = 'visit_completed';
 
     /**
+     * The one broadcast that also does something: it cancels the day. With
+     * WhatsApp off it still cancels, and only the message is dropped.
+     */
+    public const CANCELS_THE_DAY_KEY = 'day_cancelled';
+
+    /**
+     * What staff may send. Given a clinic with WhatsApp off, only the
+     * cancellation — the rest would only be refused.
+     *
      * @return Collection<int, MessageTemplate>
      */
-    public function templates(): Collection
+    public function templates(?Clinic $clinic = null): Collection
     {
         return MessageTemplate::query()
             ->where('is_active', true)
             ->where('is_broadcast', true)
+            ->when($clinic !== null && ! $clinic->sendsWhatsApp(), fn ($query) => $query->where('key', self::CANCELS_THE_DAY_KEY))
             ->orderBy('key')
             ->get();
     }
@@ -88,12 +98,34 @@ class WhatsAppMessagingService
         $messages = [];
         $skipped = [];
         $cancelled = 0;
+        $sending = $clinic->sendsWhatsApp();
 
-        if ($template->key === 'day_cancelled') {
+        // Switched off by a super admin. A message on its own is refused
+        // outright; the cancellation is the clinic's own business and goes
+        // ahead, silently.
+        if (! $sending && $template->key !== self::CANCELS_THE_DAY_KEY) {
+            throw ApiException::make(
+                ApiErrorCode::WHATSAPP_DISABLED,
+                __('messages.whatsapp_disabled'),
+                http: 409,
+            );
+        }
+
+        if ($template->key === self::CANCELS_THE_DAY_KEY) {
             $cancelled = $this->cancelBookings($bookings);
         }
 
         foreach ($bookings as $booking) {
+            if (! $sending) {
+                $skipped[] = [
+                    'booking_id' => $booking->id,
+                    'patient_id' => $booking->patient?->id,
+                    'reason' => 'whatsapp_disabled',
+                ];
+
+                continue;
+            }
+
             $patient = $booking->patient;
 
             if ($patient === null || $patient->whatsapp_opt_in_at === null) {
@@ -119,6 +151,7 @@ class WhatsAppMessagingService
             'cancelled_count' => $cancelled,
             'message_ids' => $messages,
             'skipped' => $skipped,
+            'whatsapp_enabled' => $sending,
         ];
     }
 
@@ -171,6 +204,11 @@ class WhatsAppMessagingService
 
     private function sendForBookingUsing(Clinic $clinic, Booking $booking, string $templateKey): ?OutboundMessage
     {
+        // Off: nothing queued, and so nothing that could later read as sent.
+        if (! $clinic->sendsWhatsApp()) {
+            return null;
+        }
+
         $patient = $booking->patient;
 
         if ($patient === null || $patient->whatsapp_opt_in_at === null) {

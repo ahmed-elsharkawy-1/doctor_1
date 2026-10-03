@@ -32,6 +32,7 @@ final class ClinicSettingsResult extends ServiceResult
             'slot_step_minutes' => $this->clinic->slot_step_minutes,
             'patient_arrival_lead_minutes' => $this->clinic->patient_arrival_lead_minutes,
             'patient_arrival_lead_minute_options' => config('clinic.settings.patient_arrival_lead_minute_options'),
+            'whatsapp_enabled' => $this->clinic->sendsWhatsApp(),
         ];
     }
 }

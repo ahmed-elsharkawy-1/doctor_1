@@ -50,6 +50,8 @@ return [
         'sent' => ':count messages sent',
         'result_sent' => ':count messages sent',
         'result_skipped' => ':count patients skipped for having no WhatsApp consent',
+        'whatsapp_off' => 'WhatsApp is switched off for this clinic, so no messages reach patients. You can still cancel the day without messages.',
+        'cancelled_without_messages' => ':count bookings cancelled — no messages sent, WhatsApp is off',
         'result_cancelled' => ':count bookings on that day were cancelled',
     ],
 

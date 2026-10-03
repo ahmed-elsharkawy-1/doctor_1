@@ -15,7 +15,7 @@ class ListMessageTemplatesController extends V1Controller
     public function __invoke(Request $request): JsonResponse
     {
         return ApiResponse::success([
-            'items' => $this->messaging->templates()->map(fn ($template) => [
+            'items' => $this->messaging->templates($this->clinic($request))->map(fn ($template) => [
                 'key' => $template->key,
                 'category' => $template->category,
                 'body_ar' => $template->body_ar,

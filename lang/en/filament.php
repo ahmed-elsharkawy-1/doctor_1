@@ -59,6 +59,8 @@ return [
         'country_code' => 'Country',
         'booking_window_days' => 'Booking window (days)',
         'self_booking_enabled' => 'Let patients book themselves',
+        'whatsapp_enabled' => 'Send WhatsApp messages to patients',
+        'whatsapp_enabled_hint' => 'When off, this clinic sends no WhatsApp at all: no booking confirmation, no after-visit message, nothing from the Messages screen. Cancelling a day still works, without messages.',
         'self_booking_enabled_hint' => 'Opens a public booking page for this clinic. Patients verify their phone by message before booking.',
         'patient_booking_window_days' => 'Patient booking window (days)',
         'patient_booking_window_days_hint' => 'Must be at or below the clinic booking window, so the clinic keeps room for the people who phone.',

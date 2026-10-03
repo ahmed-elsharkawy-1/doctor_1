@@ -34,6 +34,7 @@ class Clinic extends Model
         'slot_step_minutes',
         'patient_arrival_lead_minutes',
         'self_booking_enabled',
+        'whatsapp_enabled',
         'is_active',
     ];
 
@@ -42,6 +43,7 @@ class Clinic extends Model
         return [
             'is_active' => 'boolean',
             'self_booking_enabled' => 'boolean',
+            'whatsapp_enabled' => 'boolean',
             'booking_window_days' => 'integer',
             'patient_booking_window_days' => 'integer',
             'first_visit_only_days' => 'integer',
@@ -75,6 +77,15 @@ class Clinic extends Model
      * Whether the public booking page is open for this clinic. A deactivated
      * clinic has no public presence at all, so it can never self-book.
      */
+    /**
+     * Whether WhatsApp messages go to this clinic's patients at all — a super
+     * admin's switch, on unless turned off. See WhatsAppMessagingService.
+     */
+    public function sendsWhatsApp(): bool
+    {
+        return $this->whatsapp_enabled !== false;
+    }
+
     public function allowsSelfBooking(): bool
     {
         return $this->is_active && $this->self_booking_enabled;

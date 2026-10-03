@@ -9,6 +9,7 @@ return [
 
     'validation_failed' => 'Please review the submitted data',
     'not_found' => 'The requested item was not found',
+    'whatsapp_disabled' => 'WhatsApp is switched off for this clinic, so messages cannot be sent.',
     'request_failed' => 'The request could not be completed',
     'server_error' => 'Something went wrong, please try again',
     'minutes' => ':count minutes',

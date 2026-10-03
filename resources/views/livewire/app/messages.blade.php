@@ -83,6 +83,10 @@
 
     <h1 style="font-size:1.05rem;font-weight:700;margin:0 0 12px">{{ __('app.messages.title') }}</h1>
 
+    @if ($whatsappOff)
+        <div class="flash flash-err" role="note">{{ __('app.messages.whatsapp_off') }}</div>
+    @endif
+
     @if ($notice !== null)
         <div class="flash {{ $failed ? 'flash-err' : 'flash-ok' }}">{{ $notice }}</div>
     @endif

@@ -54,6 +54,9 @@ enum ApiErrorCode: string
     case OTP_TOO_MANY_ATTEMPTS = 'OTP_TOO_MANY_ATTEMPTS';
     case OTP_SEND_FAILED = 'OTP_SEND_FAILED';
 
+    // WhatsApp switched off for the clinic by a super admin.
+    case WHATSAPP_DISABLED = 'WHATSAPP_DISABLED';
+
     // Patient self-booking. Reaching either of these from the page itself is
     // not possible — they are what a tampered request gets.
     case PHONE_NOT_VERIFIED = 'PHONE_NOT_VERIFIED';

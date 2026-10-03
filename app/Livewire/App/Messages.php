@@ -69,6 +69,7 @@ class Messages extends ClinicComponent
 
         return view('livewire.app.messages', [
             'templates' => $this->templates(),
+            'whatsappOff' => ! $this->clinic()->sendsWhatsApp(),
             'recipients' => $recipients,
             'willSend' => $recipients->filter(fn (Booking $b) => $b->patient?->whatsapp_opt_in_at !== null),
             'willSkip' => $recipients->filter(fn (Booking $b) => $b->patient?->whatsapp_opt_in_at === null),
@@ -167,7 +168,10 @@ class Messages extends ClinicComponent
             return;
         }
 
-        $this->notice = __('app.messages.sent', ['count' => $this->result['sent_count']]);
+        // Off: the day was cancelled and nobody was told — say exactly that.
+        $this->notice = $this->result['whatsapp_enabled']
+            ? __('app.messages.sent', ['count' => $this->result['sent_count']])
+            : __('app.messages.cancelled_without_messages', ['count' => $this->result['cancelled_count']]);
         $this->failed = false;
         $this->confirming = false;
         $this->selected = [];
@@ -184,7 +188,7 @@ class Messages extends ClinicComponent
      */
     private function templates(): Collection
     {
-        return app(WhatsAppMessagingService::class)->templates();
+        return app(WhatsAppMessagingService::class)->templates($this->clinic());
     }
 
     /**

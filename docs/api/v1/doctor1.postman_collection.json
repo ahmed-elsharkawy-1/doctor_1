@@ -1187,7 +1187,7 @@
                                 "message-templates"
                             ]
                         },
-                        "description": "Template bodies are previews; the app never sends free-form patient messages."
+                        "description": "Template bodies are previews; the app never sends free-form patient messages. With the clinic's WhatsApp off, only `day_cancelled` is listed."
                     },
                     "response": []
                 },
@@ -1220,7 +1220,7 @@
                                 "broadcasts"
                             ]
                         },
-                        "description": "Uses the configured messaging driver. The shipped `log` driver records\nand marks messages sent without calling Meta. `day_cancelled` also\ncancels selected pending bookings with reason `emergency`.",
+                        "description": "Uses the configured messaging driver. The shipped `log` driver records\nand marks messages sent without calling Meta. `day_cancelled` also\ncancels selected pending bookings with reason `emergency`.\n\n**WhatsApp switched off for the clinic** (`clinic.whatsapp_enabled`\nfalse in `/bootstrap`): `day_cancelled` still cancels, sends nothing,\nand returns `whatsapp_enabled: false` with every booking in `skipped`\n(reason `whatsapp_disabled`). Any other template is refused with 409.",
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"template_key\": \"day_cancelled\"\n}\n",
@@ -1264,7 +1264,7 @@
                                 "message"
                             ]
                         },
-                        "description": "Send a template for one booking",
+                        "description": "With WhatsApp switched off for the clinic, behaves as `/broadcasts`\ndoes: `day_cancelled` cancels without a message, anything else is 409.",
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"template_key\": \"appointment_delayed\"\n}\n",

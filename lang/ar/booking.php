@@ -178,6 +178,9 @@ return [
         'family_lead' => 'أدخل رقمه هو، ليبقى سجل زياراته باسمه.',
         'no_verify_notice' => 'أدخل بياناتك ثم اختر الموعد المناسب لك.',
         'phone_hint_plain' => 'يصلك على هذا الرقم رابط متابعة الدور.',
+        // WhatsApp off for the clinic: nothing promises a message that will not come.
+        'phone_hint_no_whatsapp' => 'يصلك رمز التأكيد على هذا الرقم عبر :channel.',
+        'phone_hint_plain_no_whatsapp' => 'الرقم الذي سيُسجَّل عليه الحجز.',
         'continue' => 'متابعة',
         'send_code' => 'إرسال رمز التأكيد',
 
@@ -218,6 +221,7 @@ return [
         // بعد التأكيد.
         'done_title' => 'تم تأكيد حجزك',
         'done_lead' => 'حجزك مسجّل في العيادة وأُضيف إلى قائمة اليوم. تصلك تحديثات دورك عبر واتساب يوم الزيارة.',
+        'done_lead_no_whatsapp' => 'حجزك مسجّل في العيادة وأُضيف إلى قائمة اليوم. تابع دورك يوم الزيارة من رابط المتابعة.',
         'done_sent' => 'أرسلنا تفاصيل الحجز عبر واتساب إلى :patient.',
         'done_patient' => 'المريض',
         'done_code' => 'كود المريض',

@@ -954,7 +954,7 @@ paths:
     get:
       tags: [Messaging]
       summary: List active WhatsApp templates
-      description: Template bodies are previews; the app never sends free-form patient messages.
+      description: Template bodies are previews; the app never sends free-form patient messages. With the clinic's WhatsApp off, only `day_cancelled` is listed.
       operationId: listMessageTemplates
       responses:
         "200":
@@ -981,6 +981,11 @@ paths:
         Uses the configured messaging driver. The shipped `log` driver records
         and marks messages sent without calling Meta. `day_cancelled` also
         cancels selected pending bookings with reason `emergency`.
+
+        **WhatsApp switched off for the clinic** (`clinic.whatsapp_enabled`
+        false in `/bootstrap`): `day_cancelled` still cancels, sends nothing,
+        and returns `whatsapp_enabled: false` with every booking in `skipped`
+        (reason `whatsapp_disabled`). Any other template is refused with 409.
       operationId: createBroadcast
       requestBody:
         required: true
@@ -1013,6 +1018,7 @@ paths:
                     properties:
                       data: { $ref: "#/components/schemas/MessageSendResult" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/WhatsAppDisabled" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
 
   /bookings/{booking}/message:
@@ -1021,6 +1027,9 @@ paths:
     post:
       tags: [Messaging]
       summary: Send a template for one booking
+      description: |
+        With WhatsApp switched off for the clinic, behaves as `/broadcasts`
+        does: `day_cancelled` cancels without a message, anything else is 409.
       operationId: sendBookingMessage
       requestBody:
         required: true
@@ -1046,6 +1055,7 @@ paths:
                     properties:
                       data: { $ref: "#/components/schemas/MessageSendResult" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/WhatsAppDisabled" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
 
   # ------------------------------------------------------------ Postpone ----
@@ -1352,6 +1362,15 @@ components:
                       items:
                         type: array
                         items: { $ref: "#/components/schemas/CallListRow" }
+    WhatsAppDisabled:
+      description: |
+        `WHATSAPP_DISABLED` — a super admin has switched WhatsApp off for this
+        clinic. Nothing was sent or changed. `/bootstrap` reports it as
+        `clinic.whatsapp_enabled`, so the app can hide sending altogether.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
     InvalidTransition:
       description: |
         `INVALID_STATUS_TRANSITION` — skipping a step or advancing a finished
@@ -1446,6 +1465,13 @@ components:
           type: array
           items: { type: integer, enum: [15, 20, 30, 45, 60] }
           example: [15, 20, 30, 45, 60]
+        whatsapp_enabled:
+          type: boolean
+          description: |
+            Whether this clinic sends WhatsApp at all. A super admin's switch;
+            when false, hide message sending except "cancel the day", which
+            still cancels but sends nothing. Templates from `/message-templates`
+            are already narrowed to match.
 
     VisitType:
       type: object
@@ -1801,6 +1827,9 @@ components:
         sent_count: { type: integer }
         skipped_count: { type: integer }
         cancelled_count: { type: integer }
+        whatsapp_enabled:
+          type: boolean
+          description: False when the clinic's WhatsApp is off — nothing was sent.
         message_ids:
           type: array
           items: { type: integer }

@@ -172,6 +172,8 @@ return [
         'family_lead' => 'Enter their number, so their visit history stays in their name.',
         'no_verify_notice' => 'Enter your details, then pick the time that suits you.',
         'phone_hint_plain' => 'Your queue tracking link is sent to this number.',
+        'phone_hint_no_whatsapp' => 'Your confirmation code arrives on this number by :channel.',
+        'phone_hint_plain_no_whatsapp' => 'The number the booking will be saved under.',
         'continue' => 'Continue',
         'send_code' => 'Send confirmation code',
 
@@ -205,6 +207,7 @@ return [
 
         'done_title' => 'Your booking is confirmed',
         'done_lead' => "You are on the clinic's list for that day. Updates on your place in the queue arrive on WhatsApp.",
+        'done_lead_no_whatsapp' => "You are on the clinic's list for that day. Follow your place in the queue from the tracking link.",
         'done_sent' => 'We sent the details on WhatsApp to :patient.',
         'done_patient' => 'Patient',
         'done_code' => 'Patient code',

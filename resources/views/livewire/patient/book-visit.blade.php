@@ -169,7 +169,12 @@
                         <input id="phone" type="tel" class="ltr" style="text-align: left"
                                wire:model="phone" autocomplete="tel"
                                placeholder="{{ __('booking.self_booking.phone_placeholder') }}">
-                        <div class="hint">{{ $requiresOtp ? __('booking.self_booking.phone_hint', ['channel' => $otpChannel]) : __('booking.self_booking.phone_hint_plain') }}</div>
+                        <div class="hint">{{ match (true) {
+                            $requiresOtp && $sendsWhatsApp => __('booking.self_booking.phone_hint', ['channel' => $otpChannel]),
+                            $requiresOtp => __('booking.self_booking.phone_hint_no_whatsapp', ['channel' => $otpChannel]),
+                            $sendsWhatsApp => __('booking.self_booking.phone_hint_plain'),
+                            default => __('booking.self_booking.phone_hint_plain_no_whatsapp'),
+                        } }}</div>
                         @error('phone') <div class="err">{{ $message }}</div> @enderror
                     </div>
 
@@ -394,7 +399,7 @@
                             <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
                         </div>
                         <h1 class="h1">{{ __('booking.self_booking.done_title') }}</h1>
-                        <p class="hint" style="margin: 8px 0 0">{{ __('booking.self_booking.done_lead') }}</p>
+                        <p class="hint" style="margin: 8px 0 0">{{ $sendsWhatsApp ? __('booking.self_booking.done_lead') : __('booking.self_booking.done_lead_no_whatsapp') }}</p>
                     </div>
 
                     <div class="card" style="display: flex; align-items: center; gap: 13px">

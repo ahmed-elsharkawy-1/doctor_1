@@ -170,6 +170,15 @@ class ClinicForm
                         ->default(false)
                         ->helperText(__('filament.clinic.self_booking_enabled_hint')),
 
+                    // Every WhatsApp message this clinic's patients would get.
+                    // On by default; switched off while a clinic pilots the
+                    // app. The panel is super-admin-only, so clinics cannot
+                    // flip it themselves.
+                    Toggle::make('whatsapp_enabled')
+                        ->label(__('filament.clinic.whatsapp_enabled'))
+                        ->default(true)
+                        ->helperText(__('filament.clinic.whatsapp_enabled_hint')),
+
                     // Patients get a shorter horizon than the secretary, so
                     // she keeps room to place the people who phone her. The
                     // rule is enforced again in Clinic::patientBookingWindowDays()

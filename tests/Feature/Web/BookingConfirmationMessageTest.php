@@ -103,6 +103,17 @@ class BookingConfirmationMessageTest extends TestCase
         $this->assertSame($this->clinic->id, $message->clinic_id);
     }
 
+    /** WhatsApp off for the clinic: the booking is made, and nothing is queued or marked sent. */
+    public function test_with_whatsapp_off_the_booking_is_made_and_nothing_is_queued(): void
+    {
+        $this->clinic->update(['whatsapp_enabled' => false]);
+
+        $this->book();
+
+        $this->assertSame(1, Booking::count());
+        $this->assertSame(0, OutboundMessage::count());
+    }
+
     public function test_the_confirmation_carries_the_tracking_link(): void
     {
         $this->book();

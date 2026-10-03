@@ -13,6 +13,7 @@ use App\Models\SlotHold;
 use App\Models\VisitType;
 use App\Services\Messaging\OtpSender;
 use App\Services\Messaging\ZadxOtpSender;
+use App\Services\V1\Booking\PatientBookingService;
 use App\Services\V1\Booking\Slot;
 use App\Services\V1\Booking\SlotAvailabilityService;
 use App\Services\V1\Booking\SlotHoldService;
@@ -134,6 +135,37 @@ class PatientBookingFlowTest extends TestCase
         ]);
 
         $this->assertSame(1, OutboundMessage::count());
+    }
+
+    public function test_with_whatsapp_off_no_confirmation_is_queued(): void
+    {
+        $this->clinic->update(['whatsapp_enabled' => false]);
+
+        $this->verified()
+            ->call('selectSlot', $this->firstFreeSlot())
+            ->call('confirm')
+            ->assertSet('failed', false);
+
+        $this->assertSame(1, Booking::count());
+        $this->assertSame(0, OutboundMessage::count());
+    }
+
+    /** The page must not promise updates that will never come. */
+    public function test_with_whatsapp_off_the_page_promises_no_whatsapp_updates(): void
+    {
+        $this->clinic->update(['whatsapp_enabled' => false]);
+
+        $details = Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])->call('start')->html();
+
+        $this->assertStringContainsString(e(__('booking.self_booking.phone_hint_no_whatsapp', ['channel' => app(PatientBookingService::class)->otpChannel()])), $details);
+
+        $done = $this->verified()
+            ->call('selectSlot', $this->firstFreeSlot())
+            ->call('confirm')
+            ->html();
+
+        $this->assertStringContainsString(e(__('booking.self_booking.done_lead_no_whatsapp')), $done);
+        $this->assertStringNotContainsString(e(__('booking.self_booking.done_lead')), $done);
     }
 
     /** Verifying by message is consent to be messaged about the visit. */
