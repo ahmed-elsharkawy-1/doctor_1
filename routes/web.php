@@ -5,8 +5,11 @@ use App\Http\Controllers\Web\Auth\LoginController;
 use App\Http\Controllers\Web\BookingReviewController;
 use App\Http\Controllers\Web\BookingTrackingController;
 use App\Http\Controllers\Web\DoctorLandingController;
+use App\Http\Controllers\Web\Reports\LoginController as ReportsLoginController;
+use App\Http\Controllers\Web\Reports\ReportController;
 use App\Http\Controllers\Webhooks\WhatsAppWebhookController;
 use App\Http\Middleware\EnsureClinicSession;
+use App\Http\Middleware\EnsureReportAccess;
 use App\Livewire\App\Messages;
 use App\Livewire\App\NewBooking;
 use App\Livewire\App\PatientProfile;
@@ -69,6 +72,35 @@ Route::get('webhooks/whatsapp', [WhatsAppWebhookController::class, 'verify'])
 
 Route::post('webhooks/whatsapp', [WhatsAppWebhookController::class, 'handle'])
     ->name('webhooks.whatsapp');
+
+/*
+|--------------------------------------------------------------------------
+| The doctor's reports
+|--------------------------------------------------------------------------
+|
+| Standalone from the /app screens. Signed in with the same account as the
+| clinic app; only accounts flagged for reports, of a clinic with reports on,
+| get past EnsureReportAccess. The morning WhatsApp message links here.
+*/
+Route::prefix('reports')->name('reports.')->group(function (): void {
+    Route::get('login', [ReportsLoginController::class, 'show'])->name('login');
+    Route::post('login', [ReportsLoginController::class, 'store'])
+        ->middleware('throttle:6,1')
+        ->name('login.store');
+    Route::post('logout', [ReportsLoginController::class, 'destroy'])->name('logout');
+
+    // The operator's look at any clinic's report, from the admin panel.
+    Route::get('preview/{clinic}/{type}/{value}', [ReportController::class, 'preview'])
+        ->whereIn('type', ['day', 'week', 'month'])
+        ->name('preview');
+
+    Route::middleware(EnsureReportAccess::class)->group(function (): void {
+        Route::get('/', [ReportController::class, 'index'])->name('index');
+        Route::get('{type}/{value}', [ReportController::class, 'show'])
+            ->whereIn('type', ['day', 'week', 'month'])
+            ->name('show');
+    });
+});
 
 /*
 | The clinic web app — the screens the doctor and the assistant work from.

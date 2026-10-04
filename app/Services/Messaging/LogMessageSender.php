@@ -2,6 +2,7 @@
 
 namespace App\Services\Messaging;
 
+use App\Models\MessageTemplate;
 use App\Models\OutboundMessage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -28,5 +29,17 @@ class LogMessageSender implements MessageSender
             'sent_at' => now(),
             'error' => null,
         ]);
+    }
+
+    public function sendTemplate(string $to, MessageTemplate $template, array $variables, ?string $buttonSuffix): ?string
+    {
+        Log::info('WhatsApp log driver template rendered.', [
+            'template_key' => $template->key,
+            'to' => $to,
+            'variables' => $variables,
+            'button_suffix' => $buttonSuffix,
+        ]);
+
+        return 'log_'.Str::uuid();
     }
 }

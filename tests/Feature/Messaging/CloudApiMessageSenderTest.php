@@ -338,4 +338,50 @@ class CloudApiMessageSenderTest extends TestCase
         // Better to fail loudly here than to post a body Meta will reject.
         $this->queueMessage('something_new');
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sending to a clinic account rather than a patient
+    |--------------------------------------------------------------------------
+    */
+
+    /** The doctor's report goes to a number, not to a patient record. */
+    public function test_a_template_can_be_sent_straight_to_a_number(): void
+    {
+        Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'wamid.REPORT']]])]);
+        $template = MessageTemplate::where('key', 'clinic_report')->firstOrFail();
+
+        $id = (new CloudApiMessageSender)->sendTemplate(
+            '+20 100 123 4567',
+            $template,
+            ['أمس', 'عيادة تجريبية', '4', '940 ج.م'],
+            'day/2026-10-03',
+        );
+
+        $this->assertSame('wamid.REPORT', $id);
+
+        Http::assertSent(function ($request): bool {
+            $components = collect($request['template']['components'])->keyBy('type');
+
+            return $request['to'] === '201001234567'
+                && $request['template']['name'] === 'clinic_report'
+                && array_column($components['body']['parameters'], 'text') === ['أمس', 'عيادة تجريبية', '4', '940 ج.م']
+                && $components['button']['parameters'][0]['text'] === 'day/2026-10-03';
+        });
+    }
+
+    public function test_a_refused_template_send_says_why(): void
+    {
+        Http::fake([self::ENDPOINT => Http::response(['error' => ['message' => 'Template not approved']], 400)]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Template not approved');
+
+        (new CloudApiMessageSender)->sendTemplate(
+            '+201001234567',
+            MessageTemplate::where('key', 'clinic_report')->firstOrFail(),
+            ['a', 'b', 'c', 'd'],
+            null,
+        );
+    }
 }

@@ -55,6 +55,25 @@ class MessageTemplateSeeder extends Seeder
             ],
 
             /*
+            | The doctor's morning report. Sent to a clinic account, never to a
+            | patient, and only for clinics with reports switched on.
+            | {{1}} period ("أمس السبت ٣ أكتوبر") · {{2}} clinic
+            | {{3}} completed visits · {{4}} income
+            | Button: https://elayadah.com/reports/{{1}} <- day/2026-10-03,
+            | week/2026-09-26 or month/2026-09
+            */
+            'clinic_report' => [
+                'category' => 'utility',
+                'is_broadcast' => false,
+                'provider_template_name' => 'clinic_report',
+                'language_code' => 'ar',
+                'body_ar' => "📊 تقرير {{1}}\n🏥 {{2}}\n\n"
+                    ."✅ *كشوفات مكتملة:* {{3}}\n💰 *الدخل:* {{4}}\n\n"
+                    .'لعرض التفاصيل كاملة اضغط على الزر بالأسفل.',
+                'is_active' => true,
+            ],
+
+            /*
             | No body parameters at all — the text is fixed and only the button
             | varies. Registered at Meta as en_US despite being written in
             | Arabic; sending `ar` for it fails, so the code follows Meta.

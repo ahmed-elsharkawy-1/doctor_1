@@ -98,6 +98,14 @@ class UserForm
                     Toggle::make('is_active')
                         ->label(__('filament.common.is_active'))
                         ->default(true),
+
+                    // Stands in for per-clinic roles until they exist. The
+                    // report carries income and patients' phones.
+                    Toggle::make('can_access_reports')
+                        ->label(__('filament.user.can_access_reports'))
+                        ->default(false)
+                        ->visible(fn ($get): bool => $get('role') === UserRole::CLINIC->value)
+                        ->helperText(__('filament.user.can_access_reports_hint')),
                 ])
                 ->columns(2),
         ]);

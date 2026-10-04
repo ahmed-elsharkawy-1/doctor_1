@@ -22,3 +22,14 @@ Schedule::command('clinic:release-lapsed-holds')
     ->everyMinute()
     ->withoutOverlapping()
     ->runInBackground();
+
+/*
+| The doctors' morning WhatsApp report. One time for every clinic, in Cairo
+| time; which clinics get it is decided per clinic in the admin panel. A
+| missed morning is not caught up — the panel's "send report" covers it.
+*/
+Schedule::command('clinic:send-reports')
+    ->dailyAt(config('clinic.reports.send_at'))
+    ->timezone(config('clinic.reports.timezone'))
+    ->withoutOverlapping()
+    ->runInBackground();

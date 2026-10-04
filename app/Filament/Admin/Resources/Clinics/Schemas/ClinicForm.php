@@ -179,6 +179,14 @@ class ClinicForm
                         ->default(true)
                         ->helperText(__('filament.clinic.whatsapp_enabled_hint')),
 
+                    // The doctor's report page and morning WhatsApp. Off until
+                    // somebody decides this clinic gets it; who may read it is
+                    // set per account on the user screen.
+                    Toggle::make('reports_enabled')
+                        ->label(__('filament.clinic.reports_enabled'))
+                        ->default(false)
+                        ->helperText(__('filament.clinic.reports_enabled_hint')),
+
                     // Patients get a shorter horizon than the secretary, so
                     // she keeps room to place the people who phone her. The
                     // rule is enforced again in Clinic::patientBookingWindowDays()

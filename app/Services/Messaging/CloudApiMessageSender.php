@@ -22,6 +22,39 @@ class CloudApiMessageSender implements MessageSender
 {
     public function send(OutboundMessage $message): void
     {
+        $id = $this->post(
+            $this->recipient($message),
+            $this->template($message),
+            $message->variables ?? [],
+            $message->button_suffix,
+        );
+
+        $message->update([
+            'status' => 'sent',
+            'provider_message_id' => $id,
+            'sent_at' => now(),
+            'error' => null,
+        ]);
+    }
+
+    public function sendTemplate(string $to, MessageTemplate $template, array $variables, ?string $buttonSuffix): ?string
+    {
+        $digits = preg_replace('/[^0-9]/', '', $to) ?? '';
+
+        if ($digits === '') {
+            throw new RuntimeException('There is no phone number to send this template to.');
+        }
+
+        return $this->post($digits, $template, $variables, $buttonSuffix);
+    }
+
+    /**
+     * One template message to one number; Meta's message id back.
+     *
+     * @param  array<int, mixed>  $variables
+     */
+    private function post(string $to, MessageTemplate $template, array $variables, ?string $buttonSuffix): ?string
+    {
         $token = (string) config('services.whatsapp.token');
         $phoneNumberId = (string) config('services.whatsapp.phone_number_id');
 
@@ -31,9 +64,6 @@ class CloudApiMessageSender implements MessageSender
                 .'or WHATSAPP_PHONE_NUMBER_ID is not set.',
             );
         }
-
-        $to = $this->recipient($message);
-        $template = $this->template($message);
 
         $response = Http::withToken($token)
             ->acceptJson()
@@ -45,7 +75,7 @@ class CloudApiMessageSender implements MessageSender
                 'template' => array_filter([
                     'name' => $template->provider_template_name ?: $template->key,
                     'language' => ['code' => $template->language_code ?: 'ar'],
-                    'components' => $this->components($message),
+                    'components' => $this->components($variables, $buttonSuffix),
                 ]),
             ]);
 
@@ -59,12 +89,7 @@ class CloudApiMessageSender implements MessageSender
             throw new RuntimeException($error);
         }
 
-        $message->update([
-            'status' => 'sent',
-            'provider_message_id' => $response->json('messages.0.id'),
-            'sent_at' => now(),
-            'error' => null,
-        ]);
+        return $response->json('messages.0.id');
     }
 
     /**
@@ -107,10 +132,12 @@ class CloudApiMessageSender implements MessageSender
      *
      * @return list<array<string, mixed>>
      */
-    private function components(OutboundMessage $message): array
+    /**
+     * @param  array<int, mixed>  $variables
+     */
+    private function components(array $variables, ?string $buttonSuffix): array
     {
         $components = [];
-        $variables = $message->variables ?? [];
 
         if ($variables !== []) {
             $components[] = [
@@ -122,14 +149,14 @@ class CloudApiMessageSender implements MessageSender
             ];
         }
 
-        if (($message->button_suffix ?? '') !== '') {
+        if (($buttonSuffix ?? '') !== '') {
             $components[] = [
                 'type' => 'button',
                 'sub_type' => 'url',
                 // The templates each carry exactly one button.
                 'index' => '0',
                 'parameters' => [
-                    ['type' => 'text', 'text' => (string) $message->button_suffix],
+                    ['type' => 'text', 'text' => (string) $buttonSuffix],
                 ],
             ];
         }

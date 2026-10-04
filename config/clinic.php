@@ -137,7 +137,7 @@ return [
         // Slugs the operator may not take, because a route already owns them.
         'reserved' => [
             'app', 'admin', 'docs', 'api', 'livewire', 'storage', 'up', 'login',
-            'booking', 'review',
+            'booking', 'review', 'reports',
             // The path tracking links used before they were made readable.
             'b',
         ],
@@ -379,6 +379,19 @@ return [
         'locales' => ['ar', 'en'],
         'default_locale' => 'ar',
         'token_name' => 'mobile',
+    ],
+
+    /*
+    | The doctor's report: a page under /reports, and a WhatsApp message each
+    | morning linking to it. One send time for every clinic — clinics do not
+    | each get their own clock. Which clinics get it, and who may read it, are
+    | per clinic and per account in the admin panel.
+    */
+    'reports' => [
+        'send_at' => env('CLINIC_REPORTS_SEND_AT', '09:00'),
+        'timezone' => env('CLINIC_REPORTS_TIMEZONE', 'Africa/Cairo'),
+        // How long "remember me" keeps a doctor signed in to the reports page.
+        'remember_days' => 90,
     ],
 
     /*

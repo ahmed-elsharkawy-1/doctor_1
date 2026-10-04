@@ -28,6 +28,7 @@ class User extends Authenticatable implements FilamentUser
         'doctor_id',
         'locale',
         'is_active',
+        'can_access_reports',
     ];
 
     protected $hidden = [
@@ -42,6 +43,7 @@ class User extends Authenticatable implements FilamentUser
             'password' => 'hashed',
             'role' => UserRole::class,
             'is_active' => 'boolean',
+            'can_access_reports' => 'boolean',
         ];
     }
 
