@@ -5,7 +5,7 @@
 > four items that are costing us something today, with no template rewrites.
 > This file is the full picture, including the tone work parked for later.
 
-Six items, all of them changes in the Meta dashboard. None can be done from the
+Seven items, all of them changes in the Meta dashboard. None can be done from the
 codebase.
 
 Once a template is approved we have a short piece of work to point the app at
@@ -20,6 +20,7 @@ change. Plan for a day between approval and the new templates going live.
 | 4 | Register the webhook, send the app secret | we cannot see delivery failures |
 | 5 | Re-verify the phone number | verification has **expired** |
 | 6 | Meta Business Verification | sender shows as a bare number |
+| 7 | Create the **clinic report** template | doctors' morning report cannot be sent |
 
 **Items 1, 2 and 3 can go in a single review cycle.** Submit the new wording
 already categorised UTILITY, with the verification template alongside.
@@ -184,3 +185,59 @@ quality_rating                GREEN
 The name exists but is not in the approved state that makes it display. The
 step that changes this is **Meta Business Verification** — submitting the
 company's legal documents in Business Manager. Settle section 5 first.
+
+---
+
+## 7. New: the doctor's morning report template
+
+Each morning the doctor of a clinic with reports switched on gets one WhatsApp
+message: the headline numbers for yesterday (or last week on Saturdays, last
+month on the 1st), and a button to the full report page. It goes to the
+**doctor**, not to patients.
+
+**The feature is built and tested. It cannot send for real without this
+template.** Until it is approved every attempt is recorded as failed, so it is
+safe to submit whenever convenient.
+
+| Field | Value |
+|---|---|
+| Category | **UTILITY** |
+| Name | `clinic_report` — exactly this; the app looks it up by name |
+| Language | `ar` |
+| Header | none |
+| Footer | none |
+
+**Body** — copy exactly, including the line breaks:
+
+```
+📊 تقرير {{1}}
+🏥 {{2}}
+
+✅ *كشوفات مكتملة:* {{3}}
+💰 *الدخل:* {{4}}
+
+لعرض التفاصيل كاملة اضغط على الزر بالأسفل.
+```
+
+| Parameter | Meaning | Sample to give Meta |
+|---|---|---|
+| `{{1}}` | the period | `يوم السبت 3 أكتوبر` |
+| `{{2}}` | the clinic | `عيادة د. سهام عبدالعزيز` |
+| `{{3}}` | completed visits | `4` |
+| `{{4}}` | income | `940 ج.م` |
+
+**Button** — one, *Visit website*, **dynamic** URL:
+
+| Field | Value |
+|---|---|
+| Button text | `عرض التقرير` |
+| URL | `https://elayadah.com/reports/{{1}}` |
+| Sample | `https://elayadah.com/reports/day/2026-10-03` |
+
+The URL must end in `/reports/` followed by the parameter, as above — the app
+fills in `day/…`, `week/…` or `month/…`. The page behind it asks the doctor to
+sign in, so the link carries nothing private.
+
+**Why UTILITY:** it reports on the clinic's own account activity and promotes
+nothing; it goes to the clinic's own staff, never to the public.
+
