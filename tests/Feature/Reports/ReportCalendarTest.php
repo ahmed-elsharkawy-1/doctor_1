@@ -38,39 +38,39 @@ class ReportCalendarTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_the_days_are_yesterday_and_the_six_before_it(): void
+    public function test_the_days_are_yesterday_and_the_five_before_it(): void
     {
         $days = array_column($this->calendar()->days($this->clinic), 'date');
 
         $this->assertSame([
             '2026-10-03', '2026-10-02', '2026-10-01', '2026-09-30',
-            '2026-09-29', '2026-09-28', '2026-09-27',
+            '2026-09-29', '2026-09-28',
         ], $days);
     }
 
-    public function test_the_periods_are_this_and_last_week_this_month_and_six_months_before(): void
+    public function test_the_periods_are_this_and_last_week_this_month_and_five_months_before(): void
     {
         $periods = $this->calendar()->periods($this->clinic);
 
         $this->assertSame(
             ['week:2026-10-03', 'week:2026-09-26', 'month:2026-10', 'month:2026-09', 'month:2026-08',
-                'month:2026-07', 'month:2026-06', 'month:2026-05', 'month:2026-04'],
+                'month:2026-07', 'month:2026-06', 'month:2026-05'],
             array_map(fn ($p) => $p['type'].':'.$p['value'], $periods),
         );
     }
 
     public function test_a_listed_day_resolves(): void
     {
-        $period = $this->calendar()->resolve($this->clinic, 'day', '2026-09-27');
+        $period = $this->calendar()->resolve($this->clinic, 'day', '2026-09-28');
 
-        $this->assertSame('2026-09-27', $period->from->toDateString());
-        $this->assertSame('2026-09-27', $period->to->toDateString());
+        $this->assertSame('2026-09-28', $period->from->toDateString());
+        $this->assertSame('2026-09-28', $period->to->toDateString());
     }
 
     public function test_today_and_older_days_do_not_resolve(): void
     {
         $this->assertNull($this->calendar()->resolve($this->clinic, 'day', self::TODAY));
-        $this->assertNull($this->calendar()->resolve($this->clinic, 'day', '2026-09-26'));
+        $this->assertNull($this->calendar()->resolve($this->clinic, 'day', '2026-09-27'));
         $this->assertNull($this->calendar()->resolve($this->clinic, 'day', 'not-a-date'));
     }
 
@@ -92,7 +92,8 @@ class ReportCalendarTest extends TestCase
     public function test_this_month_stops_at_today_and_older_months_are_refused(): void
     {
         $this->assertSame('2026-10-04', $this->calendar()->resolve($this->clinic, 'month', '2026-10')->to->toDateString());
-        $this->assertSame('2026-04-30', $this->calendar()->resolve($this->clinic, 'month', '2026-04')->to->toDateString());
+        $this->assertSame('2026-05-31', $this->calendar()->resolve($this->clinic, 'month', '2026-05')->to->toDateString());
+        $this->assertNull($this->calendar()->resolve($this->clinic, 'month', '2026-04'));
         $this->assertNull($this->calendar()->resolve($this->clinic, 'month', '2026-03'));
         $this->assertNull($this->calendar()->resolve($this->clinic, 'month', '2026-13'));
     }

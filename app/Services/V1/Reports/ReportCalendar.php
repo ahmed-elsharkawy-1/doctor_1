@@ -14,15 +14,15 @@ use Illuminate\Support\Carbon;
  * the page will open. Everything is in the clinic's own timezone, and weeks
  * are the business week, Saturday to Friday (SPEC §5.7).
  *
- * - Days: yesterday and the six before it. Today is still happening.
+ * - Days: yesterday and the five before it. Today is still happening.
  * - Weeks: this week so far, and last week.
- * - Months: this month so far, and the six before it.
+ * - Months: this month so far, and the five before it.
  */
 class ReportCalendar
 {
-    public const DAYS = 7;
+    public const DAYS = 6;
 
-    public const PAST_MONTHS = 6;
+    public const PAST_MONTHS = 5;
 
     /**
      * @return list<array{type: string, value: string, date: string, label: string}>

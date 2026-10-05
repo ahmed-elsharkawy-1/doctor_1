@@ -3,6 +3,7 @@
 namespace App\Services\V1\Reports;
 
 use App\Enums\BookingStatus;
+use App\Enums\DayOfWeek;
 use App\Models\Booking;
 use App\Models\Clinic;
 use App\Services\Reports\ReportPeriod;
@@ -29,20 +30,35 @@ class ClinicPeriodReportService
         $done = $this->completed($clinic, $period->from, $period->to);
         $previous = $this->revenue->totals($clinic, $period->previousFrom, $period->previousTo);
         $single = $period->from->isSameDay($period->to);
+        $days = $this->openingDays($clinic, $period);
+        $income = $this->sum($done);
 
         return new PeriodReportResult(
             period: $period,
             completed: [
                 'count' => $done->count(),
-                'income' => $this->sum($done),
+                'income' => $income,
                 'previous_count' => $previous['count'],
                 'previous_income' => $previous['total'],
+                'previous_from' => $period->previousFrom->toDateString(),
+                'previous_to' => $period->previousTo->toDateString(),
+                // Growth from nothing is not a percentage worth showing.
+                'change_percent' => $previous['total'] > 0.0
+                    ? round(($income - $previous['total']) / $previous['total'] * 100, 1)
+                    : null,
+                'direction' => match (true) {
+                    $income > $previous['total'] => 'up',
+                    $income < $previous['total'] => 'down',
+                    default => 'flat',
+                },
             ],
             byVisitType: $this->byVisitType($done),
             outcomes: $this->outcomes($clinic, $period),
             patients: $this->patients($clinic, $period, $done),
-            daily: $single ? [] : $this->daily($period, $done),
+            daily: $single ? [] : $this->daily($period, $done, $days),
             nextDayBookings: $single ? $this->nextDayBookings($clinic, $period->to) : null,
+            dayStatus: $single ? $days[$period->from->toDateString()] : null,
+            weekly: $period->key === 'month' ? $this->weekly($period, $done) : [],
         );
     }
 
@@ -76,22 +92,61 @@ class ClinicPeriodReportService
     }
 
     /**
-     * @return array{done: int, no_show: int, cancelled: int}
+     * @return array{done: int, no_show: int, cancelled: int, total: int, no_show_rate: ?float}
      */
     private function outcomes(Clinic $clinic, ReportPeriod $period): array
     {
         $counts = $clinic->bookings()
             ->whereBetween('visit_date', [$period->from->toDateString(), $period->to->toDateString()])
-            ->whereIn('status', [BookingStatus::DONE, BookingStatus::NO_SHOW, BookingStatus::CANCELLED])
             ->selectRaw('status, count(*) as aggregate')
             ->groupBy('status')
             ->pluck('aggregate', 'status');
 
+        $done = (int) ($counts[BookingStatus::DONE->value] ?? 0);
+        $noShow = (int) ($counts[BookingStatus::NO_SHOW->value] ?? 0);
+
         return [
-            'done' => (int) ($counts[BookingStatus::DONE->value] ?? 0),
-            'no_show' => (int) ($counts[BookingStatus::NO_SHOW->value] ?? 0),
+            'done' => $done,
+            'no_show' => $noShow,
             'cancelled' => (int) ($counts[BookingStatus::CANCELLED->value] ?? 0),
+            'total' => (int) $counts->sum(),
+            // Out of those who were expected to come: a cancellation warned
+            // the clinic, a no-show did not.
+            'no_show_rate' => $done + $noShow > 0 ? round($noShow / ($done + $noShow) * 100, 1) : null,
         ];
+    }
+
+    /**
+     * Whether the clinic was open each day: a dated holiday first, then the
+     * weekly pattern. The pattern is today's — a clinic that changed its days
+     * off sees older weeks through its current ones. Holidays are by date, so
+     * those are always exact.
+     *
+     * @return array<string, array{kind: string, note: ?string}>
+     */
+    private function openingDays(Clinic $clinic, ReportPeriod $period): array
+    {
+        $holidays = $clinic->holidays()
+            ->whereDate('date', '>=', $period->from->toDateString())
+            ->whereDate('date', '<=', $period->to->toDateString())
+            ->get()
+            ->keyBy(fn ($holiday) => Carbon::parse($holiday->date)->toDateString());
+
+        $open = $clinic->schedules()->pluck('is_open', 'day_of_week');
+        $days = [];
+
+        for ($date = $period->from->copy(); $date->lessThanOrEqualTo($period->to); $date->addDay()) {
+            $key = $date->toDateString();
+            $holiday = $holidays[$key] ?? null;
+
+            $days[$key] = match (true) {
+                $holiday !== null => ['kind' => 'holiday', 'note' => $holiday->note],
+                ! ($open[DayOfWeek::fromDate($date)->value] ?? true) => ['kind' => 'closed', 'note' => null],
+                default => ['kind' => 'open', 'note' => null],
+            };
+        }
+
+        return $days;
     }
 
     /**
@@ -132,19 +187,50 @@ class ClinicPeriodReportService
 
     /**
      * @param  Collection<int, Booking>  $done
-     * @return list<array{date: string, count: int, income: float}>
+     * @param  array<string, array{kind: string, note: ?string}>  $opening
+     * @return list<array{date: string, count: int, income: float, kind: string, note: ?string}>
      */
-    private function daily(ReportPeriod $period, Collection $done): array
+    private function daily(ReportPeriod $period, Collection $done, array $opening): array
     {
         $byDate = $done->groupBy(fn (Booking $booking) => Carbon::parse($booking->visit_date)->toDateString());
         $days = [];
 
         for ($date = $period->from->copy(); $date->lessThanOrEqualTo($period->to); $date->addDay()) {
-            $group = $byDate[$date->toDateString()] ?? collect();
-            $days[] = ['date' => $date->toDateString(), 'count' => $group->count(), 'income' => $this->sum($group)];
+            $key = $date->toDateString();
+            $group = $byDate[$key] ?? collect();
+            $days[] = ['date' => $key, 'count' => $group->count(), 'income' => $this->sum($group)] + $opening[$key];
         }
 
         return $days;
+    }
+
+    /**
+     * A month by business week (Saturday to Friday), the first and last
+     * clipped to the month — four or five rows where days would be thirty.
+     *
+     * @param  Collection<int, Booking>  $done
+     * @return list<array{from: string, to: string, count: int, income: float}>
+     */
+    private function weekly(ReportPeriod $period, Collection $done): array
+    {
+        $weeks = [];
+        $from = $period->from->copy();
+
+        while ($from->lessThanOrEqualTo($period->to)) {
+            $to = min($from->copy()->endOfWeek(Carbon::FRIDAY)->startOfDay(), $period->to->copy());
+            $inWeek = $done->filter(fn (Booking $booking) => Carbon::parse($booking->visit_date)->betweenIncluded($from, $to));
+
+            $weeks[] = [
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+                'count' => $inWeek->count(),
+                'income' => $this->sum($inWeek),
+            ];
+
+            $from = $to->copy()->addDay();
+        }
+
+        return $weeks;
     }
 
     /** Still expected the day after — cancelled and no-shows are not coming. */
