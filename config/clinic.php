@@ -137,7 +137,7 @@ return [
         // Slugs the operator may not take, because a route already owns them.
         'reserved' => [
             'app', 'admin', 'docs', 'api', 'livewire', 'storage', 'up', 'login',
-            'booking', 'review', 'reports',
+            'booking', 'review', 'reports', 'handoff',
             // The path tracking links used before they were made readable.
             'b',
         ],
@@ -421,6 +421,14 @@ return [
         // The pilot clinic, listed on the handoff page by name and email
         // only: it takes real patients, so its password is never printed.
         'pilot_account' => env('CLINIC_DOCS_PILOT_EMAIL', 'drseham@gmail.com'),
+
+        // The code in front of /handoff. Set per server in .env, never here:
+        // this repository is public. Unset on a server means the page stays
+        // closed; unset locally means open, for development.
+        'handoff_code' => env('HANDOFF_ACCESS_CODE'),
+
+        // How long a browser that entered the code is remembered.
+        'handoff_remember_days' => 30,
 
         // The live site, named on the handoff page whichever host serves it.
         'production_url' => env('CLINIC_DOCS_PRODUCTION_URL', 'https://elayadah.com'),

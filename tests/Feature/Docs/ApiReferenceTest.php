@@ -81,7 +81,9 @@ class ApiReferenceTest extends TestCase
 
     public function test_the_handoff_page_renders_test_access_details(): void
     {
-        $this->get(route('docs.api.handoff'))
+        config(['clinic.docs.handoff_code' => 'team-code']);
+
+        $this->withCookie('handoff_access', hash('sha256', 'team-code'))->get(route('handoff'))
             ->assertOk()
             ->assertSee('Testing handoff')
             // Public page: the admin login is shared privately, never printed.
@@ -106,7 +108,9 @@ class ApiReferenceTest extends TestCase
     /** The /app screens are not in use, so the page no longer walks through them. */
     public function test_the_handoff_page_leaves_out_the_unused_web_app(): void
     {
-        $this->get(route('docs.api.handoff'))
+        config(['clinic.docs.handoff_code' => 'team-code']);
+
+        $this->withCookie('handoff_access', hash('sha256', 'team-code'))->get(route('handoff'))
             ->assertOk()
             ->assertDontSee('Reservation Flow')
             ->assertDontSee(route('app.login'), escape: false);
@@ -114,9 +118,11 @@ class ApiReferenceTest extends TestCase
 
     public function test_the_handoff_page_renders_without_a_database(): void
     {
+        config(['clinic.docs.handoff_code' => 'team-code']);
+
         // No RefreshDatabase here on purpose: a reference page must not 500
         // because the database is unreachable.
-        $this->get(route('docs.api.handoff'))
+        $this->withCookie('handoff_access', hash('sha256', 'team-code'))->get(route('handoff'))
             ->assertOk()
             ->assertSee(TestClinic::DOCTOR_EMAIL);
     }
@@ -125,6 +131,6 @@ class ApiReferenceTest extends TestCase
     {
         config()->set('clinic.docs.enabled', false);
 
-        $this->get(route('docs.api.handoff'))->assertNotFound();
+        $this->withCookie('handoff_access', hash('sha256', 'team-code'))->get(route('handoff'))->assertNotFound();
     }
 }

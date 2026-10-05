@@ -4,7 +4,7 @@ This document links the current v1 API contract to the new mobile design.
 
 - Figma design root: https://www.figma.com/design/IJzPzJ0P60XKYtlYXuVIXe/Ahmed--Copy-?node-id=157-1769
 - Live API docs: https://doctor1.srv1362420.hstgr.cloud/docs/api
-- Live handoff: https://doctor1.srv1362420.hstgr.cloud/docs/api/handoff
+- Live handoff: https://elayadah.com/handoff (team access code)
 - Live OpenAPI JSON: https://doctor1.srv1362420.hstgr.cloud/docs/api/openapi.json
 - Source of truth: `docs/api/v1/openapi.yaml`
 

@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Docs;
 use App\Models\Clinic;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 use League\CommonMark\GithubFlavoredMarkdownConverter;
@@ -36,9 +38,13 @@ class ApiReferenceController
      * test clinic's logins. Public, so it prints no login that guards real
      * data — the pilot clinic appears by name and email only.
      */
-    public function handoff(): View
+    public function handoff(Request $request): View
     {
         $this->guard();
+
+        if (! $this->handoffUnlocked($request)) {
+            return view('docs.handoff-gate');
+        }
 
         $pilot = $this->clinicFor(config('clinic.docs.pilot_account'));
 
@@ -53,6 +59,39 @@ class ApiReferenceController
             'pilotEmail' => config('clinic.docs.pilot_account'),
             'pilotLandingUrl' => $pilot?->slug === null ? null : url($pilot->slug),
         ]);
+    }
+
+    /**
+     * Checks the shared code and remembers the browser. The cookie holds a
+     * hash of the code, so changing the code locks every browser out again.
+     */
+    public function unlockHandoff(Request $request): RedirectResponse
+    {
+        $this->guard();
+
+        $code = (string) config('clinic.docs.handoff_code');
+
+        if ($code === '' || ! hash_equals($code, (string) $request->input('code'))) {
+            return redirect()->route('handoff')->withErrors(['code' => 'That code is not right.']);
+        }
+
+        return redirect()->route('handoff')->withCookie(cookie(
+            'handoff_access',
+            hash('sha256', $code),
+            (int) config('clinic.docs.handoff_remember_days') * 24 * 60,
+        ));
+    }
+
+    private function handoffUnlocked(Request $request): bool
+    {
+        $code = (string) config('clinic.docs.handoff_code');
+
+        // No code set: open for local development, closed on any server.
+        if ($code === '') {
+            return ! app()->environment('production', 'staging');
+        }
+
+        return hash_equals(hash('sha256', $code), (string) $request->cookie('handoff_access'));
     }
 
     private function clinicFor(?string $email): ?Clinic
@@ -88,7 +127,7 @@ class ApiReferenceController
             'title' => 'Doctor 1 API to design map',
             'html' => $converter->convert(file_get_contents($path))->getContent(),
             'apiDocsUrl' => route('docs.api'),
-            'handoffUrl' => route('docs.api.handoff'),
+            'handoffUrl' => route('handoff'),
             'openApiUrl' => route('docs.api.spec'),
         ]);
     }

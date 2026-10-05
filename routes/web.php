@@ -75,6 +75,19 @@ Route::post('webhooks/whatsapp', [WhatsAppWebhookController::class, 'handle'])
 
 /*
 |--------------------------------------------------------------------------
+| The testing handoff
+|--------------------------------------------------------------------------
+|
+| /handoff, short enough to type. Behind a shared access code checked on the
+| server — the locked page carries none of what the unlocked one shows.
+*/
+Route::get('handoff', [ApiReferenceController::class, 'handoff'])->name('handoff');
+Route::post('handoff', [ApiReferenceController::class, 'unlockHandoff'])
+    ->middleware('throttle:5,1')
+    ->name('handoff.unlock');
+
+/*
+|--------------------------------------------------------------------------
 | The doctor's reports
 |--------------------------------------------------------------------------
 |
@@ -154,7 +167,8 @@ Route::prefix('app')->name('app.')->group(function (): void {
 */
 Route::prefix(config('clinic.docs.path'))->group(function (): void {
     Route::get('/', [ApiReferenceController::class, 'page'])->name('docs.api');
-    Route::get('handoff', [ApiReferenceController::class, 'handoff'])->name('docs.api.handoff');
+    // Moved to /handoff; links already shared keep working.
+    Route::permanentRedirect('handoff', '/handoff');
     Route::get('design-map', [ApiReferenceController::class, 'designMap'])->name('docs.api.design-map');
     Route::get('openapi.json', [ApiReferenceController::class, 'document'])->name('docs.api.spec');
 });
