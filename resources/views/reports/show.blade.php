@@ -13,7 +13,30 @@
     <style>
         .rp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
         .rp-head h1 { font-size: 1.15rem; margin: 0; }
-        .rp-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 10px; }
+        /* The two filter strips scroll sideways. As on the doctor page's tabs:
+           no scrollbar line, a soft fade on whichever side still has chips,
+           and the chosen one centred when the page opens (script below). */
+        .rp-strip { position: relative; margin-bottom: 10px; --fade: 32px; }
+        .rp-strip::before,
+        .rp-strip::after {
+            content: ""; position: absolute; top: 0; bottom: 0; width: var(--fade);
+            pointer-events: none; opacity: 0; transition: opacity .2s ease; z-index: 1;
+        }
+        .rp-strip::before { right: 0; background: linear-gradient(to left, var(--surface), rgba(255, 255, 255, 0)); }
+        .rp-strip::after { left: 0; background: linear-gradient(to right, var(--surface), rgba(255, 255, 255, 0)); }
+        .rp-strip[data-scroll~="start"]::before { opacity: 1; }
+        .rp-strip[data-scroll~="end"]::after { opacity: 1; }
+        .rp-chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
+        .rp-chips::-webkit-scrollbar { display: none; }
+
+        /* A scroll bar of our own under each strip: the fade alone was too
+           quiet to say "there is more". Drawn rather than styled because iOS
+           ignores scroll bar CSS and shows its own only mid-swipe. The thumb's
+           length is how much of the strip is on screen, its place is where
+           the strip is; hidden when everything fits. */
+        .rp-track { position: relative; height: 4px; margin-top: 8px; border-radius: 999px; background: var(--line); }
+        .rp-track[hidden] { display: none; }
+        .rp-thumb { position: absolute; top: 0; bottom: 0; right: 0; border-radius: 999px; background: var(--primary); opacity: .55; }
         .rp-chip {
             flex: none; padding: 8px 12px; border-radius: 999px; text-decoration: none;
             background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); font-size: .88rem; white-space: nowrap;
@@ -49,20 +72,22 @@
 
     <nav class="rp-card" aria-label="{{ __('reports.page.days') }}">
         <p class="rp-label">{{ __('reports.page.days') }}</p>
-        <div class="rp-chips">
+        <div class="rp-strip"><div class="rp-chips">
             @foreach ($days as $day)
-                <a class="rp-chip @if ($type === 'day' && $value === $day['value']) is-active @endif"
+                @php $active = $type === 'day' && $value === $day['value']; @endphp
+                <a class="rp-chip @if ($active) is-active @endif" @if ($active) aria-current="page" @endif
                    href="{{ $link('day', $day['value']) }}">{{ $day['label'] }}</a>
             @endforeach
-        </div>
+        </div><div class="rp-track" aria-hidden="true" hidden><span class="rp-thumb"></span></div></div>
 
         <p class="rp-label">{{ __('reports.page.periods') }}</p>
-        <div class="rp-chips">
+        <div class="rp-strip"><div class="rp-chips">
             @foreach ($periods as $option)
-                <a class="rp-chip @if ($type === $option['type'] && $value === $option['value']) is-active @endif"
+                @php $active = $type === $option['type'] && $value === $option['value']; @endphp
+                <a class="rp-chip @if ($active) is-active @endif" @if ($active) aria-current="page" @endif
                    href="{{ $link($option['type'], $option['value']) }}">{{ $option['label'] }}</a>
             @endforeach
-        </div>
+        </div><div class="rp-track" aria-hidden="true" hidden><span class="rp-thumb"></span></div></div>
     </nav>
 
     <section class="rp-card">
@@ -158,4 +183,80 @@
             </table>
         </section>
     @endif
+
+    <script>
+        /*
+           The chips are links, so every choice opens a new page — and a new
+           page starts each strip at its beginning, leaving a chip from the far
+           end half off the screen. So the chosen chip is centred on arrival,
+           instantly: the strip opens where it belongs instead of sliding there.
+
+           Same measurement as the doctor page's tabs (landing/show): only the
+           strip scrolls, never the page, and scrollBy is relative, so it reads
+           the same in RTL whatever a browser does with scrollLeft.
+        */
+        (function () {
+            const strips = document.querySelectorAll('.rp-strip');
+
+            function centre(row, chip) {
+                const rowBox = row.getBoundingClientRect();
+                const chipBox = chip.getBoundingClientRect();
+                const delta = (chipBox.left + chipBox.width / 2) - (rowBox.left + rowBox.width / 2);
+
+                // 'instant', not 'auto': a page-load jump should never animate.
+                row.scrollBy({ left: delta, behavior: 'instant' });
+            }
+
+            // Which way each strip still has chips to give. In RTL scrollLeft
+            // counts down from zero, so it is measured by magnitude, not sign.
+            function markOverflow(wrap, row) {
+                const offset = Math.abs(row.scrollLeft);
+                const hidden = row.scrollWidth - row.clientWidth;
+                const sides = [];
+
+                if (hidden > 1) {
+                    if (offset > 1) { sides.push('start'); }
+                    if (offset < hidden - 1) { sides.push('end'); }
+                }
+
+                wrap.setAttribute('data-scroll', sides.join(' '));
+                drawTrack(wrap, row, offset, hidden);
+            }
+
+            // The visible window is [offset, offset + clientWidth] of the whole
+            // strip, measured from its start — the right edge, in RTL — so the
+            // thumb is placed from the right by the same proportions.
+            function drawTrack(wrap, row, offset, hidden) {
+                const track = wrap.querySelector('.rp-track');
+                if (!track) { return; }
+
+                track.hidden = hidden <= 1;
+                if (track.hidden) { return; }
+
+                const thumb = track.querySelector('.rp-thumb');
+                thumb.style.width = (row.clientWidth / row.scrollWidth * 100) + '%';
+                thumb.style.right = (offset / row.scrollWidth * 100) + '%';
+            }
+
+            function settle() {
+                strips.forEach(wrap => {
+                    const row = wrap.querySelector('.rp-chips');
+                    const chip = row.querySelector('[aria-current="page"]');
+
+                    if (chip) { centre(row, chip); }
+                    markOverflow(wrap, row);
+                });
+            }
+
+            strips.forEach(wrap => {
+                const row = wrap.querySelector('.rp-chips');
+                row.addEventListener('scroll', () => markOverflow(wrap, row), { passive: true });
+            });
+
+            window.addEventListener('resize', settle);
+            settle();
+            // The chips change width once the web font arrives; centre again.
+            document.fonts?.ready.then(settle);
+        })();
+    </script>
 </x-layouts.reports>

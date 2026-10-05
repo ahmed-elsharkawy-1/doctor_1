@@ -171,6 +171,20 @@ class ReportsPageTest extends TestCase
         $this->assertStringContainsString('/reports/month/2026-04', $html);
     }
 
+    /**
+     * Exactly one chip is marked as the current page — the one the page
+     * centres in its strip on arrival, so a far-end choice is never off screen.
+     */
+    public function test_the_chosen_chip_is_marked_for_centring(): void
+    {
+        foreach (['/reports/day/2026-09-27' => '/reports/day/2026-09-27', '/reports/month/2026-04' => '/reports/month/2026-04'] as $page => $href) {
+            $html = $this->actingAs($this->owner)->get($page)->assertOk()->getContent();
+
+            $this->assertSame(1, preg_match_all('#<a\s[^>]*aria-current="page"#', $html), $page);
+            $this->assertMatchesRegularExpression('#aria-current="page"\s+href="[^"]*'.preg_quote($href, '#').'"#', $html, $page);
+        }
+    }
+
     public function test_a_week_shows_a_line_per_day(): void
     {
         $this->actingAs($this->owner)->get('/reports/week/2026-09-26')
