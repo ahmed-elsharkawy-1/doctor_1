@@ -27,6 +27,13 @@ on:
 jobs:
   deploy:
     name: Deploy ${{ inputs.environment }} to VPS
+    # Production and staging share one box: never deploy both at once. They
+    # used to — pushing develop and main together started two builds on two
+    # CPUs and two runners hitting SSH in the same seconds. Queued, not
+    # cancelled: every release still lands, one after the other.
+    concurrency:
+      group: doctor-1-vps
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -69,25 +76,44 @@ jobs:
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/doctor_1_deploy
           chmod 600 ~/.ssh/doctor_1_deploy
 
-          echo "Scanning VPS SSH host key..."
-          if ! ssh-keyscan -p "$VPS_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts; then
-            echo "Could not scan the VPS SSH host key. Check VPS_HOST and VPS_PORT secrets." >&2
-            exit 1
-          fi
+          # The server's host key, pinned. It used to be fetched with
+          # ssh-keyscan on every run, which both trusted whatever answered and
+          # failed the whole deploy whenever that one probe went unanswered
+          # within its 5-second timeout — the production deploy of 2ede34b
+          # died exactly that way, 5 seconds in, before it reached the box.
+          #
+          # If the VPS is ever rebuilt its key changes and this refuses to
+          # connect: on the box, `cat /etc/ssh/ssh_host_ed25519_key.pub`, and
+          # replace the line below. Fingerprint today:
+          # SHA256:DZUdLljMwxgpPv6Lc+NNp/NzJ+mnEYcrYipopZeN2fQ
+          printf '%s\n' 'doctor1-vps ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPtNXc2mgVPvGV1mZBRuhlZuiVnxQrCGdutlAGS+0VQC' > ~/.ssh/known_hosts
 
           SSH_OPTS=(
             -i ~/.ssh/doctor_1_deploy
             -p "$VPS_PORT"
             -o BatchMode=yes
             -o StrictHostKeyChecking=yes
+            -o HostKeyAlias=doctor1-vps
             -o ConnectTimeout=20
+            -o ServerAliveInterval=30
           )
 
+          # A dropped first connection is a network blip, not a reason to
+          # abandon a release that already passed its tests.
           echo "Testing SSH authentication..."
-          if ! ssh "${SSH_OPTS[@]}" "$VPS_USER@$SSH_HOST" "echo SSH connection OK"; then
-            echo "SSH authentication failed. Check VPS_USER, VPS_SSH_KEY, and /root/.ssh/authorized_keys on the VPS." >&2
-            exit 1
-          fi
+          for attempt in 1 2 3 4; do
+            if ssh "${SSH_OPTS[@]}" "$VPS_USER@$SSH_HOST" "echo SSH connection OK"; then
+              break
+            fi
+
+            if [ "$attempt" = 4 ]; then
+              echo "SSH failed four times. Check VPS_HOST, VPS_PORT, VPS_USER, VPS_SSH_KEY, and the pinned host key above." >&2
+              exit 1
+            fi
+
+            echo "SSH attempt ${attempt} failed, retrying in $((attempt * 10))s..."
+            sleep $((attempt * 10))
+          done
 
           # The script below is quoted, so nothing in it expands here; the
           # four values it needs travel as variables on the remote command.
