@@ -57,6 +57,9 @@ class ApiReferenceController
             'pilotClinic' => $pilot = $this->clinicFor(config('clinic.docs.pilot_account')),
             'pilotEmail' => config('clinic.docs.pilot_account'),
             'pilotLandingUrl' => $pilot?->slug === null ? null : url($pilot->slug),
+            'demoAssistant' => config('clinic.docs.demo_assistant'),
+            'stagingUrl' => rtrim((string) config('clinic.docs.staging_url'), '/'),
+            'reportsUrl' => route('reports.index'),
         ]);
     }
 

@@ -316,16 +316,10 @@
                     <div><a href="{{ $adminUrl }}">{{ $adminUrl }}</a></div>
                 </div>
                 <div class="row">
-                    <div class="label">Email</div>
-                    <div><code>admin@doctor1.test</code></div>
-                </div>
-                <div class="row">
-                    <div class="label">Password</div>
-                    <div><code>password</code></div>
-                </div>
-                <div class="row">
-                    <div class="label">Role</div>
-                    <div><code>super_admin</code></div>
+                    <div class="label">Login</div>
+                    {{-- This page is public. The admin panel controls every clinic,
+                         so its login is never printed here. --}}
+                    <div>Super-admin access is shared privately by the team.</div>
                 </div>
             </div>
         </article>
@@ -335,7 +329,7 @@
             <div class="rows">
                 <div class="row">
                     <div class="label">Clinic</div>
-                    <div><code>عيادة د. سارة النجار</code></div>
+                    <div><code class="rtl">{{ $clinic?->name ?? '—' }}</code> — a mock clinic for testing</div>
                 </div>
                 <div class="row">
                     <div class="label">Email</div>
@@ -385,6 +379,54 @@ Content-Type: application/json
   "password": "password",
   "device_name": "mobile-team"
 }</code></pre>
+        </article>
+
+        <article class="card wide">
+            <h2>Staging — test here first</h2>
+            <p class="subhead">
+                A full copy of the app with demo data only. Nothing is ever sent from it:
+                no SMS, no WhatsApp. Point a staging build of the app here.
+            </p>
+            <div class="rows">
+                <div class="row">
+                    <div class="label">Website</div>
+                    <div><a href="{{ $stagingUrl }}">{{ $stagingUrl }}</a></div>
+                </div>
+                <div class="row">
+                    <div class="label">API base URL</div>
+                    <div><code>{{ $stagingUrl }}/api/v1</code></div>
+                </div>
+                <div class="row">
+                    <div class="label">Logins</div>
+                    <div><code>{{ $demoEmail }}</code> · <code>{{ $demoAssistant }}</code> — password <code>password</code></div>
+                </div>
+                <div class="row">
+                    <div class="label">Verification code</div>
+                    <div>Always <code>1234</code> on staging</div>
+                </div>
+            </div>
+        </article>
+
+        <article class="card wide">
+            <h2>What's new in the API</h2>
+            <div class="rows">
+                <div class="row">
+                    <div class="label"><code>/bootstrap</code></div>
+                    <div><code>clinic.whatsapp_enabled</code> — whether this clinic sends WhatsApp at all. When <code>false</code>, hide message sending; "cancel the day" still cancels, without messages.</div>
+                </div>
+                <div class="row">
+                    <div class="label">Error</div>
+                    <div><code>WHATSAPP_DISABLED</code> (409) from <code>/broadcasts</code> and <code>/bookings/{booking}/message</code> for any template other than <code>day_cancelled</code> while WhatsApp is off.</div>
+                </div>
+                <div class="row">
+                    <div class="label"><code>/message-templates</code></div>
+                    <div>Lists only <code>day_cancelled</code> while the clinic's WhatsApp is off.</div>
+                </div>
+                <div class="row">
+                    <div class="label">Required now?</div>
+                    <div>No. Nothing was removed or renamed; the app keeps working without changes.</div>
+                </div>
+            </div>
         </article>
 
         <article class="card wide notice">

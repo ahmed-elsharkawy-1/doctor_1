@@ -94,6 +94,52 @@ class HandoffPageTest extends TestCase
             ->assertDontSee($booking->patient->name);
     }
 
+    /** A public page: the production admin login must never be on it. */
+    public function test_it_never_publishes_the_admin_login(): void
+    {
+        $this->get(route('docs.api.handoff'))
+            ->assertOk()
+            ->assertDontSee(config('clinic.super_admin.email'))
+            ->assertDontSee('admin@doctor1.test');
+    }
+
+    /** The pilot clinic takes real patients; its password is shared privately. */
+    public function test_the_pilot_password_is_not_published(): void
+    {
+        $html = $this->get(route('docs.api.handoff'))->getContent();
+
+        $pilot = substr($html, strpos($html, 'Pilot Clinic'), 2500);
+        $pilot = substr($pilot, 0, strpos($pilot, '</article>'));
+
+        $this->assertStringNotContainsString('<code>password</code>', $pilot);
+        $this->assertStringContainsString('shared privately', $pilot);
+    }
+
+    /** It says what the pilot clinic's WhatsApp is doing now, not what it once did. */
+    public function test_the_pilot_whatsapp_state_is_live(): void
+    {
+        $this->clinic->update(['whatsapp_enabled' => false]);
+        config(['clinic.docs.pilot_account' => $this->owner->email]);
+
+        $this->get(route('docs.api.handoff'))->assertSee('WhatsApp switched off');
+
+        $this->clinic->update(['whatsapp_enabled' => true]);
+
+        $this->get(route('docs.api.handoff'))->assertSee('WhatsApp on');
+    }
+
+    public function test_it_points_the_team_at_staging_reports_and_the_api_changes(): void
+    {
+        $this->get(route('docs.api.handoff'))
+            ->assertOk()
+            ->assertSee('https://staging.elayadah.com/api/v1')
+            ->assertSee(route('reports.index'))
+            ->assertSee('whatsapp_enabled')
+            ->assertSee('WHATSAPP_DISABLED')
+            // The assistant has her own login now.
+            ->assertSee('nour@doctor1.test');
+    }
+
     public function test_it_stays_off_when_the_docs_are_disabled(): void
     {
         config(['clinic.docs.enabled' => false]);

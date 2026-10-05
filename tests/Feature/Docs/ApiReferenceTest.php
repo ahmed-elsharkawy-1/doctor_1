@@ -83,7 +83,8 @@ class ApiReferenceTest extends TestCase
         $this->get(route('docs.api.handoff'))
             ->assertOk()
             ->assertSee('Doctor 1 Developer Handoff')
-            ->assertSee('admin@doctor1.test')
+            // Public page: the admin login is shared privately, never printed.
+            ->assertDontSee('admin@doctor1.test')
             ->assertSee('doctor@doctor1.test')
             ->assertSee(route('docs.api'), escape: false)
             ->assertSee(route('docs.api.design-map'), escape: false)
