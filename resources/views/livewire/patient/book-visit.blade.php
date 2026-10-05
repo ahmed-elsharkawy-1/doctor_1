@@ -29,6 +29,7 @@
      moves between days, and the script in the layout re-subscribes. --}}
 <div data-slots-channel="{{ \App\Events\SlotsChanged::channelFor($clinic->id, $date) }}">
     @include('partials.brand-bar')
+    @include('partials.test-clinic-label', ['clinic' => $clinic])
 
     <div class="wrap">
 

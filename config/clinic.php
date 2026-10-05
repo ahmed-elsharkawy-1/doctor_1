@@ -1,5 +1,7 @@
 <?php
 
+use App\Support\TestClinic;
+
 /*
 |--------------------------------------------------------------------------
 | Clinic system defaults
@@ -421,7 +423,7 @@ return [
         // The shared test account the handoff page documents. Its clinic is
         // the only one the page will ever show live booking links for, so a
         // real clinic's patients can never appear there.
-        'demo_account' => env('CLINIC_DOCS_DEMO_EMAIL', 'doctor@doctor1.test'),
+        'demo_account' => env('CLINIC_DOCS_DEMO_EMAIL', TestClinic::DOCTOR_EMAIL),
 
         // The clinic the live end-to-end flow is exercised on. Listed on the
         // handoff page for access, but never for its bookings — those name
@@ -429,7 +431,7 @@ return [
         'pilot_account' => env('CLINIC_DOCS_PILOT_EMAIL', 'drseham@gmail.com'),
 
         // The demo clinic's assistant login, shown beside the doctor's.
-        'demo_assistant' => env('CLINIC_DOCS_DEMO_ASSISTANT', 'nour@doctor1.test'),
+        'demo_assistant' => env('CLINIC_DOCS_DEMO_ASSISTANT', TestClinic::ASSISTANT_EMAIL),
 
         // Where the team tests before production — see docs/deploy/staging.md.
         'staging_url' => env('CLINIC_DOCS_STAGING_URL', 'https://staging.elayadah.com'),

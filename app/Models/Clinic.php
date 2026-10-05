@@ -36,6 +36,7 @@ class Clinic extends Model
         'self_booking_enabled',
         'whatsapp_enabled',
         'reports_enabled',
+        'is_test',
         'is_active',
     ];
 
@@ -46,6 +47,7 @@ class Clinic extends Model
             'self_booking_enabled' => 'boolean',
             'whatsapp_enabled' => 'boolean',
             'reports_enabled' => 'boolean',
+            'is_test' => 'boolean',
             'booking_window_days' => 'integer',
             'patient_booking_window_days' => 'integer',
             'first_visit_only_days' => 'integer',

@@ -42,9 +42,14 @@ on that when running `docker compose` by hand: run it from the right folder.
 
 ## Rules
 
-- **No production data.** Staging holds demo clinics and made-up patients only
-  (`DemoClinicSeeder` → `/demo-clinic`, `clinic:seed-web-demo`). The demo
-  clinic is named as one; it must never carry a real doctor's name.
+- **No production data.** Staging holds the test clinic and made-up patients
+  only. The test clinic is the same on local, staging and production —
+  "د. سارة أحمد" at `/dr-sara-ahmed`, `sara@elayadah.com` / `sara1234`,
+  assistant `nour@elayadah.com` / `nour1234` (see `App\Support\TestClinic`).
+  `php artisan db:seed --class=DemoClinicSeeder` refreshes its six months of
+  data (local and staging only; it refuses production).
+  `php artisan clinic:test-clinic` applies the name and logins on any
+  environment without touching data — that is how production gets them.
 - **No real messages.** OTP and WhatsApp use the `log` driver. Codes are in the
   app log: `docker compose -f compose.prod.yml logs app | grep "OTP log driver"`.
 - **Not findable.** No password by default — the team logs in exactly as on

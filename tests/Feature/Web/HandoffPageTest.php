@@ -3,6 +3,7 @@
 namespace Tests\Feature\Web;
 
 use App\Models\Booking;
+use App\Support\TestClinic;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\Concerns\InteractsWithClinic;
@@ -136,8 +137,9 @@ class HandoffPageTest extends TestCase
             ->assertSee(route('reports.index'))
             ->assertSee('whatsapp_enabled')
             ->assertSee('WHATSAPP_DISABLED')
-            // The assistant has her own login now.
-            ->assertSee('nour@doctor1.test');
+            // The test clinic's shared logins, assistant included.
+            ->assertSee(TestClinic::ASSISTANT_EMAIL)
+            ->assertSee(TestClinic::DOCTOR_PASSWORD);
     }
 
     public function test_it_stays_off_when_the_docs_are_disabled(): void

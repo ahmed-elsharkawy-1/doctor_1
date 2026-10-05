@@ -176,7 +176,7 @@
         </div>
         <div class="row">
             <div class="label">Password</div>
-            <div><code>password</code> (a mock clinic — no real patients)</div>
+            <div>doctor <code>{{ \App\Support\TestClinic::DOCTOR_PASSWORD }}</code> · assistant <code>{{ \App\Support\TestClinic::ASSISTANT_PASSWORD }}</code> — the test clinic, the same on local, staging and production</div>
         </div>
     </div>
 </article>

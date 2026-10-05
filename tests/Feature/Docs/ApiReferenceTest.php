@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Docs;
 
+use App\Support\TestClinic;
 use Tests\TestCase;
 
 class ApiReferenceTest extends TestCase
@@ -85,7 +86,7 @@ class ApiReferenceTest extends TestCase
             ->assertSee('Doctor 1 Developer Handoff')
             // Public page: the admin login is shared privately, never printed.
             ->assertDontSee('admin@doctor1.test')
-            ->assertSee('doctor@doctor1.test')
+            ->assertSee(TestClinic::DOCTOR_EMAIL)
             ->assertSee(route('docs.api'), escape: false)
             ->assertSee(route('docs.api.design-map'), escape: false)
             ->assertSee(url('/api/v1'), escape: false);

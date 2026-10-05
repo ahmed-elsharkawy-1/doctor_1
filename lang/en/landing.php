@@ -5,6 +5,7 @@
 */
 
 return [
+    'test_clinic' => 'A test clinic — not a real doctor; bookings here reach no one.',
     'meta_description' => 'Book an appointment with :doctor, :specialty. :address. Book over WhatsApp.',
 
     'stat_working_days' => 'Working days',

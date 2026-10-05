@@ -79,6 +79,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    @if ($clinic->is_test)
+        {{-- The test clinic is not a real doctor: keep it out of search. --}}
+        <meta name="robots" content="noindex, nofollow">
+    @endif
 
     <title>{{ $title }}</title>
     <meta name="description" content="{{ $description }}">
@@ -593,6 +597,7 @@
 @include('partials.test-site-banner')
 
 @include('partials.brand-bar')
+@include('partials.test-clinic-label', ['clinic' => $clinic])
 @include('partials.button-busy')
 
 <main class="shell">

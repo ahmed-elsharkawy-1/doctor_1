@@ -5,6 +5,7 @@
 */
 
 return [
+    'test_clinic' => 'عيادة تجريبية للاختبار — ليست عيادة حقيقية، والحجوزات هنا لا تصل لطبيب.',
     'meta_description' => 'حجز كشف مع :doctor، :specialty. :address. احجزي موعدك عبر واتساب.',
 
     // Stats

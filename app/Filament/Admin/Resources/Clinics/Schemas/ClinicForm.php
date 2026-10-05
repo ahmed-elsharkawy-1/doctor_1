@@ -187,6 +187,13 @@ class ClinicForm
                         ->default(false)
                         ->helperText(__('filament.clinic.reports_enabled_hint')),
 
+                    // The one clinic kept for testing. Labels its public page
+                    // and keeps it out of search; changes no behaviour.
+                    Toggle::make('is_test')
+                        ->label(__('filament.clinic.is_test'))
+                        ->default(false)
+                        ->helperText(__('filament.clinic.is_test_hint')),
+
                     // Patients get a shorter horizon than the secretary, so
                     // she keeps room to place the people who phone her. The
                     // rule is enforced again in Clinic::patientBookingWindowDays()

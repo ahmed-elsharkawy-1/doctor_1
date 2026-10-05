@@ -337,11 +337,11 @@
                 </div>
                 <div class="row">
                     <div class="label">Password</div>
-                    <div><code>password</code></div>
+                    <div><code>{{ \App\Support\TestClinic::DOCTOR_PASSWORD }}</code></div>
                 </div>
                 <div class="row">
-                    <div class="label">Role</div>
-                    <div><code>owner</code></div>
+                    <div class="label">Same on</div>
+                    <div>local, staging and production</div>
                 </div>
             </div>
         </article>
@@ -375,8 +375,8 @@ Accept: application/json
 Content-Type: application/json
 
 {
-  "email": "doctor@doctor1.test",
-  "password": "password",
+  "email": "{{ $demoEmail }}",
+  "password": "{{ \App\Support\TestClinic::DOCTOR_PASSWORD }}",
   "device_name": "mobile-team"
 }</code></pre>
         </article>
@@ -398,7 +398,7 @@ Content-Type: application/json
                 </div>
                 <div class="row">
                     <div class="label">Logins</div>
-                    <div><code>{{ $demoEmail }}</code> · <code>{{ $demoAssistant }}</code> — password <code>password</code></div>
+                    <div><code>{{ $demoEmail }}</code> / <code>{{ \App\Support\TestClinic::DOCTOR_PASSWORD }}</code> · <code>{{ $demoAssistant }}</code> / <code>{{ \App\Support\TestClinic::ASSISTANT_PASSWORD }}</code></div>
                 </div>
                 <div class="row">
                     <div class="label">Verification code</div>

@@ -2,10 +2,18 @@
 
 namespace Tests\Feature\Console;
 
+use App\Models\Booking;
+use App\Models\BookingReview;
 use App\Models\Clinic;
+use App\Models\User;
+use App\Services\Reports\ReportPeriod;
+use App\Services\V1\Reports\ClinicPeriodReportService;
+use App\Support\TestClinic;
 use Database\Seeders\DemoClinicSeeder;
 use Database\Seeders\SpecialtySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Hash;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -62,13 +70,69 @@ class DemoClinicSeederTest extends TestCase
         $this->assertSame(2, Clinic::count());
     }
 
-    /** Says what it is, so a screenshot from staging cannot pass for a real doctor. */
-    public function test_the_demo_clinic_is_named_as_one(): void
+    /** The shared test clinic: the same name, address and logins as everywhere else. */
+    public function test_it_builds_the_shared_test_clinic(): void
     {
         $this->seed(DemoClinicSeeder::class);
 
-        $demo = Clinic::where('slug', 'demo-clinic')->sole();
+        $clinic = Clinic::where('slug', TestClinic::SLUG)->sole();
 
-        $this->assertStringContainsString('تجريبية', $demo->name);
+        $this->assertSame(TestClinic::NAME, $clinic->name);
+        $this->assertTrue($clinic->is_test);
+        $this->assertTrue($clinic->reports_enabled);
+        $this->assertTrue(Hash::check(TestClinic::DOCTOR_PASSWORD, User::where('email', TestClinic::DOCTOR_EMAIL)->sole()->password));
+        $this->assertTrue(Hash::check(TestClinic::ASSISTANT_PASSWORD, User::where('email', TestClinic::ASSISTANT_EMAIL)->sole()->password));
+    }
+
+    /** Enough variety that every screen and report section has something to show. */
+    public function test_the_data_covers_every_case(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-05 09:00', 'Africa/Cairo')); // a Monday
+
+        $this->seed(DemoClinicSeeder::class);
+        $clinic = Clinic::where('slug', TestClinic::SLUG)->sole();
+        $statuses = $clinic->bookings()->pluck('status')->map(fn ($s) => $s->value)->unique()->sort()->values()->all();
+
+        foreach (['booked', 'arrived', 'with_doctor', 'done', 'no_show', 'cancelled'] as $status) {
+            $this->assertContains($status, $statuses);
+        }
+
+        $this->assertSame(4, $clinic->bookings()->distinct()->count('visit_type_id'));
+        $this->assertGreaterThan(0, $clinic->bookings()->where('source', 'patient_web')->count());
+        $this->assertGreaterThan(0, $clinic->bookings()->where('booking_kind', 'emergency')->count());
+        $this->assertGreaterThan(0, BookingReview::where('clinic_id', $clinic->id)->count());
+        $this->assertGreaterThan(0, $clinic->bookings()->whereDate('visit_date', '>', '2026-10-05')->count());
+        $this->assertGreaterThan(300, $clinic->bookings()->count());
+
+        // A holiday behind and one ahead.
+        $this->assertSame(1, $clinic->holidays()->whereDate('date', '<', '2026-10-05')->count());
+        $this->assertSame(1, $clinic->holidays()->whereDate('date', '>', '2026-10-05')->count());
+
+        // Last month has both new and returning patients.
+        $report = app(ClinicPeriodReportService::class)->for(
+            $clinic,
+            ReportPeriod::forMonth(Carbon::parse('2026-09-01', 'Africa/Cairo'), Carbon::parse('2026-10-05', 'Africa/Cairo')),
+        );
+        $this->assertGreaterThan(0, $report->patients['new_count']);
+        $this->assertGreaterThan(0, $report->patients['returning_count']);
+
+        Carbon::setTestNow();
+    }
+
+    /** Re-running refreshes the test clinic — and only the test clinic. */
+    public function test_running_it_again_refreshes_only_the_test_clinic(): void
+    {
+        $this->seed(SpecialtySeeder::class);
+        $real = Clinic::factory()->create(['slug' => 'real-clinic']);
+        Booking::factory()->forClinic($real)->create();
+
+        $this->seed(DemoClinicSeeder::class);
+        $first = Clinic::where('slug', TestClinic::SLUG)->sole()->bookings()->count();
+
+        $this->seed(DemoClinicSeeder::class);
+
+        $this->assertSame(1, Clinic::where('is_test', true)->count());
+        $this->assertSame($first, Clinic::where('slug', TestClinic::SLUG)->sole()->bookings()->count());
+        $this->assertSame(1, $real->bookings()->count());
     }
 }

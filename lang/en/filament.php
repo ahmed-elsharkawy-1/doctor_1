@@ -60,6 +60,8 @@ return [
         'booking_window_days' => 'Booking window (days)',
         'self_booking_enabled' => 'Let patients book themselves',
         'whatsapp_enabled' => 'Send WhatsApp messages to patients',
+        'is_test' => 'Test clinic',
+        'is_test_hint' => 'For testing only: its public page is labelled as a test clinic and kept out of search. Otherwise it behaves like any clinic.',
         'reports_enabled' => "Doctor's clinic report",
         'reports_enabled_hint' => 'A reports page for permitted accounts, and a WhatsApp message each morning summarising the day, week or month. Separate from patient messages.',
         'send_report' => 'Send report',
