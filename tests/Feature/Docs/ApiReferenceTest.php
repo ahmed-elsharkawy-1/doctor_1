@@ -83,13 +83,14 @@ class ApiReferenceTest extends TestCase
     {
         $this->get(route('docs.api.handoff'))
             ->assertOk()
-            ->assertSee('Doctor 1 Developer Handoff')
+            ->assertSee('Testing handoff')
             // Public page: the admin login is shared privately, never printed.
             ->assertDontSee('admin@doctor1.test')
             ->assertSee(TestClinic::DOCTOR_EMAIL)
             ->assertSee(route('docs.api'), escape: false)
             ->assertSee(route('docs.api.design-map'), escape: false)
-            ->assertSee(url('/api/v1'), escape: false);
+            ->assertSee(config('clinic.docs.production_url').'/api/v1', escape: false)
+            ->assertSee(config('clinic.docs.staging_url').'/api/v1', escape: false);
     }
 
     public function test_the_design_map_page_renders_api_to_figma_links(): void
@@ -102,13 +103,13 @@ class ApiReferenceTest extends TestCase
             ->assertSee(route('docs.api.spec'), escape: false);
     }
 
-    public function test_the_handoff_page_carries_the_reservation_flow(): void
+    /** The /app screens are not in use, so the page no longer walks through them. */
+    public function test_the_handoff_page_leaves_out_the_unused_web_app(): void
     {
         $this->get(route('docs.api.handoff'))
             ->assertOk()
-            ->assertSee('Reservation Flow')
-            ->assertSee('Web &amp; Reservation Flow', escape: false)
-            ->assertSee(route('app.login'), escape: false);
+            ->assertDontSee('Reservation Flow')
+            ->assertDontSee(route('app.login'), escape: false);
     }
 
     public function test_the_handoff_page_renders_without_a_database(): void
@@ -117,7 +118,7 @@ class ApiReferenceTest extends TestCase
         // because the database is unreachable.
         $this->get(route('docs.api.handoff'))
             ->assertOk()
-            ->assertSee('Reservation Flow');
+            ->assertSee(TestClinic::DOCTOR_EMAIL);
     }
 
     public function test_the_handoff_page_is_hidden_when_docs_are_disabled(): void

@@ -2,13 +2,9 @@
 
 namespace App\Http\Controllers\Docs;
 
-use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\User;
-use App\Services\V1\Queue\QueueService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 use League\CommonMark\GithubFlavoredMarkdownConverter;
@@ -35,41 +31,28 @@ class ApiReferenceController
         ]);
     }
 
+    /**
+     * The tester's first page: the two environments, the API, and the one
+     * test clinic's logins. Public, so it prints no login that guards real
+     * data — the pilot clinic appears by name and email only.
+     */
     public function handoff(): View
     {
         $this->guard();
 
-        $clinic = $this->demoClinic();
+        $pilot = $this->clinicFor(config('clinic.docs.pilot_account'));
 
         return view('docs.handoff', [
-            'appUrl' => url('/'),
-            'adminUrl' => url(config('clinic.panel.path')),
-            'apiBaseUrl' => url('/api/v1'),
+            'productionUrl' => rtrim((string) config('clinic.docs.production_url'), '/'),
+            'stagingUrl' => rtrim((string) config('clinic.docs.staging_url'), '/'),
+            'panelPath' => trim((string) config('clinic.panel.path'), '/'),
             'apiDocsUrl' => route('docs.api'),
-            'designMapUrl' => route('docs.api.design-map'),
             'openApiUrl' => route('docs.api.spec'),
-            'demoEmail' => config('clinic.docs.demo_account'),
-            'clinic' => $clinic,
-            'landingUrl' => $clinic?->slug === null ? null : url($clinic->slug),
-            'clinicAppUrl' => route('app.login'),
-            'todaysBookings' => $this->todaysDemoBookings($clinic),
-            'reviewsUrl' => url(config('clinic.panel.path').'/reviews'),
-            'pilotClinic' => $pilot = $this->clinicFor(config('clinic.docs.pilot_account')),
+            'designMapUrl' => route('docs.api.design-map'),
+            'pilotClinic' => $pilot,
             'pilotEmail' => config('clinic.docs.pilot_account'),
             'pilotLandingUrl' => $pilot?->slug === null ? null : url($pilot->slug),
-            'demoAssistant' => config('clinic.docs.demo_assistant'),
-            'stagingUrl' => rtrim((string) config('clinic.docs.staging_url'), '/'),
-            'reportsUrl' => route('reports.index'),
         ]);
-    }
-
-    /**
-     * The clinic behind the shared test account, and only that one — the
-     * handoff page lists patient names, so a real clinic must never appear.
-     */
-    private function demoClinic(): ?Clinic
-    {
-        return $this->clinicFor(config('clinic.docs.demo_account'));
     }
 
     private function clinicFor(?string $email): ?Clinic
@@ -84,30 +67,6 @@ class ApiReferenceController
             // render when the database is unreachable.
             return null;
         }
-    }
-
-    /**
-     * Today's queue for the demo clinic, so the tracking links on the page are
-     * always live rather than pasted in and going stale on the next reseed.
-     *
-     * @return Collection<int, Booking>
-     */
-    private function todaysDemoBookings(?Clinic $clinic): Collection
-    {
-        if ($clinic === null) {
-            return collect();
-        }
-
-        try {
-            $bookings = $clinic->bookings()
-                ->with('patient')
-                ->onDate(Carbon::now($clinic->timezone)->toDateString())
-                ->get();
-        } catch (Throwable) {
-            return collect();
-        }
-
-        return app(QueueService::class)->sortBookings($bookings);
     }
 
     public function designMap(): View
