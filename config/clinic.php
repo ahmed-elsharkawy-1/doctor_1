@@ -395,6 +395,59 @@ return [
     ],
 
     /*
+    | The clinic's QR poster: a printable A4 image whose code opens the
+    | clinic's public page. Drawn fresh from the clinic every time — see
+    | App\Services\V1\QrPoster\QrPosterService. The operator can adjust a
+    | clinic's text and sizes in the panel; these are the defaults and the
+    | limits those adjustments stay inside.
+    */
+    'qr_poster' => [
+        // A4 at 300 dpi, so the downloaded PNG prints sharp at full size and
+        // still reads on a phone.
+        'width' => 2480,
+        'height' => 3508,
+        // Kept clear on both sides; nothing is drawn wider than what is left.
+        'side_margin' => 180,
+
+        // Font sizes and the QR tile's width, in poster pixels.
+        'sizes' => [
+            'name' => ['default' => 210, 'min' => 120, 'max' => 280],
+            'title' => ['default' => 110, 'min' => 60, 'max' => 160],
+            'qr' => ['default' => 1500, 'min' => 1000, 'max' => 1900],
+        ],
+        'call_to_action_size' => 135,
+
+        // The specialty line wraps onto at most this many lines.
+        'title_max_lines' => 3,
+
+        // Null takes the platform's brand colour (clinic.brand.color).
+        'colors' => [
+            'background' => null,
+            'band' => '#4D9EE2',
+            'text' => '#FFFFFF',
+            'tile' => '#FFFFFF',
+            'modules' => '#0158A8',
+        ],
+
+        // High enough that a scuffed or partly covered print still scans.
+        // One of L, M, Q, H.
+        'error_correction' => 'Q',
+
+        // The query string the code adds to the page address, so a visit from
+        // the poster can be told apart from any other.
+        'tracking' => [
+            'param' => 'src',
+            'value' => 'qr',
+            // Link previews and crawlers fetch the address too; they are not
+            // people standing in front of the poster.
+            'ignored_user_agents' => [
+                'bot', 'crawler', 'spider', 'preview', 'facebookexternalhit',
+                'whatsapp', 'telegrambot', 'slackbot', 'twitterbot',
+            ],
+        ],
+    ],
+
+    /*
     | An optional password in front of every web page, for a non-production
     | copy. Unset means off — the default, staging included. See App\Http\
     | Middleware\StagingGate, which also keeps non-production out of search

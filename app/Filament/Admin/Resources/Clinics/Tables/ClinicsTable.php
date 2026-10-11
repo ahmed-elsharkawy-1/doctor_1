@@ -2,6 +2,9 @@
 
 namespace App\Filament\Admin\Resources\Clinics\Tables;
 
+use App\Filament\Admin\Resources\Clinics\ClinicResource;
+use App\Models\Clinic;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -67,6 +70,11 @@ class ClinicsTable
             ])
             ->recordActions([
                 EditAction::make(),
+                Action::make('qrPoster')
+                    ->label(__('filament.qr_poster.short'))
+                    ->icon('heroicon-o-qr-code')
+                    ->color('gray')
+                    ->url(fn (Clinic $record): string => ClinicResource::getUrl('qr-poster', ['record' => $record])),
             ])
             // Clinics are never deleted — deactivate instead. Bookings,
             // patients and revenue history all hang off them.

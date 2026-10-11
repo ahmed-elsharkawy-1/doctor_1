@@ -14,6 +14,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Validation\Rule;
 
 class ClinicForm
 {
@@ -47,7 +48,14 @@ class ClinicForm
                         ->maxLength(120)
                         ->rules(['regex:/^[a-z0-9][a-z0-9-]*$/'])
                         ->notIn(config('clinic.landing.reserved'))
-                        ->unique(ignoreRecord: true),
+                        ->unique(ignoreRecord: true)
+                        // An address another clinic gave up still leads to
+                        // that clinic — it may be on a poster on their wall.
+                        ->rule(fn (?Clinic $record) => Rule::unique('clinic_slug_redirects', 'slug')
+                            ->when($record !== null, fn ($rule) => $rule->whereNot('clinic_id', $record->getKey())))
+                        ->validationMessages([
+                            'unique' => __('filament.clinic.slug_taken'),
+                        ]),
 
                     TextInput::make('address')
                         ->label(__('filament.clinic.address'))

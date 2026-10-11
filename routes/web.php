@@ -10,6 +10,7 @@ use App\Http\Controllers\Web\Reports\ReportController;
 use App\Http\Controllers\Webhooks\WhatsAppWebhookController;
 use App\Http\Middleware\EnsureClinicSession;
 use App\Http\Middleware\EnsureReportAccess;
+use App\Http\Middleware\RedirectFormerClinicSlug;
 use App\Livewire\App\Messages;
 use App\Livewire\App\NewBooking;
 use App\Livewire\App\PatientProfile;
@@ -189,6 +190,7 @@ Route::prefix(config('clinic.docs.path'))->group(function (): void {
 */
 Route::get('/{slug}/'.config('clinic.self_booking.path'), BookVisit::class)
     ->where('slug', '[a-z0-9][a-z0-9-]*')
+    ->middleware(RedirectFormerClinicSlug::class)
     ->name('patient.book');
 
 /*
@@ -197,7 +199,11 @@ Route::get('/{slug}/'.config('clinic.self_booking.path'), BookVisit::class)
 | Registered last on purpose: it matches a single path segment, so every
 | route above wins the match and a clinic can never take a path the app
 | already owns. `clinic.landing.reserved` stops one being created anyway.
+|
+| An address a clinic has since given up redirects to its current one, so a
+| printed poster never stops working.
 */
 Route::get('/{slug}', DoctorLandingController::class)
     ->where('slug', '[a-z0-9][a-z0-9-]*')
+    ->middleware(RedirectFormerClinicSlug::class)
     ->name('landing');

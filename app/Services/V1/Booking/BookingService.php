@@ -78,6 +78,7 @@ class BookingService
                 // Which door this came through. Never read from the request —
                 // the caller decides (see BookingData::fromArray).
                 'source' => $data->source,
+                'referral' => $data->referral,
                 'arrived_at' => $startsInsideClinic ? $now : null,
                 'queue_entered_at' => $startsInsideClinic ? $now : null,
                 'notes' => $data->notes,

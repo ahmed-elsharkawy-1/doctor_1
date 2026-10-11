@@ -41,6 +41,12 @@ class EditClinic extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('qrPoster')
+                ->label(__('filament.qr_poster.title'))
+                ->icon('heroicon-o-qr-code')
+                ->color('gray')
+                ->url(fn (): string => ClinicResource::getUrl('qr-poster', ['record' => $this->record])),
+
             Action::make('sendReport')
                 ->label(__('filament.clinic.send_report'))
                 ->icon('heroicon-o-paper-airplane')

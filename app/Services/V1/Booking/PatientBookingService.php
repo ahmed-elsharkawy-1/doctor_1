@@ -13,6 +13,7 @@ use App\Models\Patient;
 use App\Models\VisitType;
 use App\Services\V1\Patients\PatientService;
 use App\Services\V1\Patients\PhoneVerificationService;
+use App\Services\V1\QrPoster\QrScanService;
 use App\Support\PhoneNumber;
 use App\Support\VerifiedPhoneSession;
 use Illuminate\Support\Carbon;
@@ -42,6 +43,7 @@ class PatientBookingService
         private readonly PhoneVerificationService $verification,
         private readonly VerifiedPhoneSession $verified,
         private readonly SlotGrouper $grouper,
+        private readonly QrScanService $qrScans,
     ) {}
 
     /*
@@ -584,6 +586,8 @@ class PatientBookingService
                 startTime: $startTime,
                 source: BookingSource::PATIENT_WEB,
                 holdToken: $holdToken,
+                // Read from this browser's session, never from the page.
+                referral: $this->qrScans->referralFor($clinic),
             ),
             // No account behind a public page.
             actor: null,

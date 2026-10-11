@@ -63,6 +63,11 @@ return [
         'patient_web' => 'Self-booked',
     ],
 
+    // What brought the patient to the booking page, where we can tell.
+    'referral' => [
+        'qr' => 'From the QR code',
+    ],
+
     'patient_location' => [
         'inside_clinic' => 'Patient inside clinic',
         'on_way' => 'Patient on the way',

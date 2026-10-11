@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Web;
 use App\Enums\DayOfWeek;
 use App\Http\Controllers\Controller;
 use App\Models\Clinic;
+use App\Services\V1\QrPoster\QrScanService;
 use App\Support\PhoneNumber;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\View\View;
 
@@ -22,7 +24,7 @@ use Illuminate\View\View;
  */
 class DoctorLandingController extends Controller
 {
-    public function __invoke(string $slug): View
+    public function __invoke(Request $request, string $slug, QrScanService $qrScans): View
     {
         App::setLocale(config('clinic.api.default_locale'));
 
@@ -38,6 +40,9 @@ class DoctorLandingController extends Controller
             ->where('slug', $slug)
             ->where('is_active', true)
             ->firstOrFail();
+
+        // Counted only when the address came off the clinic's poster.
+        $qrScans->recordVisit($clinic, $request);
 
         // Parsed against the clinic's own country, not the platform
         // default: a Saudi clinic that typed its number the local way

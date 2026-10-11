@@ -3,6 +3,7 @@
 namespace App\DTOs\V1\Booking;
 
 use App\Enums\BookingKind;
+use App\Enums\BookingReferral;
 use App\Enums\BookingSource;
 use App\Enums\PatientLocation;
 
@@ -38,6 +39,11 @@ final class BookingData
          * A hold blocks everyone except the token that owns it.
          */
         public readonly ?string $holdToken = null,
+        /**
+         * What brought the patient here, read from their own session by the
+         * caller. Never from the request, for the same reason as `source`.
+         */
+        public readonly ?BookingReferral $referral = null,
     ) {}
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\BookingKind;
+use App\Enums\BookingReferral;
 use App\Enums\BookingSource;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
@@ -36,6 +37,7 @@ class Booking extends Model
         'booking_kind',
         'patient_location',
         'source',
+        'referral',
         'arrived_at',
         'called_in_at',
         'completed_at',
@@ -98,6 +100,7 @@ class Booking extends Model
             'booking_kind' => BookingKind::class,
             'patient_location' => PatientLocation::class,
             'source' => BookingSource::class,
+            'referral' => BookingReferral::class,
             'arrived_at' => 'datetime',
             'called_in_at' => 'datetime',
             'completed_at' => 'datetime',

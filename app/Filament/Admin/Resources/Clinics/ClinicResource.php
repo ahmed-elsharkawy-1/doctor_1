@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\Clinics;
 use App\Filament\Admin\Resources\Clinics\Pages\CreateClinic;
 use App\Filament\Admin\Resources\Clinics\Pages\EditClinic;
 use App\Filament\Admin\Resources\Clinics\Pages\ListClinics;
+use App\Filament\Admin\Resources\Clinics\Pages\ManageQrPoster;
 use App\Filament\Admin\Resources\Clinics\Schemas\ClinicForm;
 use App\Filament\Admin\Resources\Clinics\Tables\ClinicsTable;
 use App\Models\Clinic;
@@ -86,6 +87,7 @@ class ClinicResource extends Resource
             'index' => ListClinics::route('/'),
             'create' => CreateClinic::route('/create'),
             'edit' => EditClinic::route('/{record}/edit'),
+            'qr-poster' => ManageQrPoster::route('/{record}/qr-poster'),
         ];
     }
 }

@@ -40,6 +40,33 @@ class Clinic extends Model
         'is_active',
     ];
 
+    /**
+     * A clinic's address is printed on posters, so the old one keeps working
+     * whenever it changes. Kept here rather than in the panel so a seeder or a
+     * tinker fix cannot change a slug without leaving the redirect behind.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (self $clinic): void {
+            if (! $clinic->wasChanged('slug')) {
+                return;
+            }
+
+            $previous = $clinic->getOriginal('slug');
+
+            if (filled($previous)) {
+                ClinicSlugRedirect::query()->firstOrCreate(
+                    ['slug' => $previous],
+                    ['clinic_id' => $clinic->id],
+                );
+            }
+
+            // Taking back an address this clinic used before: it is the live
+            // one again, not a redirect to itself.
+            $clinic->slugRedirects()->where('slug', $clinic->slug)->delete();
+        });
+    }
+
     protected function casts(): array
     {
         return [
@@ -158,6 +185,24 @@ class Clinic extends Model
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);
+    }
+
+    /** @return HasOne<ClinicQrPoster, $this> */
+    public function qrPoster(): HasOne
+    {
+        return $this->hasOne(ClinicQrPoster::class);
+    }
+
+    /** @return HasMany<ClinicQrScan, $this> */
+    public function qrScans(): HasMany
+    {
+        return $this->hasMany(ClinicQrScan::class);
+    }
+
+    /** @return HasMany<ClinicSlugRedirect, $this> */
+    public function slugRedirects(): HasMany
+    {
+        return $this->hasMany(ClinicSlugRedirect::class);
     }
 
     public function scheduleFor(DayOfWeek $day): ?ClinicSchedule
