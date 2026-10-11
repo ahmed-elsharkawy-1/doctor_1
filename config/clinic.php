@@ -420,13 +420,23 @@ return [
         // The specialty line wraps onto at most this many lines.
         'title_max_lines' => 3,
 
-        // Null takes the platform's brand colour (clinic.brand.color).
+        // The background runs from `background` at the top to
+        // `background_deep` at the bottom. `background` is the action blue of
+        // the patient pages (--primary on the doctor page and the booking
+        // flow), so the poster reads as the same product as the page it opens.
         'colors' => [
-            'background' => null,
-            'band' => '#4D9EE2',
+            'background' => '#185FA5',
+            'background_deep' => '#0A2E55',
+            // A soft sheen across the diagonal, and a glow behind the code.
+            'sheen' => '#FFFFFF',
+            'sheen_opacity' => 0.07,
+            'glow_opacity' => 0.18,
+            // The shadow under the code's white tile.
+            'shadow_opacity' => 0.18,
             'text' => '#FFFFFF',
             'tile' => '#FFFFFF',
-            'modules' => '#0158A8',
+            // Dark, so the code keeps a strong contrast on its white tile.
+            'modules' => '#0B3766',
         ],
 
         // High enough that a scuffed or partly covered print still scans.

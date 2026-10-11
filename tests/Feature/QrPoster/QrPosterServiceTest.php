@@ -37,13 +37,17 @@ class QrPosterServiceTest extends TestCase
         $this->assertSame(url('/dr-seham').'?src=qr', $this->posters->build($this->clinic)->url);
     }
 
-    public function test_the_printed_address_has_no_tracking_marker(): void
+    public function test_it_carries_the_platform_slogan(): void
     {
-        $poster = $this->posters->build($this->clinic);
+        config(['clinic.brand.slogan' => 'شعار للتجربة']);
 
-        $this->assertStringEndsWith('/dr-seham', $poster->domain);
-        $this->assertStringNotContainsString('http', $poster->domain);
-        $this->assertStringNotContainsString('src=', $poster->domain);
+        $this->assertSame('شعار للتجربة', $this->posters->build($this->clinic)->slogan);
+    }
+
+    /** The patient pages' own action blue, so the poster matches the page it opens. */
+    public function test_it_uses_the_patient_pages_blue(): void
+    {
+        $this->assertSame('#185FA5', $this->posters->build($this->clinic)->colors['background']);
     }
 
     public function test_an_unadjusted_poster_shows_the_doctor(): void
@@ -195,8 +199,8 @@ class QrPosterServiceTest extends TestCase
         $this->assertLessThan($poster->qr['y'], end($titleYs));
         $this->assertLessThan($callToActionYs[0], $poster->qr['y'] + $poster->qr['size']);
         $this->assertLessThan($poster->logoY, end($callToActionYs));
-        $this->assertLessThan($poster->domainY, $poster->logoY + $poster->logoHeight);
-        $this->assertLessThanOrEqual($poster->height, $poster->domainY);
+        $this->assertLessThan($poster->sloganY, $poster->logoY + $poster->logoHeight);
+        $this->assertLessThanOrEqual($poster->height, $poster->sloganY);
     }
 
     /** A big title and a big code never collide: the code gives way. */

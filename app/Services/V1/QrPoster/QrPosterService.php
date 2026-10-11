@@ -158,13 +158,13 @@ class QrPosterService
 
         $headerBottom = $cursor + $titleSize * 0.4;
 
-        // Bottom up: the readable address, and the platform's mark above it.
-        $domainSize = 64;
-        $domainY = $height - 170;
+        // Bottom up: the platform's slogan, and its mark above it.
+        $sloganSize = 92;
+        $sloganY = $height - 170;
         [$logo, $logoRatio] = $this->logo();
         $logoHeight = 190;
         $logoWidth = (int) round($logoHeight * $logoRatio);
-        $logoY = $domainY - $domainSize - 50 - $logoHeight;
+        $logoY = $sloganY - $sloganSize - 50 - $logoHeight;
 
         // The code and the line under it share what is left, centred in it.
         $callToAction = $this->lines($settings['call_to_action'], 3);
@@ -205,11 +205,10 @@ class QrPosterService
             logoY: (int) round($logoY),
             logoHeight: $logoHeight,
             logoWidth: $logoWidth,
-            // Printed under the mark for anyone who cannot scan: the page's
-            // address without the tracking marker, which nobody would type.
-            domain: preg_replace('#^https?://#', '', route('landing', ['slug' => $clinic->slug])),
-            domainY: $domainY,
-            domainSize: $domainSize,
+            // The same slogan every public page carries.
+            slogan: (string) config('clinic.brand.slogan'),
+            sloganY: $sloganY,
+            sloganSize: $sloganSize,
             colors: $this->colors(),
         );
     }
@@ -440,14 +439,11 @@ class QrPosterService
     }
 
     /**
-     * @return array{background: string, band: string, text: string, tile: string, modules: string}
+     * @return array{background: string, background_deep: string, sheen: string, sheen_opacity: float, glow_opacity: float, shadow_opacity: float, text: string, tile: string, modules: string}
      */
     private function colors(): array
     {
-        $colors = config('clinic.qr_poster.colors');
-        $colors['background'] ??= config('clinic.brand.color');
-
-        return $colors;
+        return config('clinic.qr_poster.colors');
     }
 
     /**

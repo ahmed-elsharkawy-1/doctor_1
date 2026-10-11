@@ -14,7 +14,7 @@ final class QrPoster
      * @param  list<array{text: string, y: int}>  $titleLines
      * @param  list<array{text: string, y: int}>  $callToActionLines
      * @param  array{x: int, y: int, size: int, radius: int, modules: int, moduleSize: float, padding: float, path: string}  $qr
-     * @param  array{background: string, band: string, text: string, tile: string, modules: string}  $colors
+     * @param  array{background: string, background_deep: string, sheen: string, sheen_opacity: float, glow_opacity: float, shadow_opacity: float, text: string, tile: string, modules: string}  $colors
      */
     public function __construct(
         public readonly string $url,
@@ -34,9 +34,9 @@ final class QrPoster
         public readonly int $logoY,
         public readonly int $logoHeight,
         public readonly int $logoWidth,
-        public readonly string $domain,
-        public readonly int $domainY,
-        public readonly int $domainSize,
+        public readonly string $slogan,
+        public readonly int $sloganY,
+        public readonly int $sloganSize,
         public readonly array $colors,
     ) {}
 }
