@@ -170,6 +170,39 @@ return [
         'icon_192' => 'images/brand/icon-192.png',
     ],
 
+    /*
+    | The platform's own landing page, at the bare domain.
+    |
+    | Doctors reach the team directly — WhatsApp, phone, email. Each is
+    | optional: a channel left empty is simply not shown, so the page never
+    | offers a button that reaches nobody.
+    | Numbers are written however they are dialled locally (01012345678).
+    */
+    'site' => [
+        'whatsapp' => env('CLINIC_SITE_WHATSAPP'),
+        'phone' => env('CLINIC_SITE_PHONE'),
+        'email' => env('CLINIC_SITE_EMAIL'),
+        'social' => array_filter([
+            'facebook' => env('CLINIC_SITE_FACEBOOK'),
+            'instagram' => env('CLINIC_SITE_INSTAGRAM'),
+            'linkedin' => env('CLINIC_SITE_LINKEDIN'),
+        ]),
+
+        // The "clinic sign-in" link to the web app. Off while clinics work
+        // from the mobile app only; switch on when the web app is in use.
+        'show_login' => (bool) env('CLINIC_SITE_SHOW_LOGIN', false),
+
+        // Real screens of the product, shown in phone frames. Replacing one is
+        // a matter of dropping a new file in under the same name (portrait,
+        // 780 × 1560 or the same 1:2 ratio).
+        'screens' => [
+            'doctor_page' => 'images/site/screen-doctor-page.jpg',
+            'booking' => 'images/site/screen-booking.jpg',
+            'tracking' => 'images/site/screen-tracking.jpg',
+            'report' => 'images/site/screen-report.jpg',
+        ],
+    ],
+
     'public' => [
         // Photos and portraits. `public` is served through the storage symlink,
         // which the container creates on boot.

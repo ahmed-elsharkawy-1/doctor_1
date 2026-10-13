@@ -7,6 +7,7 @@ use App\Http\Controllers\Web\BookingTrackingController;
 use App\Http\Controllers\Web\DoctorLandingController;
 use App\Http\Controllers\Web\Reports\LoginController as ReportsLoginController;
 use App\Http\Controllers\Web\Reports\ReportController;
+use App\Http\Controllers\Web\Site\SiteController;
 use App\Http\Controllers\Webhooks\WhatsAppWebhookController;
 use App\Http\Middleware\EnsureClinicSession;
 use App\Http\Middleware\EnsureReportAccess;
@@ -27,14 +28,10 @@ use App\Livewire\Patient\BookVisit;
 use Illuminate\Support\Facades\Route;
 
 /*
-| The platform root. Clinics live at `/{slug}`, so this is only a signpost
-| for staff who typed the bare domain.
+| The platform's landing page, for doctors deciding whether to join. Clinics
+| live at `/{slug}`.
 */
-Route::get('/', function () {
-    app()->setLocale(config('clinic.api.default_locale'));
-
-    return view('welcome');
-})->name('root');
+Route::get('/', [SiteController::class, 'home'])->name('root');
 
 /*
 | The patient's booking-tracking page. Unauthenticated by design: the clinic

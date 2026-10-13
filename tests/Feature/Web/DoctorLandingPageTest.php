@@ -429,14 +429,13 @@ class DoctorLandingPageTest extends TestCase
         $this->get($booking->trackingUrl())->assertOk();
     }
 
-    public function test_the_root_signposts_staff_to_sign_in(): void
+    public function test_the_root_never_lists_a_clinic(): void
     {
+        // The root is the platform's landing page (SiteHomeTest); clinics are
+        // found at their own page, never through it.
         $this->get('/')
             ->assertOk()
-            ->assertSee(__('app.root.title'))
-            ->assertSee(route('app.login'), escape: false)
-            // Clinics are found at their own page, never through this one.
-            ->assertSee('noindex', escape: false);
+            ->assertDontSee(route('landing', $this->clinic->slug), escape: false);
     }
 
     public function test_reserved_words_are_not_available_as_slugs(): void
