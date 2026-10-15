@@ -22,3 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Clinic onboarding descriptions (clinic:onboard). They hold doctors' contact
+# details and stay off this public repository.
+/storage/onboarding
