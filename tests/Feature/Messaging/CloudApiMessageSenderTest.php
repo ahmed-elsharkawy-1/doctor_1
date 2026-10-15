@@ -196,6 +196,10 @@ class CloudApiMessageSenderTest extends TestCase
     {
         Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'wamid.CANCEL']]])]);
 
+        // Fixed rather than from the factory, and with the stray trailing
+        // space one of Faker's ar_EG names really has: the sender trims it.
+        $this->clinic->doctor->update(['name' => 'د. محمد ']);
+
         $message = $this->queueMessage('day_cancelled');
 
         app(CloudApiMessageSender::class)->send($message);
@@ -212,10 +216,7 @@ class CloudApiMessageSenderTest extends TestCase
             $this->assertCount(4, $parameters);
             $this->assertSame('سارة أحمد', $parameters[0]['text']);
             // Bare: the template prints "مع الدكتور" itself.
-            $this->assertSame(
-                preg_replace('/^(?:ال)?(?:د\.|دكتورة|دكتور)\s*/u', '', $this->clinic->doctor->name),
-                $parameters[1]['text'],
-            );
+            $this->assertSame('محمد', $parameters[1]['text']);
             $this->assertSame('+201012223344', $parameters[3]['text']);
 
             return true;
