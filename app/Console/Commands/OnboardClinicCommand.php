@@ -137,12 +137,16 @@ class OnboardClinicCommand extends Command
             ['Name', $spec['doctor']['name']],
             ['Title', $spec['doctor']['title'] ?? '—'],
             ['Sex', $spec['doctor']['sex'] ?? '—'],
+            ['Bio', $spec['doctor']['bio'] ?? '—'],
+            ['Treatment areas', implode('، ', array_column($spec['doctor']['treatment_areas'] ?? [], 'title')) ?: '—'],
+            ['Photo', filled($spec['doctor']['photo'] ?? null) ? 'yes' : 'no (stock avatar)'],
         ]);
 
-        $this->table(['Account', 'Login email', 'Doctor login'], array_map(fn (array $account) => [
+        $this->table(['Account', 'Login email', 'Doctor login', 'Password'], array_map(fn (array $account) => [
             $account['name'],
             $account['email'],
             ($account['main'] ?? false) ? 'yes' : '',
+            filled($account['password'] ?? null) ? 'from the file' : 'generated',
         ], $spec['accounts']));
 
         $this->table(['Day', 'Hours'], array_map(function (DayOfWeek $day) use ($spec, $onboarding): array {

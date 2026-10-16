@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\V1\Settings\ScheduleService;
 use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -32,13 +33,15 @@ use Illuminate\Validation\ValidationException;
  *     clinic:   name, slug, specialty (slug), phone, address?, city?,
  *               country_code?, self_booking_enabled?, whatsapp_enabled?,
  *               reports_enabled?
- *     doctor:   name, title?, sex?, phone? (defaults to the clinic's)
- *     accounts: [{name, email, main?}] — exactly one `main`: the doctor's
- *               own login, linked to the doctor, with reports access
+ *     doctor:   name, title?, sex?, phone? (defaults to the clinic's), bio?,
+ *               treatment_areas? [{title, icon?, description?}],
+ *               photo? (the image, base64 — see docs/onboarding.md)
+ *     accounts: [{name, email, main?, password?}] — exactly one `main`: the
+ *               doctor's own login, linked to the doctor, with reports access
  *     schedule: {saturday: [["17:00", "23:00"]], …} — a day left out is closed
  *
- * Passwords are generated here and returned once; they are never part of the
- * description, which may be kept or shared.
+ * A password left out is generated here; either way every password is
+ * returned once, for whoever hands the logins over.
  */
 class ClinicOnboardingService
 {
@@ -84,11 +87,18 @@ class ClinicOnboardingService
             'doctor.title' => ['nullable', 'string', 'max:255'],
             'doctor.sex' => ['nullable', Rule::enum(DoctorSex::class)],
             'doctor.phone' => ['nullable', 'string', 'max:20'],
+            'doctor.bio' => ['nullable', 'string', 'max:2000'],
+            'doctor.treatment_areas' => ['sometimes', 'array'],
+            'doctor.treatment_areas.*.title' => ['required', 'string', 'max:120'],
+            'doctor.treatment_areas.*.icon' => ['nullable', Rule::in(config('clinic.public.icons'))],
+            'doctor.treatment_areas.*.description' => ['nullable', 'string', 'max:255'],
+            'doctor.photo' => ['nullable', 'string'],
 
             'accounts' => ['required', 'array', 'min:1'],
             'accounts.*.name' => ['required', 'string', 'max:255'],
             'accounts.*.email' => ['required', 'email', 'max:255', 'distinct:ignore_case', Rule::unique('users', 'email')],
             'accounts.*.main' => ['sometimes', 'boolean'],
+            'accounts.*.password' => ['nullable', 'string', 'min:8', 'max:255'],
 
             'schedule' => ['sometimes', 'array'],
             'schedule.*' => ['array'],
@@ -110,6 +120,10 @@ class ClinicOnboardingService
 
             if (filled($spec['doctor']['phone'] ?? null) && $this->phone($spec['doctor']['phone'], $country) === null) {
                 $validator->errors()->add('doctor.phone', 'The doctor phone is not a valid number.');
+            }
+
+            if (filled($spec['doctor']['photo'] ?? null) && ($error = $this->photoError($spec['doctor']['photo'])) !== null) {
+                $validator->errors()->add('doctor.photo', $error);
             }
 
             $mains = collect($spec['accounts'] ?? [])->filter(fn ($account) => (bool) ($account['main'] ?? false));
@@ -178,14 +192,27 @@ class ClinicOnboardingService
                 'phone' => filled($spec['doctor']['phone'] ?? null)
                     ? $this->phone($spec['doctor']['phone'], $country)
                     : $phone,
+                'bio' => $spec['doctor']['bio'] ?? null,
                 'is_active' => true,
             ]);
+
+            foreach (array_values($spec['doctor']['treatment_areas'] ?? []) as $index => $area) {
+                $doctor->treatmentAreas()->create([
+                    'title' => $area['title'],
+                    'icon' => $area['icon'] ?? null,
+                    'description' => $area['description'] ?? null,
+                    'sort_order' => $index + 1,
+                    'is_active' => true,
+                ]);
+            }
 
             $accounts = [];
 
             foreach ($spec['accounts'] as $account) {
                 $main = (bool) ($account['main'] ?? false);
-                $password = Str::password(12, symbols: false);
+                $password = filled($account['password'] ?? null)
+                    ? $account['password']
+                    : Str::password(12, symbols: false);
 
                 $user = new User([
                     'name' => $account['name'],
@@ -226,8 +253,63 @@ class ClinicOnboardingService
                 ]));
             }
 
+            // Last, so nothing that can still fail comes after a file is
+            // written: a refusal above leaves no orphaned image behind.
+            if (filled($spec['doctor']['photo'] ?? null)) {
+                $doctor->update(['photo_path' => $this->storePhoto($doctor->id, $spec['doctor']['photo'])]);
+            }
+
             return ['clinic' => $clinic->refresh(), 'accounts' => $accounts];
         });
+    }
+
+    /**
+     * Why an embedded photo is unusable, or null when it is fine: it must be
+     * base64 (a data URI is accepted), a JPEG, PNG or WebP image, and within
+     * the size the panel allows.
+     */
+    private function photoError(string $photo): ?string
+    {
+        $bytes = $this->photoBytes($photo);
+
+        if ($bytes === null) {
+            return 'The doctor photo is not valid base64.';
+        }
+
+        if (strlen($bytes) > (int) config('clinic.public.photo_max_kb') * 1024) {
+            return 'The doctor photo is larger than '.config('clinic.public.photo_max_kb').' KB.';
+        }
+
+        $info = @getimagesizefromstring($bytes);
+
+        if ($info === false || ! in_array($info['mime'], ['image/jpeg', 'image/png', 'image/webp'], true)) {
+            return 'The doctor photo must be a JPEG, PNG or WebP image.';
+        }
+
+        return null;
+    }
+
+    private function photoBytes(string $photo): ?string
+    {
+        $data = preg_replace('#^data:[^;]+;base64,#', '', trim($photo));
+        $bytes = base64_decode((string) $data, true);
+
+        return $bytes === false || $bytes === '' ? null : $bytes;
+    }
+
+    /**
+     * Saved where the panel's own upload puts a portrait, so the public page
+     * and the panel treat it exactly the same.
+     */
+    private function storePhoto(int $doctorId, string $photo): string
+    {
+        $bytes = (string) $this->photoBytes($photo);
+        $extension = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'][getimagesizefromstring($bytes)['mime']];
+        $path = "doctors/{$doctorId}/portrait.{$extension}";
+
+        Storage::disk(config('clinic.public.disk'))->put($path, $bytes);
+
+        return $path;
     }
 
     public function dayKey(DayOfWeek $day): string

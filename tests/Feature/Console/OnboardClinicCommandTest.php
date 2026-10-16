@@ -12,7 +12,9 @@ use App\Models\User;
 use App\Services\V1\Clinic\ClinicOnboardingService;
 use Database\Seeders\SpecialtySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -186,6 +188,58 @@ class OnboardClinicCommandTest extends TestCase
         }
     }
 
+    public function test_it_fills_the_doctors_overview(): void
+    {
+        $clinic = app(ClinicOnboardingService::class)->onboard($this->spec(['doctor' => [
+            'bio' => 'استشاري أمراض النساء والتوليد.',
+            'treatment_areas' => [
+                ['title' => 'متابعة الحمل والولادة', 'icon' => 'baby', 'description' => 'متابعة دورية.'],
+                ['title' => 'تأخر الإنجاب', 'icon' => 'heart'],
+            ],
+        ]]))['clinic'];
+
+        $doctor = $clinic->doctor;
+
+        $this->assertSame('استشاري أمراض النساء والتوليد.', $doctor->bio);
+        $this->assertSame(
+            [['متابعة الحمل والولادة', 'baby', 'متابعة دورية.', 1], ['تأخر الإنجاب', 'heart', null, 2]],
+            $doctor->treatmentAreas()->orderBy('sort_order')->get()
+                ->map(fn ($area) => [$area->title, $area->icon, $area->description, $area->sort_order])->all(),
+        );
+
+        $this->get('/dr-mohamed')->assertOk()->assertSee('متابعة الحمل والولادة')->assertSee('استشاري أمراض النساء والتوليد.');
+    }
+
+    public function test_it_saves_the_doctors_photo_where_the_panel_would(): void
+    {
+        Storage::fake(config('clinic.public.disk'));
+
+        $jpeg = UploadedFile::fake()->image('portrait.jpg', 300, 300)->getContent();
+
+        $clinic = app(ClinicOnboardingService::class)->onboard($this->spec(['doctor' => [
+            'photo' => 'data:image/jpeg;base64,'.base64_encode($jpeg),
+        ]]))['clinic'];
+
+        $doctor = $clinic->doctor;
+
+        $this->assertSame("doctors/{$doctor->id}/portrait.jpg", $doctor->photo_path);
+        Storage::disk(config('clinic.public.disk'))->assertExists($doctor->photo_path);
+    }
+
+    public function test_passwords_given_in_the_file_are_used(): void
+    {
+        $spec = $this->spec();
+        $spec['accounts'][0]['password'] = 'mhawary000';
+        $spec['accounts'][1]['password'] = 'mhawary001';
+
+        $accounts = app(ClinicOnboardingService::class)->onboard($spec)['accounts'];
+
+        $this->assertSame(['mhawary000', 'mhawary001'], [$accounts[0]['password'], $accounts[1]['password']]);
+        $this->assertTrue(Hash::check('mhawary000', User::where('email', 'doctor@example.com')->value('password')));
+        // The one left out is still generated.
+        $this->assertSame(12, strlen($accounts[2]['password']));
+    }
+
     /*
     |--------------------------------------------------------------------------
     | What it refuses — and that a refusal writes nothing
@@ -259,6 +313,30 @@ class OnboardClinicCommandTest extends TestCase
     public function test_an_unknown_day_is_refused(): void
     {
         $this->assertRefused($this->spec(['schedule' => ['friyay' => [['10:00', '12:00']]]]), 'schedule');
+    }
+
+    public function test_a_photo_that_is_not_an_image_is_refused(): void
+    {
+        $this->assertRefused($this->spec(['doctor' => ['photo' => base64_encode('not an image')]]), 'doctor.photo');
+        $this->assertRefused($this->spec(['doctor' => ['photo' => '***']]), 'doctor.photo');
+    }
+
+    public function test_a_photo_over_the_panels_limit_is_refused(): void
+    {
+        config(['clinic.public.photo_max_kb' => 1]);
+
+        $big = UploadedFile::fake()->image('portrait.jpg', 600, 600)->getContent();
+
+        $this->assertRefused($this->spec(['doctor' => ['photo' => base64_encode($big)]]), 'doctor.photo');
+    }
+
+    public function test_a_short_password_or_unknown_icon_is_refused(): void
+    {
+        $spec = $this->spec();
+        $spec['accounts'][0]['password'] = 'short';
+        $this->assertRefused($spec, 'accounts.0.password');
+
+        $this->assertRefused($this->spec(['doctor' => ['treatment_areas' => [['title' => 'x', 'icon' => 'rocket']]]]), 'doctor.treatment_areas.0.icon');
     }
 
     /** The app's own schedule rules apply, and a late failure rolls everything back. */
