@@ -61,14 +61,22 @@ public and the file holds a doctor's contact details.
 
 ```bash
 F=storage/onboarding/dr-first-last
-# The description, with the photo embedded when there is one.
-spec() { if [ -f "$F.jpg" ]; then jq '.doctor.photo = $p' --arg p "$(base64 -w0 "$F.jpg")" "$F.json"; else cat "$F.json"; fi; }
-run() { spec | ssh root@doctor1.srv1362420.hstgr.cloud "cd /docker/$1 && docker compose -f compose.prod.yml exec -T app php artisan clinic:onboard - $2"; }
+H=root@doctor1.srv1362420.hstgr.cloud
+
+# The description, with the photo embedded when there is one, copied to the
+# server. Copied rather than piped: a description with a photo is ~75 KB, and
+# piping that through ssh into `docker compose exec` has hung.
+if [ -f "$F.jpg" ]; then jq '.doctor.photo = $p' --arg p "$(base64 -w0 "$F.jpg")" "$F.json"; else cat "$F.json"; fi > /tmp/onboard.json
+scp -q /tmp/onboard.json $H:/root/onboard.json && rm /tmp/onboard.json
+
+run() { ssh $H "cd /docker/$1 && docker compose -f compose.prod.yml exec -T app php artisan clinic:onboard - $2 < /root/onboard.json"; }
 
 run doctor_1_staging --dry-run   # read the plan
 run doctor_1_staging --force     # create on staging, check it there
 run doctor_1 --dry-run           # production: read the plan again
 run doctor_1 --force             # create on production; save the passwords
+
+ssh $H rm /root/onboard.json
 ```
 
 Generated passwords differ between staging and production; only the production
