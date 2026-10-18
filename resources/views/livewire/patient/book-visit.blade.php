@@ -367,9 +367,10 @@
                                                     aria-expanded="{{ $open ? 'true' : 'false' }}"
                                                     @disabled(! $group->hasAnythingFree())
                                                     wire:click="toggleGroup({{ $group->index }})">
+                                                {{-- The range is what the patient scans for; the name is only a label. --}}
                                                 <span class="group-when">
+                                                    <span class="group-time"><bdi>{{ $clock($group->startAt()) }}</bdi> – <bdi>{{ $clock($group->endAt()) }}</bdi></span>
                                                     <span class="group-name">{{ __('booking.self_booking.group_label', ['ordinal' => __('booking.self_booking.group_ordinal.'.$group->index)]) }}</span>
-                                                    <span class="group-time">(<bdi>{{ $clock($group->startAt()) }}</bdi> – <bdi>{{ $clock($group->endAt()) }}</bdi>)</span>
                                                 </span>
 
                                                 <span class="group-state">

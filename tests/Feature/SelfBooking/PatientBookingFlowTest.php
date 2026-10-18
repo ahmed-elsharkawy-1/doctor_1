@@ -992,6 +992,29 @@ class PatientBookingFlowTest extends TestCase
         $page->assertSet('openGroup', 1);
     }
 
+    /**
+     * The time range is what a patient scans the heads for, so it leads and
+     * reads plainly; the stretch's name is only a label after it.
+     */
+    public function test_each_stretch_leads_with_its_time_range(): void
+    {
+        $html = $this->verified()->html();
+
+        preg_match_all('/<button type="button" class="group-head".*?<\/button>/s', $html, $heads);
+        $this->assertNotEmpty($heads[0], 'the test day must be grouped at all');
+
+        foreach ($heads[0] as $head) {
+            $time = strpos($head, 'class="group-time"');
+            $name = strpos($head, 'class="group-name"');
+
+            $this->assertNotFalse($time);
+            $this->assertNotFalse($name);
+            $this->assertLessThan($name, $time, 'the range comes before the name');
+            // A range, not an aside: no brackets around it.
+            $this->assertDoesNotMatchRegularExpression('/class="group-time">\s*\(/', $head);
+        }
+    }
+
     /** Shutting it has to stick, or the next render undoes the tap. */
     public function test_a_stretch_the_patient_closes_stays_closed(): void
     {

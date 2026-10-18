@@ -332,13 +332,16 @@
         .group.is-open .group-head { background: var(--primary-50); }
         .group-head:disabled { cursor: not-allowed; }
 
-        /* Name and range on one line. Stacked, every head was tall enough that
+        /* Range and name on one line. Stacked, every head was tall enough that
            a day with several stretches pushed the later ones off the screen —
-           and the point of collapsing them is to see them all at once. Wraps
-           back to two lines only where the width genuinely runs out. */
-        .group-when { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; min-width: 0; }
-        .group-name { font-size: 14px; font-weight: 800; color: var(--ink); }
-        .group-time { font-size: 12px; font-weight: 600; color: var(--muted); }
+           and the point of collapsing them is to see them all at once. The
+           range leads: it is what the patient is choosing between. The name
+           is a quiet label after it, and wraps under it only where the width
+           genuinely runs out — the range itself never breaks. */
+        .group-when { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; min-width: 0; }
+        .group-time { font-size: 16px; font-weight: 800; color: var(--ink); white-space: nowrap; letter-spacing: -.01em; }
+        .group.is-open .group-time { color: var(--primary); }
+        .group-name { font-size: 12px; font-weight: 600; color: var(--muted); }
 
         .group-state { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
 
