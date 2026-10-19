@@ -16,7 +16,7 @@ return [
     'submit' => 'Send feedback',
 
     'rating' => [
-        'very_good' => 'Excellent',
+        'very_good' => 'Very good',
         'good' => 'Good',
         'bad' => 'I have some notes',
     ],

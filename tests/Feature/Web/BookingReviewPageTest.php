@@ -166,7 +166,7 @@ class BookingReviewPageTest extends TestCase
         $this->assertNotNull($review->submitted_at);
     }
 
-    /** "Excellent" and "good" need no explanation. */
+    /** "Very good" and "good" need no explanation. */
     public function test_the_comment_is_optional_for_a_positive_rating(): void
     {
         foreach ([ReviewRating::VERY_GOOD, ReviewRating::GOOD] as $rating) {
