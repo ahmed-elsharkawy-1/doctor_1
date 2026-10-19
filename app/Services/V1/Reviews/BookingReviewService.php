@@ -2,8 +2,10 @@
 
 namespace App\Services\V1\Reviews;
 
+use App\Enums\ApiErrorCode;
 use App\Enums\BookingStatus;
 use App\Enums\ReviewRating;
+use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Models\BookingReview;
 use Illuminate\Support\Carbon;
@@ -44,6 +46,8 @@ class BookingReviewService
      * Records the verdict, once. A second submission for the same booking
      * returns what was already stored rather than overwriting it — the
      * unique index makes that the only honest outcome.
+     *
+     * @throws ApiException when the rating needs notes and none were given
      */
     public function submit(
         Booking $booking,
@@ -58,6 +62,15 @@ class BookingReviewService
         }
 
         $comment = trim((string) $comment);
+
+        if ($comment === '' && $rating->requiresComment()) {
+            throw ApiException::make(
+                ApiErrorCode::REVIEW_COMMENT_REQUIRED,
+                __('review.comment_required'),
+                details: ['rating' => $rating->value],
+                http: 422,
+            );
+        }
 
         return BookingReview::create([
             'booking_id' => $booking->id,

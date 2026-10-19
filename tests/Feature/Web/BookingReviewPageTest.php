@@ -3,12 +3,14 @@
 namespace Tests\Feature\Web;
 
 use App\Enums\ReviewRating;
+use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Models\BookingReview;
 use App\Models\MessageTemplate;
 use App\Models\OutboundMessage;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
 use App\Services\V1\Queue\BookingStatusService;
+use App\Services\V1\Reviews\BookingReviewService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\Concerns\InteractsWithClinic;
@@ -164,14 +166,81 @@ class BookingReviewPageTest extends TestCase
         $this->assertNotNull($review->submitted_at);
     }
 
-    public function test_the_comment_is_optional(): void
+    /** "Excellent" and "good" need no explanation. */
+    public function test_the_comment_is_optional_for_a_positive_rating(): void
+    {
+        foreach ([ReviewRating::VERY_GOOD, ReviewRating::GOOD] as $rating) {
+            $booking = $this->booking();
+
+            $this->post($this->url($booking), ['rating' => $rating->value])
+                ->assertSessionHasNoErrors()
+                ->assertRedirect();
+
+            $this->assertNull($booking->review()->firstOrFail()->comment);
+        }
+    }
+
+    /**
+     * "I have some notes" is only useful with the notes: without them the
+     * team knows something went wrong and nothing about what.
+     */
+    public function test_the_comment_is_required_with_some_notes(): void
     {
         $booking = $this->booking();
 
-        $this->post($this->url($booking), ['rating' => ReviewRating::BAD->value])
-            ->assertRedirect();
+        $this->post($this->url($booking), ['rating' => ReviewRating::BAD->value, 'comment' => '   '])
+            ->assertSessionHasErrors(['comment' => __('review.comment_required')]);
 
-        $this->assertNull(BookingReview::firstOrFail()->comment);
+        $this->assertSame(0, BookingReview::count());
+
+        $this->post($this->url($booking), ['rating' => ReviewRating::BAD->value, 'comment' => 'تأكيد الحجز وصل متأخر.'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('تأكيد الحجز وصل متأخر.', BookingReview::sole()->comment);
+    }
+
+    /** The rule lives in the service, so no other caller can skip it. */
+    public function test_the_service_refuses_some_notes_without_a_comment(): void
+    {
+        $this->expectException(ApiException::class);
+
+        app(BookingReviewService::class)->submit($this->booking(), ReviewRating::BAD, '  ');
+    }
+
+    /** A refused form says why, beside the field — not a silent reload. */
+    public function test_a_refused_form_shows_its_errors(): void
+    {
+        $booking = $this->booking();
+
+        $this->from($this->url($booking))
+            ->followingRedirects()
+            ->post($this->url($booking), ['rating' => ReviewRating::BAD->value])
+            ->assertSee(__('review.comment_required'))
+            ->assertSee(ReviewRating::BAD->label());
+
+        // The choice survives the round trip, so the patient only adds the notes.
+        $this->assertMatchesRegularExpression(
+            '/value="'.ReviewRating::BAD->value.'"\s+checked/',
+            $this->from($this->url($booking))->followingRedirects()
+                ->post($this->url($booking), ['rating' => ReviewRating::BAD->value])->getContent(),
+        );
+
+        $this->from($this->url($booking))
+            ->followingRedirects()
+            ->post($this->url($booking), [])
+            ->assertSee(__('review.rating_required'));
+    }
+
+    /** The page asks about the booking experience, not the doctor. */
+    public function test_it_asks_about_the_booking_experience(): void
+    {
+        $this->get($this->url($this->booking()))
+            ->assertSee(__('review.title'))
+            ->assertSee(__('review.comment'))
+            ->assertSee(__('review.rating.very_good'))
+            ->assertSee(__('review.rating.bad'))
+            // The page knows which choice makes the notes required.
+            ->assertSee('data-requires-comment="'.ReviewRating::BAD->value.'"', escape: false);
     }
 
     public function test_a_rating_is_required(): void

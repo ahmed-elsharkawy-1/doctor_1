@@ -9,6 +9,7 @@ use App\Services\V1\Reviews\BookingReviewService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -41,10 +42,16 @@ class BookingReviewController extends Controller
 
         $validated = $request->validate([
             'rating' => ['required', 'in:'.implode(',', ReviewRating::values())],
-            'comment' => ['nullable', 'string', 'max:'.config('clinic.review.comment_max')],
+            'comment' => [
+                Rule::requiredIf(fn (): bool => ReviewRating::tryFrom((string) $request->input('rating'))?->requiresComment() ?? false),
+                'nullable',
+                'string',
+                'max:'.config('clinic.review.comment_max'),
+            ],
         ], [
             'rating.required' => __('review.rating_required'),
             'rating.in' => __('review.rating_required'),
+            'comment.required' => __('review.comment_required'),
         ]);
 
         $this->reviews->submit(

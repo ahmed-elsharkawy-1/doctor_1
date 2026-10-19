@@ -61,4 +61,7 @@ enum ApiErrorCode: string
     // not possible — they are what a tampered request gets.
     case PHONE_NOT_VERIFIED = 'PHONE_NOT_VERIFIED';
     case SELF_BOOKING_DISABLED = 'SELF_BOOKING_DISABLED';
+
+    // A review whose rating needs an explanation, sent without one.
+    case REVIEW_COMMENT_REQUIRED = 'REVIEW_COMMENT_REQUIRED';
 }

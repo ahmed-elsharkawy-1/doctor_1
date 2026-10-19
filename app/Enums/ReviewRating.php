@@ -20,6 +20,15 @@ enum ReviewRating: string
     }
 
     /**
+     * "I have some notes" says something went wrong; without the notes the
+     * team cannot tell what. The positive ratings stand on their own.
+     */
+    public function requiresComment(): bool
+    {
+        return $this === self::BAD;
+    }
+
+    /**
      * Best first, the order the page offers them in.
      *
      * @return list<self>

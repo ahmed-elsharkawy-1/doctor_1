@@ -62,7 +62,11 @@
         h1 { font-size: 20px; font-weight: 800; }
         .lead { color: var(--muted); font-size: 13.5px; margin-top: 4px; }
 
-        .section-label { font-weight: 700; margin-bottom: 10px; }
+        .section-label { display: block; font-weight: 700; margin-bottom: 10px; }
+        /* Quiet while optional; plain to see once the choice makes it required. */
+        .section-label .need { font-weight: 600; font-size: 13px; color: var(--muted); }
+        .section-label .need.is-required { color: #8E2F23; }
+        textarea[aria-invalid="true"] { border-color: #C0392B; background: #FFF7F6; }
 
         /* the three choices */
         .choices { display: grid; gap: 0; }
@@ -239,7 +243,7 @@
             <section class="card">
                 <p class="section-label">{{ __('review.choose') }}</p>
 
-                <div class="choices">
+                <div class="choices" data-requires-comment="{{ collect($ratings)->filter->requiresComment()->map->value->implode(',') }}">
                     @foreach ($ratings as $rating)
                         <label class="choice">
                             <input type="radio" name="rating" value="{{ $rating->value }}"
@@ -254,9 +258,19 @@
             </section>
 
             <section class="card">
-                <p class="section-label">{{ __('review.comment') }}</p>
+                @php($needsComment = \App\Enums\ReviewRating::tryFrom((string) old('rating'))?->requiresComment() ?? false)
+                <label class="section-label" for="comment">
+                    {{ __('review.comment') }}
+                    <span @class(['need', 'is-required' => $needsComment]) id="comment-need"
+                          data-optional="{{ __('review.comment_optional') }}"
+                          data-required="{{ __('review.comment_required_mark') }}">{{ $needsComment ? __('review.comment_required_mark') : __('review.comment_optional') }}</span>
+                </label>
                 <textarea name="comment" id="comment" maxlength="{{ $commentMax }}"
-                          placeholder="{{ __('review.comment_placeholder') }}">{{ old('comment') }}</textarea>
+                          data-placeholder="{{ __('review.comment_placeholder') }}"
+                          data-placeholder-required="{{ __('review.comment_placeholder_required') }}"
+                          placeholder="{{ $needsComment ? __('review.comment_placeholder_required') : __('review.comment_placeholder') }}"
+                          @if ($needsComment) required @endif
+                          @error('comment') aria-invalid="true" @enderror>{{ old('comment') }}</textarea>
                 <div class="counter"><span id="left">{{ $commentMax }}</span></div>
             </section>
 
@@ -272,6 +286,21 @@
             const tick = () => { left.textContent = max - box.value.length; };
             box.addEventListener('input', tick);
             tick();
+
+            // The notes turn required with the choice that needs them, and
+            // back to optional with any other — the server checks the same.
+            const needs = (document.querySelector('[data-requires-comment]').dataset.requiresComment || '').split(',');
+            const mark = document.getElementById('comment-need');
+            const follow = (value) => {
+                const required = needs.includes(value);
+                box.required = required;
+                box.placeholder = required ? box.dataset.placeholderRequired : box.dataset.placeholder;
+                mark.textContent = required ? mark.dataset.required : mark.dataset.optional;
+                mark.classList.toggle('is-required', required);
+            };
+            document.querySelectorAll('input[name="rating"]').forEach((radio) => {
+                radio.addEventListener('change', () => follow(radio.value));
+            });
         </script>
     @endif
 

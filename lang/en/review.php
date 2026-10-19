@@ -5,17 +5,20 @@
 */
 
 return [
-    'title' => 'Rate your visit',
+    'title' => 'Rate your booking experience',
     'lead' => 'Your feedback helps us improve. It takes less than a minute.',
     'choose' => 'Choose a rating',
-    'comment' => 'Notes about the visit',
-    'comment_placeholder' => 'Anything else you would like to add (optional)',
+    'comment' => 'Your notes on the booking experience',
+    'comment_optional' => '(optional)',
+    'comment_required_mark' => '(required)',
+    'comment_placeholder' => 'Anything else you would like to add',
+    'comment_placeholder_required' => 'Tell us what we could do better',
     'submit' => 'Send feedback',
 
     'rating' => [
-        'very_good' => 'Very good',
+        'very_good' => 'Excellent',
         'good' => 'Good',
-        'bad' => 'Bad',
+        'bad' => 'I have some notes',
     ],
 
     'thanks_title' => 'Thank you',
@@ -28,4 +31,5 @@ return [
     'unavailable_lead' => 'This booking was cancelled or not attended, so there is no visit to rate.',
 
     'rating_required' => 'Please choose a rating.',
+    'comment_required' => 'Please write your notes, so we know what to improve.',
 ];
