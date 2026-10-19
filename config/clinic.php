@@ -421,6 +421,11 @@ return [
     | per clinic and per account in the admin panel.
     */
     'reports' => [
+        // The morning WhatsApp report. Paused until Meta approves the
+        // clinic_report template; the reports page — on the web and in the
+        // app — carries the numbers meanwhile. Pausing it never closes the
+        // page: that is clinics.reports_enabled, a different switch.
+        'morning_whatsapp' => (bool) env('CLINIC_REPORTS_MORNING_WHATSAPP', false),
         'send_at' => env('CLINIC_REPORTS_SEND_AT', '09:00'),
         'timezone' => env('CLINIC_REPORTS_TIMEZONE', 'Africa/Cairo'),
         // How long "remember me" keeps a doctor signed in to the reports page.
