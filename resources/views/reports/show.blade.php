@@ -17,7 +17,7 @@
     };
 @endphp
 
-<x-layouts.reports :title="__('reports.page.title').' — '.$clinic->name">
+<x-layouts.reports :title="__('reports.page.title').' — '.$clinic->name" :app="$app">
     <style>
         .rp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
         .rp-head h1 { font-size: 1.15rem; margin: 0; }
@@ -35,6 +35,17 @@
             border-left: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
             transform: translateY(-70%) rotate(-45deg); pointer-events: none;
         }
+        /* App mode's period links: a scrolling row per kind, the current one filled. */
+        .rp-chips { margin-top: 12px; }
+        .rp-chips-title { margin: 10px 0 6px; font-size: .8rem; font-weight: 700; color: var(--muted); }
+        .rp-chips-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        .rp-chips-row::-webkit-scrollbar { display: none; }
+        .rp-chip {
+            flex: none; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line);
+            background: var(--surface-2); color: var(--ink); font-weight: 700; font-size: .88rem;
+            text-decoration: none; white-space: nowrap;
+        }
+        .rp-chip.is-current { background: var(--primary); border-color: var(--primary); color: #fff; }
         .rp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
         .rp-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .rp-stat { background: var(--surface-2); border-radius: 12px; padding: 12px; }
@@ -75,7 +86,8 @@
                     <p class="rp-muted" style="margin: 4px 0 0">{{ $heading }}</p>
                 @endif
             </div>
-            @unless ($preview)
+            {{-- The app signs the WebView in and out itself. --}}
+            @unless ($preview || $app)
                 <form method="POST" action="{{ route('reports.logout') }}">
                     @csrf
                     <button class="rp-btn rp-btn-quiet" type="submit">{{ __('reports.page.sign_out') }}</button>
@@ -85,6 +97,34 @@
 
         {{-- Every period in one list, grouped; picking one opens it. One
              control, so it always names exactly what the numbers below are for. --}}
+        @if ($app)
+            {{-- In the app: plain links, one row per kind of period. A <select>
+                 that navigates from a script is the fragile part inside an
+                 iPhone WebView; a link is a link everywhere. --}}
+            @php
+                $rows = [
+                    'group_days' => collect($days)->map(fn ($day, $i) => [
+                        'type' => 'day',
+                        'value' => $day['value'],
+                        'label' => $i === 0 ? __('reports.page.yesterday') : $label(\Illuminate\Support\Carbon::parse($day['value']))->isoFormat('dddd D'),
+                    ]),
+                    'group_weeks' => collect($periods)->where('type', 'week')->values(),
+                    'group_months' => collect($periods)->where('type', 'month')->values(),
+                ];
+            @endphp
+            <nav class="rp-chips" aria-label="{{ __('reports.page.period_label') }}">
+                @foreach ($rows as $title => $options)
+                    @continue($options->isEmpty())
+                    <p class="rp-chips-title">{{ __('reports.page.'.$title) }}</p>
+                    <div class="rp-chips-row">
+                        @foreach ($options as $option)
+                            @php $current = $type === $option['type'] && $value === $option['value']; @endphp
+                            <a @class(['rp-chip', 'is-current' => $current]) href="{{ $link($option['type'], $option['value']) }}" @if ($current) aria-current="page" @endif>{{ $option['label'] }}</a>
+                        @endforeach
+                    </div>
+                @endforeach
+            </nav>
+        @else
         <div class="rp-picker">
             <label class="rp-sr" for="rp-period">{{ __('reports.page.period_label') }}</label>
             <select id="rp-period" onchange="if (this.value) { window.location.href = this.value; }">
@@ -103,6 +143,7 @@
                 @endforeach
             </select>
         </div>
+        @endif
     </section>
 
 

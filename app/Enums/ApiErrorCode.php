@@ -41,6 +41,9 @@ enum ApiErrorCode: string
 
     // Reports (Phase 6)
     case UNKNOWN_REPORT_PERIOD = 'UNKNOWN_REPORT_PERIOD';
+    // This account may not open the reports page (no report access, or the
+    // clinic has reports switched off).
+    case REPORTS_NOT_AVAILABLE = 'REPORTS_NOT_AVAILABLE';
 
     // Patients (Phases 2-4)
     case PATIENT_NOT_FOUND = 'PATIENT_NOT_FOUND';

@@ -1360,7 +1360,7 @@
         },
         {
             "name": "Reports",
-            "description": "Revenue and retention",
+            "description": "Revenue and retention, and the link that opens the doctor's reports page in a WebView",
             "item": [
                 {
                     "name": "Revenue",
@@ -1427,6 +1427,36 @@
                             ]
                         },
                         "description": "Cohort-based: the cohort is patients whose **first** completed visit\nfell in the period, and the rate is how many came back.\n\n`maturing_count` matters — a patient seen last week has not \"never\nreturned\", she just has not returned *yet*. Show it separately from\n`first_visit_only_count` or the first month's number is meaningless."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Reports page link for a WebView",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/reports/web-link",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "reports",
+                                "web-link"
+                            ]
+                        },
+                        "description": "A link that opens the doctor's reports page (day, week and month, with\nits period links) inside a WebView, already signed in. No password and\nno cookie handling on the app's side.\n\n**The link is single-use and lasts 2 minutes.** Request a new one each\ntime the report screen opens, and load it straight away.\n\nOpening it starts the WebView's own session, which ends after a couple\nof hours without use; it is independent of this API token, which it\nnever affects. Inside the app the page hides its own header and\nsign-out, and its period links are plain links.\n\n**Renewing, silently:** whenever the WebView cannot be signed in — the\nlink was already used or lapsed, or the session ended — the page sends\nit to `renew_url` instead of a login form. Watch the WebView's\nnavigation (iOS `decidePolicyFor navigationAction`, Android\n`shouldOverrideUrlLoading`): when it is about to load `renew_url`,\ncancel that load, call this endpoint again and load the new `url`.\nThe WebView usually reaches `renew_url` through a redirect, so also\nact when a page **finishes loading** at `renew_url` (iOS\n`didFinish`, Android `onPageFinished`) — whichever fires first. If it\nis ever shown, `renew_url` only asks the user to reopen the report.\n\nOn sign-out from the app, clear the WebView's cookies, so the next\naccount on the same phone does not open the previous one's session.\n\nWho may: any account with report access whose clinic has reports\nswitched on — the same rule as the website. Owner or secretary alike;\nthis endpoint does not use the `reports.view` ability."
                     },
                     "response": []
                 }

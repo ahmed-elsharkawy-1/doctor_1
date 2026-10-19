@@ -64,6 +64,14 @@ return [
         'last_week' => 'Last week',
         'this_month' => 'This month',
     ],
+    // The reports page inside the mobile app.
+    'app' => [
+        'link_issued' => 'Reports link ready.',
+        'not_available' => 'Reports are not available for this account.',
+        'renew_title' => 'The report session has ended',
+        'renew_body' => 'Close the report and open it again from the app.',
+    ],
+
     'page' => [
         'title' => 'Clinic reports',
         'sign_in_title' => 'Sign in to reports',

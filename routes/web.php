@@ -5,6 +5,7 @@ use App\Http\Controllers\Web\Auth\LoginController;
 use App\Http\Controllers\Web\BookingReviewController;
 use App\Http\Controllers\Web\BookingTrackingController;
 use App\Http\Controllers\Web\DoctorLandingController;
+use App\Http\Controllers\Web\Reports\AppLinkController;
 use App\Http\Controllers\Web\Reports\LoginController as ReportsLoginController;
 use App\Http\Controllers\Web\Reports\ReportController;
 use App\Http\Controllers\Web\Site\SiteController;
@@ -99,6 +100,15 @@ Route::prefix('reports')->name('reports.')->group(function (): void {
         ->middleware('throttle:6,1')
         ->name('login.store');
     Route::post('logout', [ReportsLoginController::class, 'destroy'])->name('logout');
+
+    // The mobile app's way in: a single-use link signs the WebView in, and
+    // the renew address is where a WebView that cannot be signed in is sent
+    // — the app watches for it and asks for a new link.
+    Route::get('app/open/{token}', [AppLinkController::class, 'open'])
+        ->where('token', '[A-Za-z0-9]{64}')
+        ->middleware('throttle:20,1')
+        ->name('app.open');
+    Route::get('app/renew', [AppLinkController::class, 'renew'])->name('app.renew');
 
     // The operator's look at any clinic's report, from the admin panel.
     Route::get('preview/{clinic}/{type}/{value}', [ReportController::class, 'preview'])

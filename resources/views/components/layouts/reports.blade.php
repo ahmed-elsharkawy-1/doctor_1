@@ -5,7 +5,7 @@
     Phone first. The doctor opens this from a WhatsApp message, so every block
     is a full-width card and nothing depends on hover.
 --}}
-@props(['title' => null])
+@props(['title' => null, 'app' => false])
 <!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}" dir="rtl">
 <head>
@@ -59,7 +59,10 @@
 </head>
 <body>
 @include('partials.test-site-banner')
-@include('partials.brand-bar')
+{{-- Inside the mobile app the app's own bar is above us; ours would be a second one. --}}
+@unless ($app)
+    @include('partials.brand-bar')
+@endunless
 
 <main class="rp-wrap">
     {{ $slot }}

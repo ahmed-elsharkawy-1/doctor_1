@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\V1\Queue\PostponeCandidatesController;
 use App\Http\Controllers\Api\V1\Queue\PostponeController;
 use App\Http\Controllers\Api\V1\Queue\RebookingListController;
 use App\Http\Controllers\Api\V1\Queue\UpdateBookingStatusController;
+use App\Http\Controllers\Api\V1\Reports\ReportWebLinkController;
 use App\Http\Controllers\Api\V1\Reports\RetentionReportController;
 use App\Http\Controllers\Api\V1\Reports\RevenueReportController;
 use App\Http\Controllers\Api\V1\Settings\BootstrapController;
@@ -187,6 +188,13 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
             ->whereNumber('patient')
             ->name('api.v1.patients.show');
     });
+
+    // The reports page for the app's WebView. Not under the owner-only
+    // ability: the website's rule decides (the account's report flag and the
+    // clinic's switch), checked in ReportWebLinkService.
+    Route::post('reports/web-link', ReportWebLinkController::class)
+        ->middleware('throttle:30,1')
+        ->name('api.v1.reports.web-link');
 
     /*
     | Reports (SPEC 5.5, 5.6) - owner only.

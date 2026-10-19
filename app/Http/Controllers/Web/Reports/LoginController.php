@@ -53,8 +53,12 @@ class LoginController extends Controller
         $guard->login($user, remember: true);
 
         $request->session()->regenerate();
+        // Signing in with a password makes this a website session, even in a
+        // browser that once opened a link from the mobile app.
+        $request->session()->forget('reports.app');
 
-        return redirect()->intended(route('reports.index'));
+        return redirect()->intended(route('reports.index'))
+            ->withCookie(cookie()->forget(config('clinic.reports.app_cookie')));
     }
 
     public function destroy(Request $request): RedirectResponse
@@ -63,6 +67,9 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('reports.login');
+        // Only the website shows sign-out, so whoever presses it wants the
+        // sign-in page next time, not the app's renew address.
+        return redirect()->route('reports.login')
+            ->withCookie(cookie()->forget(config('clinic.reports.app_cookie')));
     }
 }

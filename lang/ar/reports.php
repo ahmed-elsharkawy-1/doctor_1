@@ -64,6 +64,14 @@ return [
         'last_week' => 'الأسبوع الماضي',
         'this_month' => 'الشهر الحالي',
     ],
+    // The reports page inside the mobile app.
+    'app' => [
+        'link_issued' => 'تم تجهيز رابط التقارير.',
+        'not_available' => 'التقارير غير متاحة لهذا الحساب.',
+        'renew_title' => 'انتهت جلسة التقرير',
+        'renew_body' => 'أغلق التقرير وافتحه مرة أخرى من التطبيق.',
+    ],
+
     'page' => [
         'title' => 'تقارير العيادة',
         'sign_in_title' => 'تسجيل الدخول للتقارير',
