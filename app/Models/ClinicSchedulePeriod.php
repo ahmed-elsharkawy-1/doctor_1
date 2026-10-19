@@ -39,6 +39,16 @@ class ClinicSchedulePeriod extends Model
     }
 
     /**
+     * Whether the period runs to the end of the day. Times are HH:MM within
+     * one day, so a shift that ends at midnight can only be entered as 23:59 —
+     * read as midnight, or the last visit before 12 would never be offered.
+     */
+    public function endsAtMidnight(): bool
+    {
+        return $this->endTime() === '23:59';
+    }
+
+    /**
      * The period as a patient reads it: "1:00 مساءً – 3:00 مساءً".
      *
      * Both ends name their own half of the day, even when they share it.

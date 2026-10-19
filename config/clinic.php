@@ -110,7 +110,11 @@ return [
     | End-of-day housekeeping (SPEC §5.4).
     */
     'end_of_day' => [
-        'run_at' => '00:05',
+        // When a clinic's day is over, in its own local time on the next
+        // morning. Not midnight: evening shifts run past 12, and the doctor
+        // is still seeing yesterday's list at 00:30. Until this hour the day
+        // before is left open, so nobody still waiting is marked a no-show.
+        'closes_at' => env('CLINIC_DAY_CLOSES_AT', '05:00'),
     ],
 
     /*

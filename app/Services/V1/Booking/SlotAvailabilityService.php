@@ -151,7 +151,9 @@ class SlotAvailabilityService
         $step = max(1, $clinic->slot_step_minutes ?: $duration);
 
         $periodStart = $this->at($clinic, $date, $period->startTime());
-        $periodEnd = $this->at($clinic, $date, $period->endTime());
+        $periodEnd = $period->endsAtMidnight()
+            ? $this->at($clinic, $date, '00:00')->addDay()
+            : $this->at($clinic, $date, $period->endTime());
         $now = Carbon::now($clinic->timezone);
         $hidePastStarts = $date->isSameDay($now);
 

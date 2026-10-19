@@ -59,8 +59,8 @@ class CloseClinicDayCommand extends Command
 
     private function closeFor(Clinic $clinic): int
     {
-        $today = Carbon::now($clinic->timezone)->startOfDay()->toDateString();
         $now = Carbon::now($clinic->timezone);
+        $today = $this->clinicDay($now);
 
         // Never touched the clinic: she never turned up.
         $noShows = $clinic->bookings()
@@ -86,5 +86,17 @@ class CloseClinicDayCommand extends Command
             ]);
 
         return $noShows + $incomplete;
+    }
+
+    /**
+     * The clinic day `now` falls in. Before the closing hour it is still the
+     * day before — an evening shift that runs past midnight has not ended —
+     * so only days before that one are closed.
+     */
+    private function clinicDay(Carbon $now): string
+    {
+        [$hour, $minute] = array_map('intval', explode(':', (string) config('clinic.end_of_day.closes_at')));
+
+        return $now->copy()->subHours($hour)->subMinutes($minute)->toDateString();
     }
 }
