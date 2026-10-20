@@ -114,6 +114,7 @@ return [
         'no_show_rate' => ':no_show of :expected did not come (:percent%)',
         'visits' => '{0} no visits|{1} 1 visit|[2,*] :count visits',
         'period_label' => 'Period',
+        'today' => 'Today',
         'yesterday' => 'Yesterday',
         'group_days' => 'Days',
         'group_weeks' => 'Weeks',

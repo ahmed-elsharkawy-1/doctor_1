@@ -36,16 +36,30 @@
             transform: translateY(-70%) rotate(-45deg); pointer-events: none;
         }
         /* App mode's period links: a scrolling row per kind, the current one filled. */
-        .rp-chips { margin-top: 12px; }
-        .rp-chips-title { margin: 10px 0 6px; font-size: .8rem; font-weight: 700; color: var(--muted); }
-        .rp-chips-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-        .rp-chips-row::-webkit-scrollbar { display: none; }
-        .rp-chip {
-            flex: none; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line);
-            background: var(--surface-2); color: var(--ink); font-weight: 700; font-size: .88rem;
-            text-decoration: none; white-space: nowrap;
+        /* The app's period dropdown: looks like the web select, opens a list of links. */
+        .rp-menu { margin-top: 12px; }
+        .rp-menu-btn {
+            list-style: none; position: relative; cursor: pointer; padding: 12px 14px 12px 40px;
+            border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2);
+            color: var(--ink); font-weight: 700;
         }
-        .rp-chip.is-current { background: var(--primary); border-color: var(--primary); color: #fff; }
+        .rp-menu-btn::-webkit-details-marker { display: none; }
+        .rp-menu-btn::after {
+            content: ""; position: absolute; left: 16px; top: 50%; width: 8px; height: 8px; margin-top: -6px;
+            border-left: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg);
+        }
+        .rp-menu[open] .rp-menu-btn::after { transform: rotate(135deg); margin-top: -2px; }
+        .rp-menu-list {
+            margin-top: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+            max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 0;
+        }
+        .rp-menu-title { margin: 8px 14px 4px; font-size: .78rem; font-weight: 700; color: var(--muted); }
+        .rp-menu-item {
+            display: flex; justify-content: space-between; align-items: center; gap: 8px;
+            padding: 11px 14px; color: var(--ink); text-decoration: none; font-weight: 600;
+        }
+        .rp-menu-item.is-current { color: var(--primary); font-weight: 800; background: var(--primary-50); }
+        .rp-check { font-weight: 800; }
         .rp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
         .rp-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .rp-stat { background: var(--surface-2); border-radius: 12px; padding: 12px; }
@@ -97,46 +111,45 @@
 
         {{-- Every period in one list, grouped; picking one opens it. One
              control, so it always names exactly what the numbers below are for. --}}
+        @php
+            $dayLabel = fn (array $day): string => ($day['relative'] ? __('reports.page.'.$day['relative']).' — ' : '')
+                .$label(\Illuminate\Support\Carbon::parse($day['value']))->isoFormat('dddd D MMMM');
+            $groups = [
+                'group_days' => collect($days)->map(fn ($day) => ['type' => 'day', 'value' => $day['value'], 'label' => $dayLabel($day)]),
+                'group_weeks' => collect($periods)->where('type', 'week')->values(),
+                'group_months' => collect($periods)->where('type', 'month')->values(),
+            ];
+            $currentLabel = collect($groups)->flatten(1)
+                ->first(fn ($option) => $option['type'] === $type && $option['value'] === $value)['label'] ?? $heading;
+        @endphp
         @if ($app)
-            {{-- In the app: plain links, one row per kind of period. A <select>
-                 that navigates from a script is the fragile part inside an
-                 iPhone WebView; a link is a link everywhere. --}}
-            @php
-                $rows = [
-                    'group_days' => collect($days)->map(fn ($day, $i) => [
-                        'type' => 'day',
-                        'value' => $day['value'],
-                        'label' => $i === 0 ? __('reports.page.yesterday') : $label(\Illuminate\Support\Carbon::parse($day['value']))->isoFormat('dddd D'),
-                    ]),
-                    'group_weeks' => collect($periods)->where('type', 'week')->values(),
-                    'group_months' => collect($periods)->where('type', 'month')->values(),
-                ];
-            @endphp
-            <nav class="rp-chips" aria-label="{{ __('reports.page.period_label') }}">
-                @foreach ($rows as $title => $options)
-                    @continue($options->isEmpty())
-                    <p class="rp-chips-title">{{ __('reports.page.'.$title) }}</p>
-                    <div class="rp-chips-row">
+            {{-- In the app: a dropdown that opens a list of plain links. A
+                 <select> that navigates from a script is the fragile part
+                 inside an iPhone WebView; <details> and a link need no script. --}}
+            <details class="rp-menu">
+                <summary class="rp-menu-btn"><span>{{ $currentLabel }}</span></summary>
+                <nav class="rp-menu-list" aria-label="{{ __('reports.page.period_label') }}">
+                    @foreach ($groups as $title => $options)
+                        @continue($options->isEmpty())
+                        <p class="rp-menu-title">{{ __('reports.page.'.$title) }}</p>
                         @foreach ($options as $option)
                             @php $current = $type === $option['type'] && $value === $option['value']; @endphp
-                            <a @class(['rp-chip', 'is-current' => $current]) href="{{ $link($option['type'], $option['value']) }}" @if ($current) aria-current="page" @endif>{{ $option['label'] }}</a>
+                            <a @class(['rp-menu-item', 'is-current' => $current]) href="{{ $link($option['type'], $option['value']) }}" @if ($current) aria-current="page" @endif>
+                                <span>{{ $option['label'] }}</span>
+                                @if ($current)<span class="rp-check" aria-hidden="true">✓</span>@endif
+                            </a>
                         @endforeach
-                    </div>
-                @endforeach
-            </nav>
+                    @endforeach
+                </nav>
+            </details>
         @else
         <div class="rp-picker">
             <label class="rp-sr" for="rp-period">{{ __('reports.page.period_label') }}</label>
             <select id="rp-period" onchange="if (this.value) { window.location.href = this.value; }">
-                <optgroup label="{{ __('reports.page.group_days') }}">
-                    @foreach ($days as $day)
-                        <option value="{{ $link('day', $day['value']) }}" @selected($type === 'day' && $value === $day['value'])>{{ $loop->first ? __('reports.page.yesterday').' — ' : '' }}{{ $label(\Illuminate\Support\Carbon::parse($day['value']))->isoFormat('dddd D MMMM') }}</option>
-                    @endforeach
-                </optgroup>
-                @foreach (['week' => 'group_weeks', 'month' => 'group_months'] as $group => $title)
+                @foreach ($groups as $title => $options)
+                    @continue($options->isEmpty())
                     <optgroup label="{{ __('reports.page.'.$title) }}">
-                        @foreach ($periods as $option)
-                            @continue($option['type'] !== $group)
+                        @foreach ($options as $option)
                             <option value="{{ $link($option['type'], $option['value']) }}" @selected($type === $option['type'] && $value === $option['value'])>{{ $option['label'] }}</option>
                         @endforeach
                     </optgroup>
@@ -191,15 +204,6 @@
         </section>
     @endif
 
-    @if ($report->nextDayBookings !== null)
-        <section class="rp-card">
-            <div class="rp-stat">
-                <span class="rp-muted">{{ __('reports.page.next_day') }}</span>
-                <b>{{ $report->nextDayBookings }}</b>
-            </div>
-        </section>
-    @endif
-
     @if ($hasBookings)
         <section class="rp-card">
             <h2>{{ __('reports.page.outcomes') }}</h2>
@@ -235,11 +239,6 @@
 
         <section class="rp-card">
             <h2>{{ __('reports.page.patients') }}</h2>
-            <div class="rp-stats">
-                <div class="rp-stat"><span class="rp-muted">{{ __('reports.page.new') }}</span><b>{{ $report->patients['new_count'] }}</b></div>
-                <div class="rp-stat"><span class="rp-muted">{{ __('reports.page.returning') }}</span><b>{{ $report->patients['returning_count'] }}</b></div>
-            </div>
-
             @if ($report->patients['new'] !== [])
                 @php
                     // Five on the page; the rest expand in place — a pop-up's

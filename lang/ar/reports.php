@@ -114,6 +114,7 @@ return [
         'no_show_rate' => ':no_show من :expected لم يحضروا (:percent٪)',
         'visits' => '{0} لا كشوفات|{1} كشف واحد|{2} كشفان|[3,10] :count كشوفات|[11,*] :count كشف',
         'period_label' => 'الفترة',
+        'today' => 'اليوم',
         'yesterday' => 'أمس',
         'group_days' => 'الأيام',
         'group_weeks' => 'الأسابيع',

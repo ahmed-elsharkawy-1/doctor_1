@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
  *
  * The app asks with its own API token; the link it gets back is single-use
  * and short-lived, and opening it starts an ordinary web session. The link
- * is a bearer secret for those two minutes, so only its hash is stored and
+ * is a bearer secret for those five minutes, so only its hash is stored and
  * spending it is one conditional update — two WebViews racing for the same
  * link cannot both win.
  */

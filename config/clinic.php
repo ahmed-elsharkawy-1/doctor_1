@@ -438,7 +438,7 @@ return [
         // The mobile app opens the page in a WebView through a single-use
         // link that lasts this long. Opening it starts an ordinary session
         // (SESSION_LIFETIME, idle) rather than the 90-day remembered login.
-        'app_link_ttl_seconds' => 120,
+        'app_link_ttl_seconds' => 300,
         // Set in the WebView when it first opens the page from the app, so a
         // lapsed session is sent to the renew address instead of the
         // password form. Holds no account details.

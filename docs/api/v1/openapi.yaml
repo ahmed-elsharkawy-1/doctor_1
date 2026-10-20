@@ -1280,7 +1280,7 @@ paths:
         its period links) inside a WebView, already signed in. No password and
         no cookie handling on the app's side.
 
-        **The link is single-use and lasts 2 minutes.** Request a new one each
+        **The link is single-use and lasts 5 minutes.** Request a new one each
         time the report screen opens, and load it straight away.
 
         Opening it starts the WebView's own session, which ends after a couple

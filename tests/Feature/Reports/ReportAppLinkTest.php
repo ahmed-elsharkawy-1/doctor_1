@@ -165,11 +165,21 @@ class ReportAppLinkTest extends TestCase
         $this->assertGuest('web');
     }
 
-    public function test_a_link_lapses_after_two_minutes(): void
+    public function test_a_link_still_opens_just_before_five_minutes(): void
     {
         $url = $this->issue();
 
-        Carbon::setTestNow(now()->addSeconds(config('clinic.reports.app_link_ttl_seconds') + 1));
+        Carbon::setTestNow(now()->addSeconds(299));
+
+        $this->open($url)->assertRedirect(route('reports.index'));
+        $this->assertAuthenticatedAs($this->owner, 'web');
+    }
+
+    public function test_a_link_lapses_after_five_minutes(): void
+    {
+        $url = $this->issue();
+
+        Carbon::setTestNow(now()->addSeconds(301));
 
         $this->open($url)->assertRedirect(route('reports.app.renew'));
         $this->assertGuest('web');
@@ -211,6 +221,53 @@ class ReportAppLinkTest extends TestCase
         // Tapping a period is a plain link, not a script on a <select>.
         $this->assertStringNotContainsString('<select id="rp-period"', $html);
         $this->assertStringContainsString('href="'.route('reports.show', ['type' => 'day', 'value' => '2026-10-02']).'"', $html);
+    }
+
+    /**
+     * The app's period control is one dropdown, like the website's, but it
+     * opens a list of links — no script — with the period on screen ticked.
+     */
+    public function test_inside_the_app_the_periods_are_one_dropdown_with_the_current_one_ticked(): void
+    {
+        $this->open($this->issue());
+
+        $html = $this->get(route('reports.show', ['type' => 'week', 'value' => '2026-10-03']))->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($html, '<details class="rp-menu"'));
+        $this->assertStringNotContainsString('rp-chip', $html);
+        // Days, weeks and months, in that order, under one control.
+        $order = array_map(fn ($key) => strpos($html, __('reports.page.'.$key)), ['group_days', 'group_weeks', 'group_months']);
+        $this->assertNotContains(false, $order);
+        $sorted = $order;
+        sort($sorted);
+        $this->assertSame($sorted, $order);
+        // Exactly one item is current, it is the one on screen, and it carries the tick.
+        $this->assertSame(1, substr_count($html, 'aria-current="page"'));
+        $this->assertMatchesRegularExpression(
+            '#href="'.preg_quote(route('reports.show', ['type' => 'week', 'value' => '2026-10-03']), '#').'"\s+aria-current="page"\s*>\s*<span>[^<]+</span>\s*<span class="rp-check"#',
+            $html,
+        );
+        $this->assertSame(1, substr_count($html, 'class="rp-check"'));
+    }
+
+    /** Today can be opened from both the app and the website, and is named as today. */
+    public function test_today_is_offered_in_the_app_and_on_the_website(): void
+    {
+        $today = route('reports.show', ['type' => 'day', 'value' => '2026-10-04']);
+
+        $this->open($this->issue());
+        $this->get(route('reports.show', ['type' => 'day', 'value' => '2026-10-03']))
+            ->assertSee('href="'.$today.'"', escape: false)
+            ->assertSee(__('reports.page.today'));
+
+        $this->get($today)->assertOk();
+
+        $this->app['auth']->forgetGuards();
+        $this->flushSession();
+        $this->actingAs($this->owner, 'web')
+            ->get(route('reports.show', ['type' => 'day', 'value' => '2026-10-03']))
+            ->assertSee('<option value="'.$today.'"', escape: false)
+            ->assertSee(__('reports.page.today'));
     }
 
     /** App mode follows the session, so tapping a period keeps it. */

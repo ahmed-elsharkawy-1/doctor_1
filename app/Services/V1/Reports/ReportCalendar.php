@@ -14,35 +14,54 @@ use Illuminate\Support\Carbon;
  * the page will open. Everything is in the clinic's own timezone, and weeks
  * are the business week, Saturday to Friday (SPEC §5.7).
  *
- * - Days: yesterday and the five before it. Today is still happening.
+ * - Days: today so far, yesterday, and the five before it. The morning
+ *   message is never about today — it is still happening — but the page
+ *   lets a doctor watch it as it goes.
  * - Weeks: this week so far, and last week.
  * - Months: this month so far, and the five before it.
  */
 class ReportCalendar
 {
+    /** Yesterday and the days before it; today comes on top of these. */
     public const DAYS = 6;
 
     public const PAST_MONTHS = 5;
 
     /**
-     * @return list<array{type: string, value: string, date: string, label: string}>
+     * Newest first: today, yesterday, then the days before.
+     *
+     * @return list<array{type: string, value: string, date: string, label: string, relative: 'today'|'yesterday'|null}>
      */
     public function days(Clinic $clinic): array
     {
-        $yesterday = $this->today($clinic)->subDay();
+        $today = $this->today($clinic);
         $days = [];
 
-        for ($i = 0; $i < self::DAYS; $i++) {
-            $day = $yesterday->copy()->subDays($i);
+        for ($i = 0; $i <= self::DAYS; $i++) {
+            $day = $today->copy()->subDays($i);
             $days[] = [
                 'type' => 'day',
                 'value' => $day->toDateString(),
                 'date' => $day->toDateString(),
                 'label' => $day->locale(app()->getLocale())->isoFormat('ddd D/M'),
+                'relative' => match ($i) {
+                    0 => 'today',
+                    1 => 'yesterday',
+                    default => null,
+                },
             ];
         }
 
         return $days;
+    }
+
+    /**
+     * The newest day that is over: what the reports page opens on, and what
+     * the morning message is about on an ordinary day.
+     */
+    public function yesterday(Clinic $clinic): string
+    {
+        return $this->today($clinic)->subDay()->toDateString();
     }
 
     /**

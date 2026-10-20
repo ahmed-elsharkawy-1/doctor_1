@@ -194,6 +194,14 @@ class ReportDeliveryTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
+        app(ReportDeliveryService::class)->deliver($this->clinic, 'day', '2026-09-01');
+    }
+
+    /** The page may show today as it goes; a sent report is about a finished day. */
+    public function test_today_is_never_sent(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
         app(ReportDeliveryService::class)->deliver($this->clinic, 'day', '2026-10-04'); // today
     }
 

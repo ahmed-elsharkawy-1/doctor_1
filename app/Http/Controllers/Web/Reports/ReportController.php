@@ -21,9 +21,7 @@ class ReportController extends Controller
 {
     public function index(Request $request, ReportCalendar $calendar): RedirectResponse
     {
-        $yesterday = $calendar->days($this->clinic($request))[0];
-
-        return redirect()->route('reports.show', ['type' => 'day', 'value' => $yesterday['value']]);
+        return redirect()->route('reports.show', ['type' => 'day', 'value' => $calendar->yesterday($this->clinic($request))]);
     }
 
     public function show(
