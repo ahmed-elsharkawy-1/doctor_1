@@ -17,7 +17,7 @@
     };
 @endphp
 
-<x-layouts.reports :title="__('reports.page.title').' — '.$clinic->name">
+<x-layouts.reports :title="__('reports.page.title').' — '.$clinic->name" :app="$app">
     <style>
         .rp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
         .rp-head h1 { font-size: 1.15rem; margin: 0; }
@@ -35,10 +35,47 @@
             border-left: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
             transform: translateY(-70%) rotate(-45deg); pointer-events: none;
         }
+        /* App mode's period links: a scrolling row per kind, the current one filled. */
+        /* The app's period dropdown: looks like the web select, opens a list of links. */
+        .rp-menu { margin-top: 12px; }
+        .rp-menu-btn {
+            list-style: none; position: relative; cursor: pointer; padding: 12px 14px 12px 40px;
+            border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2);
+            color: var(--ink); font-weight: 700;
+        }
+        .rp-menu-btn::-webkit-details-marker { display: none; }
+        .rp-menu-btn::after {
+            content: ""; position: absolute; left: 16px; top: 50%; width: 8px; height: 8px; margin-top: -6px;
+            border-left: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg);
+        }
+        .rp-menu[open] .rp-menu-btn::after { transform: rotate(135deg); margin-top: -2px; }
+        .rp-menu-list {
+            margin-top: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+            max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 0;
+        }
+        .rp-menu-title { margin: 8px 14px 4px; font-size: .78rem; font-weight: 700; color: var(--muted); }
+        .rp-menu-item {
+            display: flex; justify-content: space-between; align-items: center; gap: 8px;
+            padding: 11px 14px; color: var(--ink); text-decoration: none; font-weight: 600;
+        }
+        .rp-menu-item.is-current { color: var(--primary); font-weight: 800; background: var(--primary-50); }
+        .rp-check { font-weight: 800; }
         .rp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
         .rp-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .rp-stat { background: var(--surface-2); border-radius: 12px; padding: 12px; }
         .rp-stat b { display: block; font-size: 1.5rem; }
+        /* The headline card: all bookings across the top on a phone, the
+           three side by side once there is room. Income is the number that
+           matters most to the doctor, so it carries colour and an icon. */
+        .rp-headline .rp-total { grid-column: 1 / -1; }
+        @media (min-width: 560px) {
+            .rp-headline { grid-template-columns: repeat(3, 1fr); }
+            .rp-headline .rp-total { grid-column: auto; }
+        }
+        .rp-income { background: color-mix(in srgb, var(--success) 10%, var(--surface)); }
+        .rp-income .rp-muted { display: inline-flex; align-items: center; gap: 6px; color: var(--success); font-weight: 700; }
+        .rp-income b { color: var(--success); font-size: 1.7rem; }
+        .rp-money-icon { flex: none; }
         .rp-outcomes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
         .rp-outcomes b { display: block; font-size: 1.25rem; }
         .rp-done b { color: var(--success); }
@@ -75,7 +112,8 @@
                     <p class="rp-muted" style="margin: 4px 0 0">{{ $heading }}</p>
                 @endif
             </div>
-            @unless ($preview)
+            {{-- The app signs the WebView in and out itself. --}}
+            @unless ($preview || $app)
                 <form method="POST" action="{{ route('reports.logout') }}">
                     @csrf
                     <button class="rp-btn rp-btn-quiet" type="submit">{{ __('reports.page.sign_out') }}</button>
@@ -85,24 +123,52 @@
 
         {{-- Every period in one list, grouped; picking one opens it. One
              control, so it always names exactly what the numbers below are for. --}}
+        @php
+            $dayLabel = fn (array $day): string => ($day['relative'] ? __('reports.page.'.$day['relative']).' — ' : '')
+                .$label(\Illuminate\Support\Carbon::parse($day['value']))->isoFormat('dddd D MMMM');
+            $groups = [
+                'group_days' => collect($days)->map(fn ($day) => ['type' => 'day', 'value' => $day['value'], 'label' => $dayLabel($day)]),
+                'group_weeks' => collect($periods)->where('type', 'week')->values(),
+                'group_months' => collect($periods)->where('type', 'month')->values(),
+            ];
+            $currentLabel = collect($groups)->flatten(1)
+                ->first(fn ($option) => $option['type'] === $type && $option['value'] === $value)['label'] ?? $heading;
+        @endphp
+        @if ($app)
+            {{-- In the app: a dropdown that opens a list of plain links. A
+                 <select> that navigates from a script is the fragile part
+                 inside an iPhone WebView; <details> and a link need no script. --}}
+            <details class="rp-menu">
+                <summary class="rp-menu-btn"><span>{{ $currentLabel }}</span></summary>
+                <nav class="rp-menu-list" aria-label="{{ __('reports.page.period_label') }}">
+                    @foreach ($groups as $title => $options)
+                        @continue($options->isEmpty())
+                        <p class="rp-menu-title">{{ __('reports.page.'.$title) }}</p>
+                        @foreach ($options as $option)
+                            @php $current = $type === $option['type'] && $value === $option['value']; @endphp
+                            <a @class(['rp-menu-item', 'is-current' => $current]) href="{{ $link($option['type'], $option['value']) }}" @if ($current) aria-current="page" @endif>
+                                <span>{{ $option['label'] }}</span>
+                                @if ($current)<span class="rp-check" aria-hidden="true">✓</span>@endif
+                            </a>
+                        @endforeach
+                    @endforeach
+                </nav>
+            </details>
+        @else
         <div class="rp-picker">
             <label class="rp-sr" for="rp-period">{{ __('reports.page.period_label') }}</label>
             <select id="rp-period" onchange="if (this.value) { window.location.href = this.value; }">
-                <optgroup label="{{ __('reports.page.group_days') }}">
-                    @foreach ($days as $day)
-                        <option value="{{ $link('day', $day['value']) }}" @selected($type === 'day' && $value === $day['value'])>{{ $loop->first ? __('reports.page.yesterday').' — ' : '' }}{{ $label(\Illuminate\Support\Carbon::parse($day['value']))->isoFormat('dddd D MMMM') }}</option>
-                    @endforeach
-                </optgroup>
-                @foreach (['week' => 'group_weeks', 'month' => 'group_months'] as $group => $title)
+                @foreach ($groups as $title => $options)
+                    @continue($options->isEmpty())
                     <optgroup label="{{ __('reports.page.'.$title) }}">
-                        @foreach ($periods as $option)
-                            @continue($option['type'] !== $group)
+                        @foreach ($options as $option)
                             <option value="{{ $link($option['type'], $option['value']) }}" @selected($type === $option['type'] && $value === $option['value'])>{{ $option['label'] }}</option>
                         @endforeach
                     </optgroup>
                 @endforeach
             </select>
         </div>
+        @endif
     </section>
 
 
@@ -120,13 +186,22 @@
 
     @if ($hasBookings)
         <section class="rp-card">
-            <div class="rp-stats">
+            {{-- Every booking in the period first — done, no-show, cancelled and
+                 still waiting — then what was seen, then what it brought in. --}}
+            <div class="rp-stats rp-headline">
+                <div class="rp-stat rp-total">
+                    <span class="rp-muted">{{ __('reports.page.total_bookings') }}</span>
+                    <b>{{ $report->outcomes['total'] }}</b>
+                </div>
                 <div class="rp-stat">
                     <span class="rp-muted">{{ __('reports.page.completed') }}</span>
                     <b>{{ $report->completed['count'] }}</b>
                 </div>
-                <div class="rp-stat">
-                    <span class="rp-muted">{{ __('reports.page.income') }}</span>
+                <div class="rp-stat rp-income">
+                    <span class="rp-muted">
+                        <svg class="rp-money-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 10v4M18 10v4"/></svg>
+                        {{ __('reports.page.income') }}
+                    </span>
                     <b><bdi>{{ $money($report->completed['income']) }}</bdi></b>
                 </div>
             </div>
@@ -147,15 +222,6 @@
     @elseif (! $dayStatus || $dayStatus['kind'] === 'open')
         <section class="rp-card">
             <p class="rp-muted" style="margin: 0">{{ __('reports.page.no_bookings') }}</p>
-        </section>
-    @endif
-
-    @if ($report->nextDayBookings !== null)
-        <section class="rp-card">
-            <div class="rp-stat">
-                <span class="rp-muted">{{ __('reports.page.next_day') }}</span>
-                <b>{{ $report->nextDayBookings }}</b>
-            </div>
         </section>
     @endif
 
@@ -194,11 +260,6 @@
 
         <section class="rp-card">
             <h2>{{ __('reports.page.patients') }}</h2>
-            <div class="rp-stats">
-                <div class="rp-stat"><span class="rp-muted">{{ __('reports.page.new') }}</span><b>{{ $report->patients['new_count'] }}</b></div>
-                <div class="rp-stat"><span class="rp-muted">{{ __('reports.page.returning') }}</span><b>{{ $report->patients['returning_count'] }}</b></div>
-            </div>
-
             @if ($report->patients['new'] !== [])
                 @php
                     // Five on the page; the rest expand in place — a pop-up's

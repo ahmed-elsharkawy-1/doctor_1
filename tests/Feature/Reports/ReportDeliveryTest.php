@@ -6,8 +6,10 @@ use App\Models\Booking;
 use App\Models\ReportDelivery;
 use App\Models\User;
 use App\Services\Messaging\MessageSender;
+use App\Services\V1\Reports\ReportAccess;
 use App\Services\V1\Reports\ReportDeliveryService;
 use Database\Seeders\MessageTemplateSeeder;
+use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -192,6 +194,14 @@ class ReportDeliveryTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
+        app(ReportDeliveryService::class)->deliver($this->clinic, 'day', '2026-09-01');
+    }
+
+    /** The page may show today as it goes; a sent report is about a finished day. */
+    public function test_today_is_never_sent(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
         app(ReportDeliveryService::class)->deliver($this->clinic, 'day', '2026-10-04'); // today
     }
 
@@ -209,6 +219,38 @@ class ReportDeliveryTest extends TestCase
         $this->assertNotNull($event);
         $this->assertSame('0 9 * * *', $event->expression);
         $this->assertSame('Africa/Cairo', $event->timezone);
+    }
+
+    /**
+     * Paused until Meta approves the template: the reports page carries the
+     * numbers meanwhile, in the app and on the web. Off unless switched on.
+     */
+    public function test_the_morning_message_is_paused_by_default(): void
+    {
+        config(['clinic.reports.morning_whatsapp' => false]);
+
+        $this->assertFalse($this->morningEvent()->filtersPass($this->app));
+    }
+
+    public function test_switching_it_on_brings_the_morning_message_back(): void
+    {
+        config(['clinic.reports.morning_whatsapp' => true]);
+
+        $this->assertTrue($this->morningEvent()->filtersPass($this->app));
+    }
+
+    /** The pause is the WhatsApp message only — the page stays open. */
+    public function test_pausing_the_message_leaves_the_reports_page_open(): void
+    {
+        config(['clinic.reports.morning_whatsapp' => false]);
+
+        $this->assertNotNull(app(ReportAccess::class)->clinicFor($this->owner));
+    }
+
+    private function morningEvent(): Event
+    {
+        return collect(app(Schedule::class)->events())
+            ->first(fn ($event) => str_contains((string) $event->command, 'clinic:send-reports'));
     }
 
     private function morning(): void

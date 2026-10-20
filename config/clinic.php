@@ -113,7 +113,11 @@ return [
     | End-of-day housekeeping (SPEC §5.4).
     */
     'end_of_day' => [
-        'run_at' => '00:05',
+        // When a clinic's day is over, in its own local time on the next
+        // morning. Not midnight: evening shifts run past 12, and the doctor
+        // is still seeing yesterday's list at 00:30. Until this hour the day
+        // before is left open, so nobody still waiting is marked a no-show.
+        'closes_at' => env('CLINIC_DAY_CLOSES_AT', '05:00'),
     ],
 
     /*
@@ -424,10 +428,25 @@ return [
     | per clinic and per account in the admin panel.
     */
     'reports' => [
+        // The morning WhatsApp report. Paused until Meta approves the
+        // clinic_report template; the reports page — on the web and in the
+        // app — carries the numbers meanwhile. Pausing it never closes the
+        // page: that is clinics.reports_enabled, a different switch.
+        'morning_whatsapp' => (bool) env('CLINIC_REPORTS_MORNING_WHATSAPP', false),
         'send_at' => env('CLINIC_REPORTS_SEND_AT', '09:00'),
         'timezone' => env('CLINIC_REPORTS_TIMEZONE', 'Africa/Cairo'),
         // How long "remember me" keeps a doctor signed in to the reports page.
         'remember_days' => 90,
+
+        // The mobile app opens the page in a WebView through a single-use
+        // link that lasts this long. Opening it starts an ordinary session
+        // (SESSION_LIFETIME, idle) rather than the 90-day remembered login.
+        'app_link_ttl_seconds' => 300,
+        // Set in the WebView when it first opens the page from the app, so a
+        // lapsed session is sent to the renew address instead of the
+        // password form. Holds no account details.
+        'app_cookie' => 'reports_app',
+        'app_cookie_days' => 365,
     ],
 
     /*

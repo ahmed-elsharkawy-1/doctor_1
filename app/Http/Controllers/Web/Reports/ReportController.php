@@ -21,9 +21,7 @@ class ReportController extends Controller
 {
     public function index(Request $request, ReportCalendar $calendar): RedirectResponse
     {
-        $yesterday = $calendar->days($this->clinic($request))[0];
-
-        return redirect()->route('reports.show', ['type' => 'day', 'value' => $yesterday['value']]);
+        return redirect()->route('reports.show', ['type' => 'day', 'value' => $calendar->yesterday($this->clinic($request))]);
     }
 
     public function show(
@@ -33,7 +31,7 @@ class ReportController extends Controller
         ReportCalendar $calendar,
         ClinicPeriodReportService $reports,
     ): View {
-        return $this->page($this->clinic($request), $type, $value, $calendar, $reports, preview: false);
+        return $this->page($this->clinic($request), $type, $value, $calendar, $reports, preview: false, app: (bool) $request->session()->get('reports.app'));
     }
 
     /**
@@ -60,6 +58,7 @@ class ReportController extends Controller
         ReportCalendar $calendar,
         ClinicPeriodReportService $reports,
         bool $preview,
+        bool $app = false,
     ): View {
         $period = $calendar->resolve($clinic, $type, $value);
 
@@ -73,6 +72,8 @@ class ReportController extends Controller
             'days' => $calendar->days($clinic),
             'periods' => $calendar->periods($clinic),
             'preview' => $preview,
+            // Inside the mobile app's WebView: the app has its own frame.
+            'app' => $app,
             'link' => fn (string $linkType, string $linkValue): string => $preview
                 ? route('reports.preview', ['clinic' => $clinic->id, 'type' => $linkType, 'value' => $linkValue])
                 : route('reports.show', ['type' => $linkType, 'value' => $linkValue]),

@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Clinic;
 use App\Models\User;
+use App\Services\V1\Reports\ReportAccess;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,6 +24,13 @@ class EnsureReportAccess
         $clinic = self::clinicFor($request->user());
 
         if ($clinic === null) {
+            // A WebView the mobile app opened never meets the password form:
+            // the app watches for the renew address and quietly asks for a
+            // new link. A browser that never came from the app signs in.
+            if ($request->cookie(config('clinic.reports.app_cookie'))) {
+                return self::private(redirect()->route('reports.app.renew'));
+            }
+
             return redirect()->guest(route('reports.login'));
         }
 
@@ -31,16 +39,10 @@ class EnsureReportAccess
         return self::private($next($request));
     }
 
-    /** The clinic whose reports this account may read, or null. */
+    /** The clinic whose reports this account may read, or null — see ReportAccess. */
     public static function clinicFor(?User $user): ?Clinic
     {
-        if ($user === null || ! $user->is_active || ! $user->can_access_reports || ! $user->role->usesMobileApp()) {
-            return null;
-        }
-
-        $clinic = $user->activeClinic();
-
-        return $clinic !== null && $clinic->is_active && $clinic->reports_enabled ? $clinic : null;
+        return app(ReportAccess::class)->clinicFor($user);
     }
 
     public static function private(Response $response): Response

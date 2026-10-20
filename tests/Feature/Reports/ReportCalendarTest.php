@@ -38,14 +38,20 @@ class ReportCalendarTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_the_days_are_yesterday_and_the_five_before_it(): void
+    public function test_the_days_are_today_yesterday_and_the_five_before_it(): void
     {
-        $days = array_column($this->calendar()->days($this->clinic), 'date');
+        $days = $this->calendar()->days($this->clinic);
 
         $this->assertSame([
-            '2026-10-03', '2026-10-02', '2026-10-01', '2026-09-30',
+            self::TODAY, '2026-10-03', '2026-10-02', '2026-10-01', '2026-09-30',
             '2026-09-29', '2026-09-28',
-        ], $days);
+        ], array_column($days, 'date'));
+        $this->assertSame(['today', 'yesterday', null], array_slice(array_column($days, 'relative'), 0, 3));
+    }
+
+    public function test_yesterday_is_the_newest_finished_day(): void
+    {
+        $this->assertSame('2026-10-03', $this->calendar()->yesterday($this->clinic));
     }
 
     public function test_the_periods_are_this_and_last_week_this_month_and_five_months_before(): void
@@ -67,9 +73,16 @@ class ReportCalendarTest extends TestCase
         $this->assertSame('2026-09-28', $period->to->toDateString());
     }
 
-    public function test_today_and_older_days_do_not_resolve(): void
+    public function test_today_resolves_so_the_page_can_follow_it(): void
     {
-        $this->assertNull($this->calendar()->resolve($this->clinic, 'day', self::TODAY));
+        $period = $this->calendar()->resolve($this->clinic, 'day', self::TODAY);
+
+        $this->assertSame(self::TODAY, $period->from->toDateString());
+    }
+
+    public function test_future_and_older_days_do_not_resolve(): void
+    {
+        $this->assertNull($this->calendar()->resolve($this->clinic, 'day', '2026-10-05'));
         $this->assertNull($this->calendar()->resolve($this->clinic, 'day', '2026-09-27'));
         $this->assertNull($this->calendar()->resolve($this->clinic, 'day', 'not-a-date'));
     }

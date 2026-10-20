@@ -27,8 +27,11 @@ Schedule::command('clinic:release-lapsed-holds')
 | The doctors' morning WhatsApp report. One time for every clinic, in Cairo
 | time; which clinics get it is decided per clinic in the admin panel. A
 | missed morning is not caught up — the panel's "send report" covers it.
+| Paused unless CLINIC_REPORTS_MORNING_WHATSAPP is on — read each morning,
+| so switching it needs no deploy beyond the .env change.
 */
 Schedule::command('clinic:send-reports')
+    ->when(fn (): bool => (bool) config('clinic.reports.morning_whatsapp'))
     ->dailyAt(config('clinic.reports.send_at'))
     ->timezone(config('clinic.reports.timezone'))
     ->withoutOverlapping()

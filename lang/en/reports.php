@@ -64,6 +64,14 @@ return [
         'last_week' => 'Last week',
         'this_month' => 'This month',
     ],
+    // The reports page inside the mobile app.
+    'app' => [
+        'link_issued' => 'Reports link ready.',
+        'not_available' => 'Reports are not available for this account.',
+        'renew_title' => 'The report session has ended',
+        'renew_body' => 'Close the report and open it again from the app.',
+    ],
+
     'page' => [
         'title' => 'Clinic reports',
         'sign_in_title' => 'Sign in to reports',
@@ -74,6 +82,7 @@ return [
         'sign_out' => 'Sign out',
         'days' => 'Days',
         'periods' => 'Weeks and months',
+        'total_bookings' => 'All bookings',
         'completed' => 'Completed visits',
         'income' => 'Income',
         'previous' => 'Previous period: :count visits — :income',
@@ -106,6 +115,7 @@ return [
         'no_show_rate' => ':no_show of :expected did not come (:percent%)',
         'visits' => '{0} no visits|{1} 1 visit|[2,*] :count visits',
         'period_label' => 'Period',
+        'today' => 'Today',
         'yesterday' => 'Yesterday',
         'group_days' => 'Days',
         'group_weeks' => 'Weeks',

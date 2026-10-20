@@ -64,6 +64,14 @@ return [
         'last_week' => 'الأسبوع الماضي',
         'this_month' => 'الشهر الحالي',
     ],
+    // The reports page inside the mobile app.
+    'app' => [
+        'link_issued' => 'تم تجهيز رابط التقارير.',
+        'not_available' => 'التقارير غير متاحة لهذا الحساب.',
+        'renew_title' => 'انتهت جلسة التقرير',
+        'renew_body' => 'أغلق التقرير وافتحه مرة أخرى من التطبيق.',
+    ],
+
     'page' => [
         'title' => 'تقارير العيادة',
         'sign_in_title' => 'تسجيل الدخول للتقارير',
@@ -74,6 +82,7 @@ return [
         'sign_out' => 'خروج',
         'days' => 'الأيام',
         'periods' => 'الأسابيع والشهور',
+        'total_bookings' => 'إجمالي الحجوزات',
         'completed' => 'كشوفات مكتملة',
         'income' => 'الدخل',
         'previous' => 'الفترة السابقة: :count كشف — :income',
@@ -106,6 +115,7 @@ return [
         'no_show_rate' => ':no_show من :expected لم يحضروا (:percent٪)',
         'visits' => '{0} لا كشوفات|{1} كشف واحد|{2} كشفان|[3,10] :count كشوفات|[11,*] :count كشف',
         'period_label' => 'الفترة',
+        'today' => 'اليوم',
         'yesterday' => 'أمس',
         'group_days' => 'الأيام',
         'group_weeks' => 'الأسابيع',

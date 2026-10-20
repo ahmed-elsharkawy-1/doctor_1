@@ -51,18 +51,31 @@ class ClinicSchedulePeriod extends Model
      *
      * An overnight period closes on the following calendar date — built from
      * that date and the wall-clock time, never by shifting the opening instant,
-     * so a DST change in the night cannot move the close.
+     * so a DST change in the night cannot move the close. So does one ending
+     * at 23:59, which means midnight (see endsAtMidnight()).
      *
      * @return array{0: Carbon, 1: Carbon}
      */
     public function boundsOn(Carbon $date, string $timezone): array
     {
-        $closesOn = $this->crossesMidnight() ? $date->copy()->addDay() : $date;
+        $closesNextDay = $this->crossesMidnight() || $this->endsAtMidnight();
+        $closesOn = $closesNextDay ? $date->copy()->addDay() : $date;
+        $closesAt = $this->endsAtMidnight() ? '00:00' : $this->endTime();
 
         return [
             Carbon::parse($date->toDateString().' '.$this->startTime(), $timezone),
-            Carbon::parse($closesOn->toDateString().' '.$this->endTime(), $timezone),
+            Carbon::parse($closesOn->toDateString().' '.$closesAt, $timezone),
         ];
+    }
+
+    /**
+     * Whether the period runs to the end of the day. Times are HH:MM within
+     * one day, so a shift that ends at midnight can only be entered as 23:59 —
+     * read as midnight, or the last visit before 12 would never be offered.
+     */
+    public function endsAtMidnight(): bool
+    {
+        return $this->endTime() === '23:59';
     }
 
     /**

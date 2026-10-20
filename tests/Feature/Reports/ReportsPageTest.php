@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Reports;
 
+use App\Enums\BookingStatus;
 use App\Enums\DayOfWeek;
 use App\Models\Booking;
 use App\Models\Patient;
@@ -161,18 +162,65 @@ class ReportsPageTest extends TestCase
             ->assertSee(__('reports.page.completed'))
             ->assertSee('940')
             ->assertSee('سارة أحمد')
-            ->assertSee('01012225521')
-            ->assertSee(__('reports.page.next_day'));
+            ->assertSee('01012225521');
     }
 
-    public function test_the_page_offers_the_six_days_and_the_periods(): void
+    /**
+     * The headline card opens with every booking in the period — done,
+     * no-show, cancelled and still waiting — then the completed visits, then
+     * the income, set apart with its own icon.
+     */
+    public function test_the_headline_card_leads_with_all_bookings_then_completed_then_income(): void
+    {
+        $this->visitOn(self::YESTERDAY, 400);
+        Booking::factory()->forClinic($this->clinic)->at(Carbon::parse(self::YESTERDAY.' 11:00', 'Africa/Cairo'))->create(['status' => BookingStatus::NO_SHOW]);
+        Booking::factory()->forClinic($this->clinic)->at(Carbon::parse(self::YESTERDAY.' 12:00', 'Africa/Cairo'))->create(['status' => BookingStatus::CANCELLED]);
+
+        $html = $this->actingAs($this->owner)->get('/reports/day/'.self::YESTERDAY)->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('#'.preg_quote(__('reports.page.total_bookings'), '#').'</span>\s*<b>3</b>#u', $html);
+        $order = array_map(fn ($key) => strpos($html, __('reports.page.'.$key)), ['total_bookings', 'completed', 'income']);
+        $this->assertNotContains(false, $order);
+        $sorted = $order;
+        sort($sorted);
+        $this->assertSame($sorted, $order);
+        $this->assertStringContainsString('class="rp-stat rp-income"', $html);
+        $this->assertStringContainsString('class="rp-money-icon"', $html);
+    }
+
+    /** Today counts what is still waiting too: it is how many are booked. */
+    public function test_the_total_counts_bookings_still_waiting(): void
+    {
+        foreach (['10:00', '11:00'] as $time) {
+            Booking::factory()->forClinic($this->clinic)->at(Carbon::parse('2026-10-04 '.$time, 'Africa/Cairo'))->create();
+        }
+
+        $html = $this->actingAs($this->owner)->get('/reports/day/2026-10-04')->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('#'.preg_quote(__('reports.page.total_bookings'), '#').'</span>\s*<b>2</b>#u', $html);
+    }
+
+    /** Removed on request: the page no longer shows these, on the web or in the app. */
+    public function test_no_next_day_count_and_no_new_or_returning_totals(): void
+    {
+        $this->visitOn(self::YESTERDAY, 400);
+
+        $this->actingAs($this->owner)->get('/reports/day/'.self::YESTERDAY)
+            ->assertOk()
+            ->assertSee(__('reports.page.patients'))
+            ->assertDontSee(__('reports.page.next_day'))
+            ->assertDontSee(__('reports.page.returning'));
+    }
+
+    public function test_the_page_offers_today_the_six_days_before_and_the_periods(): void
     {
         $html = $this->actingAs($this->owner)->get('/reports/day/'.self::YESTERDAY)->assertOk()->getContent();
 
+        $this->assertStringContainsString('/reports/day/2026-10-04', $html);
         $this->assertStringContainsString('/reports/day/2026-10-03', $html);
         $this->assertStringContainsString('/reports/day/2026-09-28', $html);
         $this->assertStringNotContainsString('/reports/day/2026-09-27', $html);
-        $this->assertStringNotContainsString('/reports/day/2026-10-04', $html);
+        $this->assertStringNotContainsString('/reports/day/2026-10-05', $html);
         $this->assertStringContainsString('/reports/week/2026-09-26', $html);
         $this->assertStringContainsString('/reports/month/2026-05', $html);
         $this->assertStringNotContainsString('/reports/month/2026-04', $html);
@@ -219,9 +267,7 @@ class ReportsPageTest extends TestCase
             ->assertDontSee(__('reports.page.completed'))
             ->assertDontSee(__('reports.page.by_type'))
             ->assertDontSee(__('reports.page.outcomes'))
-            ->assertDontSee(__('reports.page.patients'))
-            // Still worth knowing on an empty day.
-            ->assertSee(__('reports.page.next_day'));
+            ->assertDontSee(__('reports.page.patients'));
     }
 
     /** Bookings but nobody seen: the numbers and why — no empty tables. */
@@ -332,7 +378,7 @@ class ReportsPageTest extends TestCase
 
         $html = $this->actingAs($this->owner)->get('/reports/day/'.self::YESTERDAY)->getContent();
 
-        $order = array_map(fn ($key) => strpos($html, __('reports.page.'.$key)), ['completed', 'next_day', 'outcomes', 'by_type', 'patients']);
+        $order = array_map(fn ($key) => strpos($html, __('reports.page.'.$key)), ['completed', 'outcomes', 'by_type', 'patients']);
         $sorted = $order;
         sort($sorted);
 
@@ -357,7 +403,7 @@ class ReportsPageTest extends TestCase
     /** Only what the calendar allows; everything else does not exist. */
     public function test_a_period_outside_the_range_is_not_found(): void
     {
-        $this->actingAs($this->owner)->get('/reports/day/2026-10-04')->assertNotFound();
+        $this->actingAs($this->owner)->get('/reports/day/2026-10-05')->assertNotFound();
         $this->actingAs($this->owner)->get('/reports/day/2026-01-01')->assertNotFound();
         $this->actingAs($this->owner)->get('/reports/month/2025-01')->assertNotFound();
     }

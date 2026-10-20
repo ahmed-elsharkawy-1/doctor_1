@@ -64,7 +64,7 @@ tags:
   - name: Patients
     description: Search and visit history
   - name: Reports
-    description: Revenue and retention
+    description: Revenue and retention, and the link that opens the doctor's reports page in a WebView
 
 paths:
 
@@ -1297,6 +1297,61 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
 
+  /reports/web-link:
+    post:
+      tags: [Reports]
+      summary: Reports page link for a WebView
+      description: |
+        A link that opens the doctor's reports page (day, week and month, with
+        its period links) inside a WebView, already signed in. No password and
+        no cookie handling on the app's side.
+
+        **The link is single-use and lasts 5 minutes.** Request a new one each
+        time the report screen opens, and load it straight away.
+
+        Opening it starts the WebView's own session, which ends after a couple
+        of hours without use; it is independent of this API token, which it
+        never affects. Inside the app the page hides its own header and
+        sign-out, and its period links are plain links.
+
+        **Renewing, silently:** whenever the WebView cannot be signed in — the
+        link was already used or lapsed, or the session ended — the page sends
+        it to `renew_url` instead of a login form. Watch the WebView's
+        navigation (iOS `decidePolicyFor navigationAction`, Android
+        `shouldOverrideUrlLoading`): when it is about to load `renew_url`,
+        cancel that load, call this endpoint again and load the new `url`.
+        The WebView usually reaches `renew_url` through a redirect, so also
+        act when a page **finishes loading** at `renew_url` (iOS
+        `didFinish`, Android `onPageFinished`) — whichever fires first. If it
+        is ever shown, `renew_url` only asks the user to reopen the report.
+
+        On sign-out from the app, clear the WebView's cookies, so the next
+        account on the same phone does not open the previous one's session.
+
+        Who may: any account with report access whose clinic has reports
+        switched on — the same rule as the website. Owner or secretary alike;
+        this endpoint does not use the `reports.view` ability.
+      operationId: reportWebLink
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/ReportWebLink" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`REPORTS_NOT_AVAILABLE` — this account has no report access, or its clinic has reports off. Hide the entry point."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: Too many requests — at most 30 a minute per account.
+
 components:
 
   securitySchemes:
@@ -1978,6 +2033,25 @@ components:
               type: [number, "null"]
               description: Null when the previous period earned nothing — growth from zero is not a percentage.
             direction: { type: string, enum: [up, down, flat] }
+
+    ReportWebLink:
+      type: object
+      required: [url, expires_at, renew_url]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Open in the WebView. Single-use.
+          example: https://elayadah.com/reports/app/open/mBCLwjFiswEu0zjJ88DHgme4oXFTsA08iwEIrKcVhhaUr0aQ4mtoOEGkRuN25utR
+        expires_at:
+          type: string
+          format: date-time
+          description: After this the link only leads to `renew_url`.
+        renew_url:
+          type: string
+          format: uri
+          description: The address to watch for. When the WebView is about to load it, ask for a new link instead.
+          example: https://elayadah.com/reports/app/renew
 
     RevenueReport:
       type: object

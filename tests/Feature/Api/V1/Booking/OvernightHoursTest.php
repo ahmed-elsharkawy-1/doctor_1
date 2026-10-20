@@ -282,20 +282,44 @@ class OvernightHoursTest extends TestCase
         $this->assertSame('2026-08-11', $this->clinic->currentDay()->toDateString());
     }
 
+    /**
+     * Monday stays open while either rule says so: its own period (to 03:00)
+     * or the clinic's closing hour (05:00 by default).
+     */
     public function test_the_evening_is_not_closed_out_until_its_period_has_ended(): void
     {
-        $booking = Booking::factory()
+        $booking = $this->nightBooking();
+
+        foreach (['01:00' => BookingStatus::BOOKED, '04:00' => BookingStatus::BOOKED, '05:00' => BookingStatus::NO_SHOW] as $time => $expected) {
+            Carbon::setTestNow(Carbon::parse("2026-08-11 {$time}:00", 'Africa/Cairo'));
+            $this->artisan('clinic:close-day')->assertSuccessful();
+            $this->assertSame($expected, $booking->refresh()->status, "at {$time}");
+        }
+    }
+
+    /**
+     * With an early closing hour, the overnight period is what keeps Monday
+     * open — until 03:00, when it ends.
+     */
+    public function test_an_overnight_period_outlasts_an_earlier_closing_hour(): void
+    {
+        config(['clinic.end_of_day.closes_at' => '02:00']);
+
+        $booking = $this->nightBooking();
+
+        foreach (['02:30' => BookingStatus::BOOKED, '03:00' => BookingStatus::NO_SHOW] as $time => $expected) {
+            Carbon::setTestNow(Carbon::parse("2026-08-11 {$time}:00", 'Africa/Cairo'));
+            $this->artisan('clinic:close-day')->assertSuccessful();
+            $this->assertSame($expected, $booking->refresh()->status, "at {$time}");
+        }
+    }
+
+    private function nightBooking(): Booking
+    {
+        return Booking::factory()
             ->forClinic($this->clinic)
             ->at(Carbon::parse('2026-08-11 01:00', 'Africa/Cairo'))
             ->create(['visit_date' => '2026-08-10', 'status' => BookingStatus::BOOKED]);
-
-        Carbon::setTestNow(Carbon::parse('2026-08-11 01:00:00', 'Africa/Cairo'));
-        $this->artisan('clinic:close-day')->assertSuccessful();
-        $this->assertSame(BookingStatus::BOOKED, $booking->refresh()->status);
-
-        Carbon::setTestNow(Carbon::parse('2026-08-11 04:00:00', 'Africa/Cairo'));
-        $this->artisan('clinic:close-day')->assertSuccessful();
-        $this->assertSame(BookingStatus::NO_SHOW, $booking->refresh()->status);
     }
 
     /**

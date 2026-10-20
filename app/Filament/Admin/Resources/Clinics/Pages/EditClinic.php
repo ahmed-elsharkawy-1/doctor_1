@@ -70,7 +70,7 @@ class EditClinic extends EditRecord
                 ->url(fn (): string => route('reports.preview', [
                     'clinic' => $this->record->getKey(),
                     'type' => 'day',
-                    'value' => app(ReportCalendar::class)->days($this->record)[0]['value'],
+                    'value' => app(ReportCalendar::class)->yesterday($this->record),
                 ]))
                 ->openUrlInNewTab(),
         ];
@@ -87,6 +87,11 @@ class EditClinic extends EditRecord
         $options = [];
 
         foreach ([...$calendar->days($this->record), ...$calendar->periods($this->record)] as $period) {
+            // A report is sent about a day that is over; today still is not.
+            if (($period['relative'] ?? null) === 'today') {
+                continue;
+            }
+
             $options[$period['type'].':'.$period['value']] = $period['label'];
         }
 

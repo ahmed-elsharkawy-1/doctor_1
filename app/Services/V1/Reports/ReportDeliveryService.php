@@ -37,6 +37,12 @@ class ReportDeliveryService
             throw new InvalidArgumentException("[$type $value] is not a report period this clinic can open.");
         }
 
+        // The page lets a doctor watch today as it goes; a sent report is
+        // about a day that is over, and a message does not update itself.
+        if ($type === 'day' && $value > $this->calendar->yesterday($clinic)) {
+            throw new InvalidArgumentException("[$type $value] has not finished yet; only a finished day can be sent.");
+        }
+
         $outcome = [];
 
         foreach ($this->recipients($clinic) as $user) {
