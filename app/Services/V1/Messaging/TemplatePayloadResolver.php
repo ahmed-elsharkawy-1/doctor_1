@@ -6,7 +6,6 @@ use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\MessageTemplate;
 use App\Support\PhoneNumber;
-use Illuminate\Support\Carbon;
 
 /**
  * Fills one approved WhatsApp template in for one booking.
@@ -141,14 +140,13 @@ class TemplatePayloadResolver
 
     /**
      * "15 سبتمبر 2026" — the same long form the approved sample used.
+     *
+     * The day the booking is under, even after midnight: the patient is told
+     * Monday, and the time says "بعد منتصف الليل" (see time()).
      */
     private function date(Booking $booking, Clinic $clinic): string
     {
-        $date = $booking->visit_date instanceof Carbon
-            ? $booking->visit_date
-            : Carbon::parse((string) $booking->visit_date, $clinic->timezone);
-
-        return $this->clean($date->locale('ar')->isoFormat('D MMMM YYYY'), '—');
+        return $this->clean($booking->visit_date->copy()->locale('ar')->isoFormat('D MMMM YYYY'), '—');
     }
 
     /**
@@ -161,9 +159,11 @@ class TemplatePayloadResolver
             return __('messages.fallback.no_time');
         }
 
-        $meridiem = $booking->start_at->format('A') === 'AM'
-            ? __('schedule.am')
-            : __('schedule.pm');
+        $meridiem = match (true) {
+            $booking->startsAfterMidnight() => __('schedule.after_midnight'),
+            $booking->start_at->format('A') === 'AM' => __('schedule.am'),
+            default => __('schedule.pm'),
+        };
 
         return $this->clean($booking->start_at->format('h:i').' '.$meridiem, '—');
     }

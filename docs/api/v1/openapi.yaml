@@ -360,6 +360,12 @@ paths:
         Replaces the whole day — send every period you want kept. Period ids are
         **not stable** across a save; never hold onto one. Closing a day drops
         its periods whatever you send.
+
+        **A period may run past midnight.** An `end_time` earlier than its
+        `start_time` (`19:00` → `03:00`) closes the next morning, and every
+        booking in it — the 01:00 ones included — belongs to *this* day. It
+        must close by `06:00`. While it is open nothing else may start before
+        its close: not another period on this day, and not the next day.
       operationId: updateScheduleDay
       requestBody:
         required: true
@@ -395,10 +401,18 @@ paths:
                       data: { $ref: "#/components/schemas/ScheduleDay" }
         "400":
           description: |
-            `SCHEDULE_PERIOD_INVALID` — an open day with no periods, or an end
-            at or before its start. `SCHEDULE_PERIOD_OVERLAP` — two periods
-            overlap; `details.first` and `details.second` name them.
-            Back-to-back periods are fine.
+            `SCHEDULE_PERIOD_INVALID` — an open day with no periods, a period
+            that starts and ends at the same time, or one that runs past
+            midnight and closes after `06:00`.
+
+            `SCHEDULE_PERIOD_OVERLAP` — two periods overlap (`details.first`
+            and `details.second` name them), or a period starts before an
+            overnight period has closed: this day's own, or the day before's.
+            Then `details` carries `day` (the day whose night it is),
+            `closes_at`, and the offending `period`.
+
+            Back-to-back periods are fine, including `03:00` straight after a
+            night that closes at `03:00`.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -599,6 +613,13 @@ paths:
         a visit must *finish* inside its period; a slot is blocked by any
         overlapping booking of any visit type; cancelled bookings free their
         slot; touching intervals do not collide.
+
+        **After midnight.** On a day whose period runs past midnight, the
+        list for that `date` carries on after 23:xx with `00:00`, `00:30`,
+        `01:00`… in time order. Those slots belong to `date`, not the next
+        day: book them by sending the same `date` and the `start_time` shown.
+        Between midnight and the period's close the clinic's "today" is still
+        the evening's date, so it stays bookable.
       operationId: slots
       parameters:
         - name: date
@@ -776,6 +797,11 @@ paths:
 
         `update_patient_name: true` replaces the stored name; without it a
         differing name is ignored, so a typo cannot quietly rewrite the record.
+
+        `date` is the clinic day, not the calendar day: a 01:00 slot in
+        Monday's 19:00–03:00 is booked with Monday's `date` and `start_time:
+        "01:00"`, and comes back with Monday's `date`. The server knows it
+        happens on Tuesday.
 
         Normal bookings require `start_time`. Emergency bookings use
         `booking_kind: emergency`, require `patient_location`, must not send

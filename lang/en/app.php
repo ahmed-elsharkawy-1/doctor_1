@@ -112,6 +112,7 @@ return [
         'arrival_lead_hint' => 'Subtracted from the appointment time on the patient page.',
         'save_day' => 'Save day',
         'add_period' => 'Add period',
+        'ends_next_day' => 'Ends the next morning — bookings stay on this day',
         'add_visit_type' => 'New visit type',
         'show_hidden' => 'Show hidden',
         'hidden' => 'Hidden',

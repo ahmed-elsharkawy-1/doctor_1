@@ -62,7 +62,7 @@ class SlotHoldService
         ?string $token = null,
     ): SlotHold {
         $visitType = $this->bookableVisitType($clinic, $visitTypeId, $source);
-        $startAt = Carbon::parse("{$date} {$startTime}", $clinic->timezone);
+        $startAt = $this->slots->startAt($clinic, $date, $startTime);
         $day = Carbon::parse($date, $clinic->timezone)->startOfDay();
         $token ??= $this->newToken();
 
@@ -71,7 +71,7 @@ class SlotHoldService
         ): SlotHold {
             // Asked with this holder's own token, so moving a hold back onto
             // the slot it already sits on is never refused by itself.
-            $this->guard->ensureFree($clinic, $startAt, $visitType, holdToken: $token);
+            $this->guard->ensureFree($clinic, $day, $startAt, $visitType, holdToken: $token);
 
             return SlotHold::updateOrCreate(['token' => $token], [
                 'clinic_id' => $clinic->id,

@@ -257,6 +257,18 @@ class Booking extends Model
     |--------------------------------------------------------------------------
     */
 
+    /**
+     * A visit in the small hours of an evening that ran past midnight — 01:00
+     * in Monday's 19:00–03:00. It stays on Monday for everyone, the patient
+     * included; its time says "بعد منتصف الليل" so Monday 01:00 is not read
+     * as the early hours of Monday, a day too soon.
+     */
+    public function startsAfterMidnight(): bool
+    {
+        return $this->start_at !== null
+            && $this->start_at->toDateString() !== $this->visit_date->toDateString();
+    }
+
     public function isEditable(): bool
     {
         return $this->status->isEditable();

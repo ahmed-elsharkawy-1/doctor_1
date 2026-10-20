@@ -32,7 +32,7 @@ class QueuePositionService
         $clinic = $booking->clinic;
         $now = Carbon::now($clinic->timezone);
 
-        if ($booking->visit_date->toDateString() !== $now->toDateString()) {
+        if ($booking->visit_date->toDateString() !== $clinic->currentDay()->toDateString()) {
             return null;
         }
 

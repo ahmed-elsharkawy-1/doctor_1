@@ -320,11 +320,27 @@ Closing a day (`is_open: false`) drops its periods, whatever you send.
 | Code | HTTP | When |
 |---|---|---|
 | `SCHEDULE_DAY_NOT_FOUND` | 404 | `{day}` outside 0–6 |
-| `SCHEDULE_PERIOD_INVALID` | 400 | An open day with no periods, or `end_time` ≤ `start_time`. `details` carries the offending period. |
-| `SCHEDULE_PERIOD_OVERLAP` | 400 | Two periods overlap. `details.first` / `details.second`. |
+| `SCHEDULE_PERIOD_INVALID` | 400 | An open day with no periods, a period with `end_time` = `start_time`, or an overnight period that closes after `06:00`. `details` carries the offending period. |
+| `SCHEDULE_PERIOD_OVERLAP` | 400 | Two periods overlap (`details.first` / `details.second`), or a period starts before an overnight period has closed (`details.day`, `details.closes_at`, `details.period`). |
 
 Back-to-back periods (`09:00–12:00` then `12:00–15:00`) are allowed.
 Times are `HH:mm`, 24-hour. Max 6 periods per day.
+
+#### Periods that run past midnight
+
+An `end_time` earlier than `start_time` means the period closes the next
+morning: Monday `19:00`–`03:00` is one evening.
+
+- Every booking in it belongs to Monday — the 01:00 ones included. They are on
+  Monday's queue, in Monday's reports, and the patient is told Monday.
+- It must close by `06:00`, so a typo like `09:00`–`05:00` is refused rather
+  than read as a 20-hour day.
+- Until it closes, nothing else may start: no other Monday period before
+  `03:00` (Monday's `01:00` would mean two different times), and Tuesday
+  cannot open before `03:00` (two days' bookings would share the same minutes).
+- Between midnight and `03:00`, the clinic's "today" is still Monday: the
+  queue opens on Monday and Monday's slots stay bookable. The hourly close-out
+  leaves Monday alone until the period has ended.
 
 ---
 
@@ -477,6 +493,9 @@ Rules the server applies, so the app doesn't have to:
 - A slot is unavailable if it overlaps any existing booking of **any** visit
   type. Cancelled bookings free their slot; completed ones do not.
 - Touching is fine: a visit starting exactly when another ends is available.
+- On a day whose period runs past midnight, the list carries on after 23:xx
+  with `00:00`, `00:20`… in time order. Those slots belong to the `date` you
+  asked for: book them with that same `date` and the `start_time` shown.
 
 ### `POST /patients/lookup`
 

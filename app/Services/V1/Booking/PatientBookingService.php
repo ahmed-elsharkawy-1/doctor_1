@@ -122,8 +122,7 @@ class PatientBookingService
         $ranges = [];
 
         foreach ($periods as $period) {
-            $opens = Carbon::parse($date->toDateString().' '.$period->start_time, $clinic->timezone);
-            $closes = Carbon::parse($date->toDateString().' '.$period->end_time, $clinic->timezone);
+            [$opens, $closes] = $period->boundsOn($date, $clinic->timezone);
 
             $inside = array_values(array_filter(
                 $free,
@@ -373,7 +372,7 @@ class PatientBookingService
             }
         }
 
-        return Carbon::now($clinic->timezone)->toDateString();
+        return $clinic->currentDay()->toDateString();
     }
 
     /**
@@ -393,10 +392,7 @@ class PatientBookingService
         $periods = [];
 
         foreach ($schedule?->periods ?? [] as $period) {
-            $periods[] = [
-                Carbon::parse($date->toDateString().' '.$period->start_time, $clinic->timezone),
-                Carbon::parse($date->toDateString().' '.$period->end_time, $clinic->timezone),
-            ];
+            $periods[] = $period->boundsOn($date, $clinic->timezone);
         }
 
         return $this->grouper->group($availability->slots, $periods);
@@ -602,7 +598,7 @@ class PatientBookingService
 
     public function isWithinPatientWindow(Clinic $clinic, string $date): bool
     {
-        $today = Carbon::now($clinic->timezone)->startOfDay();
+        $today = $clinic->currentDay();
         $last = $today->copy()->addDays($clinic->patientBookingWindowDays() - 1);
         $day = Carbon::parse($date, $clinic->timezone)->startOfDay()->toDateString();
 

@@ -197,6 +197,7 @@ return [
         'day' => 'Day',
         'slot' => 'Time',
         'taken_note' => 'Struck through means taken',
+        'slot_next_day' => 'After midnight',
         'no_slots_day' => 'No appointments available on this day.',
         'hold_note' => 'Best to confirm within :minutes so this time stays yours.',
         'confirm' => 'Confirm booking',

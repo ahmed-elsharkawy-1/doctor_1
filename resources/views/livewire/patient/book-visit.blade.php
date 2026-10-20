@@ -259,6 +259,9 @@
                         </div>
                         <div>
                             <div style="font-size: 17px; font-weight: 800">{{ $clock($upcoming->start_at) ?? __('app.queue.no_time') }}</div>
+                            @if ($upcoming->startsAfterMidnight())
+                                <div class="hint">{{ __('schedule.after_midnight') }}</div>
+                            @endif
                             <div class="hint">{{ $upcoming->visitType?->name }} · {{ __('booking.self_booking.minutes', ['count' => $upcoming->duration_minutes]) }}</div>
                         </div>
                     </div>
@@ -345,8 +348,8 @@
                             </div>
                         @else
                             @php
-                                $slotButton = function ($slot) use ($startTime, $clock) {
-                                    return view('livewire.patient.slot-button', compact('slot', 'startTime', 'clock'));
+                                $slotButton = function ($slot) use ($startTime, $clock, $availability) {
+                                    return view('livewire.patient.slot-button', ['slot' => $slot, 'startTime' => $startTime, 'clock' => $clock, 'day' => $availability->date]);
                                 };
                             @endphp
 
@@ -413,6 +416,9 @@
                         </div>
                         <div>
                             <div style="font-size: 20px; font-weight: 800">{{ $clock($confirmed->start_at) }}</div>
+                            @if ($confirmed->startsAfterMidnight())
+                                <div class="hint">{{ __('schedule.after_midnight') }}</div>
+                            @endif
                             <div class="hint">{{ $longDate($confirmed->visit_date) }} · {{ $confirmed->visitType?->name }}</div>
                         </div>
                     </div>

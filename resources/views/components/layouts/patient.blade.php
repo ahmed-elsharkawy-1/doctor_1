@@ -366,6 +366,7 @@
             font-size: 14.5px; font-weight: 600;
             cursor: pointer;
         }
+        .slot-next-day { display: block; font-size: 10.5px; font-weight: 600; opacity: .75; line-height: 1.2; }
         .slot[aria-pressed="true"] {
             background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 700;
             box-shadow: 0 6px 14px rgba(24, 95, 165, .24);

@@ -30,6 +30,7 @@ class BookingService
         private readonly SlotGuard $guard,
         private readonly ClinicDayLock $lock,
         private readonly SlotHoldService $holds,
+        private readonly SlotAvailabilityService $slots,
     ) {}
 
     /**
@@ -53,7 +54,7 @@ class BookingService
             if ($data->bookingKind === BookingKind::NORMAL) {
                 // Asked with this caller's own hold, so the slot they have
                 // been sitting on is free to them and to nobody else.
-                $this->guard->ensureFree($clinic, $startAt, $visitType, holdToken: $data->holdToken);
+                $this->guard->ensureFree($clinic, $this->clinicDate($clinic, $data->date), $startAt, $visitType, holdToken: $data->holdToken);
             }
 
             $patient = $this->patientFor($clinic, $data, $phone);
@@ -143,7 +144,7 @@ class BookingService
         ) {
             // The booking must not collide with itself.
             if ($data->bookingKind === BookingKind::NORMAL) {
-                $this->guard->ensureFree($clinic, $startAt, $visitType, $booking->id, $data->holdToken);
+                $this->guard->ensureFree($clinic, $this->clinicDate($clinic, $data->date), $startAt, $visitType, $booking->id, $data->holdToken);
             }
 
             $patient = $this->patientFor($clinic, $data, $phone);
@@ -300,7 +301,7 @@ class BookingService
 
     private function startAt(Clinic $clinic, string $date, string $time): Carbon
     {
-        return Carbon::parse("{$date} {$time}", $clinic->timezone);
+        return $this->slots->startAt($clinic, $date, $time);
     }
 
     private function clinicDate(Clinic $clinic, string $date): Carbon

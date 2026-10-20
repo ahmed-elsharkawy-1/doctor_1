@@ -19,7 +19,8 @@ use Illuminate\Support\Carbon;
  *
  * Runs hourly and is idempotent: each clinic is closed out only once its own
  * local day has rolled over, which is what makes this correct for clinics in
- * different timezones.
+ * different timezones. A day whose period runs past midnight rolls over when
+ * that period ends, not at midnight — its patients are still being seen.
  */
 class CloseClinicDayCommand extends Command
 {
@@ -59,7 +60,7 @@ class CloseClinicDayCommand extends Command
 
     private function closeFor(Clinic $clinic): int
     {
-        $today = Carbon::now($clinic->timezone)->startOfDay()->toDateString();
+        $today = $clinic->currentDay()->toDateString();
         $now = Carbon::now($clinic->timezone);
 
         // Never touched the clinic: she never turned up.

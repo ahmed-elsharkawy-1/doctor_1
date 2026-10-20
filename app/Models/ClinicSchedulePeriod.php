@@ -39,6 +39,33 @@ class ClinicSchedulePeriod extends Model
     }
 
     /**
+     * 19:00 to 03:00: open past midnight, into the next calendar day.
+     */
+    public function crossesMidnight(): bool
+    {
+        return $this->endTime() < $this->startTime();
+    }
+
+    /**
+     * When the period opens and closes on a clinic day, as instants.
+     *
+     * An overnight period closes on the following calendar date — built from
+     * that date and the wall-clock time, never by shifting the opening instant,
+     * so a DST change in the night cannot move the close.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    public function boundsOn(Carbon $date, string $timezone): array
+    {
+        $closesOn = $this->crossesMidnight() ? $date->copy()->addDay() : $date;
+
+        return [
+            Carbon::parse($date->toDateString().' '.$this->startTime(), $timezone),
+            Carbon::parse($closesOn->toDateString().' '.$this->endTime(), $timezone),
+        ];
+    }
+
+    /**
      * The period as a patient reads it: "1:00 مساءً – 3:00 مساءً".
      *
      * Both ends name their own half of the day, even when they share it.
