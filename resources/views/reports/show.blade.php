@@ -64,6 +64,18 @@
         .rp-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .rp-stat { background: var(--surface-2); border-radius: 12px; padding: 12px; }
         .rp-stat b { display: block; font-size: 1.5rem; }
+        /* The headline card: all bookings across the top on a phone, the
+           three side by side once there is room. Income is the number that
+           matters most to the doctor, so it carries colour and an icon. */
+        .rp-headline .rp-total { grid-column: 1 / -1; }
+        @media (min-width: 560px) {
+            .rp-headline { grid-template-columns: repeat(3, 1fr); }
+            .rp-headline .rp-total { grid-column: auto; }
+        }
+        .rp-income { background: color-mix(in srgb, var(--success) 10%, var(--surface)); }
+        .rp-income .rp-muted { display: inline-flex; align-items: center; gap: 6px; color: var(--success); font-weight: 700; }
+        .rp-income b { color: var(--success); font-size: 1.7rem; }
+        .rp-money-icon { flex: none; }
         .rp-outcomes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
         .rp-outcomes b { display: block; font-size: 1.25rem; }
         .rp-done b { color: var(--success); }
@@ -174,13 +186,22 @@
 
     @if ($hasBookings)
         <section class="rp-card">
-            <div class="rp-stats">
+            {{-- Every booking in the period first — done, no-show, cancelled and
+                 still waiting — then what was seen, then what it brought in. --}}
+            <div class="rp-stats rp-headline">
+                <div class="rp-stat rp-total">
+                    <span class="rp-muted">{{ __('reports.page.total_bookings') }}</span>
+                    <b>{{ $report->outcomes['total'] }}</b>
+                </div>
                 <div class="rp-stat">
                     <span class="rp-muted">{{ __('reports.page.completed') }}</span>
                     <b>{{ $report->completed['count'] }}</b>
                 </div>
-                <div class="rp-stat">
-                    <span class="rp-muted">{{ __('reports.page.income') }}</span>
+                <div class="rp-stat rp-income">
+                    <span class="rp-muted">
+                        <svg class="rp-money-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 10v4M18 10v4"/></svg>
+                        {{ __('reports.page.income') }}
+                    </span>
                     <b><bdi>{{ $money($report->completed['income']) }}</bdi></b>
                 </div>
             </div>

@@ -82,6 +82,7 @@ return [
         'sign_out' => 'Sign out',
         'days' => 'Days',
         'periods' => 'Weeks and months',
+        'total_bookings' => 'All bookings',
         'completed' => 'Completed visits',
         'income' => 'Income',
         'previous' => 'Previous period: :count visits — :income',

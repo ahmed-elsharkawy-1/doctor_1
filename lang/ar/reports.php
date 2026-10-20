@@ -82,6 +82,7 @@ return [
         'sign_out' => 'خروج',
         'days' => 'الأيام',
         'periods' => 'الأسابيع والشهور',
+        'total_bookings' => 'إجمالي الحجوزات',
         'completed' => 'كشوفات مكتملة',
         'income' => 'الدخل',
         'previous' => 'الفترة السابقة: :count كشف — :income',
