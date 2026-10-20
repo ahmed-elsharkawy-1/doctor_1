@@ -188,6 +188,29 @@ class QueuePositionServiceTest extends TestCase
         $this->assertSame(1, $position->emergency);
     }
 
+    /**
+     * The patient's own wait, split: only those ranked ahead count, never the
+     * patients who come after them or the clinic's whole day.
+     */
+    public function test_the_split_counts_only_the_patients_ahead(): void
+    {
+        $this->booking('09:00');                 // normal, ahead
+        $mine = $this->booking('09:20');
+        $this->booking('09:40');                 // normal, after
+        $this->booking('10:00');                 // normal, after
+        Booking::factory()
+            ->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-09-03 09:30', $this->clinic->timezone))
+            ->create(['booking_kind' => BookingKind::EMERGENCY]); // emergency: always ahead
+
+        $position = $this->positions->for($mine->fresh());
+
+        $this->assertSame(2, $position->ahead);
+        $this->assertSame(1, $position->aheadNormal);
+        $this->assertSame(1, $position->aheadEmergency);
+        $this->assertSame($position->ahead, $position->aheadNormal + $position->aheadEmergency);
+    }
+
     public function test_there_is_no_position_before_the_day_of_the_visit(): void
     {
         $tomorrow = Booking::factory()

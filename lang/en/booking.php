@@ -84,7 +84,7 @@ return [
         'title' => 'Your booking at :clinic',
         'queue_title' => 'Your place in the queue',
         'waiting_count' => 'Ahead of you',
-        'total' => 'Total',
+        'total' => 'Ahead of you',
         'normal' => 'Normal cases',
         'emergency' => 'Emergency',
         'emergency_notice' => 'Emergency cases always take priority, so the number ahead of you may rise while you wait',

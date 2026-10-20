@@ -11,6 +11,11 @@ use Illuminate\Support\Carbon;
  * ranked before this booking who has not been seen yet — including patients
  * who have not arrived — so an emergency arriving later can push it up. The
  * design says so in writing, and `expectedAt` is what makes that tolerable.
+ *
+ * `aheadNormal` and `aheadEmergency` split `ahead` — they are what the page's
+ * tiles show, so a patient reads about their own wait and never about the
+ * clinic's whole day. `total`, `normal` and `emergency` cover the whole day;
+ * they drive the ring's fill and are not shown as numbers.
  */
 final class QueuePosition
 {
@@ -21,6 +26,8 @@ final class QueuePosition
         public readonly int $emergency,
         public readonly ?Carbon $expectedAt,
         public readonly bool $hasArrived = false,
+        public readonly int $aheadNormal = 0,
+        public readonly int $aheadEmergency = 0,
     ) {}
 
     /**

@@ -318,6 +318,31 @@ class BookingTrackingPageTest extends TestCase
             ->assertSee(__('booking.tracking.emergency'));
     }
 
+    /**
+     * The tiles describe this patient's wait — everyone ahead, then how many
+     * of them are normal and how many emergencies — never the whole day.
+     */
+    public function test_the_tiles_count_only_the_patients_ahead(): void
+    {
+        $this->booking('09:00');
+        Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-09-03 09:10', $this->clinic->timezone))
+            ->create(['booking_kind' => BookingKind::EMERGENCY]);
+        $mine = $this->booking('09:40');
+        foreach (['10:20', '10:40', '11:00', '11:20', '11:40'] as $later) {
+            $this->booking($later);
+        }
+
+        $html = $this->get($mine->trackingUrl())->assertOk()->getContent();
+
+        preg_match_all('#<div class="tile[^"]*">\s*<div class="n">(\d+)</div>\s*<div class="k">([^<]+)</div>#u', $html, $tiles, PREG_SET_ORDER);
+        $this->assertSame([
+            ['2', __('booking.tracking.total')],
+            ['1', __('booking.tracking.normal')],
+            ['1', __('booking.tracking.emergency')],
+        ], array_map(fn ($tile) => [$tile[1], trim($tile[2])], $tiles));
+    }
+
     public function test_the_ring_fills_as_the_patient_moves_up(): void
     {
         $first = $this->booking('09:00');

@@ -311,17 +311,19 @@
     @endif
 
     @if ($isWaiting)
+        {{-- This patient's wait only: everyone ahead, then how many of them are
+             normal and how many emergencies. Never the clinic's whole day. --}}
         <div class="tiles">
             <div class="tile">
-                <div class="n">{{ $position->total }}</div>
+                <div class="n">{{ $position->ahead }}</div>
                 <div class="k">{{ __('booking.tracking.total') }}</div>
             </div>
             <div class="tile">
-                <div class="n">{{ $position->normal }}</div>
+                <div class="n">{{ $position->aheadNormal }}</div>
                 <div class="k">{{ __('booking.tracking.normal') }}</div>
             </div>
             <div class="tile warn">
-                <div class="n">{{ $position->emergency }}</div>
+                <div class="n">{{ $position->aheadEmergency }}</div>
                 <div class="k">{{ __('booking.tracking.emergency') }}</div>
             </div>
         </div>

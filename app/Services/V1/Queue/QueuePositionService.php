@@ -61,6 +61,8 @@ class QueuePositionService
                 BookingStatus::ARRIVED,
                 BookingStatus::WITH_DOCTOR,
             ], true),
+            aheadNormal: $ahead->where('booking_kind', BookingKind::NORMAL)->count(),
+            aheadEmergency: $ahead->where('booking_kind', BookingKind::EMERGENCY)->count(),
         );
     }
 
