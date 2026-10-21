@@ -1,0 +1,39 @@
+# Settings for scripts/backup/*.sh — copy to /root/.config/elayadah-backup.conf
+# on the server and `chmod 600` it. Never commit the real file: the ping URLs
+# are secrets (anyone holding one can report a false "backup done").
+
+# The production stack: its checkout, compose file and service names.
+STACK_DIR=/docker/doctor_1
+COMPOSE_FILE=compose.prod.yml
+DB_SERVICE=mysql
+APP_SERVICE=app
+
+# Prefix of every backup file, e.g. elayadah-prod-20261021T130000Z.tar.gz.gpg
+NAME_PREFIX=elayadah-prod
+
+# Where the encryption password lives (one line, root-only). The same
+# password must also be in the owner's password manager: without it no
+# backup can ever be opened.
+PASSPHRASE_FILE=/root/.config/elayadah-backup.pass
+
+# Local copies, root-only, for quick restores.
+LOCAL_DIR=/root/backups/doctor_1
+KEEP_LOCAL_HOURS=48
+
+# The off-server copy: an rclone remote and folder (Google Drive).
+REMOTE="gdrive:Elayadah Backups"
+# Every backup from the last N hours is kept; older ones thin to one a day,
+# kept for N days. Google Drive's trash then holds deleted ones 30 more days.
+KEEP_REMOTE_HOURLY_HOURS=48
+KEEP_REMOTE_DAILY_DAYS=30
+
+# healthchecks.io ping URLs. Empty = no reporting (local testing only).
+HC_BACKUP_URL=
+HC_RESTORE_URL=
+
+# Refuse to start with less free space than this on the backup disk.
+MIN_FREE_MB=1024
+
+# The weekly restore test loads the backup into a throwaway container of
+# the same MySQL version as production.
+RESTORE_TEST_IMAGE=mysql:8.4
