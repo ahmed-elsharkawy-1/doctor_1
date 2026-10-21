@@ -1,6 +1,10 @@
 # syntax=docker/dockerfile:1
 
-FROM php:8.3-fpm-bookworm AS php-base
+# Pinned to the exact patch release. Deploys build without --pull, so a
+# floating tag like 8.3-fpm-bookworm stays on whatever the box cached first
+# and never picks up a security fix. Bump this line to upgrade PHP.
+# 8.3.36: fixes GHSA-w8hw-w9fx-j79w / GHSA-6wmf-4rv5-p3rp ("PHP2Shell").
+FROM php:8.3.36-fpm-bookworm AS php-base
 
 WORKDIR /app
 
