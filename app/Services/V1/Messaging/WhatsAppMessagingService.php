@@ -55,7 +55,7 @@ class WhatsAppMessagingService
      */
     public function broadcast(Clinic $clinic, string $templateKey, ?Carbon $date = null, ?array $bookingIds = null): array
     {
-        $date ??= Carbon::now($clinic->timezone)->startOfDay();
+        $date ??= $clinic->currentDay();
         $query = $clinic->bookings()
             ->with('patient')
             ->pending()

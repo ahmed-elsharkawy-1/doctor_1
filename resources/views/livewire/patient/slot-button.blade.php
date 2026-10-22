@@ -7,4 +7,12 @@
         @disabled(! $slot->isAvailable)
         wire:click="selectSlot('{{ $slot->startAt->format('H:i') }}')">
     {{ $clock($slot->startAt) }}
+
+    {{-- Picked from Monday's list, but it is Tuesday by the clock: said on
+         the button, so nobody books 01:00 thinking it is Monday morning. --}}
+    @unless ($slot->startAt->isSameDay($day))
+        <span class="slot-next-day">
+            {{ __('booking.self_booking.slot_next_day') }}
+        </span>
+    @endunless
 </button>

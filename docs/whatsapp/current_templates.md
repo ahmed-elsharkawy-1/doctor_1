@@ -47,6 +47,11 @@ alike. Our key: `booking_confirmed`.
 An emergency booking has no time slot, so `{{3}}` says so rather than going
 out empty, which Meta rejects.
 
+A visit after midnight in an evening that runs past it (01:00 in Monday's
+19:00–03:00) keeps the evening's date in `{{2}}`, and `{{3}}` says which 01:00
+it is: `{{2}}` = 19 أكتوبر 2026, `{{3}}` = 01:00 بعد منتصف الليل. Without it,
+Monday 01:00 reads as the early hours of Monday, a day too soon.
+
 ---
 
 ## 2. `appointment_rating`

@@ -17,4 +17,7 @@ return [
     // How opening hours read on the public page.
     'am' => 'AM',
     'pm' => 'PM',
+
+    // A visit after midnight in an evening that ran past it: "01:00 بعد منتصف الليل".
+    'after_midnight' => 'after midnight',
 ];

@@ -39,4 +39,17 @@ class ClinicSchedule extends Model
     {
         return $this->hasMany(ClinicSchedulePeriod::class)->orderBy('start_time');
     }
+
+    /**
+     * The one period that runs past midnight, if any. Two never can — both
+     * would contain midnight, and periods on a day never overlap.
+     */
+    public function overnightPeriod(): ?ClinicSchedulePeriod
+    {
+        if (! $this->is_open) {
+            return null;
+        }
+
+        return $this->periods->first(fn (ClinicSchedulePeriod $period) => $period->crossesMidnight());
+    }
 }

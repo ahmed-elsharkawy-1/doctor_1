@@ -17,7 +17,6 @@ use App\Services\V1\Booking\SlotHoldService;
 use App\Services\V1\Patients\PatientSearchService;
 use App\Support\HeldSlotSession;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Url;
 
@@ -76,7 +75,7 @@ class NewBooking extends ClinicComponent
     {
         $clinic = $this->clinic();
 
-        $this->date = Carbon::now($clinic->timezone)->toDateString();
+        $this->date = $clinic->currentDay()->toDateString();
         $this->visitTypeId = $clinic->visitTypes()->active()->value('id');
 
         $this->prefillFromRebooking($clinic);
@@ -184,7 +183,7 @@ class NewBooking extends ClinicComponent
         if ($this->isEmergency()) {
             // An emergency is seen now: no slot, and today by definition.
             $this->startTime = null;
-            $this->date = Carbon::now($this->clinic()->timezone)->toDateString();
+            $this->date = $this->clinic()->currentDay()->toDateString();
             $this->patientLocation ??= PatientLocation::INSIDE_CLINIC->value;
             // An emergency takes no slot, so it has no business holding one.
             $this->releaseHold();

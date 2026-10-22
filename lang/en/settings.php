@@ -18,8 +18,9 @@ return [
         'loaded' => 'Working hours loaded',
         'updated' => 'Day saved',
         'day_not_found' => 'That day is not part of the clinic schedule',
-        'period_invalid' => 'The end time must be after the start time',
+        'period_invalid' => 'The end time must be after the start time, or — for a period that runs past midnight — no later than :time the next morning',
         'period_overlap' => 'Two periods on the same day overlap',
+        'overnight_clash' => 'The :day evening runs past midnight until :time, so no other period can start before then',
         'periods_required' => 'An open day needs at least one period',
     ],
 

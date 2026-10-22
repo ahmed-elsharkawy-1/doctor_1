@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
 class Clinic extends Model
 {
@@ -208,6 +209,31 @@ class Clinic extends Model
     public function scheduleFor(DayOfWeek $day): ?ClinicSchedule
     {
         return $this->schedules()->where('day_of_week', $day->value)->first();
+    }
+
+    /**
+     * The clinic day it is now, at midnight in the clinic's timezone.
+     *
+     * Usually the calendar date. But while last night's overnight period is
+     * still open — 01:30 on a Tuesday, for a Monday that runs 19:00 to 03:00 —
+     * it is still Monday: those patients are on Monday's list, and Monday must
+     * not be closed out or drop off the queue until its period has ended.
+     */
+    public function currentDay(): Carbon
+    {
+        $now = Carbon::now($this->timezone);
+        $today = Carbon::parse($now->toDateString(), $this->timezone);
+        $yesterday = Carbon::parse($now->copy()->subDay()->toDateString(), $this->timezone);
+
+        $overnight = $this->scheduleFor(DayOfWeek::fromDate($yesterday))?->overnightPeriod();
+
+        if ($overnight === null || $now->format('H:i') >= $overnight->endTime()) {
+            return $today;
+        }
+
+        $wasHoliday = $this->holidays()->whereDate('date', $yesterday->toDateString())->exists();
+
+        return $wasHoliday ? $today : $yesterday;
     }
 
     /**

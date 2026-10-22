@@ -77,10 +77,14 @@ class SlotAvailabilityService
     /**
      * Is this exact start time bookable? Used by the booking write path, which
      * must not trust a slot the client computed earlier.
+     *
+     * @param  Carbon  $date  the clinic day the slot belongs to — not always
+     *                        the start's own date, once a period runs past
+     *                        midnight
      */
-    public function isBookable(Clinic $clinic, Carbon $startAt, VisitType $visitType, ?int $ignoreBookingId = null): bool
+    public function isBookable(Clinic $clinic, Carbon $date, Carbon $startAt, VisitType $visitType, ?int $ignoreBookingId = null): bool
     {
-        $availability = $this->for($clinic, $startAt->copy()->startOfDay(), $visitType, $ignoreBookingId);
+        $availability = $this->for($clinic, $date, $visitType, $ignoreBookingId);
 
         foreach ($availability->slots as $slot) {
             if ($slot->startAt->equalTo($startAt)) {
@@ -89,6 +93,26 @@ class SlotAvailabilityService
         }
 
         return false;
+    }
+
+    /**
+     * The instant a slot's wall-clock start names on a clinic day.
+     *
+     * Slots travel as a date and an `HH:MM`, and the date is the clinic day,
+     * not the calendar one: 01:00 on a Monday that runs 19:00–03:00 is 01:00
+     * on Tuesday, booked under Monday. Nothing else on that day may start
+     * before the overnight period closes (ScheduleService refuses it), so the
+     * time is never ambiguous.
+     */
+    public function startAt(Clinic $clinic, string $date, string $time): Carbon
+    {
+        $day = Carbon::parse($date, $clinic->timezone)->startOfDay();
+        $time = substr($time, 0, 5);
+
+        $overnight = $clinic->scheduleFor(DayOfWeek::fromDate($day))?->overnightPeriod();
+        $startsOn = $overnight !== null && $time < $overnight->endTime() ? $day->copy()->addDay() : $day;
+
+        return Carbon::parse($startsOn->toDateString().' '.$time, $clinic->timezone);
     }
 
     public function closedReasonFor(Clinic $clinic, Carbon $date, VisitType $visitType): ?ClosedReason
@@ -122,9 +146,13 @@ class SlotAvailabilityService
         return Carbon::parse($date->toDateString(), $clinic->timezone)->startOfDay();
     }
 
+    /**
+     * The clinic day, which lags the calendar while last night's overnight
+     * period is still open — see Clinic::currentDay().
+     */
     public function today(Clinic $clinic): Carbon
     {
-        return Carbon::now($clinic->timezone)->startOfDay();
+        return $clinic->currentDay();
     }
 
     public function isHoliday(Clinic $clinic, Carbon $date): bool
@@ -136,7 +164,8 @@ class SlotAvailabilityService
      * Every start time that fits wholly inside the period.
      *
      * A 30-minute procedure is not offered at 13:50 when the period ends at
-     * 14:00 — the visit has to finish before the clinic closes.
+     * 14:00 — the visit has to finish before the clinic closes. A period that
+     * runs past midnight carries on into the next calendar date.
      *
      * @return list<array{start: Carbon, end: Carbon}>
      */
@@ -150,12 +179,11 @@ class SlotAvailabilityService
         // the others, but unreadable.
         $step = max(1, $clinic->slot_step_minutes ?: $duration);
 
-        $periodStart = $this->at($clinic, $date, $period->startTime());
-        $periodEnd = $period->endsAtMidnight()
-            ? $this->at($clinic, $date, '00:00')->addDay()
-            : $this->at($clinic, $date, $period->endTime());
+        [$periodStart, $periodEnd] = $period->boundsOn($date, $clinic->timezone);
+
+        // Compared as instants rather than "is this today": at 01:00 the
+        // evening that began yesterday still has slots ahead and behind.
         $now = Carbon::now($clinic->timezone);
-        $hidePastStarts = $date->isSameDay($now);
 
         $candidates = [];
         $cursor = $periodStart->copy();
@@ -167,7 +195,7 @@ class SlotAvailabilityService
                 break;
             }
 
-            if (! $hidePastStarts || $cursor->greaterThan($now)) {
+            if ($cursor->greaterThan($now)) {
                 $candidates[] = ['start' => $cursor->copy(), 'end' => $end];
             }
 
@@ -247,14 +275,5 @@ class SlotAvailabilityService
         }
 
         return false;
-    }
-
-    /**
-     * Built from the calendar date and a wall-clock time, never by shifting an
-     * existing instant — a timezone conversion could roll the date over.
-     */
-    private function at(Clinic $clinic, Carbon $date, string $time): Carbon
-    {
-        return Carbon::parse($date->toDateString().' '.$time, $clinic->timezone);
     }
 }

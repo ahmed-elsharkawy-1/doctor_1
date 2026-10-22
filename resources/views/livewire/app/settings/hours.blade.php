@@ -35,6 +35,12 @@
                                 {{ __('app.settings.remove') }}
                             </button>
                         </div>
+
+                        @if (filled($period['start_time']) && filled($period['end_time']) && $period['end_time'] < $period['start_time'])
+                            <div class="muted" style="font-size:0.85rem;margin:-0.2rem 0 0.4rem">
+                                {{ __('app.settings.ends_next_day') }}
+                            </div>
+                        @endif
                     @endforeach
 
                     @if (count($state['periods']) < $maxPeriods)

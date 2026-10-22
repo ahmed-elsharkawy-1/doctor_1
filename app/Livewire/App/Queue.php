@@ -10,7 +10,6 @@ use App\Services\V1\Booking\BookingService;
 use App\Services\V1\Queue\BookingStatusService;
 use App\Services\V1\Queue\QueueService;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
@@ -64,7 +63,7 @@ class Queue extends ClinicComponent
 
     public function today(): void
     {
-        $this->date = Carbon::now($this->clinic()->timezone)->toDateString();
+        $this->date = $this->clinic()->currentDay()->toDateString();
     }
 
     public function arrive(int $bookingId): void

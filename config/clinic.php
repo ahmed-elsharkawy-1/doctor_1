@@ -93,6 +93,9 @@ return [
         'week_start_day' => 6,
         'min_period_minutes' => 5,
         'max_periods_per_day' => 6,
+        // A period may run past midnight (19:00–03:00) but must close by this
+        // time the next morning. Its bookings stay on the day it opened.
+        'latest_overnight_close' => '06:00',
     ],
 
     /*

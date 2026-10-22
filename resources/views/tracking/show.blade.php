@@ -44,7 +44,9 @@
     $isEmergency = $booking->booking_kind === BookingKind::EMERGENCY;
     $timeLabel = $isEmergency
         ? __('booking.kind.emergency')
-        : trim(($clock($booking->start_at) ?? '').' - '.($clock($booking->end_at) ?? ''), ' -');
+        : trim(($clock($booking->start_at) ?? '').' - '.($clock($booking->end_at) ?? ''), ' -')
+            // Under Monday's date, 01:00 has to say which 01:00 it is.
+            .($booking->startsAfterMidnight() ? ' · '.__('schedule.after_midnight') : '');
 @endphp
 <!doctype html>
 <html lang="{{ app()->getLocale() }}" dir="rtl">

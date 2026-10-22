@@ -56,12 +56,16 @@ abstract class ClinicComponent extends Component
      */
     protected function safeDate(?string $date): Carbon
     {
-        $timezone = $this->clinic()->timezone;
+        $clinic = $this->clinic();
+
+        if (blank($date)) {
+            return $clinic->currentDay();
+        }
 
         try {
-            return Carbon::parse($date ?: 'now', $timezone)->startOfDay();
+            return Carbon::parse($date, $clinic->timezone)->startOfDay();
         } catch (Throwable) {
-            return Carbon::now($timezone)->startOfDay();
+            return $clinic->currentDay();
         }
     }
 }

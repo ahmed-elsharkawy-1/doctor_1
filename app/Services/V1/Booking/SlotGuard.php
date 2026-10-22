@@ -26,6 +26,9 @@ final class SlotGuard
     public function __construct(private readonly SlotAvailabilityService $slots) {}
 
     /**
+     * @param  Carbon  $date  the clinic day the slot is booked under — the day
+     *                        before `$startAt`'s own date when an overnight
+     *                        period has run past midnight
      * @param  int|null  $ignoreBookingId  the booking being edited, which must
      *                                     not collide with itself
      * @param  string|null  $holdToken  the caller's own hold, which blocks
@@ -35,6 +38,7 @@ final class SlotGuard
      */
     public function ensureFree(
         Clinic $clinic,
+        Carbon $date,
         Carbon $startAt,
         VisitType $visitType,
         ?int $ignoreBookingId = null,
@@ -42,7 +46,7 @@ final class SlotGuard
     ): void {
         $availability = $this->slots->for(
             $clinic,
-            $startAt->copy()->startOfDay(),
+            $date,
             $visitType,
             $ignoreBookingId,
             $holdToken,

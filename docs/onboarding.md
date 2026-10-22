@@ -51,6 +51,9 @@ public and the file holds a doctor's contact details.
 - Exactly one account is `main`: the doctor's own login, linked to the doctor,
   with reports access. The others are secretaries.
 - A switch left out is off. A day left out of `schedule` is closed.
+- A period may run past midnight: `"monday": [["19:00", "03:00"]]` is one
+  evening, and its after-midnight bookings stay on Monday. It must close by
+  `06:00`, and Tuesday cannot open before it closes.
 - `bio` and `treatment_areas` fill the "نظرة عامة" tab of the public page;
   without them it is empty. Icons are the keys in `clinic.public.icons`.
 - The photo sits beside the file as `<slug>.jpg` (JPEG, PNG or WebP; shown as a
