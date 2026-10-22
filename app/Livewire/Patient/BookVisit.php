@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\VisitType;
 use App\Services\V1\Booking\PatientBookingService;
+use App\Services\V1\Booking\SlotAvailabilityService;
 use App\Services\V1\Booking\SlotGroup;
 use App\Support\HeldSlotSession;
 use Closure;
@@ -184,6 +185,14 @@ class BookVisit extends Component
             'visitTypes' => $this->service()->visitTypes($clinic),
             'availability' => $stage === 'appointment' ? $availability : null,
             'slotGroups' => $slotGroups,
+            // The summary reads the picked time back under the day; past
+            // midnight it has to say so, or 1:00 ص reads as that morning.
+            'pickedAfterMidnight' => $stage === 'appointment'
+                && filled($this->date)
+                && filled($this->startTime)
+                && app(SlotAvailabilityService::class)
+                    ->startAt($clinic, $this->date, (string) $this->startTime)
+                    ->toDateString() !== $this->date,
             'upcoming' => $stage === 'upcoming' ? $this->upcoming() : null,
             'confirmed' => $stage === 'done' ? $this->confirmed() : null,
             'verifiedPhone' => $this->service()->verifiedPhone($clinic),

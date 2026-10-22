@@ -95,6 +95,9 @@
                             <p class="soonest">
                                 {{ __('booking.self_booking.soonest') }}
                                 <b>{{ $longDate($soonest['date']) }}@if ($soonest['first_free']) — {{ $clock($soonest['first_free']) }}@endif</b>
+                                @if ($soonest['first_free'])
+                                    <x-after-midnight :show="! $soonest['first_free']->isSameDay($soonest['date'])" />
+                                @endif
                             </p>
                         @endif
 
@@ -373,7 +376,11 @@
                                                 {{-- The range is what the patient scans for; the name is only a label. --}}
                                                 <span class="group-when">
                                                     <span class="group-time"><bdi>{{ $clock($group->startAt()) }}</bdi> – <bdi>{{ $clock($group->endAt()) }}</bdi></span>
-                                                    <span class="group-name">{{ __('booking.self_booking.group_label', ['ordinal' => __('booking.self_booking.group_ordinal.'.$group->index)]) }}</span>
+                                                    <span class="group-name">
+                                                        {{ __('booking.self_booking.group_label', ['ordinal' => __('booking.self_booking.group_ordinal.'.$group->index)]) }}
+                                                        {{-- Folded, a stretch from 12:00 ص reads as this morning. --}}
+                                                        <x-after-midnight :show="! $group->startAt()->isSameDay($availability->date)" />
+                                                    </span>
                                                 </span>
 
                                                 <span class="group-state">
@@ -533,7 +540,10 @@
                         </div>
                         <div>
                             <dt>{{ __('booking.self_booking.slot') }}</dt>
-                            <dd>{{ $clock(\Illuminate\Support\Carbon::parse($date.' '.$startTime, $clinic->timezone)) }}</dd>
+                            <dd>
+                                {{ $clock(\Illuminate\Support\Carbon::parse($date.' '.$startTime, $clinic->timezone)) }}
+                                <x-after-midnight :show="$pickedAfterMidnight" />
+                            </dd>
                         </div>
                         @if ($showPrice && (float) $visitType->price > 0)
                             <div>

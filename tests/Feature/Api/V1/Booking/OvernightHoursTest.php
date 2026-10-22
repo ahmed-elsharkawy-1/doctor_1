@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\V1\Booking;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Enums\DayOfWeek;
+use App\Exceptions\ApiException;
 use App\Livewire\App\Messages;
 use App\Livewire\App\NewBooking;
 use App\Livewire\App\PatientProfile;
@@ -16,6 +17,7 @@ use App\Livewire\Patient\BookVisit;
 use App\Models\Booking;
 use App\Models\MessageTemplate;
 use App\Models\VisitType;
+use App\Services\V1\Booking\PatientBookingService;
 use App\Services\V1\Messaging\TemplatePayloadResolver;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
 use Database\Seeders\MessageTemplateSeeder;
@@ -437,6 +439,110 @@ class OvernightHoursTest extends TestCase
             ->set('date', '2026-08-10')
             ->assertViewHas('stage', 'appointment')
             ->assertSee('بعد منتصف الليل');
+    }
+
+    /**
+     * The public booking page, open to self-booking, every slot shown.
+     */
+    private function patientPage()
+    {
+        $this->clinic->update(['slug' => 'dr-sara', 'self_booking_enabled' => true]);
+        $this->checkup->update(['is_self_bookable' => true]);
+
+        config([
+            'clinic.self_booking.require_otp' => false,
+            'clinic.self_booking.slot_groups.min_to_group' => 100,
+        ]);
+
+        return Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug]);
+    }
+
+    private function verifiedPatientPage()
+    {
+        return $this->patientPage()
+            ->call('start')
+            ->set('name', 'فاطمة عبد الرحمن')
+            ->set('phone', '01012225521')
+            ->call('sendCode');
+    }
+
+    /**
+     * The last screen before booking reads back the day and the time. Under
+     * Monday, 1:00 ص alone reads as Monday morning.
+     */
+    public function test_the_patient_summary_says_after_midnight(): void
+    {
+        $summary = fn ($page) => preg_match('/<dl class="review">.*?<\/dl>/s', $page->html(), $m) ? $m[0] : '';
+
+        $late = $this->verifiedPatientPage()->set('date', '2026-08-10')->call('selectSlot', '01:00');
+        $this->assertStringContainsString(__('schedule.after_midnight'), $summary($late));
+
+        $evening = $this->verifiedPatientPage()->set('date', '2026-08-10')->call('selectSlot', '21:00');
+        $this->assertNotSame('', $summary($evening));
+        $this->assertStringNotContainsString(__('schedule.after_midnight'), $summary($evening));
+    }
+
+    /**
+     * In fours, Monday's 16 slots make four stretches; only the last starts
+     * after midnight (01:00 – 02:30), and only its heading says so. The one
+     * across midnight (11:00 م – 12:30 ص) reads plainly as it is.
+     */
+    public function test_a_slot_group_after_midnight_says_so(): void
+    {
+        $html = $this->verifiedPatientPage()
+            ->tap(fn () => config([
+                'clinic.self_booking.slot_groups.min_to_group' => 10,
+                'clinic.self_booking.slot_groups.max_per_group' => 4,
+            ]))
+            ->set('date', '2026-08-10')
+            ->html();
+
+        preg_match_all('/<span class="group-when">.*?<\/span>\s*<\/span>/s', $html, $heads);
+
+        $this->assertCount(4, $heads[0]);
+        $marked = array_values(array_filter($heads[0], fn ($head) => str_contains($head, 'class="after-midnight"')));
+        $this->assertCount(1, $marked);
+        $this->assertStringContainsString('1:00', $marked[0]);
+    }
+
+    /**
+     * At 00:10 the soonest time on offer is Monday's 00:30.
+     */
+    public function test_the_soonest_time_says_after_midnight(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-11 00:10:00', 'Africa/Cairo'));
+
+        $soonest = preg_match('/<p class="soonest">.*?<\/p>/s', $this->patientPage()->html(), $m) ? $m[0] : '';
+
+        $this->assertStringContainsString('12:30', $soonest);
+        $this->assertStringContainsString(__('schedule.after_midnight'), $soonest);
+    }
+
+    /**
+     * Past midnight the patient's 01:00 is still Monday's and still to come:
+     * the page shows it, and does not let them book a second visit beside it.
+     */
+    public function test_a_visit_after_midnight_is_still_upcoming_after_midnight(): void
+    {
+        // Booked just past midnight; back fifteen minutes later, still
+        // within the same verified session.
+        Carbon::setTestNow(Carbon::parse('2026-08-11 00:15:00', 'Africa/Cairo'));
+
+        $this->verifiedPatientPage()
+            ->set('date', '2026-08-10')
+            ->call('selectSlot', '01:00')
+            ->call('confirm');
+
+        $this->assertSame('2026-08-11 01:00', Booking::sole()->start_at->format('Y-m-d H:i'));
+
+        Carbon::setTestNow(Carbon::parse('2026-08-11 00:30:00', 'Africa/Cairo'));
+
+        $this->patientPage()->assertViewHas('stage', 'upcoming');
+
+        $this->expectException(ApiException::class);
+        app(PatientBookingService::class)->confirm(
+            $this->clinic->fresh(), 'فاطمة عبد الرحمن', $this->checkup->id, '2026-08-10', '02:00',
+        );
     }
 
     /*

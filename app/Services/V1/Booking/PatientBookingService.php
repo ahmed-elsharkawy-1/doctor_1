@@ -490,9 +490,11 @@ class PatientBookingService
             return null;
         }
 
+        // From the clinic day, not the calendar one: at 00:30 Monday's 01:00
+        // is still to come, and is still Monday's.
         return $patient->bookings()
             ->with(['visitType'])
-            ->upcoming(Carbon::now($clinic->timezone))
+            ->upcoming($clinic->currentDay())
             ->orderBy('visit_date')
             ->orderBy('start_at')
             ->first();

@@ -367,6 +367,8 @@
             cursor: pointer;
         }
         .slot-next-day { display: block; font-size: 10.5px; font-weight: 600; opacity: .75; line-height: 1.2; }
+        /* Beside a time past midnight that still belongs to the day shown. */
+        .after-midnight { font-size: 12px; font-weight: 700; color: var(--primary); white-space: nowrap; }
         .slot[aria-pressed="true"] {
             background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 700;
             box-shadow: 0 6px 14px rgba(24, 95, 165, .24);
