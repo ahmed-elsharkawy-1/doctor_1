@@ -120,6 +120,7 @@
                             <div class="name">{{ $booking->patient?->name }}</div>
                             <div class="meta">
                                 {{ $clock($booking->start_at) }}
+                                <x-after-midnight :show="$booking->startsAfterMidnight()" />
                                 &middot; {{ $booking->visitType?->name }}
                                 &middot; {{ $booking->patient?->code }}
                             </div>

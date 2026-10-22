@@ -79,6 +79,7 @@
                         <span style="font-weight:600">{{ $booking->visit_date->format('Y-m-d') }}</span>
                         <span class="meta">
                             · {{ $clock($booking->start_at) }}
+                            <x-after-midnight :show="$booking->startsAfterMidnight()" />
                             · {{ $booking->visitType?->name }}
                             {{-- The snapshot taken when it was booked, never
                                  the visit type's price today. --}}

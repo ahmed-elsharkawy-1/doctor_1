@@ -58,8 +58,12 @@
                         <div>
                             <div class="name">{{ $booking->patient?->name }}</div>
                             <div class="meta">
-                                {{ $booking->start_at?->toDateString() }}
+                                {{-- The day it was booked under, not the start's
+                                     calendar date: 01:00 in Monday's evening
+                                     is Monday's. --}}
+                                {{ $booking->visit_date->toDateString() }}
                                 &middot; {{ $clock($booking->start_at) }}
+                                <x-after-midnight :show="$booking->startsAfterMidnight()" />
                                 &middot; {{ $booking->visitType?->name }}
                             </div>
                         </div>

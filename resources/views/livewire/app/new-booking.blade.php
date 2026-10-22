@@ -39,6 +39,8 @@
 
         .chip[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
         .chip:disabled { opacity: 0.4; cursor: not-allowed; text-decoration: line-through; }
+        /* Its own line under the time, and the button's own colour when picked. */
+        .slots .after-midnight { display: block; font-size: 0.7rem; color: inherit; opacity: 0.85; }
 
         .days { display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.3rem; }
         .day-chip { min-width: 4.6rem; text-align: center; line-height: 1.3; }
@@ -257,6 +259,7 @@
                                 @disabled(! $slot->isAvailable)
                                 wire:click="selectSlot('{{ $slot->startAt->format('H:i') }}')">
                             {{ $clock($slot->startAt) }}
+                            <x-after-midnight :show="! $slot->startAt->isSameDay($availability->date)" />
                         </button>
                     @endforeach
                 </div>

@@ -163,7 +163,9 @@
                     <span style="flex:1">
                         <span class="name">{{ $booking->patient?->name }}</span>
                         <span class="meta" style="display:block">
-                            {{ $clock($booking->start_at) }} &middot; {{ $booking->visitType?->name }}
+                            {{ $clock($booking->start_at) }}
+                            <x-after-midnight :show="$booking->startsAfterMidnight()" />
+                            &middot; {{ $booking->visitType?->name }}
                         </span>
                     </span>
                     @if ($noConsent)

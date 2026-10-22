@@ -111,6 +111,7 @@
                             <span class="name">{{ $booking->patient?->name }}</span>
                             <span class="meta" style="display:block">
                                 {{ $clock($booking->start_at) }}
+                                <x-after-midnight :show="$booking->startsAfterMidnight()" />
                                 &middot; {{ $booking->visitType?->name }}
                                 &middot; {{ $booking->status->label() }}
                             </span>

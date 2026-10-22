@@ -3,8 +3,14 @@
 namespace Tests\Feature\Api\V1\Booking;
 
 use App\Enums\BookingStatus;
+use App\Enums\CancelReason;
 use App\Enums\DayOfWeek;
+use App\Livewire\App\Messages;
 use App\Livewire\App\NewBooking;
+use App\Livewire\App\PatientProfile;
+use App\Livewire\App\Postpone;
+use App\Livewire\App\Queue;
+use App\Livewire\App\Rebooking;
 use App\Livewire\App\Settings\Hours;
 use App\Livewire\Patient\BookVisit;
 use App\Models\Booking;
@@ -12,6 +18,7 @@ use App\Models\MessageTemplate;
 use App\Models\VisitType;
 use App\Services\V1\Messaging\TemplatePayloadResolver;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
+use Database\Seeders\MessageTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
@@ -430,6 +437,75 @@ class OvernightHoursTest extends TestCase
             ->set('date', '2026-08-10')
             ->assertViewHas('stage', 'appointment')
             ->assertSee('بعد منتصف الليل');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | The secretary's screens (/app)
+    |--------------------------------------------------------------------------
+    |
+    | Every screen that shows a booking's time says "بعد منتصف الليل" when it
+    | is past midnight, so Monday 1:00 ص is not read as Monday morning.
+    */
+
+    public function test_the_app_screens_mark_a_visit_after_midnight(): void
+    {
+        $booking = $this->afterMidnight();
+        $label = __('schedule.after_midnight');
+
+        Livewire::actingAs($this->owner)->test(Queue::class)->assertSee($label);
+        Livewire::actingAs($this->owner)->test(Postpone::class)->assertSee($label);
+        Livewire::actingAs($this->owner)->test(PatientProfile::class, ['patient' => $booking->patient_id])->assertSee($label);
+
+        $this->seed(MessageTemplateSeeder::class);
+        Livewire::actingAs($this->owner)->test(Messages::class)
+            ->call('selectTemplate', 'day_cancelled')
+            ->assertSee($label);
+    }
+
+    public function test_an_evening_visit_is_not_marked_on_the_app_screens(): void
+    {
+        $this->book('21:00')->assertCreated();
+
+        Livewire::actingAs($this->owner)->test(Queue::class)
+            ->assertSee('9:00')
+            ->assertDontSee(__('schedule.after_midnight'));
+    }
+
+    /**
+     * The call list once showed the calendar date of the start — Tuesday —
+     * for a visit every other screen calls Monday.
+     */
+    public function test_the_rebooking_list_shows_the_booked_day_and_after_midnight(): void
+    {
+        $booking = $this->afterMidnight();
+        $booking->update(['status' => BookingStatus::CANCELLED, 'cancel_reason' => CancelReason::EMERGENCY]);
+
+        Livewire::actingAs($this->owner)->test(Rebooking::class)
+            ->assertSee('2026-08-10')
+            ->assertDontSee('2026-08-11')
+            ->assertSee(__('schedule.after_midnight'));
+    }
+
+    public function test_the_new_booking_screen_marks_slots_after_midnight(): void
+    {
+        $page = Livewire::actingAs($this->owner)->test(NewBooking::class)
+            ->set('visitTypeId', $this->checkup->id)
+            ->call('selectDay', '2026-08-10');
+
+        $html = $page->html();
+
+        // Marked only from 00:00 on: the 23:30 chip carries no label.
+        $label = '<span class="after-midnight">'.__('schedule.after_midnight').'</span>';
+
+        // Anything up to the end of the same button: Livewire puts its own
+        // markers between the time and the label.
+        $inButton = '(?:(?!<\/button>).)*';
+
+        $this->assertDoesNotMatchRegularExpression('/11:30 م'.$inButton.preg_quote($label, '/').'/su', $html);
+        $this->assertMatchesRegularExpression('/12:00 ص'.$inButton.preg_quote($label, '/').'/su', $html);
+        // 00:00, 00:30 … 02:30.
+        $this->assertSame(6, substr_count($html, __('schedule.after_midnight')));
     }
 
     /*

@@ -166,6 +166,9 @@
 
         .muted { color: var(--muted); }
 
+        /* Beside a time past midnight that still belongs to the day shown. */
+        .after-midnight { color: var(--warn); font-weight: 700; white-space: nowrap; }
+
         .subnav {
             display: flex;
             gap: 4px;
