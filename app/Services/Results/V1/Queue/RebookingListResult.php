@@ -44,6 +44,7 @@ final class RebookingListResult extends ServiceResult
                         // a like-for-like replacement.
                         'original_date' => Wire::date($booking->visit_date),
                         'original_start_time' => $booking->start_at === null ? null : Wire::time($booking->start_at),
+                        'after_midnight' => $booking->startsAfterMidnight(),
                         'booking_kind' => Wire::enum($booking->booking_kind, $booking->booking_kind->label()),
                         'patient_location' => $booking->patient_location === null
                             ? null

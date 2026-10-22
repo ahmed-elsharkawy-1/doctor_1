@@ -431,4 +431,83 @@ class OvernightHoursTest extends TestCase
             ->assertViewHas('stage', 'appointment')
             ->assertSee('بعد منتصف الليل');
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | What the app is told
+    |--------------------------------------------------------------------------
+    |
+    | The API carries Monday's date and "01:00", which reads as Monday morning
+    | on its own. Every time on the wire says whether it is past midnight, and
+    | every period whether it ends the next day, so the app never works it out.
+    */
+
+    public function test_slots_say_which_fall_after_midnight(): void
+    {
+        $slots = collect($this->getJson(route('api.v1.slots', [
+            'date' => '2026-08-10',
+            'visit_type_id' => $this->checkup->id,
+        ]))->assertOk()->json('data.slots'))->keyBy('start_time.value');
+
+        $this->assertFalse($slots['19:00']['after_midnight']);
+        $this->assertFalse($slots['23:30']['after_midnight']);
+        $this->assertTrue($slots['00:00']['after_midnight']);
+        $this->assertTrue($slots['02:30']['after_midnight']);
+    }
+
+    public function test_a_booking_says_whether_it_is_after_midnight(): void
+    {
+        $late = $this->book('01:00')->assertCreated()->assertJsonPath('data.after_midnight', true)->json('data.id');
+        $evening = $this->book('21:00', '01098765432')->assertCreated()->assertJsonPath('data.after_midnight', false)->json('data.id');
+
+        $this->getJson(route('api.v1.bookings.show', $late))->assertOk()->assertJsonPath('data.after_midnight', true);
+        $this->getJson(route('api.v1.bookings.show', $evening))->assertOk()->assertJsonPath('data.after_midnight', false);
+    }
+
+    public function test_the_queue_and_patient_history_say_after_midnight(): void
+    {
+        $booking = $this->afterMidnight();
+
+        $this->getJson(route('api.v1.home'))
+            ->assertOk()
+            ->assertJsonPath('data.upcoming.0.after_midnight', true);
+
+        $this->getJson(route('api.v1.postpone.candidates', ['date' => '2026-08-10']))
+            ->assertOk()
+            ->assertJsonPath('data.items.0.after_midnight', true);
+
+        $this->getJson(route('api.v1.patients.show', $booking->patient_id))
+            ->assertOk()
+            ->assertJsonPath('data.visits.0.after_midnight', true);
+    }
+
+    public function test_a_hold_says_whether_it_is_after_midnight(): void
+    {
+        $hold = fn (string $time) => $this->postJson(route('api.v1.slot-holds.store'), [
+            'visit_type_id' => $this->checkup->id,
+            'date' => '2026-08-10',
+            'start_time' => $time,
+        ])->assertCreated();
+
+        $hold('02:30')->assertJsonPath('data.after_midnight', true);
+        $hold('20:00')->assertJsonPath('data.after_midnight', false);
+    }
+
+    /**
+     * 23:59 is how a shift ending at midnight is entered: it ends that day.
+     */
+    public function test_a_period_says_whether_it_ends_the_next_day(): void
+    {
+        $this->saveDay(DayOfWeek::WEDNESDAY, [['09:00', '13:00'], ['18:00', '23:59']])->assertOk();
+
+        $days = collect($this->getJson(route('api.v1.schedule.index'))->assertOk()->json('data.days'))
+            ->keyBy('day_of_week.value');
+
+        $this->assertTrue($days[DayOfWeek::MONDAY->value]['periods'][0]['ends_next_day']);
+        $this->assertSame([false, false], array_column($days[DayOfWeek::WEDNESDAY->value]['periods'], 'ends_next_day'));
+
+        $this->saveDay(DayOfWeek::THURSDAY, [['20:00', '02:00']])
+            ->assertOk()
+            ->assertJsonPath('data.periods.0.ends_next_day', true);
+    }
 }

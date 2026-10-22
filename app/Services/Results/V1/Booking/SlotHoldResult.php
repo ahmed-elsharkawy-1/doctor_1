@@ -25,6 +25,7 @@ final class SlotHoldResult extends ServiceResult
             'date' => Wire::date($this->hold->visit_date),
             'start_time' => Wire::time($this->hold->start_at),
             'end_time' => Wire::time($this->hold->end_at),
+            'after_midnight' => $this->hold->startsAfterMidnight(),
             'visit_type_id' => $this->hold->visit_type_id,
             // When the claim lapses. The client should either book or let go
             // before then; nothing has to be called to make it expire.

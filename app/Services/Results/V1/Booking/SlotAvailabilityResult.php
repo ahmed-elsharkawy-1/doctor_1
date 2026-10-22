@@ -35,6 +35,9 @@ final class SlotAvailabilityResult extends ServiceResult
                     'start_time' => Wire::time($slot->startAt),
                     'end_time' => Wire::time($slot->endAt),
                     'is_available' => $slot->isAvailable,
+                    // 01:00 in an evening that runs past midnight: still
+                    // this `date`, but the app must not show it as morning.
+                    'after_midnight' => ! $slot->startAt->isSameDay($availability->date),
                 ],
                 $availability->slots,
             ),

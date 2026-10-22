@@ -341,6 +341,11 @@ morning: Monday `19:00`–`03:00` is one evening.
 - Between midnight and `03:00`, the clinic's "today" is still Monday: the
   queue opens on Monday and Monday's slots stay bookable. The hourly close-out
   leaves Monday alone until the period has ended.
+- The app never works this out itself. A period that runs past midnight comes
+  back with `ends_next_day: true` (show "ينتهي اليوم التالي"), and every slot,
+  hold, booking, call-list row and history visit past midnight carries
+  `after_midnight: true` (show "بعد منتصف الليل" next to the time). Keep those
+  on the `date` the API returns — never move them to the next day.
 
 ---
 
@@ -495,7 +500,8 @@ Rules the server applies, so the app doesn't have to:
 - Touching is fine: a visit starting exactly when another ends is available.
 - On a day whose period runs past midnight, the list carries on after 23:xx
   with `00:00`, `00:20`… in time order. Those slots belong to the `date` you
-  asked for: book them with that same `date` and the `start_time` shown.
+  asked for: book them with that same `date` and the `start_time` shown. Each
+  carries `after_midnight: true`.
 
 ### `POST /patients/lookup`
 

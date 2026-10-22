@@ -56,6 +56,9 @@ final class BookingResult extends ServiceResult
             // against them.
             'start_time' => $booking->start_at === null ? null : Wire::time($booking->start_at),
             'end_time' => $booking->end_at === null ? null : Wire::time($booking->end_at),
+            // Booked under `date` but past midnight — 01:00 in Monday's
+            // 19:00–03:00. Show it as "بعد منتصف الليل", not Monday morning.
+            'after_midnight' => $booking->startsAfterMidnight(),
 
             // What actually happened, which is not always the same thing: a
             // clinic running ahead of itself may see a 5pm patient at 3pm.

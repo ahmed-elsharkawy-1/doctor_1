@@ -416,7 +416,7 @@
                                 "{day}"
                             ]
                         },
-                        "description": "Replaces the whole day — send every period you want kept. Period ids are\n**not stable** across a save; never hold onto one. Closing a day drops\nits periods whatever you send.",
+                        "description": "Replaces the whole day — send every period you want kept. Period ids are\n**not stable** across a save; never hold onto one. Closing a day drops\nits periods whatever you send.\n\n**A period may run past midnight.** An `end_time` earlier than its\n`start_time` (`19:00` → `03:00`) closes the next morning, and every\nbooking in it — the 01:00 ones included — belongs to *this* day. It\nmust close by `06:00`. While it is open nothing else may start before\nits close: not another period on this day, and not the next day.\nSuch a period comes back with `ends_next_day: true`.",
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"is_open\": true,\n    \"periods\": [\n        {\n            \"start_time\": \"13:00\",\n            \"end_time\": \"15:00\"\n        },\n        {\n            \"start_time\": \"17:00\",\n            \"end_time\": \"21:00\"\n        }\n    ]\n}\n",
@@ -682,7 +682,7 @@
                                 }
                             ]
                         },
-                        "description": "**The list changes with the visit type** — a 30-minute procedure offers\nfewer start times than a 10-minute follow-up. Re-fetch whenever the\nsecretary changes the type.\n\nUnavailable slots are **returned, not omitted**: render them greyed and\nstruck through.\n\nServer-side rules: start times step by the clinic's `slot_step_minutes`;\na visit must *finish* inside its period; a slot is blocked by any\noverlapping booking of any visit type; cancelled bookings free their\nslot; touching intervals do not collide."
+                        "description": "**The list changes with the visit type** — a 30-minute procedure offers\nfewer start times than a 10-minute follow-up. Re-fetch whenever the\nsecretary changes the type.\n\nUnavailable slots are **returned, not omitted**: render them greyed and\nstruck through.\n\nServer-side rules: start times step by the clinic's `slot_step_minutes`;\na visit must *finish* inside its period; a slot is blocked by any\noverlapping booking of any visit type; cancelled bookings free their\nslot; touching intervals do not collide.\n\n**After midnight.** On a day whose period runs past midnight, the\nlist for that `date` carries on after 23:xx with `00:00`, `00:30`,\n`01:00`… in time order. Those slots belong to `date`, not the next\nday: book them by sending the same `date` and the `start_time` shown.\nBetween midnight and the period's close the clinic's \"today\" is still\nthe evening's date, so it stays bookable. Each of those slots carries\n`after_midnight: true`: show it as \"بعد منتصف الليل\"."
                     },
                     "response": []
                 },
@@ -830,7 +830,7 @@
                                 "bookings"
                             ]
                         },
-                        "description": "The patient is created if the phone is new and reused if known — her ID\ncode is generated once and never changes.\n\n`update_patient_name: true` replaces the stored name; without it a\ndiffering name is ignored, so a typo cannot quietly rewrite the record.\n\nNormal bookings require `start_time`. Emergency bookings use\n`booking_kind: emergency`, require `patient_location`, must not send\n`start_time`, and do not block a slot. `inside_clinic` emergency\nbookings are created as `arrived`; `on_way` starts as `booked`.",
+                        "description": "The patient is created if the phone is new and reused if known — her ID\ncode is generated once and never changes.\n\n`update_patient_name: true` replaces the stored name; without it a\ndiffering name is ignored, so a typo cannot quietly rewrite the record.\n\n`date` is the clinic day, not the calendar day: a 01:00 slot in\nMonday's 19:00–03:00 is booked with Monday's `date` and `start_time:\n\"01:00\"`, and comes back with Monday's `date` and `after_midnight:\ntrue`. The server knows it happens on Tuesday.\n\nNormal bookings require `start_time`. Emergency bookings use\n`booking_kind: emergency`, require `patient_location`, must not send\n`start_time`, and do not block a slot. `inside_clinic` emergency\nbookings are created as `arrived`; `on_way` starts as `booked`.",
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"patient_name\": \"سارة أحمد\",\n    \"phone\": \"01012225521\",\n    \"visit_type_id\": 1,\n    \"date\": \"2026-08-08\",\n    \"start_time\": \"13:40\"\n}\n",

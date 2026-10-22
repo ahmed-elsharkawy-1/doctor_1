@@ -22,6 +22,9 @@ final class ScheduleDayResult extends ServiceResult
                     'id' => $period->id,
                     'start_time' => Wire::time($period->startTime()),
                     'end_time' => Wire::time($period->endTime()),
+                    // 19:00–03:00: closes the next morning, and everything in
+                    // it stays on this day. False for 23:59, which is midnight.
+                    'ends_next_day' => $period->crossesMidnight(),
                 ])
                 ->values()
                 ->all(),

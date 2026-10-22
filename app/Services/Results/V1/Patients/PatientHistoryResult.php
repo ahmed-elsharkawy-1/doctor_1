@@ -66,6 +66,7 @@ final class PatientHistoryResult extends ServiceResult
             'booking_id' => $booking->id,
             'date' => Wire::date($booking->visit_date),
             'start_time' => $booking->start_at === null ? null : Wire::time($booking->start_at),
+            'after_midnight' => $booking->startsAfterMidnight(),
             'booking_kind' => Wire::enum($booking->booking_kind, $booking->booking_kind->label()),
             'patient_location' => $booking->patient_location === null
                 ? null

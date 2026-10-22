@@ -366,6 +366,7 @@ paths:
         booking in it — the 01:00 ones included — belongs to *this* day. It
         must close by `06:00`. While it is open nothing else may start before
         its close: not another period on this day, and not the next day.
+        Such a period comes back with `ends_next_day: true`.
       operationId: updateScheduleDay
       requestBody:
         required: true
@@ -619,7 +620,8 @@ paths:
         `01:00`… in time order. Those slots belong to `date`, not the next
         day: book them by sending the same `date` and the `start_time` shown.
         Between midnight and the period's close the clinic's "today" is still
-        the evening's date, so it stays bookable.
+        the evening's date, so it stays bookable. Each of those slots carries
+        `after_midnight: true`: show it as "بعد منتصف الليل".
       operationId: slots
       parameters:
         - name: date
@@ -800,8 +802,8 @@ paths:
 
         `date` is the clinic day, not the calendar day: a 01:00 slot in
         Monday's 19:00–03:00 is booked with Monday's `date` and `start_time:
-        "01:00"`, and comes back with Monday's `date`. The server knows it
-        happens on Tuesday.
+        "01:00"`, and comes back with Monday's `date` and `after_midnight:
+        true`. The server knows it happens on Tuesday.
 
         Normal bookings require `start_time`. Emergency bookings use
         `booking_kind: emergency`, require `patient_location`, must not send
@@ -1628,6 +1630,13 @@ components:
                 description: "**Not stable** across a save — never hold onto it."
               start_time: { $ref: "#/components/schemas/Display" }
               end_time: { $ref: "#/components/schemas/Display" }
+              ends_next_day:
+                type: boolean
+                description: |
+                  True when the period runs past midnight (`19:00` → `03:00`):
+                  it closes the next morning, and every booking in it stays on
+                  this day. Show "ينتهي اليوم التالي". False for `23:59`,
+                  which is how a shift ending at midnight is entered.
 
     Holiday:
       type: object
@@ -1681,6 +1690,13 @@ components:
               start_time: { $ref: "#/components/schemas/Display" }
               end_time: { $ref: "#/components/schemas/Display" }
               is_available: { type: boolean }
+              after_midnight:
+                type: boolean
+                description: |
+                  True for a slot past midnight in a period that runs into the
+                  next morning (`01:00` in `19:00`–`03:00`). It still belongs
+                  to `date` and is booked with that `date`, but show it as
+                  "بعد منتصف الليل" so it is not read as that morning.
 
     SlotHold:
       type: object
@@ -1693,6 +1709,9 @@ components:
         date: { $ref: "#/components/schemas/Display" }
         start_time: { $ref: "#/components/schemas/Display" }
         end_time: { $ref: "#/components/schemas/Display" }
+        after_midnight:
+          type: boolean
+          description: As on a slot — past midnight, still on `date`.
         visit_type_id: { type: integer }
         expires_at:
           type: string
@@ -1824,6 +1843,13 @@ components:
           oneOf:
             - allOf: [{ $ref: "#/components/schemas/Display" }]
             - type: "null"
+        after_midnight:
+          type: boolean
+          description: |
+            True when the visit is past midnight in an evening that ran into
+            the next morning: `date` is Monday, `start_time` is `01:00`, and
+            it happens on Tuesday at 01:00. Show "بعد منتصف الليل" next to the
+            time; keep it on `date` everywhere. False with no `start_time`.
         queue_entered_at:
           type: [string, "null"]
           format: date-time
@@ -1943,6 +1969,9 @@ components:
             name: { type: string }
         original_date: { $ref: "#/components/schemas/Display" }
         original_start_time: { $ref: "#/components/schemas/Display" }
+        after_midnight:
+          type: boolean
+          description: "`original_start_time` is past midnight, still on `original_date`."
         contacted: { type: boolean }
         contacted_at: { type: [string, "null"], format: date-time }
 
@@ -1989,6 +2018,9 @@ components:
               booking_id: { type: integer }
               date: { $ref: "#/components/schemas/Display" }
               start_time: { $ref: "#/components/schemas/Display" }
+              after_midnight:
+                type: boolean
+                description: "`start_time` is past midnight, still on `date`."
               visit_type:
                 type: object
                 properties:

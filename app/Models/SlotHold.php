@@ -96,6 +96,15 @@ class SlotHold extends Model
         $query->when($token !== null, fn (Builder $q) => $q->where('token', '!=', $token));
     }
 
+    /**
+     * Held from an evening that ran past midnight — see
+     * Booking::startsAfterMidnight().
+     */
+    public function startsAfterMidnight(): bool
+    {
+        return $this->start_at->toDateString() !== $this->visit_date->toDateString();
+    }
+
     public function hasExpired(?Carbon $now = null): bool
     {
         return $this->expires_at->lessThanOrEqualTo($now ?? Carbon::now());
