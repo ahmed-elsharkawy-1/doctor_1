@@ -67,10 +67,17 @@ class CloseClinicDayCommand extends Command
         // running late past a 23:59 shift is still seeing that day's list.
         $today = min($clinic->currentDay()->toDateString(), $this->clinicDay($now));
 
+        // A delay can push a patient's real time past the closing hour. One
+        // whose visit has not even started is not a no-show: it waits until
+        // its time has passed. Times are stored as the clinic's wall clock.
+        $started = fn ($query) => $query->whereNull('start_at')
+            ->orWhere('start_at', '<=', $now->format('Y-m-d H:i:s'));
+
         // Never touched the clinic: she never turned up.
         $noShows = $clinic->bookings()
             ->whereDate('visit_date', '<', $today)
             ->where('status', BookingStatus::BOOKED)
+            ->where($started)
             ->update([
                 'status' => BookingStatus::NO_SHOW,
                 'cancel_reason' => null,
@@ -83,6 +90,7 @@ class CloseClinicDayCommand extends Command
         $incomplete = $clinic->bookings()
             ->whereDate('visit_date', '<', $today)
             ->whereIn('status', [BookingStatus::ARRIVED, BookingStatus::WITH_DOCTOR])
+            ->where($started)
             ->update([
                 'status' => BookingStatus::CANCELLED,
                 'cancel_reason' => CancelReason::INCOMPLETE,

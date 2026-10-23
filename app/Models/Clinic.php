@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BookingStatus;
 use App\Enums\DayOfWeek;
 use Database\Factories\ClinicFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -218,6 +219,11 @@ class Clinic extends Model
      * still open — 01:30 on a Tuesday, for a Monday that runs 19:00 to 03:00 —
      * it is still Monday: those patients are on Monday's list, and Monday must
      * not be closed out or drop off the queue until its period has ended.
+     *
+     * Monday also stays current while it still has a patient waiting whose
+     * visit is not long over — a delay can push a shift past its own period,
+     * and those patients must not vanish from the secretary's list and their
+     * tracking pages at midnight. Never past the end of the clinic day.
      */
     public function currentDay(): Carbon
     {
@@ -227,13 +233,34 @@ class Clinic extends Model
 
         $overnight = $this->scheduleFor(DayOfWeek::fromDate($yesterday))?->overnightPeriod();
 
-        if ($overnight === null || $now->format('H:i') >= $overnight->endTime()) {
+        if ($overnight !== null && $now->format('H:i') < $overnight->endTime()) {
+            $wasHoliday = $this->holidays()->whereDate('date', $yesterday->toDateString())->exists();
+
+            return $wasHoliday ? $today : $yesterday;
+        }
+
+        // Past the end of the clinic day, whatever is still waiting is over.
+        if ($now->format('H:i') >= (string) config('clinic.end_of_day.closes_at')) {
             return $today;
         }
 
-        $wasHoliday = $this->holidays()->whereDate('date', $yesterday->toDateString())->exists();
+        return $this->hasPatientsStillWaiting($yesterday, $now) ? $yesterday : $today;
+    }
 
-        return $wasHoliday ? $today : $yesterday;
+    /**
+     * Whether a day still has someone waiting — booked, in the clinic, or with
+     * the doctor — whose visit ended no longer ago than the grace allows.
+     * Times are stored as the clinic's wall clock.
+     */
+    private function hasPatientsStillWaiting(Carbon $day, Carbon $now): bool
+    {
+        $since = $now->copy()->subMinutes((int) config('clinic.end_of_day.waiting_grace_minutes'));
+
+        return $this->bookings()
+            ->whereDate('visit_date', $day->toDateString())
+            ->whereIn('status', [BookingStatus::BOOKED, BookingStatus::ARRIVED, BookingStatus::WITH_DOCTOR])
+            ->where('end_at', '>=', $since->format('Y-m-d H:i:s'))
+            ->exists();
     }
 
     /**

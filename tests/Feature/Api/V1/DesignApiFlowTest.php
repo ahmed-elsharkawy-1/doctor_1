@@ -103,10 +103,10 @@ class DesignApiFlowTest extends TestCase
         // sending it cancels the booking — no use in a flow that carries on
         // using it. This one is seeded inactive; the flow only needs *a*
         // sendable template, so it switches one on for itself.
-        MessageTemplate::where('key', 'appointment_delayed')->update(['is_active' => true]);
+        MessageTemplate::where('key', 'appointment_earlier')->update(['is_active' => true]);
 
         $this->postJson(route('api.v1.bookings.message', $booking['id']), [
-            'template_key' => 'appointment_delayed',
+            'template_key' => 'appointment_earlier',
         ])
             ->assertOk()
             ->assertJsonPath('data.sent_count', 1)

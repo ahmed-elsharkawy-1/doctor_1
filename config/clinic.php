@@ -11,6 +11,17 @@
 |
 */
 
+/*
+| The end of the clinic day, the next morning, in each clinic's own time.
+|
+| One value for every clinic and every rule that needs it: an overnight
+| period must close by it, the day before is not closed out until it, "today"
+| stays on the evening while patients are still waiting up to it, and a delay
+| may not push anyone past it. Kept in one place so the rules cannot drift
+| apart, as 05:00 and 06:00 once did.
+*/
+$endOfClinicDay = env('CLINIC_DAY_CLOSES_AT', '06:00');
+
 return [
 
     /*
@@ -93,9 +104,9 @@ return [
         'week_start_day' => 6,
         'min_period_minutes' => 5,
         'max_periods_per_day' => 6,
-        // A period may run past midnight (19:00–03:00) but must close by this
-        // time the next morning. Its bookings stay on the day it opened.
-        'latest_overnight_close' => '06:00',
+        // A period may run past midnight (19:00–03:00) but must close by the
+        // end of the clinic day. Its bookings stay on the day it opened.
+        'latest_overnight_close' => $endOfClinicDay,
     ],
 
     /*
@@ -113,11 +124,31 @@ return [
     | End-of-day housekeeping (SPEC §5.4).
     */
     'end_of_day' => [
-        // When a clinic's day is over, in its own local time on the next
-        // morning. Not midnight: evening shifts run past 12, and the doctor
-        // is still seeing yesterday's list at 00:30. Until this hour the day
-        // before is left open, so nobody still waiting is marked a no-show.
-        'closes_at' => env('CLINIC_DAY_CLOSES_AT', '05:00'),
+        // When a clinic's day is over: the end of the clinic day, above. Not
+        // midnight — evening shifts run past 12, and the doctor is still
+        // seeing yesterday's list at 00:30. Until then the day before is left
+        // open, so nobody still waiting is marked a no-show.
+        'closes_at' => $endOfClinicDay,
+
+        // After midnight the evening stays "today" — on the secretary's list,
+        // the home screen and the tracking page — while it still has a
+        // patient waiting whose visit ended no longer ago than this. A shift
+        // a delay pushed past its own period does not vanish at 00:00; a
+        // patient simply left unmarked at 21:00 does not hold the day open.
+        'waiting_grace_minutes' => 120,
+    ],
+
+    /*
+    | Delaying the rest of today's patients — POST /api/v1/emergency.
+    */
+    'delay' => [
+        // The only delays the app offers, in minutes.
+        'options' => [15, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300],
+
+        // The same delay sent again within this long — a double tap, a
+        // retried request — returns the first result instead of moving
+        // everyone a second time.
+        'replay_seconds' => 120,
     ],
 
     /*

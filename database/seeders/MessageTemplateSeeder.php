@@ -125,12 +125,23 @@ class MessageTemplateSeeder extends Seeder
                 'is_active' => false,
             ],
 
-            'appointment_delayed' => [
+            /*
+            | Sent by the emergency delay, one per moved patient with their own
+            | new time — so never a broadcast. Approved at Meta without a delay
+            | amount. Inactive until switched on here.
+            | {{1}} patient · {{2}} date · {{3}} new time · {{4}} doctor
+            | {{5}} clinic phone
+            | Button: https://elayadah.com/{{1}} <- booking/<token>
+            */
+            WhatsAppMessagingService::DELAYED_KEY => [
                 'category' => 'utility',
-                'is_broadcast' => true,
+                'is_broadcast' => false,
                 'provider_template_name' => 'appointment_delayed',
                 'language_code' => 'ar',
-                'body_ar' => 'مرحباً {{1}}، نعتذر عن التأخير في مواعيد الكشف اليوم في {{2}} لظرف طارئ. سيتم استقبالك في أقرب وقت ممكن، ونشكر لك تفهمك.',
+                'body_ar' => "مرحبًا {{1}} 👋\n\nنعتذر، تم تأجيل موعدك بسبب حالة طارئة ⚠️\n\n"
+                    ."🗓 {{2}}\n⏰ الموعد الجديد: {{3}}\n👨‍⚕️ {{4}}\n\n"
+                    ."📞 للاستفسار تواصل مع العيادة على: {{5}}\n\n"
+                    .'نشكرك على تفهمك 🙏',
                 'is_active' => false,
             ],
         ];

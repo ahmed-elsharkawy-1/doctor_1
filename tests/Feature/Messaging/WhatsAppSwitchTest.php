@@ -268,9 +268,9 @@ class WhatsAppSwitchTest extends TestCase
     /** A broadcast template that does not cancel anything — seeded inactive, so switched on here. */
     private function harmlessTemplate(): string
     {
-        MessageTemplate::where('key', 'appointment_delayed')->update(['is_active' => true]);
+        MessageTemplate::where('key', 'appointment_earlier')->update(['is_active' => true]);
 
-        return 'appointment_delayed';
+        return 'appointment_earlier';
     }
 
     private function bookingAt(string $time): Booking

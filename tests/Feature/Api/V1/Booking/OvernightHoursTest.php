@@ -277,8 +277,12 @@ class OvernightHoursTest extends TestCase
 
         $this->book('02:00')->assertCreated();
 
+        // The period has ended, but the 02:00 patient is still waiting: the
+        // evening stays today until they are seen (or the clinic day ends).
         Carbon::setTestNow(Carbon::parse('2026-08-11 03:00:00', 'Africa/Cairo'));
+        $this->assertSame('2026-08-10', $this->clinic->currentDay()->toDateString());
 
+        Booking::query()->update(['status' => BookingStatus::DONE]);
         $this->assertSame('2026-08-11', $this->clinic->currentDay()->toDateString());
     }
 
@@ -293,13 +297,13 @@ class OvernightHoursTest extends TestCase
 
     /**
      * Monday stays open while either rule says so: its own period (to 03:00)
-     * or the clinic's closing hour (05:00 by default).
+     * or the end of the clinic day (06:00 by default).
      */
     public function test_the_evening_is_not_closed_out_until_its_period_has_ended(): void
     {
         $booking = $this->nightBooking();
 
-        foreach (['01:00' => BookingStatus::BOOKED, '04:00' => BookingStatus::BOOKED, '05:00' => BookingStatus::NO_SHOW] as $time => $expected) {
+        foreach (['01:00' => BookingStatus::BOOKED, '05:00' => BookingStatus::BOOKED, '06:00' => BookingStatus::NO_SHOW] as $time => $expected) {
             Carbon::setTestNow(Carbon::parse("2026-08-11 {$time}:00", 'Africa/Cairo'));
             $this->artisan('clinic:close-day')->assertSuccessful();
             $this->assertSame($expected, $booking->refresh()->status, "at {$time}");

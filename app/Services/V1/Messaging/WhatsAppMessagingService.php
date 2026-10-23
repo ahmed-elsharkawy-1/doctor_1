@@ -33,6 +33,9 @@ class WhatsAppMessagingService
      */
     public const CANCELS_THE_DAY_KEY = 'day_cancelled';
 
+    /** Sent to each patient an emergency delay moved, with their new time. */
+    public const DELAYED_KEY = 'appointment_delayed';
+
     /**
      * What staff may send. Given a clinic with WhatsApp off, only the
      * cancellation — the rest would only be refused.
@@ -200,6 +203,61 @@ class WhatsAppMessagingService
     public function sendVisitCompleted(Clinic $clinic, Booking $booking): ?OutboundMessage
     {
         return $this->sendForBookingUsing($clinic, $booking, self::VISIT_COMPLETED_KEY);
+    }
+
+    /**
+     * Tells each patient a delay moved their new time.
+     *
+     * Never refuses: the times have already moved, and a message that cannot
+     * go out is reported per booking instead. `template_not_ready` while the
+     * template is switched off.
+     *
+     * @param  Collection<int, Booking>  $bookings
+     * @return array{sent_count: int, skipped_count: int, message_ids: list<int>, skipped: list<array<string, mixed>>, whatsapp_enabled: bool}
+     */
+    public function sendDelayed(Clinic $clinic, Collection $bookings): array
+    {
+        $sending = $clinic->sendsWhatsApp();
+        $template = MessageTemplate::query()
+            ->where('key', self::DELAYED_KEY)
+            ->where('is_active', true)
+            ->first();
+        $messages = [];
+        $skipped = [];
+
+        foreach ($bookings as $booking) {
+            $patient = $booking->patient;
+
+            $reason = match (true) {
+                ! $sending => 'whatsapp_disabled',
+                $template === null => 'template_not_ready',
+                $patient === null || $patient->whatsapp_opt_in_at === null => 'whatsapp_not_opted_in',
+                default => null,
+            };
+
+            if ($reason !== null) {
+                $skipped[] = [
+                    'booking_id' => $booking->id,
+                    'patient_id' => $patient?->id,
+                    'reason' => $reason,
+                ];
+
+                continue;
+            }
+
+            $message = $this->queue($clinic, $booking, $patient, $template);
+
+            SendWhatsAppMessage::dispatch($message->id);
+            $messages[] = $message->id;
+        }
+
+        return [
+            'sent_count' => count($messages),
+            'skipped_count' => count($skipped),
+            'message_ids' => $messages,
+            'skipped' => $skipped,
+            'whatsapp_enabled' => $sending,
+        ];
     }
 
     private function sendForBookingUsing(Clinic $clinic, Booking $booking, string $templateKey): ?OutboundMessage

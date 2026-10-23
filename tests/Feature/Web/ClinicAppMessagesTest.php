@@ -52,9 +52,9 @@ class ClinicAppMessagesTest extends TestCase
      */
     private function harmlessTemplate(): string
     {
-        MessageTemplate::where('key', 'appointment_delayed')->update(['is_active' => true]);
+        MessageTemplate::where('key', 'appointment_earlier')->update(['is_active' => true]);
 
-        return 'appointment_delayed';
+        return 'appointment_earlier';
     }
 
     /**

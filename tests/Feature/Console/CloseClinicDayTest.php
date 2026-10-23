@@ -20,9 +20,9 @@ class CloseClinicDayTest extends TestCase
     {
         parent::setUp();
 
-        // After the clinic day has closed: the day before ends at 05:00 the
+        // After the clinic day has closed: the day before ends at 06:00 the
         // next morning, not at midnight (clinic.end_of_day.closes_at).
-        Carbon::setTestNow(Carbon::parse('2026-08-09 05:30:00', 'Africa/Cairo'));
+        Carbon::setTestNow(Carbon::parse('2026-08-09 06:30:00', 'Africa/Cairo'));
 
         $this->setUpClinic();
     }
@@ -62,16 +62,43 @@ class CloseClinicDayTest extends TestCase
 
     public function test_yesterday_stays_open_until_the_closing_hour(): void
     {
-        Carbon::setTestNow(Carbon::parse('2026-08-09 04:59:00', 'Africa/Cairo'));
+        Carbon::setTestNow(Carbon::parse('2026-08-09 05:59:00', 'Africa/Cairo'));
         $booking = $this->yesterday(BookingStatus::BOOKED);
 
         $this->artisan('clinic:close-day')->assertSuccessful();
         $this->assertSame(BookingStatus::BOOKED, $booking->fresh()->status);
 
-        Carbon::setTestNow(Carbon::parse('2026-08-09 05:00:00', 'Africa/Cairo'));
+        Carbon::setTestNow(Carbon::parse('2026-08-09 06:00:00', 'Africa/Cairo'));
 
         $this->artisan('clinic:close-day')->assertSuccessful();
         $this->assertSame(BookingStatus::NO_SHOW, $booking->fresh()->status);
+    }
+
+    /** One end of the clinic day for every rule: the overnight limit and the closing hour agree. */
+    public function test_the_clinic_day_ends_at_six_for_every_rule(): void
+    {
+        $this->assertSame('06:00', config('clinic.end_of_day.closes_at'));
+        $this->assertSame(config('clinic.end_of_day.closes_at'), config('clinic.schedule.latest_overnight_close'));
+    }
+
+    /**
+     * A delay can push a patient's real time past the closing hour. A patient
+     * whose visit has not even started yet is not a no-show — it waits until
+     * its time has come and gone.
+     */
+    public function test_a_patient_whose_time_is_still_ahead_is_never_closed(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-09 06:30:00', 'Africa/Cairo'));
+
+        $ahead = Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-08-09 06:50', 'Africa/Cairo'))
+            ->create(['status' => BookingStatus::BOOKED, 'visit_date' => '2026-08-08']);
+        $past = $this->yesterday(BookingStatus::BOOKED);
+
+        $this->artisan('clinic:close-day')->assertSuccessful();
+
+        $this->assertSame(BookingStatus::BOOKED, $ahead->fresh()->status);
+        $this->assertSame(BookingStatus::NO_SHOW, $past->fresh()->status);
     }
 
     public function test_the_closing_hour_is_configurable(): void

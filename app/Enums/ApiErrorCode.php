@@ -39,6 +39,11 @@ enum ApiErrorCode: string
     case BOOKING_NOT_CANCELLABLE = 'BOOKING_NOT_CANCELLABLE';
     case NOTHING_TO_POSTPONE = 'NOTHING_TO_POSTPONE';
 
+    // Emergency delay. `details.reason` says why a booking cannot start one:
+    // `not_today` or `not_waiting`.
+    case BOOKING_NOT_DELAYABLE = 'BOOKING_NOT_DELAYABLE';
+    case DELAY_PAST_END_OF_DAY = 'DELAY_PAST_END_OF_DAY';
+
     // Reports (Phase 6)
     case UNKNOWN_REPORT_PERIOD = 'UNKNOWN_REPORT_PERIOD';
     // This account may not open the reports page (no report access, or the

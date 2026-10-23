@@ -59,6 +59,8 @@ tags:
     description: Booking status changes
   - name: Postpone
     description: Postponing a day and the call list
+  - name: Emergency
+    description: Delaying today's appointments when the doctor is held up
   - name: Messaging
     description: WhatsApp template previews and log-driver sends
   - name: Patients
@@ -1161,6 +1163,131 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/CallListResponse" }
 
+  # ----------------------------------------------------------- Emergency ----
+
+  /emergency/delay/options:
+    get:
+      tags: [Emergency]
+      summary: The delays offered
+      description: |
+        The list behind "تأخير طارئ", already worded for display. Send the
+        chosen `minutes` back as `delay_minutes`; nothing else is accepted.
+      operationId: emergencyDelayOptions
+      responses:
+        "200":
+          description: Options
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                minutes: { type: integer, example: 90 }
+                                label: { type: string, example: ساعة ونصف }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /emergency:
+    post:
+      tags: [Emergency]
+      summary: Delay today's appointments
+      description: |
+        One shot, no preview: the app's own confirmation dialog is the only
+        confirmation.
+
+        `booking_id` is the first patient to move — normally the first one
+        still waiting. It moves by the whole `delay_minutes`; each later
+        booking moves only as far as it must to start after the one before,
+        so a free gap absorbs part of the delay and patients after it move
+        less, or not at all. Patients with the doctor, done, cancelled or
+        no-show stay where they are and their time counts as free.
+        Emergencies have no time and are untouched. Earlier patients are
+        untouched. Times past midnight stay on today's list
+        (`after_midnight: true`).
+
+        The time a delay frees is left open for booking.
+
+        Every moved patient (booked or already in the clinic) is sent the
+        `appointment_delayed` WhatsApp message with their new time. Until
+        Meta approves that template, each is listed in `messaging.skipped`
+        with reason `template_not_ready`; the times still move. Other reasons:
+        `whatsapp_disabled`, `whatsapp_not_opted_in`.
+
+        Sending the same request again within two minutes (a double tap, a
+        retry) moves nobody and returns the first result with
+        `replayed: true`. A later request is a new delay.
+      operationId: emergency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action, booking_id, delay_minutes]
+              properties:
+                action: { type: string, enum: [delay] }
+                booking_id: { type: integer, example: 88 }
+                delay_minutes:
+                  type: integer
+                  enum: [15, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300]
+                  example: 60
+      responses:
+        "200":
+          description: Delayed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          moved_count: { type: integer }
+                          replayed: { type: boolean }
+                          items:
+                            type: array
+                            items: { $ref: "#/components/schemas/DelayedBookingRow" }
+                          messaging:
+                            type: object
+                            properties:
+                              sent_count: { type: integer }
+                              skipped_count: { type: integer }
+                              skipped:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    booking_id: { type: integer }
+                                    patient_id: { type: [integer, "null"] }
+                                    reason:
+                                      type: string
+                                      enum: [template_not_ready, whatsapp_disabled, whatsapp_not_opted_in]
+                              whatsapp_enabled: { type: [boolean, "null"] }
+        "400":
+          description: |
+            `BOOKING_NOT_DELAYABLE` — `details.reason` is `not_today` (not
+            today's booking) or `not_waiting` (with the doctor, done,
+            cancelled, no-show, or an emergency).
+            `DELAY_PAST_END_OF_DAY` — someone would end after the end of the
+            clinic day (06:00); nobody is moved. `details.booking_id` is the
+            first booking that would.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
   # ------------------------------------------------------------ Patients ----
 
   /patients:
@@ -1974,6 +2101,29 @@ components:
           description: "`original_start_time` is past midnight, still on `original_date`."
         contacted: { type: boolean }
         contacted_at: { type: [string, "null"], format: date-time }
+
+    DelayedBookingRow:
+      type: object
+      properties:
+        booking_id: { type: integer }
+        patient:
+          type: [object, "null"]
+          properties:
+            id: { type: integer }
+            code: { type: string }
+            name: { type: string }
+        status: { $ref: "#/components/schemas/Display" }
+        previous_start_time: { $ref: "#/components/schemas/Display" }
+        start_time: { $ref: "#/components/schemas/Display" }
+        end_time: { $ref: "#/components/schemas/Display" }
+        after_midnight:
+          type: boolean
+          description: "`start_time` is past midnight, still on today's list."
+        delay:
+          type: object
+          properties:
+            minutes: { type: integer, example: 30 }
+            label: { type: string, example: نصف ساعة }
 
     PatientListItem:
       type: object

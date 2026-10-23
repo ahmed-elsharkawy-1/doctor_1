@@ -18,6 +18,8 @@ use App\Http\Controllers\Api\V1\Messaging\SendBookingMessageController;
 use App\Http\Controllers\Api\V1\Patients\SearchPatientsController;
 use App\Http\Controllers\Api\V1\Patients\ShowPatientController;
 use App\Http\Controllers\Api\V1\Queue\CancelBookingController;
+use App\Http\Controllers\Api\V1\Queue\DelayOptionsController;
+use App\Http\Controllers\Api\V1\Queue\EmergencyController;
 use App\Http\Controllers\Api\V1\Queue\MarkContactedController;
 use App\Http\Controllers\Api\V1\Queue\PostponeCandidatesController;
 use App\Http\Controllers\Api\V1\Queue\PostponeController;
@@ -172,6 +174,12 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
         Route::get('postpone/candidates', PostponeCandidatesController::class)
             ->name('api.v1.postpone.candidates');
         Route::post('postpone', PostponeController::class)->name('api.v1.postpone');
+
+        // Emergency delay: moves today's appointments later from the patient
+        // picked, and messages everyone who moved.
+        Route::get('emergency/delay/options', DelayOptionsController::class)
+            ->name('api.v1.emergency.delay-options');
+        Route::post('emergency', EmergencyController::class)->name('api.v1.emergency');
 
         Route::get('rebooking-list', RebookingListController::class)->name('api.v1.rebooking-list');
     });

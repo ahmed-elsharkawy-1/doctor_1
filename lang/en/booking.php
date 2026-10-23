@@ -223,4 +223,18 @@ return [
         'done_change' => 'To change or cancel, contact the clinic on WhatsApp.',
         'done_back' => "Back to the doctor's page",
     ],
+
+    // Delaying the rest of today's patients.
+    'delay' => [
+        'hours' => '{1} an hour|[2,*] :count hours',
+        'minutes' => '{1} a minute|[2,*] :count minutes',
+        'half_hour' => 'half an hour',
+        'hours_and_half' => ':hours and a half',
+        'hours_and_minutes' => ':hours and :minutes',
+        'delayed' => '{1} One appointment delayed|[2,*] :count appointments delayed',
+        'options_loaded' => 'Delay options loaded',
+        'not_delayable' => 'This booking cannot start a delay — the patient has been seen or is no longer waiting. Pick the first patient still waiting.',
+        'not_today' => "Only today's bookings can be delayed.",
+        'past_end_of_day' => 'This delay would put some appointments after :time, the end of the clinic day. Choose a shorter delay.',
+    ],
 ];

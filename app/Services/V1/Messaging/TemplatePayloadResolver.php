@@ -58,13 +58,29 @@ class TemplatePayloadResolver
             ),
 
             /*
-            | Drafted for the app but never submitted to Meta, so they are
-            | seeded inactive and cannot be sent. The mapping matches our own
-            | draft wording — {{1}} patient, {{2}} clinic — and must be checked
-            | against the approved template if these are ever submitted, since
+            | Sent after the times have moved, so the booking already carries
+            | its new time. The approved template has no delay amount — the
+            | new time says it.
+            */
+            WhatsAppMessagingService::DELAYED_KEY => new TemplatePayload(
+                body: [
+                    $this->patientName($booking),
+                    $this->date($booking, $clinic),
+                    $this->time($booking, $clinic),
+                    $this->doctorName($clinic),
+                    $this->clinicPhone($clinic),
+                ],
+                buttonSuffix: $this->suffix('tracking', $booking),
+            ),
+
+            /*
+            | Drafted for the app but never submitted to Meta, so it is seeded
+            | inactive and cannot be sent. The mapping matches our own draft
+            | wording — {{1}} patient, {{2}} clinic — and must be checked
+            | against the approved template if it is ever submitted, since
             | Meta fixes the parameter list at approval, not us.
             */
-            'appointment_earlier', 'appointment_delayed' => new TemplatePayload(
+            'appointment_earlier' => new TemplatePayload(
                 body: [
                     $this->patientName($booking),
                     $this->clean($clinic->name, '—'),
