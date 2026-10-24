@@ -556,6 +556,15 @@ paths:
                     Clinic-local `HH:MM` at which the visit-day reminder is
                     sent. Defaults to `11:00`.
                   example: "11:00"
+                whatsapp_cancel_cutoff_minutes:
+                  type: integer
+                  enum: [0, 30, 60, 90, 120, 180, 240]
+                  description: |
+                    Inside this many minutes of the visit, the reminder's
+                    Cancel button no longer cancels: the booking stays and the
+                    patient is sent the clinic phone. `0` allows it until the
+                    visit starts. Defaults to `60`.
+                  example: 60
       responses:
         "200":
           description: Saved
@@ -1685,6 +1694,18 @@ components:
             Clinic-local `HH:MM` at which the single visit-day reminder goes
             out. Defaults to `11:00`. Bookings created after this time are not
             reminded that day.
+        whatsapp_cancel_cutoff_minutes:
+          type: integer
+          enum: [0, 30, 60, 90, 120, 180, 240]
+          example: 60
+          description: |
+            Inside this many minutes of the visit, Cancel from the WhatsApp
+            reminder is refused and the patient is sent the clinic phone
+            instead. `0` allows it until the visit starts.
+        whatsapp_cancel_cutoff_minute_options:
+          type: array
+          items: { type: integer, enum: [0, 30, 60, 90, 120, 180, 240] }
+          example: [0, 30, 60, 90, 120, 180, 240]
         patient_arrival_lead_minute_options:
           type: array
           items: { type: integer, enum: [15, 20, 30, 45, 60] }

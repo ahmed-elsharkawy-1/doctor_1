@@ -22,7 +22,8 @@ use Throwable;
  * Eligible is deliberately narrow: the visit is today, still `booked`, not an
  * emergency, was made before the reminder time, has not already started, and
  * the clinic is not on holiday. A morning appointment earlier than the
- * reminder time is skipped — the reminder would arrive after the visit.
+ * reminder time is skipped — the reminder would arrive after the visit — and
+ * so is one already inside the clinic's WhatsApp cancel cutoff.
  *
  * Times are stored as the clinic's wall clock, so every comparison here is
  * made in the clinic's own timezone.
@@ -84,16 +85,21 @@ class SendBookingRemindersCommand extends Command
             return [];
         }
 
+        // A visit already inside the clinic's cancel cutoff would get a Cancel
+        // button that can only be refused, so it is not reminded at all. With
+        // no cutoff this is just `now`, which stops a late run reminding a
+        // patient whose visit has already begun.
+        $cancellableFrom = $now->copy()->addMinutes($clinic->whatsAppCancelCutoffMinutes());
+
         // The times are wall-clock values for the clinic, so a string compare
-        // against the same wall clock is exact. `start_at > now` also stops a
-        // late run reminding a patient whose visit has already begun.
+        // against the same wall clock is exact.
         return $clinic->bookings()
             ->with('patient')
             ->whereDate('visit_date', $today)
             ->where('status', BookingStatus::BOOKED)
             ->where('booking_kind', BookingKind::NORMAL)
             ->where('start_at', '>', $reminderAt->format('Y-m-d H:i:s'))
-            ->where('start_at', '>', $now->format('Y-m-d H:i:s'))
+            ->where('start_at', '>', $cancellableFrom->format('Y-m-d H:i:s'))
             ->whereNotExists(fn ($query) => $query->from((new OutboundMessage)->getTable())
                 ->whereColumn('booking_id', 'bookings.id')
                 ->where('template_key', WhatsAppMessagingService::REMINDER_KEY))

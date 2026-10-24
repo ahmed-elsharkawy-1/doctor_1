@@ -69,10 +69,30 @@ class WhatsAppReplyHandler
             return null;
         }
 
+        // The same answer again — a double tap, or Meta redelivering a
+        // callback — changes nothing, so it must not send the follow-up or
+        // notify the secretary a second time.
+        if ($booking->patient_response === $response) {
+            return null;
+        }
+
         // A cancellation after the visit was due is ignored — the clinic's
         // list has moved on, and freeing a slot that is already past helps
         // nobody. A confirmation at that point is harmless and still recorded.
         if ($response === PatientResponse::CANCELLED && $this->visitHasStarted($booking)) {
+            return null;
+        }
+
+        // Too close to the visit for a slot freed now to be filled, by the
+        // clinic's own cutoff. The booking stays as it was; the patient is
+        // told to call, so the clinic hears about it from a person.
+        if ($response === PatientResponse::CANCELLED && $this->insideCancelCutoff($booking)) {
+            try {
+                $this->messaging->sendReminderCancelRefused($booking->clinic, $booking);
+            } catch (Throwable $e) {
+                report($e);
+            }
+
             return null;
         }
 
@@ -206,14 +226,29 @@ class WhatsAppReplyHandler
 
     private function visitHasStarted(Booking $booking): bool
     {
+        $start = $this->visitStart($booking);
+
+        return $start !== null && Carbon::now($booking->clinic->timezone)->gt($start);
+    }
+
+    private function insideCancelCutoff(Booking $booking): bool
+    {
+        $start = $this->visitStart($booking);
+        $cutoff = $booking->clinic->whatsAppCancelCutoffMinutes();
+
+        return $start !== null
+            && $cutoff > 0
+            && Carbon::now($booking->clinic->timezone)->gte($start->copy()->subMinutes($cutoff));
+    }
+
+    private function visitStart(Booking $booking): ?Carbon
+    {
         if ($booking->start_at === null) {
-            return false;
+            return null;
         }
 
         // Both sides are the clinic's wall clock.
-        $start = Carbon::parse($booking->start_at->format('Y-m-d H:i:s'), $booking->clinic->timezone);
-
-        return Carbon::now($booking->clinic->timezone)->gt($start);
+        return Carbon::parse($booking->start_at->format('Y-m-d H:i:s'), $booking->clinic->timezone);
     }
 
     private function now(Booking $booking): Carbon

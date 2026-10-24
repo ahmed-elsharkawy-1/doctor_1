@@ -42,6 +42,21 @@
             @error('reminderTime') <div class="err">{{ $message }}</div> @enderror
         </div>
 
+        <div class="field">
+            <label>{{ __('app.settings.whatsapp_cancel_cutoff') }}</label>
+            <div class="chips">
+                @foreach ($cancelCutoffOptions as $minutes)
+                    <button type="button" class="chip"
+                            aria-pressed="{{ $whatsAppCancelCutoffMinutes === $minutes ? 'true' : 'false' }}"
+                            wire:click="$set('whatsAppCancelCutoffMinutes', {{ $minutes }})">
+                        {{ $minutes === 0 ? __('app.settings.whatsapp_cancel_cutoff_none') : $minutes }}
+                    </button>
+                @endforeach
+            </div>
+            <small class="muted">{{ __('app.settings.whatsapp_cancel_cutoff_hint') }}</small>
+            @error('whatsAppCancelCutoffMinutes') <div class="err">{{ $message }}</div> @enderror
+        </div>
+
         <button type="button" class="btn btn-primary" wire:click="save">
             {{ __('app.settings.save') }}
         </button>

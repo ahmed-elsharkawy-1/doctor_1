@@ -251,6 +251,69 @@ class ReminderReplyTest extends TestCase
         $this->assertNull($booking->patient_response);
     }
 
+    /** Visit at 15:00, cutoff 60: at 14:30 Cancel keeps the booking and sends the phone. */
+    public function test_cancel_inside_the_clinics_cutoff_is_refused_with_the_clinic_phone(): void
+    {
+        Event::fake([ReminderResponseReceived::class]);
+        $this->clinic->update(['whatsapp_cancel_cutoff_minutes' => 60]);
+        Carbon::setTestNow(Carbon::parse(self::DAY.' 14:30:00', 'Africa/Cairo'));
+
+        $this->reply($this->button('cancel_booking', 'إلغاء الحجز'))->assertOk();
+
+        $booking = $this->booking->fresh();
+
+        $this->assertSame(BookingStatus::BOOKED, $booking->status);
+        $this->assertNull($booking->patient_response);
+        $this->assertNull($booking->cancelled_at);
+
+        $this->assertCount(1, $this->sender->texts);
+        $this->assertStringContainsString('مينفعش تلغي الحجز', $this->sender->texts[0]['body']);
+        $this->assertStringContainsString('60 دقيقة', $this->sender->texts[0]['body']);
+        $this->assertStringContainsString('+201022334455', $this->sender->texts[0]['body']);
+        $this->assertSame(
+            WhatsAppMessagingService::REMINDER_CANCEL_REFUSED_KEY,
+            OutboundMessage::where('type', 'text')->sole()->template_key,
+        );
+
+        // Nothing changed, so there is nothing for the secretary to hear.
+        Event::assertNotDispatched(ReminderResponseReceived::class);
+    }
+
+    /** The cutoff is the clinic's own: 120 refuses at 13:30, 60 would not have. */
+    public function test_the_cutoff_follows_the_clinics_setting(): void
+    {
+        Carbon::setTestNow(Carbon::parse(self::DAY.' 13:30:00', 'Africa/Cairo'));
+
+        $this->clinic->update(['whatsapp_cancel_cutoff_minutes' => 120]);
+        $this->reply($this->button('cancel_booking', 'إلغاء الحجز'))->assertOk();
+        $this->assertSame(BookingStatus::BOOKED, $this->booking->fresh()->status);
+
+        $this->clinic->update(['whatsapp_cancel_cutoff_minutes' => 60]);
+        $this->reply($this->button('cancel_booking', 'إلغاء الحجز'))->assertOk();
+        $this->assertSame(BookingStatus::CANCELLED, $this->booking->fresh()->status);
+    }
+
+    public function test_a_cutoff_of_zero_allows_cancel_until_the_visit_starts(): void
+    {
+        $this->clinic->update(['whatsapp_cancel_cutoff_minutes' => 0]);
+        Carbon::setTestNow(Carbon::parse(self::DAY.' 14:55:00', 'Africa/Cairo'));
+
+        $this->reply($this->button('cancel_booking', 'إلغاء الحجز'))->assertOk();
+
+        $this->assertSame(BookingStatus::CANCELLED, $this->booking->fresh()->status);
+    }
+
+    /** The cutoff limits cancelling only; confirming is always welcome. */
+    public function test_confirm_inside_the_cutoff_still_counts(): void
+    {
+        $this->clinic->update(['whatsapp_cancel_cutoff_minutes' => 60]);
+        Carbon::setTestNow(Carbon::parse(self::DAY.' 14:30:00', 'Africa/Cairo'));
+
+        $this->reply($this->button('confirm_attendance', 'تأكيد الحضور'))->assertOk();
+
+        $this->assertSame(PatientResponse::CONFIRMED, $this->booking->fresh()->patient_response);
+    }
+
     public function test_the_last_valid_reply_wins_while_the_booking_is_still_booked(): void
     {
         $this->reply($this->button('confirm_attendance', 'تأكيد الحضور'))->assertOk();
@@ -260,6 +323,19 @@ class ReminderReplyTest extends TestCase
 
         $this->assertSame(BookingStatus::CANCELLED, $booking->status);
         $this->assertSame(PatientResponse::CANCELLED, $booking->patient_response);
+    }
+
+    /** A double tap, or Meta redelivering the callback, is one answer, not two. */
+    public function test_the_same_answer_twice_sends_one_follow_up(): void
+    {
+        Event::fake([ReminderResponseReceived::class]);
+
+        $this->reply($this->button('confirm_attendance', 'تأكيد الحضور'))->assertOk();
+        $this->reply($this->button('confirm_attendance', 'تأكيد الحضور'))->assertOk();
+
+        $this->assertSame(PatientResponse::CONFIRMED, $this->booking->fresh()->patient_response);
+        $this->assertCount(1, $this->sender->texts);
+        Event::assertDispatchedTimes(ReminderResponseReceived::class, 1);
     }
 
     /** Meta normally quotes the message back; when it does not, the number still identifies it. */

@@ -58,6 +58,10 @@ return [
         // One reminder per booking, on the visit day, at this clinic-local
         // time. Editable by the clinic in Settings → Timing.
         'reminder_time' => env('CLINIC_REMINDER_TIME', '11:00'),
+        // Inside this many minutes of the visit, the reminder's Cancel button
+        // is refused and the patient is told to call. Gives the clinic time
+        // to fill the slot. 0 means Cancel works until the visit starts.
+        'whatsapp_cancel_cutoff_minutes' => (int) env('CLINIC_WHATSAPP_CANCEL_CUTOFF_MINUTES', 60),
     ],
 
     /*
@@ -65,6 +69,7 @@ return [
     */
     'settings' => [
         'patient_arrival_lead_minute_options' => [15, 20, 30, 45, 60],
+        'whatsapp_cancel_cutoff_minute_options' => [0, 30, 60, 90, 120, 180, 240],
     ],
 
     'messaging' => [

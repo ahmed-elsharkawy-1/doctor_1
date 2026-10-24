@@ -146,6 +146,30 @@ class SendBookingRemindersTest extends TestCase
         $this->assertCount(0, $this->reminders());
     }
 
+    /** Cutoff 60 at 11:00: an 11:45 visit could not cancel from the reminder, so it gets none. */
+    public function test_a_visit_already_inside_the_cancel_cutoff_is_skipped(): void
+    {
+        $this->clinic->update(['whatsapp_cancel_cutoff_minutes' => 60]);
+        $this->bookingAt('11:45');
+        $later = $this->bookingAt('12:30');
+
+        $this->at('11:00');
+        $this->artisan('clinic:send-reminders')->assertSuccessful();
+
+        $this->assertSame([$later->id], $this->reminders()->pluck('booking_id')->all());
+    }
+
+    public function test_with_no_cancel_cutoff_a_visit_soon_after_the_reminder_is_reminded(): void
+    {
+        $this->clinic->update(['whatsapp_cancel_cutoff_minutes' => 0]);
+        $this->bookingAt('11:15');
+
+        $this->at('11:00');
+        $this->artisan('clinic:send-reminders')->assertSuccessful();
+
+        $this->assertCount(1, $this->reminders());
+    }
+
     public function test_only_bookings_still_waiting_are_reminded(): void
     {
         Booking::factory()->forClinic($this->clinic)->at(Carbon::parse(self::DAY.' 15:00', 'Africa/Cairo'))->arrived()->create();

@@ -21,6 +21,8 @@ class General extends SettingsComponent
 
     public string $reminderTime = '11:00';
 
+    public int $whatsAppCancelCutoffMinutes = 60;
+
     public function mount(): void
     {
         parent::mount();
@@ -31,12 +33,14 @@ class General extends SettingsComponent
         $this->firstVisitOnlyDays = $clinic->first_visit_only_days;
         $this->patientArrivalLeadMinutes = $clinic->patient_arrival_lead_minutes;
         $this->reminderTime = $clinic->reminderTime();
+        $this->whatsAppCancelCutoffMinutes = $clinic->whatsAppCancelCutoffMinutes();
     }
 
     public function render(): View
     {
         return view('livewire.app.settings.general', [
             'leadOptions' => config('clinic.settings.patient_arrival_lead_minute_options'),
+            'cancelCutoffOptions' => config('clinic.settings.whatsapp_cancel_cutoff_minute_options'),
         ])->title(__('app.settings.general'));
     }
 
@@ -52,6 +56,7 @@ class General extends SettingsComponent
                     'first_visit_only_days' => $this->firstVisitOnlyDays,
                     'patient_arrival_lead_minutes' => $this->patientArrivalLeadMinutes,
                     'reminder_time' => $this->reminderTime,
+                    'whatsapp_cancel_cutoff_minutes' => $this->whatsAppCancelCutoffMinutes,
                 ]),
             );
         }, __('app.settings.saved'));
@@ -72,6 +77,11 @@ class General extends SettingsComponent
                 Rule::in(config('clinic.settings.patient_arrival_lead_minute_options')),
             ],
             'reminderTime' => ['required', 'date_format:H:i'],
+            'whatsAppCancelCutoffMinutes' => [
+                'required',
+                'integer',
+                Rule::in(config('clinic.settings.whatsapp_cancel_cutoff_minute_options')),
+            ],
         ];
     }
 }

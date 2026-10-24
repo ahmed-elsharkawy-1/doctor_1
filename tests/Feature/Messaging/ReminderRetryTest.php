@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Messaging;
 
+use App\Enums\BookingStatus;
 use App\Jobs\SendWhatsAppMessage;
 use App\Models\Booking;
 use App\Models\OutboundMessage;
@@ -96,6 +97,19 @@ class ReminderRetryTest extends TestCase
 
         $this->assertSame(2, $this->sender->sendAttempts);
         $this->assertSame('failed', $message->fresh()->status);
+    }
+
+    /** Cancelled between being queued and the worker reaching it: never sent. */
+    public function test_a_reminder_for_a_booking_cancelled_meanwhile_is_skipped(): void
+    {
+        $message = $this->reminder();
+        Booking::findOrFail($message->booking_id)->update(['status' => BookingStatus::CANCELLED]);
+
+        (new SendWhatsAppMessage($message->id))->handle($this->sender);
+
+        $this->assertSame(0, $this->sender->sendAttempts);
+        $this->assertSame('skipped', $message->fresh()->status);
+        $this->assertSame('not_sent', Booking::findOrFail($message->booking_id)->reminderStatus());
     }
 
     public function test_the_card_reads_a_failed_reminder_as_failed(): void

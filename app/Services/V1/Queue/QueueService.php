@@ -73,7 +73,7 @@ class QueueService
     public function awaitingRebooking(Clinic $clinic): Collection
     {
         $bookings = $clinic->bookings()
-            ->with(['patient', 'visitType'])
+            ->with(['patient', 'visitType', 'reminder'])
             ->awaitingRebooking()
             ->get();
 
@@ -93,7 +93,7 @@ class QueueService
     public function postponeCandidates(Clinic $clinic, Carbon $date): Collection
     {
         $bookings = $clinic->bookings()
-            ->with(['patient', 'visitType'])
+            ->with(['patient', 'visitType', 'reminder'])
             ->onDate($date->toDateString())
             ->pending()
             ->get();

@@ -51,6 +51,9 @@ class WhatsAppMessagingService
 
     public const REMINDER_CANCELLED_KEY = 'appointment_reminder_cancelled';
 
+    /** Cancel tapped inside the clinic's cutoff: refused, with the phone. */
+    public const REMINDER_CANCEL_REFUSED_KEY = 'appointment_reminder_cancel_refused';
+
     /**
      * What staff may send. Given a clinic with WhatsApp off, only the
      * cancellation — the rest would only be refused.
@@ -232,10 +235,38 @@ class WhatsAppMessagingService
 
     /**
      * The free text after the patient taps a reminder button. Not a template:
-     * the patient opened the conversation, so this travels inside WhatsApp's
-     * 24-hour session window and carries no template cost.
+     * the tap opened WhatsApp's 24-hour session window, so free text is
+     * allowed and carries no template cost.
      */
     public function sendReminderFollowUp(Clinic $clinic, Booking $booking, PatientResponse $response): ?OutboundMessage
+    {
+        $key = $response === PatientResponse::CONFIRMED
+            ? self::REMINDER_CONFIRMED_KEY
+            : self::REMINDER_CANCELLED_KEY;
+
+        $body = $response === PatientResponse::CONFIRMED
+            ? __('messages.reminder_follow_up.confirmed', ['link' => $booking->trackingUrl()])
+            : __('messages.reminder_follow_up.cancelled', ['phone' => $this->clinicPhone($clinic)]);
+
+        return $this->queueText($clinic, $booking, $key, $body);
+    }
+
+    /**
+     * The free text after Cancel was tapped too close to the visit, by the
+     * clinic's cutoff. Nothing was cancelled; the patient is told to call.
+     */
+    public function sendReminderCancelRefused(Clinic $clinic, Booking $booking): ?OutboundMessage
+    {
+        return $this->queueText($clinic, $booking, self::REMINDER_CANCEL_REFUSED_KEY, __(
+            'messages.reminder_follow_up.cancel_refused',
+            [
+                'minutes' => __('messages.minutes', ['count' => $clinic->whatsAppCancelCutoffMinutes()]),
+                'phone' => $this->clinicPhone($clinic),
+            ],
+        ));
+    }
+
+    private function queueText(Clinic $clinic, Booking $booking, string $key, string $body): ?OutboundMessage
     {
         if (! $clinic->sendsWhatsApp()) {
             return null;
@@ -246,14 +277,6 @@ class WhatsAppMessagingService
         if ($patient === null) {
             return null;
         }
-
-        $key = $response === PatientResponse::CONFIRMED
-            ? self::REMINDER_CONFIRMED_KEY
-            : self::REMINDER_CANCELLED_KEY;
-
-        $body = $response === PatientResponse::CONFIRMED
-            ? __('messages.reminder_follow_up.confirmed', ['link' => $booking->trackingUrl()])
-            : __('messages.reminder_follow_up.cancelled', ['phone' => $this->clinicPhone($clinic)]);
 
         $message = OutboundMessage::create([
             'clinic_id' => $clinic->id,

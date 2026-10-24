@@ -243,6 +243,18 @@ class ClinicForm
                         ->seconds(false)
                         ->default($defaults['reminder_time'])
                         ->helperText(__('filament.clinic.reminder_time_hint')),
+
+                    // Same options as Settings → Timing, so a value set here
+                    // is always one the clinic's own screen can show.
+                    Select::make('whatsapp_cancel_cutoff_minutes')
+                        ->label(__('filament.clinic.whatsapp_cancel_cutoff_minutes'))
+                        ->options(collect(config('clinic.settings.whatsapp_cancel_cutoff_minute_options'))
+                            ->mapWithKeys(fn (int $minutes): array => [$minutes => $minutes === 0
+                                ? __('filament.clinic.whatsapp_cancel_cutoff_none')
+                                : __('messages.minutes', ['count' => $minutes])]))
+                        ->required()
+                        ->default($defaults['whatsapp_cancel_cutoff_minutes'])
+                        ->helperText(__('filament.clinic.whatsapp_cancel_cutoff_minutes_hint')),
                 ])
                 ->columns(2),
         ]);

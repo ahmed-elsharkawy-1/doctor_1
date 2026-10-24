@@ -15,7 +15,8 @@ return [
     'minutes' => ':count minutes',
     'reminder_follow_up' => [
         'confirmed' => "Your attendance is confirmed ✅ See you today.\n\nYou can follow your booking and place in the queue here:\n:link",
-        'cancelled' => "Your booking has been cancelled.\n\nIf that was a mistake or you need another appointment, call the clinic:\n📞 :phone",
+        'cancelled' => "Your booking has been cancelled.\n\nIf that was a mistake or you need another appointment, call the clinic:\n📞 :phone\n\nWishing you good health 🌿",
+        'cancel_refused' => "Sorry, a booking can't be cancelled from WhatsApp less than :minutes before the visit.\n\nYour booking still stands. To cancel or change it, call the clinic:\n📞 :phone\n\nWishing you good health 🌿",
     ],
     'fallback' => [
         'patient' => 'our patient',

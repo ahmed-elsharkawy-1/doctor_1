@@ -307,7 +307,8 @@ class Booking extends Model
      * A queued row has not reached the provider yet, so it still reads as
      * "not sent"; once Meta accepts it the row is `sent`, and delivery
      * receipts may raise it to `delivered` or `read` — all three mean the
-     * patient was reached.
+     * patient was reached. A row `skipped` because the booking left `booked`
+     * before the worker reached it was never sent either.
      */
     public function reminderStatus(): string
     {
@@ -316,7 +317,7 @@ class Booking extends Model
             : $this->reminder()->first();
 
         return match ($message?->status) {
-            null, 'queued' => 'not_sent',
+            null, 'queued', 'skipped' => 'not_sent',
             'failed' => 'failed',
             default => 'sent',
         };

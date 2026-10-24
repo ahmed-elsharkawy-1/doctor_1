@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\BookingStatus;
 use App\Models\OutboundMessage;
 use App\Services\Messaging\MessageSender;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
@@ -55,6 +56,15 @@ class SendWhatsAppMessage implements ShouldQueue
      */
     private function sendReminder(MessageSender $sender, OutboundMessage $message): void
     {
+        // Cancelled, or moved along the queue, between the command picking it
+        // and the worker reaching it. A reminder now would ask a patient to
+        // confirm a visit that is no longer waiting for her answer.
+        if ($message->booking?->status !== BookingStatus::BOOKED) {
+            $message->update(['status' => 'skipped']);
+
+            return;
+        }
+
         $maxAttempts = 2;
 
         while ((int) $message->attempts < $maxAttempts) {

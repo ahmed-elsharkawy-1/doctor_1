@@ -38,6 +38,7 @@ class BootstrapTest extends TestCase
                         'booking_window_days', 'first_visit_only_days', 'slot_step_minutes',
                         'patient_arrival_lead_minutes', 'patient_arrival_lead_minute_options',
                         'reminder_time',
+                        'whatsapp_cancel_cutoff_minutes', 'whatsapp_cancel_cutoff_minute_options',
                     ],
                     'visit_types',
                     'schedule',

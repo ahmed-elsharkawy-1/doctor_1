@@ -48,6 +48,7 @@ class ClinicAppSettingsTest extends TestCase
             ->set('firstVisitOnlyDays', 90)
             ->set('patientArrivalLeadMinutes', 45)
             ->set('reminderTime', '19:15')
+            ->set('whatsAppCancelCutoffMinutes', 120)
             ->call('save')
             ->assertSet('failed', false);
 
@@ -57,6 +58,7 @@ class ClinicAppSettingsTest extends TestCase
         $this->assertSame(90, $clinic->first_visit_only_days);
         $this->assertSame(45, $clinic->patient_arrival_lead_minutes);
         $this->assertSame('19:15', $clinic->reminder_time);
+        $this->assertSame(120, $clinic->whatsapp_cancel_cutoff_minutes);
     }
 
     public function test_the_reminder_time_defaults_to_eleven_and_must_be_a_time(): void

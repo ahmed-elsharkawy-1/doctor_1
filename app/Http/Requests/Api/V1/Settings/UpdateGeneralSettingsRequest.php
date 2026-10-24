@@ -29,6 +29,11 @@ class UpdateGeneralSettingsRequest extends FormRequest
                 Rule::in(config('clinic.settings.patient_arrival_lead_minute_options')),
             ],
             'reminder_time' => ['sometimes', 'date_format:H:i'],
+            'whatsapp_cancel_cutoff_minutes' => [
+                'sometimes',
+                'integer',
+                Rule::in(config('clinic.settings.whatsapp_cancel_cutoff_minute_options')),
+            ],
         ];
     }
 }
