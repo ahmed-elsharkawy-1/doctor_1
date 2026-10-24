@@ -24,9 +24,10 @@ Schedule::command('clinic:release-lapsed-holds')
     ->runInBackground();
 
 /*
-| The patient's reminder, an hour before the appointment. Every minute so it
-| lands close to that hour; a run that finds nobody due is a single query per
-| clinic. A booking is reminded once, so overlapping or missed runs are safe.
+| The patient's daily reminder, at each clinic's own configured time. Every
+| minute so it lands close to that time; a run that finds nobody due is a
+| single query per clinic. A booking is reminded once, so overlapping or
+| missed runs are safe.
 */
 Schedule::command('clinic:send-reminders')
     ->everyMinute()

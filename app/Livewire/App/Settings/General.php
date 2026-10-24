@@ -19,6 +19,8 @@ class General extends SettingsComponent
 
     public int $patientArrivalLeadMinutes = 30;
 
+    public string $reminderTime = '11:00';
+
     public function mount(): void
     {
         parent::mount();
@@ -28,6 +30,7 @@ class General extends SettingsComponent
         $this->bookingWindowDays = $clinic->booking_window_days;
         $this->firstVisitOnlyDays = $clinic->first_visit_only_days;
         $this->patientArrivalLeadMinutes = $clinic->patient_arrival_lead_minutes;
+        $this->reminderTime = $clinic->reminderTime();
     }
 
     public function render(): View
@@ -48,6 +51,7 @@ class General extends SettingsComponent
                     'booking_window_days' => $this->bookingWindowDays,
                     'first_visit_only_days' => $this->firstVisitOnlyDays,
                     'patient_arrival_lead_minutes' => $this->patientArrivalLeadMinutes,
+                    'reminder_time' => $this->reminderTime,
                 ]),
             );
         }, __('app.settings.saved'));
@@ -67,6 +71,7 @@ class General extends SettingsComponent
                 'integer',
                 Rule::in(config('clinic.settings.patient_arrival_lead_minute_options')),
             ],
+            'reminderTime' => ['required', 'date_format:H:i'],
         ];
     }
 }

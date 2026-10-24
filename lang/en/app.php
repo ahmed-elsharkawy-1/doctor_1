@@ -110,6 +110,8 @@ return [
         'first_visit_only_hint' => 'After this, a patient counts as new again.',
         'arrival_lead' => 'Arrival lead time (minutes)',
         'arrival_lead_hint' => 'Subtracted from the appointment time on the patient page.',
+        'reminder_time' => 'WhatsApp reminder time',
+        'reminder_time_hint' => 'On the visit day, the time the WhatsApp reminder goes out to every patient booked that day.',
         'save_day' => 'Save day',
         'add_period' => 'Add period',
         'ends_next_day' => 'Ends the next morning — bookings stay on this day',
@@ -152,6 +154,14 @@ return [
         'done' => 'Seen',
         'sign_out' => 'Sign out',
         'no_time' => 'No time',
+        'reminder' => [
+            'label' => 'WhatsApp reminder',
+            'not_sent' => 'Not sent',
+            'sent' => 'Sent',
+            'failed' => 'Failed',
+        ],
+        'reminder_confirmed' => ':name confirmed from WhatsApp',
+        'reminder_cancelled' => ':name cancelled from WhatsApp',
         // Patient-made bookings nobody at the clinic has looked at yet.
     ],
 

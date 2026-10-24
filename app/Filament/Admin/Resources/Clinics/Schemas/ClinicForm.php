@@ -10,6 +10,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -233,6 +234,15 @@ class ClinicForm
                         // its own length, which is what a clinic expects.
                         ->placeholder(__('filament.clinic.slot_step_minutes_auto'))
                         ->helperText(__('filament.clinic.slot_step_minutes_hint')),
+
+                    // The one reminder per booking goes out on the visit day
+                    // at this clinic-local time. It is a super-admin default;
+                    // the clinic may change it later from Settings → Timing.
+                    TimePicker::make('reminder_time')
+                        ->label(__('filament.clinic.reminder_time'))
+                        ->seconds(false)
+                        ->default($defaults['reminder_time'])
+                        ->helperText(__('filament.clinic.reminder_time_hint')),
                 ])
                 ->columns(2),
         ]);

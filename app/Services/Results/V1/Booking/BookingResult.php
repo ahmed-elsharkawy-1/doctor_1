@@ -27,6 +27,16 @@ final class BookingResult extends ServiceResult
         $body = [
             'id' => $booking->id,
             'status' => Wire::enum($booking->status, $booking->status->label()),
+            // The patient's answer to the reminder. Null until she replies;
+            // independent of `status`, which stays `booked` on a confirmation.
+            'patient_response' => $booking->patient_response === null
+                ? null
+                : Wire::enum($booking->patient_response, $booking->patient_response->label()),
+            'patient_responded_at' => $booking->patient_responded_at?->toAtomString(),
+            'reminder_status' => [
+                'value' => $booking->reminderStatus(),
+                'display' => __('app.queue.reminder.'.$booking->reminderStatus()),
+            ],
             'cancel_reason' => $booking->cancel_reason === null
                 ? null
                 : Wire::enum($booking->cancel_reason, $booking->cancel_reason->label()),

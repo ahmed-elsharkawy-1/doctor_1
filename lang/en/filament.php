@@ -82,6 +82,8 @@ return [
         'slot_step_minutes' => 'Slot step (minutes)',
         'slot_step_minutes_hint' => 'Leave empty so each visit type builds its grid from its own length. Set a number only for fixed rolling start times.',
         'slot_step_minutes_auto' => 'Automatic — follows each visit type',
+        'reminder_time' => 'WhatsApp reminder time',
+        'reminder_time_hint' => 'On the visit day, the time the WhatsApp reminder goes out to every patient booked that day.',
         'doctor' => 'Doctor',
         'no_doctor' => 'Not added yet',
         'visit_types' => 'Visit types',

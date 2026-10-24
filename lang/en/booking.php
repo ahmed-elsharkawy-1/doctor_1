@@ -52,6 +52,12 @@ return [
         'incomplete' => 'Incomplete',
     ],
 
+    // The patient's answer to a WhatsApp reminder. Does not itself change status.
+    'patient_response' => [
+        'confirmed' => 'Confirmed by patient',
+        'cancelled' => 'Cancelled by patient',
+    ],
+
     'kind' => [
         'normal' => 'Normal',
         'emergency' => 'Emergency',

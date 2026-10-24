@@ -146,6 +146,25 @@
                                     <span class="pill pill-new">{{ $booking->source->label() }}</span>
                                 </div>
                             @endif
+
+                            {{-- The reminder and what the patient said back.
+                                 Re-read on every render, so a WhatsApp reply
+                                 changes it without a refresh. --}}
+                            @php($reminderStatus = $booking->reminderStatus())
+                            <div style="margin-top:0.3rem">
+                                <span class="pill {{ $reminderStatus === 'failed' ? 'pill-off' : ($reminderStatus === 'sent' ? 'pill-new' : '') }}">
+                                    {{ __('app.queue.reminder.label') }}:
+                                    {{ __('app.queue.reminder.'.$reminderStatus) }}
+                                </span>
+                            </div>
+
+                            @if ($booking->patient_response !== null)
+                                <div style="margin-top:0.3rem">
+                                    <span class="pill {{ $booking->patient_response->value === 'cancelled' ? 'pill-warn' : 'pill-new' }}">
+                                        {{ $booking->patient_response->label() }}
+                                    </span>
+                                </div>
+                            @endif
                         </div>
                     </header>
 
@@ -252,6 +271,14 @@
                 .bind('SelfBookingReceived', function (data) {
                     if (window.Livewire) {
                         window.Livewire.dispatch('self-booking-received', { name: data.patient_name });
+                    }
+                })
+                .bind('ReminderResponseReceived', function (data) {
+                    if (window.Livewire) {
+                        window.Livewire.dispatch('reminder-responded', {
+                            name: data.patient_name,
+                            response: data.patient_response,
+                        });
                     }
                 });
         })();

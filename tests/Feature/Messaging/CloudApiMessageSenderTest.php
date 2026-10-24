@@ -191,7 +191,7 @@ class CloudApiMessageSenderTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
-    | The reminder — the confirmation's 6 body params and a URL button
+    | The reminder — 5 body params, no button
     |--------------------------------------------------------------------------
     */
 
@@ -204,18 +204,41 @@ class CloudApiMessageSenderTest extends TestCase
         Http::assertSent(function ($request) {
             $template = $request->data()['template'];
 
-            $this->assertSame('appointment_reminder', $template['name']);
+            $this->assertSame('appointment_reminder_today', $template['name']);
             $this->assertSame('ar', $template['language']['code']);
 
-            [$bodyComponent, $buttonComponent] = $template['components'];
+            // No link and no URL button: the only actions are Confirm/Cancel.
+            $this->assertCount(1, $template['components']);
+            $this->assertSame('body', $template['components'][0]['type']);
 
-            $this->assertCount(6, $bodyComponent['parameters']);
-            $this->assertSame('سارة أحمد', $bodyComponent['parameters'][0]['text']);
-            $this->assertSame('15 دقيقة', $bodyComponent['parameters'][5]['text']);
-            $this->assertStringStartsWith('booking/', $buttonComponent['parameters'][0]['text']);
+            $parameters = $template['components'][0]['parameters'];
+
+            $this->assertCount(5, $parameters);
+            $this->assertSame('سارة أحمد', $parameters[0]['text']);
+            $this->assertSame('12 شارع مصدق، الدقي', $parameters[4]['text']);
 
             return true;
         });
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Free text inside the 24-hour session
+    |--------------------------------------------------------------------------
+    */
+
+    public function test_a_free_text_follow_up_is_posted_as_text_not_a_template(): void
+    {
+        Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'wamid.TEXT']]])]);
+
+        $id = (new CloudApiMessageSender)->sendText('+20 101 234 5678', 'تم تأكيد حضورك');
+
+        $this->assertSame('wamid.TEXT', $id);
+
+        Http::assertSent(fn ($request): bool => $request['to'] === '201012345678'
+            && $request['type'] === 'text'
+            && $request['text']['body'] === 'تم تأكيد حضورك'
+            && ! isset($request['template']));
     }
 
     /*

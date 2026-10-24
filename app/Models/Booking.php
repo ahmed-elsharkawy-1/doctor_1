@@ -8,6 +8,8 @@ use App\Enums\BookingSource;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Enums\PatientLocation;
+use App\Enums\PatientResponse;
+use App\Services\V1\Messaging\WhatsAppMessagingService;
 use Database\Factories\BookingFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -34,6 +36,8 @@ class Booking extends Model
         'price',
         'status',
         'cancel_reason',
+        'patient_response',
+        'patient_responded_at',
         'booking_kind',
         'patient_location',
         'source',
@@ -97,6 +101,8 @@ class Booking extends Model
             'price' => 'decimal:2',
             'status' => BookingStatus::class,
             'cancel_reason' => CancelReason::class,
+            'patient_response' => PatientResponse::class,
+            'patient_responded_at' => 'datetime',
             'booking_kind' => BookingKind::class,
             'patient_location' => PatientLocation::class,
             'source' => BookingSource::class,
@@ -144,6 +150,20 @@ class Booking extends Model
     public function review(): HasOne
     {
         return $this->hasOne(BookingReview::class);
+    }
+
+    /**
+     * The one WhatsApp reminder queued for this booking, if any.
+     *
+     * At most one exists by design, so a plain hasOne is exact — and it is
+     * the row the card reads to say Sent / Failed.
+     *
+     * @return HasOne<OutboundMessage, $this>
+     */
+    public function reminder(): HasOne
+    {
+        return $this->hasOne(OutboundMessage::class)
+            ->where('template_key', WhatsAppMessagingService::REMINDER_KEY);
     }
 
     /** @return BelongsTo<User, $this> */
@@ -278,6 +298,28 @@ class Booking extends Model
     public function isSelfBooked(): bool
     {
         return $this->source === BookingSource::PATIENT_WEB;
+    }
+
+    /**
+     * What the booking card says about the reminder: `not_sent`, `sent` or
+     * `failed`.
+     *
+     * A queued row has not reached the provider yet, so it still reads as
+     * "not sent"; once Meta accepts it the row is `sent`, and delivery
+     * receipts may raise it to `delivered` or `read` — all three mean the
+     * patient was reached.
+     */
+    public function reminderStatus(): string
+    {
+        $message = $this->relationLoaded('reminder')
+            ? $this->reminder
+            : $this->reminder()->first();
+
+        return match ($message?->status) {
+            null, 'queued' => 'not_sent',
+            'failed' => 'failed',
+            default => 'sent',
+        };
     }
 
     public function canBeCancelled(): bool

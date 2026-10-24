@@ -5,6 +5,7 @@ namespace App\Services\V1\Messaging;
 use App\Enums\ApiErrorCode;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
+use App\Enums\PatientResponse;
 use App\Exceptions\ApiException;
 use App\Jobs\SendWhatsAppMessage;
 use App\Models\Booking;
@@ -12,6 +13,7 @@ use App\Models\Clinic;
 use App\Models\MessageTemplate;
 use App\Models\OutboundMessage;
 use App\Models\Patient;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -36,8 +38,18 @@ class WhatsAppMessagingService
     /** Sent to each patient an emergency delay moved, with their new time. */
     public const DELAYED_KEY = 'appointment_delayed';
 
-    /** Sent shortly before the appointment, by clinic:send-reminders. */
-    public const REMINDER_KEY = 'appointment_reminder';
+    /** Sent on the visit day at the clinic's reminder time. */
+    public const REMINDER_KEY = 'appointment_reminder_today';
+
+    /** Quick-reply button payloads on the approved reminder template. */
+    public const REPLY_CONFIRM = 'confirm_attendance';
+
+    public const REPLY_CANCEL = 'cancel_booking';
+
+    /** The free-text messages sent after a button, while the session is open. */
+    public const REMINDER_CONFIRMED_KEY = 'appointment_reminder_confirmed';
+
+    public const REMINDER_CANCELLED_KEY = 'appointment_reminder_cancelled';
 
     /**
      * What staff may send. Given a clinic with WhatsApp off, only the
@@ -209,13 +221,67 @@ class WhatsAppMessagingService
     }
 
     /**
-     * The reminder sent shortly before the appointment. Same guarantees as the
-     * confirmation; deciding which bookings are due, and that none gets two,
-     * is the command's job.
+     * The reminder sent on the visit day at the clinic's configured time.
+     * Same guarantees as the confirmation; deciding which bookings are due,
+     * and that none gets two, is the command's job.
      */
     public function sendReminder(Clinic $clinic, Booking $booking): ?OutboundMessage
     {
         return $this->sendForBookingUsing($clinic, $booking, self::REMINDER_KEY);
+    }
+
+    /**
+     * The free text after the patient taps a reminder button. Not a template:
+     * the patient opened the conversation, so this travels inside WhatsApp's
+     * 24-hour session window and carries no template cost.
+     */
+    public function sendReminderFollowUp(Clinic $clinic, Booking $booking, PatientResponse $response): ?OutboundMessage
+    {
+        if (! $clinic->sendsWhatsApp()) {
+            return null;
+        }
+
+        $patient = $booking->patient;
+
+        if ($patient === null) {
+            return null;
+        }
+
+        $key = $response === PatientResponse::CONFIRMED
+            ? self::REMINDER_CONFIRMED_KEY
+            : self::REMINDER_CANCELLED_KEY;
+
+        $body = $response === PatientResponse::CONFIRMED
+            ? __('messages.reminder_follow_up.confirmed', ['link' => $booking->trackingUrl()])
+            : __('messages.reminder_follow_up.cancelled', ['phone' => $this->clinicPhone($clinic)]);
+
+        $message = OutboundMessage::create([
+            'clinic_id' => $clinic->id,
+            'patient_id' => $patient->id,
+            'booking_id' => $booking->id,
+            'template_key' => $key,
+            'type' => 'text',
+            'rendered_body' => $body,
+            'variables' => [],
+            'status' => 'queued',
+        ]);
+
+        SendWhatsAppMessage::dispatch($message->id);
+
+        return $message;
+    }
+
+    /**
+     * The number printed in the cancellation follow-up — normalised the same
+     * way as the number in the approved templates.
+     */
+    private function clinicPhone(Clinic $clinic): string
+    {
+        $phone = $clinic->phone === null
+            ? null
+            : PhoneNumber::tryParse($clinic->phone, $clinic->country_code)?->e164;
+
+        return $phone ?? $clinic->phone ?? __('messages.fallback.phone');
     }
 
     /**
@@ -321,6 +387,7 @@ class WhatsAppMessagingService
             'patient_id' => $patient->id,
             'booking_id' => $booking->id,
             'template_key' => $template->key,
+            'type' => 'template',
             'rendered_body' => $this->render($template, $payload->body),
             'variables' => $payload->body,
             'button_suffix' => $payload->buttonSuffix,

@@ -20,7 +20,7 @@ use App\Support\PhoneNumber;
  *
  *   appointment_booking_confirmation_v3  ar   6 body params, URL button
  *   appointment_rating_v3                ar   1 body param, URL button
- *   appointment_reminder                 ar   6 body params, URL button
+ *   appointment_reminder_today           ar   5 body params, no button
  *   booking_cancellation                 ar   4 body params, no button
  */
 class TemplatePayloadResolver
@@ -28,10 +28,7 @@ class TemplatePayloadResolver
     public function for(MessageTemplate $template, Booking $booking, Clinic $clinic): TemplatePayload
     {
         return match ($template->key) {
-            // The reminder was approved with the confirmation's six values in
-            // the same order, so the two share one mapping.
-            WhatsAppMessagingService::CONFIRMATION_KEY,
-            WhatsAppMessagingService::REMINDER_KEY => new TemplatePayload(
+            WhatsAppMessagingService::CONFIRMATION_KEY => new TemplatePayload(
                 body: [
                     $this->patientName($booking),
                     $this->date($booking, $clinic),
@@ -41,6 +38,22 @@ class TemplatePayloadResolver
                     $this->arrivalLead($clinic),
                 ],
                 buttonSuffix: $this->suffix('tracking', $booking),
+            ),
+
+            /*
+            | The reminder deliberately carries no link. Its only buttons are
+            | Confirm and Cancel, and the booking link follows after Confirm.
+            | {{1}} patient · {{2}} date · {{3}} time · {{4}} doctor
+            | {{5}} address
+            */
+            WhatsAppMessagingService::REMINDER_KEY => new TemplatePayload(
+                body: [
+                    $this->patientName($booking),
+                    $this->date($booking, $clinic),
+                    $this->time($booking, $clinic),
+                    $this->doctorName($clinic),
+                    $this->address($clinic),
+                ],
             ),
 
             WhatsAppMessagingService::VISIT_COMPLETED_KEY => new TemplatePayload(

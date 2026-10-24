@@ -4,22 +4,27 @@ namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
 use App\Services\Messaging\DeliveryReceipts;
+use App\Services\V1\Messaging\WhatsAppReplyHandler;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Throwable;
 
 /**
- * Meta's delivery receipts.
+ * Meta's delivery receipts and the patient's reminder replies.
  *
  * Unauthenticated by necessity — Meta has no credentials of ours to present —
  * so authenticity rests entirely on the signature it puts on every callback.
  * Without the app secret that signature cannot be checked, and the endpoint
  * refuses to act rather than trusting whatever arrives. That is deliberate:
  * an open endpoint here would let a stranger mark any message delivered, or
- * failed, and the whole point of this is to be believed.
+ * answer somebody else's reminder.
  */
 class WhatsAppWebhookController extends Controller
 {
-    public function __construct(private readonly DeliveryReceipts $receipts) {}
+    public function __construct(
+        private readonly DeliveryReceipts $receipts,
+        private readonly WhatsAppReplyHandler $replies,
+    ) {}
 
     /**
      * The one-time handshake Meta performs when the callback URL is saved.
@@ -56,6 +61,20 @@ class WhatsAppWebhookController extends Controller
             foreach ($entry['changes'] ?? [] as $change) {
                 foreach ($change['value']['statuses'] ?? [] as $status) {
                     $this->receipts->record(is_array($status) ? $status : []);
+                }
+
+                foreach ($change['value']['messages'] ?? [] as $message) {
+                    if (! is_array($message)) {
+                        continue;
+                    }
+
+                    try {
+                        $this->replies->handle($message);
+                    } catch (Throwable $e) {
+                        // A reply we could not process is not a reason for
+                        // Meta to redeliver the whole callback for a day.
+                        report($e);
+                    }
                 }
             }
         }

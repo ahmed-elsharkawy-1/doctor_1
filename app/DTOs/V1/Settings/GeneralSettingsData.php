@@ -14,6 +14,7 @@ final class GeneralSettingsData
         public readonly ?int $bookingWindowDays = null,
         public readonly ?int $firstVisitOnlyDays = null,
         public readonly ?int $patientArrivalLeadMinutes = null,
+        public readonly ?string $reminderTime = null,
     ) {}
 
     /**
@@ -31,6 +32,9 @@ final class GeneralSettingsData
             patientArrivalLeadMinutes: isset($validated['patient_arrival_lead_minutes'])
                 ? (int) $validated['patient_arrival_lead_minutes']
                 : null,
+            reminderTime: isset($validated['reminder_time'])
+                ? substr(trim((string) $validated['reminder_time']), 0, 5)
+                : null,
         );
     }
 
@@ -38,7 +42,7 @@ final class GeneralSettingsData
      * Only the keys actually submitted, so a partial update leaves the rest
      * untouched.
      *
-     * @return array<string, int>
+     * @return array<string, int|string>
      */
     public function toAttributes(): array
     {
@@ -47,8 +51,9 @@ final class GeneralSettingsData
                 'booking_window_days' => $this->bookingWindowDays,
                 'first_visit_only_days' => $this->firstVisitOnlyDays,
                 'patient_arrival_lead_minutes' => $this->patientArrivalLeadMinutes,
+                'reminder_time' => $this->reminderTime,
             ],
-            static fn (?int $value): bool => $value !== null,
+            static fn (int|string|null $value): bool => $value !== null && $value !== '',
         );
     }
 }

@@ -184,7 +184,7 @@ class BookingService
     public function find(Clinic $clinic, int $bookingId): Booking
     {
         $booking = $clinic->bookings()
-            ->with(['patient', 'visitType', 'doctor'])
+            ->with(['patient', 'visitType', 'doctor', 'reminder'])
             ->whereKey($bookingId)
             ->first();
 

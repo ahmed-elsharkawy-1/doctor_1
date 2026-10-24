@@ -549,6 +549,13 @@ paths:
                   enum: [15, 20, 30, 45, 60]
                   description: How many minutes before her appointment the patient is asked to arrive.
                   example: 30
+                reminder_time:
+                  type: string
+                  pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                  description: |
+                    Clinic-local `HH:MM` at which the visit-day reminder is
+                    sent. Defaults to `11:00`.
+                  example: "11:00"
       responses:
         "200":
           description: Saved
@@ -1671,6 +1678,13 @@ components:
           type: integer
           enum: [15, 20, 30, 45, 60]
           description: How many minutes before her appointment the patient is asked to arrive.
+        reminder_time:
+          type: string
+          example: "11:00"
+          description: |
+            Clinic-local `HH:MM` at which the single visit-day reminder goes
+            out. Defaults to `11:00`. Bookings created after this time are not
+            reminded that day.
         patient_arrival_lead_minute_options:
           type: array
           items: { type: integer, enum: [15, 20, 30, 45, 60] }
@@ -1944,6 +1958,23 @@ components:
             self-booked visit is `booked` like any other and needs no
             approval from the clinic to become real. Informational — it
             drives a badge and a filter, never a rule.
+        patient_response:
+          oneOf:
+            - allOf: [{ $ref: "#/components/schemas/Display" }]
+            - type: "null"
+          description: |
+            The patient's answer to the visit-day reminder — `confirmed` or
+            `cancelled`. Null until she replies. A confirmation leaves
+            `status` at `booked`; a cancellation moves it to `cancelled`.
+        patient_responded_at:
+          type: [string, "null"]
+          format: date-time
+          description: When the patient answered the reminder.
+        reminder_status:
+          allOf: [{ $ref: "#/components/schemas/Display" }]
+          description: |
+            `not_sent`, `sent` or `failed`. The reminder is sent at most once
+            per booking, on the visit day at the clinic's `reminder_time`.
         patient:
           type: [object, "null"]
           properties:

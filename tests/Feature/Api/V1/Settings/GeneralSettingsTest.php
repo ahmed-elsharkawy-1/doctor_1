@@ -47,6 +47,25 @@ class GeneralSettingsTest extends TestCase
         $this->assertSame(45, $this->clinic->refresh()->patient_arrival_lead_minutes);
     }
 
+    public function test_it_updates_the_reminder_time(): void
+    {
+        $this->putJson(route('api.v1.settings.general'), ['reminder_time' => '18:30'])
+            ->assertOk()
+            ->assertJsonPath('data.reminder_time', '18:30');
+
+        $this->assertSame('18:30', $this->clinic->refresh()->reminder_time);
+    }
+
+    public function test_a_malformed_reminder_time_is_rejected(): void
+    {
+        $this->putJson(route('api.v1.settings.general'), ['reminder_time' => '25:99'])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED')
+            ->assertJsonStructure(['error' => ['fields' => ['reminder_time']]]);
+
+        $this->assertSame('11:00', $this->clinic->refresh()->reminder_time);
+    }
+
     /**
      * The app can save one field without echoing the other back.
      */
@@ -68,6 +87,7 @@ class GeneralSettingsTest extends TestCase
             'booking_window_days',
             'first_visit_only_days',
             'patient_arrival_lead_minutes',
+            'reminder_time',
         ]);
 
         $this->putJson(route('api.v1.settings.general'), [])->assertOk();
@@ -76,6 +96,7 @@ class GeneralSettingsTest extends TestCase
             'booking_window_days',
             'first_visit_only_days',
             'patient_arrival_lead_minutes',
+            'reminder_time',
         ]));
     }
 

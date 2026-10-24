@@ -28,6 +28,7 @@ class UpdateGeneralSettingsRequest extends FormRequest
                 'integer',
                 Rule::in(config('clinic.settings.patient_arrival_lead_minute_options')),
             ],
+            'reminder_time' => ['sometimes', 'date_format:H:i'],
         ];
     }
 }

@@ -55,6 +55,9 @@ return [
         // duration. A number overrides that with fixed rolling starts.
         'slot_step_minutes' => null,
         'patient_arrival_lead_minutes' => 30,
+        // One reminder per booking, on the visit day, at this clinic-local
+        // time. Editable by the clinic in Settings → Timing.
+        'reminder_time' => env('CLINIC_REMINDER_TIME', '11:00'),
     ],
 
     /*
@@ -66,8 +69,6 @@ return [
 
     'messaging' => [
         'driver' => env('CLINIC_MESSAGING_DRIVER', 'log'),
-        // How long before the appointment the WhatsApp reminder goes out.
-        'reminder_lead_minutes' => (int) env('CLINIC_REMINDER_LEAD_MINUTES', 60),
     ],
 
     /*

@@ -91,20 +91,23 @@ class MessageTemplateSeeder extends Seeder
             ],
 
             /*
-            | Sent by clinic:send-reminders, an hour before the appointment
-            | (clinic.messaging.reminder_lead_minutes). Never a broadcast.
+            | Sent by clinic:send-reminders on the visit day, at the clinic's
+            | configured reminder time. Approved with two quick-reply buttons
+            | and no URL — the booking link follows only after Confirm.
             | {{1}} patient · {{2}} date · {{3}} time · {{4}} doctor
-            | {{5}} address · {{6}} arrival lead
-            | Button: https://elayadah.com/{{1}} <- booking/<token>
+            | {{5}} address
+            | Buttons: تأكيد الحضور / إلغاء الحجز
             */
             WhatsAppMessagingService::REMINDER_KEY => [
                 'category' => 'utility',
                 'is_broadcast' => false,
-                'provider_template_name' => 'appointment_reminder',
+                'provider_template_name' => 'appointment_reminder_today',
                 'language_code' => 'ar',
-                'body_ar' => "مرحبًا {{1}} 👋\n\nتذكير بموعدك النهارده ⏰\n\n"
-                    ."🗓 {{2}}\n⏰ الساعة: {{3}}\n👨‍⚕️ {{4}}\n📌 {{5}}\n\n"
-                    .'يرجى الحضور قبل الموعد بـ {{6}} 🙏',
+                'body_ar' => "مرحبًا {{1}} 👋\n\nنذكّرك بموعد حجزك اليوم ✅\n\n"
+                    ."📅 التاريخ: {{2}}\n⏰ الموعد: {{3}}\n👨‍⚕️ الطبيب: {{4}}\n📌 العنوان: {{5}}\n\n"
+                    ."🕐 يرجى الحضور قبل الموعد بـ 30 دقيقة\n\n"
+                    ."من فضلك أكّد حضورك أو ألغِ الحجز من الأزرار بالأسفل.\n"
+                    .'نتمنى لك الشفاء والعافية 🌿',
                 'is_active' => true,
             ],
 

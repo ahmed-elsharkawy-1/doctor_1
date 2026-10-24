@@ -35,6 +35,13 @@
             @error('patientArrivalLeadMinutes') <div class="err">{{ $message }}</div> @enderror
         </div>
 
+        <div class="field">
+            <label for="reminder">{{ __('app.settings.reminder_time') }}</label>
+            <input id="reminder" type="time" wire:model="reminderTime">
+            <small class="muted">{{ __('app.settings.reminder_time_hint') }}</small>
+            @error('reminderTime') <div class="err">{{ $message }}</div> @enderror
+        </div>
+
         <button type="button" class="btn btn-primary" wire:click="save">
             {{ __('app.settings.save') }}
         </button>

@@ -35,6 +35,7 @@ class Clinic extends Model
         'first_visit_only_days',
         'slot_step_minutes',
         'patient_arrival_lead_minutes',
+        'reminder_time',
         'self_booking_enabled',
         'whatsapp_enabled',
         'reports_enabled',
@@ -104,6 +105,19 @@ class Clinic extends Model
             ?: (int) config('clinic.defaults.patient_booking_window_days');
 
         return (int) max(1, min($window, $this->booking_window_days));
+    }
+
+    /**
+     * The clinic-local time the daily reminder goes out, `HH:MM`.
+     *
+     * The column is authoritative; config is only the fallback for a row that
+     * predates the setting or was written by hand.
+     */
+    public function reminderTime(): string
+    {
+        $time = trim((string) $this->reminder_time);
+
+        return $time === '' ? (string) config('clinic.defaults.reminder_time', '11:00') : $time;
     }
 
     /**

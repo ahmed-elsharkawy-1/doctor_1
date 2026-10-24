@@ -145,6 +145,26 @@ class Queue extends ClinicComponent
         $this->failed = false;
     }
 
+    /**
+     * A patient tapped Confirm or Cancel in WhatsApp.
+     *
+     * The card is re-read on render, so the reminder indicator and the
+     * patient-response badge change without anybody touching the screen. A
+     * cancellation is the one that needs a human: the slot is already free,
+     * and this is how the secretary learns it happened.
+     */
+    #[On('reminder-responded')]
+    public function reminderResponded(?string $name = null, ?string $response = null): void
+    {
+        $this->notice = __(
+            $response === 'cancelled'
+                ? 'app.queue.reminder_cancelled'
+                : 'app.queue.reminder_confirmed',
+            ['name' => $name ?: __('app.queue.a_patient')],
+        );
+        $this->failed = false;
+    }
+
     private function run(callable $action, string $success): void
     {
         try {
@@ -163,7 +183,7 @@ class Queue extends ClinicComponent
     private function bookings(): Collection
     {
         $bookings = $this->clinic()->bookings()
-            ->with(['patient', 'visitType'])
+            ->with(['patient', 'visitType', 'reminder'])
             ->onDate($this->date)
             ->get();
 
