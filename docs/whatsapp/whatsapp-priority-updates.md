@@ -8,7 +8,7 @@ in [whatsapp-required-updates.md](whatsapp-required-updates.md) for later.
 
 | # | Action | Why now |
 |---|---|---|
-| 1 | Change 2 templates to **UTILITY** | booking confirmations are being dropped |
+| 1 | ~~Change 2 templates to **UTILITY**~~ ✅ done — see below | booking confirmations are being dropped |
 | 2 | Create an **AUTHENTICATION** template | ⛔ blocked — see below |
 | 3 | Register the webhook + send the app secret | otherwise we cannot tell whether 1 worked |
 | 4 | Re-verify the phone number | verification has expired |
@@ -18,6 +18,10 @@ Nothing here requires rewriting or resubmitting an existing template.
 ---
 
 ## 1. Two templates are MARKETING and are being dropped
+
+> **✅ Done (October 2026).** Approved as UTILITY copies:
+> `appointment_booking_confirmation_v3` and `appointment_rating_v3` (details in
+> [whatsapp-required-updates.md](whatsapp-required-updates.md)).
 
 Change the category of these two to **UTILITY**:
 
@@ -102,10 +106,11 @@ the feature on** — there is no separate switch.
 | Field | Value |
 |---|---|
 | Callback URL | `https://elayadah.com/webhooks/whatsapp` |
-| Verify token | `da9314a7302b9e886336570420a7956126976c446f853edb` |
+| Verify token | ask Ahmed — it is `WHATSAPP_VERIFY_TOKEN` in the server's `.env` |
 | Subscribe to | the **`messages`** field |
 
-The verify token is already set on our server — paste it exactly as written.
+The verify token is already set on our server; it is shared privately, never
+written here, because this repository is public. Paste it exactly as given.
 Meta tests it once, the moment the URL is saved.
 
 ### Step 2 — send us one value

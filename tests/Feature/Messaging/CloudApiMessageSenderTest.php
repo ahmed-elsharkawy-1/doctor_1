@@ -191,7 +191,7 @@ class CloudApiMessageSenderTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
-    | The reminder — the confirmation's 6 body params and a URL button
+    | The reminder — 5 body params and a URL button
     |--------------------------------------------------------------------------
     */
 
@@ -209,9 +209,10 @@ class CloudApiMessageSenderTest extends TestCase
 
             [$bodyComponent, $buttonComponent] = $template['components'];
 
-            $this->assertCount(6, $bodyComponent['parameters']);
+            // Five: the arrival lead is fixed text in the approved template.
+            $this->assertCount(5, $bodyComponent['parameters']);
             $this->assertSame('سارة أحمد', $bodyComponent['parameters'][0]['text']);
-            $this->assertSame('15 دقيقة', $bodyComponent['parameters'][5]['text']);
+            $this->assertSame($this->clinic->address, $bodyComponent['parameters'][4]['text']);
             $this->assertStringStartsWith('booking/', $buttonComponent['parameters'][0]['text']);
 
             return true;

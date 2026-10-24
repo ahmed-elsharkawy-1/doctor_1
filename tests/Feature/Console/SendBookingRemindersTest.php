@@ -76,10 +76,10 @@ class SendBookingRemindersTest extends TestCase
 
         $this->assertSame($booking->id, $reminder->booking_id);
         $this->assertSame('queued', $reminder->status);
-        // The approved template's six values, in its order.
-        $this->assertCount(6, $reminder->variables);
+        // The approved template's five values, in its order; the arrival
+        // lead is fixed text in the template, not a value.
+        $this->assertCount(5, $reminder->variables);
         $this->assertSame('10:00 '.__('schedule.am'), $reminder->variables[2]);
-        $this->assertSame('15 دقيقة', $reminder->variables[5]);
         $this->assertSame('booking/'.$booking->tracking_token, $reminder->button_suffix);
     }
 

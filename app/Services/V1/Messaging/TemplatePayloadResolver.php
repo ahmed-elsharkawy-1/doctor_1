@@ -16,11 +16,13 @@ use App\Support\PhoneNumber;
  * is one arm per template here rather than one shared list of "everything a
  * message might need", which is what this replaced.
  *
- * The counts below are the approved ones:
+ * The counts below are the approved ones, read back from the Graph API
+ * (2026-10-24):
  *
  *   appointment_booking_confirmation_v3  ar   6 body params, URL button
  *   appointment_rating_v3                ar   1 body param, URL button
- *   appointment_reminder                 ar   6 body params, URL button
+ *   appointment_reminder                 ar   5 body params, URL button
+ *   appointment_delayed                  ar   5 body params, URL button
  *   booking_cancellation                 ar   4 body params, no button
  */
 class TemplatePayloadResolver
@@ -28,10 +30,7 @@ class TemplatePayloadResolver
     public function for(MessageTemplate $template, Booking $booking, Clinic $clinic): TemplatePayload
     {
         return match ($template->key) {
-            // The reminder was approved with the confirmation's six values in
-            // the same order, so the two share one mapping.
-            WhatsAppMessagingService::CONFIRMATION_KEY,
-            WhatsAppMessagingService::REMINDER_KEY => new TemplatePayload(
+            WhatsAppMessagingService::CONFIRMATION_KEY => new TemplatePayload(
                 body: [
                     $this->patientName($booking),
                     $this->date($booking, $clinic),
@@ -39,6 +38,20 @@ class TemplatePayloadResolver
                     $this->doctorName($clinic),
                     $this->address($clinic),
                     $this->arrivalLead($clinic),
+                ],
+                buttonSuffix: $this->suffix('tracking', $booking),
+            ),
+
+            // The confirmation's first five. The arrival lead is fixed text in
+            // the approved template ("30 دقيقة"), not a parameter — so a clinic
+            // that changes its own lead is not reflected here.
+            WhatsAppMessagingService::REMINDER_KEY => new TemplatePayload(
+                body: [
+                    $this->patientName($booking),
+                    $this->date($booking, $clinic),
+                    $this->time($booking, $clinic),
+                    $this->doctorName($clinic),
+                    $this->address($clinic),
                 ],
                 buttonSuffix: $this->suffix('tracking', $booking),
             ),

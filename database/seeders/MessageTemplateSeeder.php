@@ -94,7 +94,7 @@ class MessageTemplateSeeder extends Seeder
             | Sent by clinic:send-reminders, an hour before the appointment
             | (clinic.messaging.reminder_lead_minutes). Never a broadcast.
             | {{1}} patient · {{2}} date · {{3}} time · {{4}} doctor
-            | {{5}} address · {{6}} arrival lead
+            | {{5}} address. "30 دقيقة" is fixed text in the approved template.
             | Button: https://elayadah.com/{{1}} <- booking/<token>
             */
             WhatsAppMessagingService::REMINDER_KEY => [
@@ -103,8 +103,8 @@ class MessageTemplateSeeder extends Seeder
                 'provider_template_name' => 'appointment_reminder',
                 'language_code' => 'ar',
                 'body_ar' => "مرحبًا {{1}} 👋\n\nتذكير بموعدك النهارده ⏰\n\n"
-                    ."🗓 {{2}}\n⏰ الساعة: {{3}}\n👨‍⚕️ {{4}}\n📌 {{5}}\n\n"
-                    .'يرجى الحضور قبل الموعد بـ {{6}} 🙏',
+                    ."📅 {{2}}\n⏰ الساعة: {{3}}\n👨‍⚕️ {{4}}\n📌 {{5}}\n\n"
+                    .'يرجى الحضور قبل الموعد بـ 30 دقيقة 🙏',
                 'is_active' => true,
             ],
 
