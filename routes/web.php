@@ -13,6 +13,7 @@ use App\Http\Controllers\Webhooks\WhatsAppWebhookController;
 use App\Http\Middleware\EnsureClinicSession;
 use App\Http\Middleware\EnsureReportAccess;
 use App\Http\Middleware\RedirectFormerClinicSlug;
+use App\Livewire\App\Delay;
 use App\Livewire\App\Messages;
 use App\Livewire\App\NewBooking;
 use App\Livewire\App\PatientProfile;
@@ -150,6 +151,9 @@ Route::prefix('app')->name('app.')->group(function (): void {
         // Postponing a day and the call list it produces (SPEC §4.5).
         Route::get('postpone', Postpone::class)->name('postpone');
         Route::get('rebooking', Rebooking::class)->name('rebooking');
+
+        // The doctor is held up: the rest of today moves later.
+        Route::get('delay', Delay::class)->name('delay');
 
         // Revenue and retention (SPEC §5.5, §5.6).
         Route::get('reports', Reports::class)->name('reports');

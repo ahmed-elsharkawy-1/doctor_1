@@ -1232,10 +1232,11 @@ paths:
         The time a delay frees is left open for booking.
 
         Every moved patient (booked or already in the clinic) is sent the
-        `appointment_delayed` WhatsApp message with their new time. Until
-        Meta approves that template, each is listed in `messaging.skipped`
-        with reason `template_not_ready`; the times still move. Other reasons:
-        `whatsapp_disabled`, `whatsapp_not_opted_in`.
+        `appointment_delayed` WhatsApp message with their new time. A patient
+        who cannot be messaged is listed in `messaging.skipped` and the times
+        still move. Reasons: `whatsapp_disabled` (the clinic's WhatsApp is
+        off), `whatsapp_not_opted_in`, `template_not_ready` (the template is
+        switched off).
 
         Sending the same request again within two minutes (a double tap, a
         retry) moves nobody and returns the first result with

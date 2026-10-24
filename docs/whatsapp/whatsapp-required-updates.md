@@ -14,7 +14,7 @@ change. Plan for a day between approval and the new templates going live.
 
 | # | Action | Consequence today |
 |---|---|---|
-| 1 | Re-categorise 2 templates to **UTILITY** | confirmations are being dropped |
+| 1 | ~~Re-categorise 2 templates to **UTILITY**~~ ✅ done — see below | confirmations are being dropped |
 | 2 | Create an **AUTHENTICATION** template | patient self-booking cannot launch |
 | 3 | Submit 3 rewritten templates | cancelling one booking notifies nobody |
 | 4 | Register the webhook, send the app secret | we cannot see delivery failures |
@@ -28,6 +28,15 @@ already categorised UTILITY, with the verification template alongside.
 ---
 
 ## 1. Two templates are MARKETING and are being dropped
+
+> **✅ Done (October 2026).** The product team submitted UTILITY copies, both
+> approved and read back from the Graph API on 24 October:
+> `appointment_booking_confirmation_v3` (ar, 6 params, tracking button) and
+> `appointment_rating_v3` (ar, 1 param — the patient's name — review button).
+> The app sends these from the release that adds the reminder. Two more UTILITY
+> templates were approved alongside: `appointment_delayed` (emergency delay,
+> 5 params) and `appointment_reminder` (an hour before the visit, 5 params,
+> "30 دقيقة" fixed in the text). The record of the problem is kept below.
 
 Meta caps how many marketing messages one person receives and **withholds the
 excess silently** — the API returns success with a valid message ID, and the
@@ -135,11 +144,12 @@ the feature on** — there is no separate switch.
 | Field | Value |
 |---|---|
 | Callback URL | `https://elayadah.com/webhooks/whatsapp` |
-| Verify token | `da9314a7302b9e886336570420a7956126976c446f853edb` |
+| Verify token | ask Ahmed — it is `WHATSAPP_VERIFY_TOKEN` in the server's `.env` |
 | Subscribe to | the **`messages`** field |
 
-The verify token above is already set on our server — paste it exactly as
-written. Meta tests it once, the moment the URL is saved.
+The verify token is already set on our server; it is shared privately, never
+written here, because this repository is public. Paste it exactly as given.
+Meta tests it once, the moment the URL is saved.
 
 ### Step 2 — send us one value
 
