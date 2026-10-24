@@ -101,6 +101,7 @@ class CloudApiMessageSenderTest extends TestCase
         match ($templateKey) {
             WhatsAppMessagingService::CONFIRMATION_KEY => $messaging->sendConfirmation($this->clinic, $booking),
             WhatsAppMessagingService::VISIT_COMPLETED_KEY => $messaging->sendVisitCompleted($this->clinic, $booking),
+            WhatsAppMessagingService::REMINDER_KEY => $messaging->sendReminder($this->clinic, $booking),
             default => $messaging->sendForBooking($this->clinic, $booking->id, $templateKey),
         };
 
@@ -128,7 +129,7 @@ class CloudApiMessageSenderTest extends TestCase
             // International, digits only — no leading plus.
             $this->assertSame('201012345601', $body['to']);
             $this->assertSame('template', $body['type']);
-            $this->assertSame('appointment_booking_confirmation', $body['template']['name']);
+            $this->assertSame('appointment_booking_confirmation_v3', $body['template']['name']);
             $this->assertSame('ar', $body['template']['language']['code']);
 
             [$bodyComponent, $buttonComponent] = $body['template']['components'];
@@ -156,11 +157,11 @@ class CloudApiMessageSenderTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
-    | The rating — no body params, en_US, button only
+    | The rating — 1 body param and a URL button
     |--------------------------------------------------------------------------
     */
 
-    public function test_the_rating_is_posted_with_a_button_and_no_body(): void
+    public function test_the_rating_is_posted_with_the_patient_name_and_a_button(): void
     {
         Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'wamid.RATE']]])]);
 
@@ -171,16 +172,47 @@ class CloudApiMessageSenderTest extends TestCase
         Http::assertSent(function ($request) {
             $template = $request->data()['template'];
 
-            $this->assertSame('appointment_rating', $template['name']);
-            // Registered at Meta as en_US even though the text is Arabic.
-            // Sending 'ar' fails outright.
-            $this->assertSame('en_US', $template['language']['code']);
+            $this->assertSame('appointment_rating_v3', $template['name']);
+            $this->assertSame('ar', $template['language']['code']);
 
-            // A body component with no parameters would be rejected, so there
-            // must be exactly one component and it must be the button.
-            $this->assertCount(1, $template['components']);
-            $this->assertSame('button', $template['components'][0]['type']);
-            $this->assertStringStartsWith('review/', $template['components'][0]['parameters'][0]['text']);
+            [$bodyComponent, $buttonComponent] = $template['components'];
+
+            $this->assertSame('body', $bodyComponent['type']);
+            $this->assertSame([['type' => 'text', 'text' => 'سارة أحمد']], $bodyComponent['parameters']);
+
+            $this->assertSame('button', $buttonComponent['type']);
+            $this->assertStringStartsWith('review/', $buttonComponent['parameters'][0]['text']);
+
+            return true;
+        });
+
+        $this->assertStringContainsString('أهلًا سارة أحمد،', $message->rendered_body);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | The reminder — the confirmation's 6 body params and a URL button
+    |--------------------------------------------------------------------------
+    */
+
+    public function test_the_reminder_is_posted_in_the_approved_shape(): void
+    {
+        Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'wamid.REMIND']]])]);
+
+        app(CloudApiMessageSender::class)->send($this->queueMessage(WhatsAppMessagingService::REMINDER_KEY));
+
+        Http::assertSent(function ($request) {
+            $template = $request->data()['template'];
+
+            $this->assertSame('appointment_reminder', $template['name']);
+            $this->assertSame('ar', $template['language']['code']);
+
+            [$bodyComponent, $buttonComponent] = $template['components'];
+
+            $this->assertCount(6, $bodyComponent['parameters']);
+            $this->assertSame('سارة أحمد', $bodyComponent['parameters'][0]['text']);
+            $this->assertSame('15 دقيقة', $bodyComponent['parameters'][5]['text']);
+            $this->assertStringStartsWith('booking/', $buttonComponent['parameters'][0]['text']);
 
             return true;
         });

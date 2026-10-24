@@ -43,7 +43,7 @@ class MessageTemplateSeeder extends Seeder
             WhatsAppMessagingService::CONFIRMATION_KEY => [
                 'category' => 'utility',
                 'is_broadcast' => false,
-                'provider_template_name' => 'appointment_booking_confirmation',
+                'provider_template_name' => 'appointment_booking_confirmation_v3',
                 'language_code' => 'ar',
                 'body_ar' => "مرحبًا {{1}} \n\nتم تأكيد حجز موعدك بنجاح ✅\n\n"
                     ."📅 *التاريخ:* {{2}}\n⏰ *الموعد:* {{3}}\n\n"
@@ -74,19 +74,37 @@ class MessageTemplateSeeder extends Seeder
             ],
 
             /*
-            | No body parameters at all — the text is fixed and only the button
-            | varies. Registered at Meta as en_US despite being written in
-            | Arabic; sending `ar` for it fails, so the code follows Meta.
+            | {{1}} patient
             | Button: https://elayadah.com/{{1}} <- review/<token>
             */
             WhatsAppMessagingService::VISIT_COMPLETED_KEY => [
                 'category' => 'utility',
                 'is_broadcast' => false,
-                'provider_template_name' => 'appointment_rating',
-                'language_code' => 'en_US',
-                'body_ar' => "*قيّم تجربتك*\n\nوقتك أغلى حاجة عندنا، ونفسنا نعرف وفّرناه فعلاً؟\n\n"
-                    ."تقدر تعمل تقييم سريع عن تجربتك في نظام\nالحجز الجديد \n\n"
-                    .'حجزك أسهل، وقتك أثمن',
+                'provider_template_name' => 'appointment_rating_v3',
+                'language_code' => 'ar',
+                'body_ar' => "*قيّم تجربتك*\n\nأهلًا {{1}}،\n\n"
+                    ."حابين نعرف رأيك في تجربة الحجز الأخيرة مع العيادة.\n\n"
+                    ."هل كان نظام الحجز الجديد سهل وساعدك توفّر وقتك؟\n\n"
+                    ."رأيك يهمنا ويساعدنا نحسّن الخدمة.\n\n"
+                    .'حجزك أسهل، وقتك أثمن.',
+                'is_active' => true,
+            ],
+
+            /*
+            | Sent by clinic:send-reminders, an hour before the appointment
+            | (clinic.messaging.reminder_lead_minutes). Never a broadcast.
+            | {{1}} patient · {{2}} date · {{3}} time · {{4}} doctor
+            | {{5}} address · {{6}} arrival lead
+            | Button: https://elayadah.com/{{1}} <- booking/<token>
+            */
+            WhatsAppMessagingService::REMINDER_KEY => [
+                'category' => 'utility',
+                'is_broadcast' => false,
+                'provider_template_name' => 'appointment_reminder',
+                'language_code' => 'ar',
+                'body_ar' => "مرحبًا {{1}} 👋\n\nتذكير بموعدك النهارده ⏰\n\n"
+                    ."🗓 {{2}}\n⏰ الساعة: {{3}}\n👨‍⚕️ {{4}}\n📌 {{5}}\n\n"
+                    .'يرجى الحضور قبل الموعد بـ {{6}} 🙏',
                 'is_active' => true,
             ],
 

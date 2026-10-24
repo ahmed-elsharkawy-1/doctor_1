@@ -16,18 +16,22 @@ use App\Support\PhoneNumber;
  * is one arm per template here rather than one shared list of "everything a
  * message might need", which is what this replaced.
  *
- * The counts below are the approved ones, read back from the Graph API:
+ * The counts below are the approved ones:
  *
- *   appointment_booking_confirmation  ar      6 body params, URL button
- *   appointment_rating                en_US   0 body params, URL button
- *   booking_cancellation              ar      4 body params, no button
+ *   appointment_booking_confirmation_v3  ar   6 body params, URL button
+ *   appointment_rating_v3                ar   1 body param, URL button
+ *   appointment_reminder                 ar   6 body params, URL button
+ *   booking_cancellation                 ar   4 body params, no button
  */
 class TemplatePayloadResolver
 {
     public function for(MessageTemplate $template, Booking $booking, Clinic $clinic): TemplatePayload
     {
         return match ($template->key) {
-            WhatsAppMessagingService::CONFIRMATION_KEY => new TemplatePayload(
+            // The reminder was approved with the confirmation's six values in
+            // the same order, so the two share one mapping.
+            WhatsAppMessagingService::CONFIRMATION_KEY,
+            WhatsAppMessagingService::REMINDER_KEY => new TemplatePayload(
                 body: [
                     $this->patientName($booking),
                     $this->date($booking, $clinic),
@@ -39,10 +43,10 @@ class TemplatePayloadResolver
                 buttonSuffix: $this->suffix('tracking', $booking),
             ),
 
-            // Nothing to fill in: the whole message is fixed text, and the
-            // only thing that varies is where the button goes.
             WhatsAppMessagingService::VISIT_COMPLETED_KEY => new TemplatePayload(
-                body: [],
+                body: [
+                    $this->patientName($booking),
+                ],
                 buttonSuffix: $this->suffix('review', $booking),
             ),
 

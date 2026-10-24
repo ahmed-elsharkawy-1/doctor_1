@@ -24,6 +24,16 @@ Schedule::command('clinic:release-lapsed-holds')
     ->runInBackground();
 
 /*
+| The patient's reminder, an hour before the appointment. Every minute so it
+| lands close to that hour; a run that finds nobody due is a single query per
+| clinic. A booking is reminded once, so overlapping or missed runs are safe.
+*/
+Schedule::command('clinic:send-reminders')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->runInBackground();
+
+/*
 | The doctors' morning WhatsApp report. One time for every clinic, in Cairo
 | time; which clinics get it is decided per clinic in the admin panel. A
 | missed morning is not caught up — the panel's "send report" covers it.

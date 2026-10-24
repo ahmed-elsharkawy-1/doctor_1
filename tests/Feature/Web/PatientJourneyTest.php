@@ -156,9 +156,9 @@ class PatientJourneyTest extends TestCase
         // The test queue is synchronous, so it has already gone through the
         // log driver. What matters is that it exists and did not fail.
         $this->assertNotSame('failed', $thanks->status);
-        // The rating template declares no body parameters at all — only the
-        // button varies, and it points at this booking's review page.
-        $this->assertSame([], $thanks->variables);
+        // The rating template greets the patient by name, and its button
+        // points at this booking's review page.
+        $this->assertSame([$booking->patient->name], $thanks->variables);
         $this->assertSame('review/'.$booking->tracking_token, $thanks->button_suffix);
         $this->assertStringEndsWith($thanks->button_suffix, $booking->reviewUrl());
 

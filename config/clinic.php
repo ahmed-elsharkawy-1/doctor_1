@@ -66,6 +66,8 @@ return [
 
     'messaging' => [
         'driver' => env('CLINIC_MESSAGING_DRIVER', 'log'),
+        // How long before the appointment the WhatsApp reminder goes out.
+        'reminder_lead_minutes' => (int) env('CLINIC_REMINDER_LEAD_MINUTES', 60),
     ],
 
     /*
