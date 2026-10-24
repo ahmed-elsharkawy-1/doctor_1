@@ -12,6 +12,7 @@ use App\Models\Clinic;
 use App\Services\V1\Booking\ClinicDayLock;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
 use App\Support\DelayLabel;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -57,6 +58,19 @@ class DelayService
     public function allowedMinutes(): array
     {
         return array_map('intval', (array) config('clinic.delay.options'));
+    }
+
+    /**
+     * Who a delay can start from today, in time order — everyone it could
+     * move. The first is the usual pick: the first patient still waiting.
+     *
+     * @return Collection<int, Booking>
+     */
+    public function startingPoints(Clinic $clinic): Collection
+    {
+        return $this->movableOn($clinic, $clinic->currentDay()->toDateString())
+            ->with(['patient', 'visitType'])
+            ->get();
     }
 
     public function delay(Clinic $clinic, int $bookingId, int $minutes): DelayOutcome
@@ -141,15 +155,9 @@ class DelayService
      */
     private function move(Clinic $clinic, Booking $from, int $minutes): array
     {
-        $later = $clinic->bookings()
-            ->onDate($from->visit_date->toDateString())
-            ->pending()
-            ->where('booking_kind', BookingKind::NORMAL)
-            ->whereNotNull('start_at')
+        $later = $this->movableOn($clinic, $from->visit_date->toDateString())
             ->where('start_at', '>=', $from->start_at)
             ->whereKeyNot($from->id)
-            ->orderBy('start_at')
-            ->orderBy('id')
             ->get();
 
         $limit = $from->visit_date->copy()->addDay()
@@ -194,6 +202,24 @@ class DelayService
         }
 
         return array_map(fn (array $step): int => $step[2], $plan);
+    }
+
+    /**
+     * A day's bookings a delay may move, in time order: still waiting, normal,
+     * with a time. The one place that rule is written as a query — see
+     * isMovable() for the same rule on a single booking.
+     *
+     * @return HasMany<Booking, Clinic>
+     */
+    private function movableOn(Clinic $clinic, string $date): HasMany
+    {
+        return $clinic->bookings()
+            ->onDate($date)
+            ->pending()
+            ->where('booking_kind', BookingKind::NORMAL)
+            ->whereNotNull('start_at')
+            ->orderBy('start_at')
+            ->orderBy('id');
     }
 
     /**
