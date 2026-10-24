@@ -128,7 +128,7 @@ class MessageTemplateSeeder extends Seeder
             /*
             | Sent by the emergency delay, one per moved patient with their own
             | new time — so never a broadcast. Approved at Meta without a delay
-            | amount. Inactive until switched on here.
+            | amount; read back from the Graph API on 2026-10-24.
             | {{1}} patient · {{2}} date · {{3}} new time · {{4}} doctor
             | {{5}} clinic phone
             | Button: https://elayadah.com/{{1}} <- booking/<token>
@@ -139,10 +139,10 @@ class MessageTemplateSeeder extends Seeder
                 'provider_template_name' => 'appointment_delayed',
                 'language_code' => 'ar',
                 'body_ar' => "مرحبًا {{1}} 👋\n\nنعتذر، تم تأجيل موعدك بسبب حالة طارئة ⚠️\n\n"
-                    ."🗓 {{2}}\n⏰ الموعد الجديد: {{3}}\n👨‍⚕️ {{4}}\n\n"
-                    ."📞 للاستفسار تواصل مع العيادة على: {{5}}\n\n"
+                    ."📅 {{2}}\n⏰ الموعد الجديد: {{3}}\n👨‍⚕️ {{4}}\n\n"
+                    ."📞 للاستفسار تواصل مع العيادة على:\n{{5}}\n\n"
                     .'نشكرك على تفهمك 🙏',
-                'is_active' => false,
+                'is_active' => true,
             ],
         ];
     }

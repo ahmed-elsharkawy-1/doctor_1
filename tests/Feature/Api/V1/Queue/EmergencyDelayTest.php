@@ -342,8 +342,20 @@ class EmergencyDelayTest extends TestCase
     |--------------------------------------------------------------------------
     */
 
-    public function test_nothing_is_sent_until_the_template_is_approved(): void
+    public function test_the_delay_message_is_seeded_on(): void
     {
+        $from = $this->booking('2026-08-08 21:00');
+
+        $this->delay($from)
+            ->assertOk()
+            ->assertJsonPath('data.messaging.sent_count', 1);
+
+        $this->assertSame(WhatsAppMessagingService::DELAYED_KEY, OutboundMessage::sole()->template_key);
+    }
+
+    public function test_nothing_is_sent_while_the_template_is_switched_off(): void
+    {
+        MessageTemplate::where('key', WhatsAppMessagingService::DELAYED_KEY)->update(['is_active' => false]);
         $from = $this->booking('2026-08-08 21:00');
 
         $this->delay($from)
