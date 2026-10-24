@@ -17,14 +17,17 @@
         ['route' => 'app.queue',        'label' => __('app.nav.queue'),     'ability' => 'queue.manage'],
         ['route' => 'app.bookings.new', 'label' => __('app.nav.new'),       'ability' => 'bookings.manage'],
         ['route' => 'app.patients',     'label' => __('app.nav.patients'),  'ability' => 'patients.view'],
-        ['route' => 'app.postpone',     'label' => __('app.nav.postpone'),  'ability' => 'queue.manage'],
+        ['route' => 'app.delay',        'label' => __('app.nav.delay'),     'ability' => 'queue.manage'],
+        // Hidden, not removed: unused for now, until it is settled with the
+        // product and mobile teams. The screen and its route still work.
+        ['route' => 'app.postpone',     'label' => __('app.nav.postpone'),  'ability' => 'queue.manage', 'hidden' => true],
         ['route' => 'app.reports',      'label' => __('app.nav.reports'),   'ability' => 'reports.view'],
         ['route' => 'app.messages',     'label' => __('app.nav.messages'),  'ability' => 'bookings.manage'],
         ['route' => 'app.settings',     'label' => __('app.nav.settings'),  'ability' => 'settings.manage'],
     ];
 
     if ($awaitingRebooking > 0) {
-        array_splice($links, 4, 0, [[
+        array_splice($links, 5, 0, [[
             'route' => 'app.rebooking',
             'label' => __('app.nav.rebooking').' ('.$awaitingRebooking.')',
             'ability' => 'queue.manage',
@@ -44,7 +47,7 @@
 
         <div class="nav">
             @foreach ($links as $link)
-                @continue (! $user->hasAbility($link['ability']))
+                @continue (($link['hidden'] ?? false) || ! $user->hasAbility($link['ability']))
                 <a href="{{ route($link['route']) }}"
                    @if (request()->routeIs($link['route'])) aria-current="page" @endif>
                     {{ $link['label'] }}

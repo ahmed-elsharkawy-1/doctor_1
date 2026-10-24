@@ -20,6 +20,7 @@ return [
         'settings' => 'Settings',
         'patients' => 'Patients',
         'postpone' => 'Postpone a day',
+        'delay' => 'Running late',
         'rebooking' => 'Call list',
         'reports' => 'Reports',
         'messages' => 'WhatsApp',
@@ -71,6 +72,24 @@ return [
         'do_it' => 'Postpone now',
         'done_lead' => 'Done. Those patients are on the call list, waiting for new appointments.',
         'go_to_call_list' => 'Open the call list',
+    ],
+
+    'delay' => [
+        'title' => 'Delay appointments',
+        'today' => 'Today: :date',
+        'how_long' => 'How long',
+        'from' => 'Starting from',
+        'from_hint' => 'This appointment and every one after it will move later.',
+        'nobody' => 'No waiting appointments to delay today',
+        'submit' => 'Delay appointments',
+        'confirm' => ':name (:time) and everyone after will be delayed by :delay. Continue?',
+        'gaps' => 'Appointments after free time move less, or not at all.',
+        'do_it' => 'Delay now',
+        'was' => 'was :time',
+        'messages_sent' => ':count WhatsApp messages sent with the new times.',
+        'messages_none' => 'No WhatsApp messages were sent — let the patients know their new times.',
+        'back_to_queue' => "Back to today's list",
+        'another' => 'Another delay',
     ],
 
     'rebooking' => [
