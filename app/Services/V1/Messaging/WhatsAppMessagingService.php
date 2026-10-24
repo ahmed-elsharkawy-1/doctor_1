@@ -36,6 +36,9 @@ class WhatsAppMessagingService
     /** Sent to each patient an emergency delay moved, with their new time. */
     public const DELAYED_KEY = 'appointment_delayed';
 
+    /** Sent shortly before the appointment, by clinic:send-reminders. */
+    public const REMINDER_KEY = 'appointment_reminder';
+
     /**
      * What staff may send. Given a clinic with WhatsApp off, only the
      * cancellation — the rest would only be refused.
@@ -203,6 +206,16 @@ class WhatsAppMessagingService
     public function sendVisitCompleted(Clinic $clinic, Booking $booking): ?OutboundMessage
     {
         return $this->sendForBookingUsing($clinic, $booking, self::VISIT_COMPLETED_KEY);
+    }
+
+    /**
+     * The reminder sent shortly before the appointment. Same guarantees as the
+     * confirmation; deciding which bookings are due, and that none gets two,
+     * is the command's job.
+     */
+    public function sendReminder(Clinic $clinic, Booking $booking): ?OutboundMessage
+    {
+        return $this->sendForBookingUsing($clinic, $booking, self::REMINDER_KEY);
     }
 
     /**

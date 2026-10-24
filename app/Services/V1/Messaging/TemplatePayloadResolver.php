@@ -16,11 +16,14 @@ use App\Support\PhoneNumber;
  * is one arm per template here rather than one shared list of "everything a
  * message might need", which is what this replaced.
  *
- * The counts below are the approved ones, read back from the Graph API:
+ * The counts below are the approved ones, read back from the Graph API
+ * (2026-10-24):
  *
- *   appointment_booking_confirmation  ar      6 body params, URL button
- *   appointment_rating                en_US   0 body params, URL button
- *   booking_cancellation              ar      4 body params, no button
+ *   appointment_booking_confirmation_v3  ar   6 body params, URL button
+ *   appointment_rating_v3                ar   1 body param, URL button
+ *   appointment_reminder                 ar   5 body params, URL button
+ *   appointment_delayed                  ar   5 body params, URL button
+ *   booking_cancellation                 ar   4 body params, no button
  */
 class TemplatePayloadResolver
 {
@@ -39,10 +42,24 @@ class TemplatePayloadResolver
                 buttonSuffix: $this->suffix('tracking', $booking),
             ),
 
-            // Nothing to fill in: the whole message is fixed text, and the
-            // only thing that varies is where the button goes.
+            // The confirmation's first five. The arrival lead is fixed text in
+            // the approved template ("30 دقيقة"), not a parameter — so a clinic
+            // that changes its own lead is not reflected here.
+            WhatsAppMessagingService::REMINDER_KEY => new TemplatePayload(
+                body: [
+                    $this->patientName($booking),
+                    $this->date($booking, $clinic),
+                    $this->time($booking, $clinic),
+                    $this->doctorName($clinic),
+                    $this->address($clinic),
+                ],
+                buttonSuffix: $this->suffix('tracking', $booking),
+            ),
+
             WhatsAppMessagingService::VISIT_COMPLETED_KEY => new TemplatePayload(
-                body: [],
+                body: [
+                    $this->patientName($booking),
+                ],
                 buttonSuffix: $this->suffix('review', $booking),
             ),
 
