@@ -161,6 +161,26 @@ class BookingTrackingPageTest extends TestCase
             ->assertDontSee(__('booking.tracking.first_in_line'));
     }
 
+    /**
+     * Nobody ahead, but the doctor is still with someone: next, not called
+     * into a room that is taken.
+     */
+    public function test_with_the_doctor_busy_the_next_patient_is_told_they_are_next(): void
+    {
+        Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-09-03 09:00', $this->clinic->timezone))->withDoctor()->create();
+
+        $mine = $this->booking('09:20');
+        $mine->update(['status' => BookingStatus::ARRIVED, 'arrived_at' => now()]);
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(__('booking.tracking.up_next'))
+            ->assertSee(__('booking.tracking.up_next_note'))
+            ->assertDontSee(__('booking.tracking.your_turn'))
+            ->assertDontSee(__('booking.tracking.your_turn_note'));
+    }
+
     public function test_a_finished_visit_says_so(): void
     {
         $mine = Booking::factory()->forClinic($this->clinic)
@@ -325,8 +345,10 @@ class BookingTrackingPageTest extends TestCase
     public function test_the_tiles_count_only_the_patients_ahead(): void
     {
         $this->booking('09:00');
+        // An emergency counts once it is in the clinic.
         Booking::factory()->forClinic($this->clinic)
             ->at(Carbon::parse('2026-09-03 09:10', $this->clinic->timezone))
+            ->arrived()
             ->create(['booking_kind' => BookingKind::EMERGENCY]);
         $mine = $this->booking('09:40');
         foreach (['10:20', '10:40', '11:00', '11:20', '11:40'] as $later) {

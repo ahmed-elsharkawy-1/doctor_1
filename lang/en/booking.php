@@ -97,6 +97,8 @@ return [
         'patient_code' => 'Patient code',
         'appointment' => 'Appointment',
         'your_turn' => "It's your turn",
+        'up_next' => "You're next",
+        'up_next_note' => 'The doctor is with a patient now; you go in right after.',
         'first_in_line' => "You're first",
         'first_in_line_note' => 'Your appointment is at :time. Please arrive :lead beforehand.',
         'first_in_line_note_no_time' => 'Nobody is ahead of you in the queue right now.',

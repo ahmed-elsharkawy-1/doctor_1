@@ -17,9 +17,11 @@
 
     $status = $booking->status;
     $isNext = $position !== null && $position->isNext();
+    // In the clinic, nobody ahead, but the doctor is still with someone.
+    $isUpNext = $position !== null && $position->isUpNext();
     // Nobody booked before them, but they are not in the clinic yet.
     $isFirstInLine = $position !== null && $position->isFirstInLine();
-    $isWaiting = $position !== null && ! $isNext && ! $isFirstInLine;
+    $isWaiting = $position !== null && ! $isNext && ! $isUpNext && ! $isFirstInLine;
     $isDone = $status === BookingStatus::DONE;
     $isOff = $status->isTerminal() && ! $isDone;
 
@@ -55,7 +57,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     @include('partials.brand-head')
-    @if ($isWaiting || $isNext || $isFirstInLine)
+    @if ($isWaiting || $isNext || $isUpNext || $isFirstInLine)
         <meta http-equiv="refresh" content="{{ $refreshSeconds }}">
     @endif
     <title>{{ __('booking.tracking.title', ['clinic' => $clinic->name]) }}</title>
@@ -263,7 +265,7 @@
         {{-- A ring with a number in it does not say what the number counts.
              The heading does, and only while the ring is about the queue: a
              finished or cancelled visit has no position to report. --}}
-        @if ($isWaiting || $isNext || $isFirstInLine)
+        @if ($isWaiting || $isNext || $isUpNext || $isFirstInLine)
             <h2 class="stage-title">{{ __('booking.tracking.queue_title') }}</h2>
         @endif
 
@@ -284,6 +286,8 @@
                     <span class="word">{{ __('booking.tracking.no_show') }}</span>
                 @elseif ($isNext)
                     <span class="word">{{ __('booking.tracking.your_turn') }}</span>
+                @elseif ($isUpNext)
+                    <span class="word">{{ __('booking.tracking.up_next') }}</span>
                 @elseif ($isFirstInLine)
                     <span class="word">{{ __('booking.tracking.first_in_line') }}</span>
                 @elseif ($isWaiting)
@@ -295,6 +299,14 @@
             </div>
         </div>
     </section>
+
+    @if ($isUpNext)
+        {{-- Nobody ahead, but the room is taken: next, not in yet. --}}
+        <div class="notice">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            {{ __('booking.tracking.up_next_note') }}
+        </div>
+    @endif
 
     @if ($isFirstInLine)
         {{-- Nobody before them, but they are not here yet: say when to come

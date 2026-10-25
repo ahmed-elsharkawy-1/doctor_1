@@ -97,6 +97,8 @@ return [
         'patient_code' => 'كود المريض',
         'appointment' => 'موعد الحجز',
         'your_turn' => 'دورك الآن',
+        'up_next' => 'أنت التالي',
+        'up_next_note' => 'الدكتور مع حالة الآن، وستدخل بعدها مباشرة.',
         'first_in_line' => 'ترتيبك الأول',
         'first_in_line_note' => 'موعدك الساعة :time، ويفضل الحضور قبله بـ :lead.',
         'first_in_line_note_no_time' => 'لا يوجد أحد قبلك في الدور حالياً.',
