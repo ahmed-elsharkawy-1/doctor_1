@@ -20,6 +20,15 @@ enum ReviewRating: string
     }
 
     /**
+     * The same rating as the clinic reads it: "بعض الملاحظات" rather than the
+     * patient's own "يوجد بعض الملاحظات".
+     */
+    public function staffLabel(): string
+    {
+        return __('review.staff_rating.'.$this->value);
+    }
+
+    /**
      * "I have some notes" says something went wrong; without the notes the
      * team cannot tell what. The positive ratings stand on their own.
      */

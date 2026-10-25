@@ -65,6 +65,8 @@ tags:
     description: WhatsApp template previews and log-driver sends
   - name: Patients
     description: Search and visit history
+  - name: Reviews
+    description: What patients said about their visits
   - name: Reports
     description: Revenue and retention, and the link that opens the doctor's reports page in a WebView
 
@@ -1329,6 +1331,58 @@ paths:
                           meta: { $ref: "#/components/schemas/PaginationMeta" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
 
+  /reviews:
+    get:
+      tags: [Reviews]
+      summary: The clinic's reviews
+      description: |
+        The whole reviews screen in one request.
+
+        - `summary` is the card at the top: **every** review the clinic has,
+          never narrowed by `rating` or the page, so it does not change when a
+          chip is tapped. `satisfied_percent` is (very good + good) ÷ total,
+          rounded; null while there are no reviews yet.
+        - `items` is one page of the list, newest first, narrowed by `rating`.
+          Reviews without a comment are included (`comment: null`).
+        - `meta.total` is the count under the current filter ("جيد · 28 تقييم").
+
+        Each item carries everything the details sheet shows — the whole
+        comment (shorten it on screen for the list), the visit, and the
+        patient's **unmasked** phone for the call and WhatsApp buttons — so the
+        sheet needs no further request.
+      operationId: listReviews
+      parameters:
+        - name: rating
+          in: query
+          schema: { type: string, enum: [very_good, good, bad] }
+          description: The filter chip. Omit for "الكل".
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          summary: { $ref: "#/components/schemas/ReviewSummary" }
+                          items:
+                            type: array
+                            items: { $ref: "#/components/schemas/ReviewListItem" }
+                          meta: { $ref: "#/components/schemas/PaginationMeta" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
   /patients/{patient}:
     parameters:
       - name: patient
@@ -2189,6 +2243,62 @@ components:
               price:
                 allOf: [{ $ref: "#/components/schemas/Money" }]
                 description: Owner only.
+
+    ReviewSummary:
+      type: object
+      properties:
+        total: { type: integer, example: 214 }
+        satisfied_percent:
+          type: [integer, "null"]
+          example: 97
+          description: (very good + good) ÷ total, rounded. Null with no reviews.
+        ratings:
+          type: array
+          description: Always all three, best first.
+          items:
+            type: object
+            properties:
+              value: { type: string, enum: [very_good, good, bad] }
+              display: { type: string, example: بعض الملاحظات }
+              count: { type: integer, example: 6 }
+
+    ReviewListItem:
+      type: object
+      properties:
+        id: { type: integer }
+        rating: { $ref: "#/components/schemas/Display" }
+        comment:
+          type: [string, "null"]
+          description: Whole — shorten it on screen. Null when the patient left none.
+        submitted_at: { type: string, format: date-time }
+        patient:
+          type: [object, "null"]
+          properties:
+            id: { type: integer }
+            code: { type: string, example: "60189" }
+            name: { type: string }
+            phone:
+              allOf: [{ $ref: "#/components/schemas/Display" }]
+              description: Unmasked — the details sheet calls and messages the patient.
+        visit:
+          type: [object, "null"]
+          properties:
+            booking_id: { type: integer }
+            date: { $ref: "#/components/schemas/Display" }
+            day: { type: string, example: الثلاثاء }
+            start_time:
+              oneOf:
+                - { $ref: "#/components/schemas/Display" }
+                - { type: "null" }
+              description: Null for an emergency, which has no time.
+            after_midnight:
+              type: boolean
+              description: "`start_time` is past midnight, still on `date`."
+            visit_type:
+              type: object
+              properties:
+                id: { type: integer }
+                name: { type: string, example: كشف }
 
     PaginationMeta:
       type: object

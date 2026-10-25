@@ -22,6 +22,7 @@
         // product and mobile teams. The screen and its route still work.
         ['route' => 'app.postpone',     'label' => __('app.nav.postpone'),  'ability' => 'queue.manage', 'hidden' => true],
         ['route' => 'app.reports',      'label' => __('app.nav.reports'),   'ability' => 'reports.view'],
+        ['route' => 'app.reviews',      'label' => __('app.nav.reviews'),   'ability' => 'patients.view'],
         ['route' => 'app.messages',     'label' => __('app.nav.messages'),  'ability' => 'bookings.manage'],
         ['route' => 'app.settings',     'label' => __('app.nav.settings'),  'ability' => 'settings.manage'],
     ];
