@@ -93,9 +93,12 @@ class PatientSearchService
     }
 
     /**
+     * Shared with the queue search, so a patient found here is found there
+     * by the same name, code or phone tail.
+     *
      * @param  Builder<Patient>  $query
      */
-    private function applyTerm(Builder $query, string $term): void
+    public function applyTerm(Builder $query, string $term): void
     {
         $query->where('name', 'like', '%'.$term.'%')
             ->orWhere('code', 'like', $term.'%');

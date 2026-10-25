@@ -4,7 +4,9 @@ namespace Tests\Feature\Queue;
 
 use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
+use App\Enums\CancelReason;
 use App\Models\Booking;
+use App\Services\V1\Queue\BookingStatusService;
 use App\Services\V1\Queue\QueuePositionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -129,7 +131,11 @@ class QueuePositionServiceTest extends TestCase
         $this->assertSame(1, $this->positions->for($mine->fresh())->ahead);
     }
 
-    public function test_the_patient_with_the_doctor_is_still_ahead(): void
+    /**
+     * Already in the room is not "before" them: the count is who is still
+     * waiting, and the patient with the doctor is reported on their own.
+     */
+    public function test_the_patient_with_the_doctor_is_not_counted_ahead(): void
     {
         Booking::factory()
             ->forClinic($this->clinic)
@@ -137,9 +143,56 @@ class QueuePositionServiceTest extends TestCase
             ->withDoctor()
             ->create();
 
+        $this->booking('09:50');
         $mine = $this->booking('10:00');
+        $this->booking('10:20');
 
-        $this->assertSame(1, $this->positions->for($mine)->ahead);
+        $position = $this->positions->for($mine);
+
+        $this->assertSame(1, $position->ahead);
+        $this->assertSame(1, $position->withDoctor);
+        $this->assertTrue($position->doctorIsBusy());
+        $this->assertSame(1, $position->behind());
+        $this->assertSame($position->total, $position->withDoctor + $position->place() + $position->behind());
+    }
+
+    /**
+     * In the clinic with nobody waiting before them is not their turn while
+     * the room is taken — told to walk in, they would walk in on someone.
+     */
+    public function test_next_in_line_waits_while_the_doctor_is_busy(): void
+    {
+        $inRoom = Booking::factory()
+            ->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-09-03 09:40', $this->clinic->timezone), 20)
+            ->withDoctor()
+            ->create(['called_in_at' => Carbon::parse('2026-09-03 09:55', $this->clinic->timezone)]);
+
+        $mine = $this->booking('10:00');
+        $mine->update(['status' => BookingStatus::ARRIVED, 'arrived_at' => now()]);
+
+        $position = $this->positions->for($mine->fresh());
+
+        $this->assertSame(0, $position->ahead);
+        $this->assertFalse($position->isNext());
+        $this->assertTrue($position->isUpNext());
+        // The rest of that visit still counts: called in at 09:55 for 20.
+        $this->assertSame('10:15', $position->expectedAt->format('H:i'));
+
+        $inRoom->update(['status' => BookingStatus::DONE, 'completed_at' => now()]);
+
+        $this->assertTrue($this->positions->for($mine->fresh())->isNext());
+    }
+
+    public function test_the_patient_in_the_room_is_never_told_to_wait_for_themselves(): void
+    {
+        $mine = $this->booking('09:40');
+        $mine->update(['status' => BookingStatus::WITH_DOCTOR, 'called_in_at' => now()]);
+
+        $position = $this->positions->for($mine->fresh());
+
+        $this->assertSame(0, $position->withDoctor);
+        $this->assertTrue($position->isNext());
     }
 
     public function test_finished_patients_are_not_counted(): void
@@ -289,5 +342,92 @@ class QueuePositionServiceTest extends TestCase
             '10:00',
             $this->positions->for($mine)->expectedAt->format('H:i'),
         );
+    }
+
+    /**
+     * The complaint: ten booked ahead and on time, then the count reads
+     * fifteen. Evening patients who turn up early are ranked first on the
+     * clinic's screen, but they were never in front of this patient.
+     */
+    public function test_patients_booked_later_who_arrive_early_are_not_counted(): void
+    {
+        $this->booking('10:20');
+        $this->booking('10:40');
+        $mine = $this->booking('11:00');
+
+        foreach (['12:00', '12:20', '12:40'] as $time) {
+            $this->booking($time)->update(['status' => BookingStatus::ARRIVED, 'arrived_at' => now(), 'queue_entered_at' => now()]);
+        }
+
+        $position = $this->positions->for($mine->fresh());
+
+        $this->assertSame(2, $position->ahead);
+        $this->assertSame(2, $position->aheadNormal);
+        // Their visits are not waited on either.
+        $this->assertSame('11:00', $position->expectedAt->format('H:i'));
+    }
+
+    public function test_an_arrival_booked_later_never_makes_an_arrived_patient_wait(): void
+    {
+        $early = $this->booking('12:00');
+        $early->update(['status' => BookingStatus::ARRIVED, 'arrived_at' => now(), 'queue_entered_at' => now()]);
+
+        $mine = $this->booking('10:20');
+        $mine->update(['status' => BookingStatus::ARRIVED, 'arrived_at' => now()->addMinutes(5), 'queue_entered_at' => now()->addMinutes(5)]);
+
+        $this->assertTrue($this->positions->for($mine->fresh())->isNext());
+    }
+
+    /**
+     * Whoever is in the room is what is being waited on, whenever they were
+     * booked for — a clinic running ahead of itself calls a later patient in.
+     */
+    public function test_a_patient_booked_later_but_with_the_doctor_still_counts(): void
+    {
+        $mine = $this->booking('10:20');
+
+        Booking::factory()
+            ->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-09-03 12:00', $this->clinic->timezone))
+            ->withDoctor()
+            ->create();
+
+        $position = $this->positions->for($mine->fresh());
+
+        $this->assertSame(0, $position->ahead);
+        $this->assertSame(1, $position->withDoctor);
+    }
+
+    /**
+     * Every status change, a cancellation and the booking that replaces it:
+     * none of it may count anybody twice or push the number up.
+     */
+    public function test_status_changes_and_a_replaced_booking_never_raise_the_count(): void
+    {
+        $statuses = app(BookingStatusService::class);
+
+        $ahead = collect(['10:00', '10:20', '10:40'])->map(fn (string $time): Booking => $this->booking($time));
+        $mine = $this->booking('11:00');
+        $this->booking('11:20');
+
+        $count = fn (): int => $this->positions->for($mine->fresh())->ahead;
+
+        $this->assertSame(3, $count());
+
+        $statuses->cancel($ahead[1], CancelReason::selectable()[0]);
+        $this->assertSame(2, $count());
+
+        $this->booking('10:20');
+        $this->assertSame(3, $count());
+
+        $statuses->arrive($ahead[0]->fresh());
+        $this->assertSame(3, $count());
+
+        // In the room now: no longer waiting before them.
+        $statuses->callIn($ahead[0]->fresh());
+        $this->assertSame(2, $count());
+
+        $statuses->complete($ahead[0]->fresh());
+        $this->assertSame(2, $count());
     }
 }

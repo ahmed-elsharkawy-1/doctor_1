@@ -13,8 +13,8 @@ use Illuminate\View\View;
  * The page a patient opens from the link the clinic sends them.
  *
  * Read-only and unauthenticated — the token in the URL is the whole secret.
- * It reuses QueuePositionService, the same service behind the clinic's own
- * queue screen, so the two can never disagree.
+ * It reads the clinic's own queue ordering through QueuePositionService, so
+ * the two agree on everyone except a patient booked later who arrived early.
  */
 class BookingTrackingController extends Controller
 {

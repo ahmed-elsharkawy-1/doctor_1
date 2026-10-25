@@ -17,6 +17,8 @@
 
     $status = $booking->status;
     $isNext = $position !== null && $position->isNext();
+    // In the clinic and next, but somebody is still with the doctor.
+    $isUpNext = $position !== null && $position->isUpNext();
     // Nobody booked before them, but they are not in the clinic yet.
     $isFirstInLine = $position !== null && $position->isFirstInLine();
     $isWaiting = $position !== null && ! $isNext && ! $isFirstInLine;
@@ -286,6 +288,8 @@
                     <span class="word">{{ __('booking.tracking.your_turn') }}</span>
                 @elseif ($isFirstInLine)
                     <span class="word">{{ __('booking.tracking.first_in_line') }}</span>
+                @elseif ($isUpNext)
+                    <span class="word">{{ __('booking.tracking.up_next') }}</span>
                 @elseif ($isWaiting)
                     <span class="count">{{ $position->ahead }}</span>
                     <span class="label">{{ __('booking.tracking.waiting_count') }}</span>
@@ -312,23 +316,34 @@
         </div>
     @endif
 
+    @if ($isWaiting && $position->doctorIsBusy())
+        {{-- Not counted in the number above, but the reason it has not moved. --}}
+        <div class="notice">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/></svg>
+            {{ __('booking.tracking.with_doctor_note') }}
+        </div>
+    @endif
+
     @if ($isWaiting)
         {{-- This patient's wait only: everyone ahead, then how many of them are
-             normal and how many emergencies. Never the clinic's whole day. --}}
-        <div class="tiles">
-            <div class="tile">
-                <div class="n">{{ $position->ahead }}</div>
-                <div class="k">{{ __('booking.tracking.total') }}</div>
+             normal and how many emergencies. Never the clinic's whole day.
+             Up next, there is nobody left to split. --}}
+        @unless ($isUpNext)
+            <div class="tiles">
+                <div class="tile">
+                    <div class="n">{{ $position->ahead }}</div>
+                    <div class="k">{{ __('booking.tracking.total') }}</div>
+                </div>
+                <div class="tile">
+                    <div class="n">{{ $position->aheadNormal }}</div>
+                    <div class="k">{{ __('booking.tracking.normal') }}</div>
+                </div>
+                <div class="tile warn">
+                    <div class="n">{{ $position->aheadEmergency }}</div>
+                    <div class="k">{{ __('booking.tracking.emergency') }}</div>
+                </div>
             </div>
-            <div class="tile">
-                <div class="n">{{ $position->aheadNormal }}</div>
-                <div class="k">{{ __('booking.tracking.normal') }}</div>
-            </div>
-            <div class="tile warn">
-                <div class="n">{{ $position->aheadEmergency }}</div>
-                <div class="k">{{ __('booking.tracking.emergency') }}</div>
-            </div>
-        </div>
+        @endunless
 
         <div class="notice">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.4 17a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>

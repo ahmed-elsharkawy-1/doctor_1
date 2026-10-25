@@ -5,6 +5,7 @@ namespace App\Services\V1\Queue;
 use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
 use App\Models\Booking;
+use App\Models\Clinic;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -13,8 +14,11 @@ use Illuminate\Support\Collection;
  * page (SPEC v1.1 §7).
  *
  * The ordering is not re-derived here — it is the same QueueService ordering
- * the clinic sees on its own queue screen, so the patient and the secretary
- * can never be looking at two different queues.
+ * the clinic sees on its own queue screen. The one thing the page leaves out
+ * is a waiting patient whose appointment comes after this one: the clinic
+ * ranks whoever has turned up first, so five evening patients arriving early
+ * used to take a 3pm patient sitting at home from 9 ahead to 14 (see
+ * `startsLater()`).
  */
 class QueuePositionService
 {
@@ -30,7 +34,6 @@ class QueuePositionService
     public function for(Booking $booking): ?QueuePosition
     {
         $clinic = $booking->clinic;
-        $now = Carbon::now($clinic->timezone);
 
         if ($booking->visit_date->toDateString() !== $clinic->currentDay()->toDateString()) {
             return null;
@@ -40,22 +43,59 @@ class QueuePositionService
             return null;
         }
 
-        $sorted = $this->queue->sortBookings($this->todaysQueue($booking));
+        return $this->within($clinic, $this->today($clinic), $booking);
+    }
 
+    /**
+     * Today's queue in the clinic's own order. Read it once and hand it to
+     * `within()` when several patients need a position — a search result
+     * must not re-read the whole day for every row.
+     *
+     * @return Collection<int, Booking>
+     */
+    public function today(Clinic $clinic): Collection
+    {
+        return $this->queue->sortBookings(
+            $clinic->bookings()
+                ->with(['patient', 'visitType'])
+                ->onDate($clinic->currentDay()->toDateString())
+                ->whereIn('status', BookingStatus::inQueue())
+                ->get(),
+        );
+    }
+
+    /**
+     * Where a booking stands in a queue already read by `today()`. Null when
+     * it is not in that queue.
+     *
+     * @param  Collection<int, Booking>  $sorted
+     */
+    public function within(Clinic $clinic, Collection $sorted, Booking $booking): ?QueuePosition
+    {
         $index = $sorted->search(fn (Booking $each): bool => $each->id === $booking->id);
 
         if ($index === false) {
             return null;
         }
 
-        $ahead = $sorted->take($index);
+        $before = $sorted->take($index)
+            ->reject(fn (Booking $each): bool => $this->startsLater($each, $booking))
+            ->values();
+
+        // Whoever is in the room is not "before" them — they are already
+        // being seen. Only the rest of their visit still delays the queue,
+        // which `expectedAt` counts.
+        $inRoom = $booking->status === BookingStatus::WITH_DOCTOR
+            ? collect()
+            : $before->where('status', BookingStatus::WITH_DOCTOR);
+        $ahead = $before->where('status', '!==', BookingStatus::WITH_DOCTOR)->values();
 
         return new QueuePosition(
-            ahead: $index,
+            ahead: $ahead->count(),
             total: $sorted->count(),
             normal: $sorted->where('booking_kind', BookingKind::NORMAL)->count(),
             emergency: $sorted->where('booking_kind', BookingKind::EMERGENCY)->count(),
-            expectedAt: $this->expectedAt($booking, $ahead, $now, $clinic->timezone),
+            expectedAt: $this->expectedAt($booking, $before, Carbon::now($clinic->timezone), $clinic->timezone),
             // In the clinic, not merely due: only then is it their turn.
             hasArrived: in_array($booking->status, [
                 BookingStatus::ARRIVED,
@@ -63,18 +103,34 @@ class QueuePositionService
             ], true),
             aheadNormal: $ahead->where('booking_kind', BookingKind::NORMAL)->count(),
             aheadEmergency: $ahead->where('booking_kind', BookingKind::EMERGENCY)->count(),
+            withDoctor: $inRoom->count(),
         );
     }
 
     /**
-     * @return Collection<int, Booking>
+     * A normal booking still waiting whose appointment is after this one's —
+     * ranked ahead on the clinic's screen only because they arrived early.
+     *
+     * Counting them made the number a patient reads climb for no reason they
+     * could see, with everyone before them booked and on time. Emergencies
+     * still count, as the design warns. The patient with the doctor is left
+     * to `within()`: whoever booked them, that visit is being waited on now.
      */
-    private function todaysQueue(Booking $booking): Collection
+    private function startsLater(Booking $other, Booking $booking): bool
     {
-        return $booking->clinic->bookings()
-            ->onDate($booking->visit_date->toDateString())
-            ->whereIn('status', BookingStatus::inQueue())
-            ->get();
+        if ($other->booking_kind !== BookingKind::NORMAL || $booking->booking_kind !== BookingKind::NORMAL) {
+            return false;
+        }
+
+        if (! in_array($other->status, BookingStatus::pending(), true)) {
+            return false;
+        }
+
+        if ($other->start_at === null || $booking->start_at === null) {
+            return false;
+        }
+
+        return $other->start_at->greaterThan($booking->start_at);
     }
 
     /**

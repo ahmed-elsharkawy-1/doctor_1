@@ -161,6 +161,39 @@ class BookingTrackingPageTest extends TestCase
             ->assertDontSee(__('booking.tracking.first_in_line'));
     }
 
+    /**
+     * Next, and in the clinic, but somebody is in the room: they are told
+     * they are next, never to walk in.
+     */
+    public function test_next_in_line_is_not_called_in_while_the_doctor_is_busy(): void
+    {
+        Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-09-03 08:40', $this->clinic->timezone))->withDoctor()->create();
+
+        $mine = $this->booking('09:00');
+        $mine->update(['status' => BookingStatus::ARRIVED, 'arrived_at' => now()]);
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(__('booking.tracking.up_next'))
+            ->assertSee(__('booking.tracking.with_doctor_note'))
+            ->assertDontSee(__('booking.tracking.your_turn'));
+    }
+
+    public function test_the_patient_with_the_doctor_is_not_in_the_waiting_count(): void
+    {
+        Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-09-03 08:40', $this->clinic->timezone))->withDoctor()->create();
+        $this->booking('08:50');
+
+        $mine = $this->booking('09:00');
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee('<span class="count">1</span>', escape: false)
+            ->assertSee(__('booking.tracking.with_doctor_note'));
+    }
+
     public function test_a_finished_visit_says_so(): void
     {
         $mine = Booking::factory()->forClinic($this->clinic)
