@@ -90,6 +90,7 @@ return [
         'emergency_notice' => 'Emergency cases always take priority, so the number ahead of you may rise while you wait',
         'your_status' => 'Your status',
         'expected_at' => 'Be at the clinic by',
+        'booked_at' => 'Your appointment',
         'location' => 'Location',
         'whatsapp' => 'WhatsApp',
         'whatsapp_greeting' => 'Hello, about my booking at :clinic — patient code #:code',

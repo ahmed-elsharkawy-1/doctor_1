@@ -348,7 +348,19 @@
         </div>
 
         <div class="duo">
-            @if ($position->expectedAt)
+            @if (! config('clinic.tracking.show_estimate'))
+                {{-- The time they booked, as booked. The estimate stays off
+                     until it is ready (clinic.tracking.show_estimate). --}}
+                @if ($booking->start_at)
+                    <div class="box">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                        <span>
+                            <span class="k">{{ __('booking.tracking.booked_at') }}</span><br>
+                            <span class="v">{{ $clock($booking->start_at) }}{{ $booking->startsAfterMidnight() ? ' · '.__('schedule.after_midnight') : '' }}</span>
+                        </span>
+                    </div>
+                @endif
+            @elseif ($position->expectedAt)
                 <div class="box">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
                     <span>

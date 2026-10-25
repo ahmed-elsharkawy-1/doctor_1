@@ -293,6 +293,12 @@ return [
         'token_bytes' => 16,
         // How often the waiting page re-reads its position.
         'refresh_seconds' => (int) env('CLINIC_TRACKING_REFRESH_SECONDS', 30),
+
+        // The waiting page's time box. Off: the time the patient booked
+        // ("موعد حجزك"). On: the estimate of when they go in, from the
+        // visits still ahead — being refined on staging, so off by default
+        // and switched on per environment once it is ready.
+        'show_estimate' => (bool) env('CLINIC_TRACKING_SHOW_ESTIMATE', false),
     ],
 
     /*
