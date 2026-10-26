@@ -22,6 +22,7 @@ use App\Livewire\App\Postpone;
 use App\Livewire\App\Queue;
 use App\Livewire\App\Rebooking;
 use App\Livewire\App\Reports;
+use App\Livewire\App\Reviews;
 use App\Livewire\App\Settings\General;
 use App\Livewire\App\Settings\Holidays;
 use App\Livewire\App\Settings\Hours;
@@ -157,6 +158,9 @@ Route::prefix('app')->name('app.')->group(function (): void {
 
         // Revenue and retention (SPEC §5.5, §5.6).
         Route::get('reports', Reports::class)->name('reports');
+
+        // What patients said about their visits.
+        Route::get('reviews', Reviews::class)->name('reviews');
 
         // WhatsApp template broadcasts. Last, because it reaches patients.
         Route::get('messages', Messages::class)->name('messages');

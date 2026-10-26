@@ -161,6 +161,103 @@ class BookingTrackingPageTest extends TestCase
             ->assertDontSee(__('booking.tracking.first_in_line'));
     }
 
+    /**
+     * Nobody ahead, but the doctor is still with someone: next, not called
+     * into a room that is taken.
+     */
+    public function test_with_the_doctor_busy_the_next_patient_is_told_they_are_next(): void
+    {
+        Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-09-03 09:00', $this->clinic->timezone))->withDoctor()->create();
+
+        $mine = $this->booking('09:20');
+        $mine->update(['status' => BookingStatus::ARRIVED, 'arrived_at' => now()]);
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(__('booking.tracking.up_next'))
+            ->assertSee(__('booking.tracking.up_next_note'))
+            ->assertDontSee(__('booking.tracking.your_turn'))
+            ->assertDontSee(__('booking.tracking.your_turn_note'));
+    }
+
+    /**
+     * Production shows the time the patient booked, not the estimate, until
+     * the estimate is ready to switch on.
+     */
+    public function test_by_default_the_waiting_page_shows_the_booked_time(): void
+    {
+        $this->booking('09:00');
+        $this->booking('09:20');
+        $mine = $this->booking('09:40');
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(__('booking.tracking.booked_at'))
+            ->assertSeeInOrder([__('booking.tracking.booked_at'), '9:40 '.__('booking.tracking.am')])
+            ->assertDontSee(__('booking.tracking.expected_at'))
+            // 10:00 plus two 20-minute visits: the estimate, never shown.
+            ->assertDontSee('10:40');
+    }
+
+    /**
+     * 01:00 under Thursday's date is Thursday night, and the box says so.
+     */
+    public function test_a_booked_time_after_midnight_says_so(): void
+    {
+        $this->booking('09:00');
+        $mine = Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-09-04 01:00', $this->clinic->timezone))
+            ->create(['visit_date' => '2026-09-03']);
+
+        $html = $this->get($mine->trackingUrl())->assertOk()->getContent();
+
+        // The box's own value only — the details row further down says it too.
+        preg_match('/'.preg_quote(__('booking.tracking.booked_at'), '/').'<\/span><br>\s*<span class="v">([^<]*)<\/span>/u', $html, $box);
+
+        $this->assertStringContainsString('1:00', $box[1] ?? '');
+        $this->assertStringContainsString(__('schedule.after_midnight'), $box[1] ?? '');
+    }
+
+    public function test_with_the_estimate_switched_on_it_shows_the_estimate(): void
+    {
+        config(['clinic.tracking.show_estimate' => true]);
+
+        $this->booking('09:00');
+        $this->booking('09:20');
+        $mine = $this->booking('09:40');
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSeeInOrder([__('booking.tracking.expected_at'), '10:40 '.__('booking.tracking.am')])
+            ->assertDontSee(__('booking.tracking.booked_at'));
+    }
+
+    /**
+     * An emergency has no booked time, so the box has nothing to say.
+     */
+    public function test_by_default_an_emergency_shows_no_time_box(): void
+    {
+        Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-09-03 09:00', $this->clinic->timezone))->arrived()
+            ->create(['booking_kind' => BookingKind::EMERGENCY]);
+
+        $mine = Booking::factory()->forClinic($this->clinic)->create([
+            'booking_kind' => BookingKind::EMERGENCY,
+            'start_at' => null,
+            'end_at' => null,
+            'status' => BookingStatus::ARRIVED,
+            'arrived_at' => now(),
+            'queue_entered_at' => now(),
+        ]);
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(__('booking.kind.emergency'))
+            ->assertDontSee(__('booking.tracking.booked_at'))
+            ->assertDontSee(__('booking.tracking.expected_at'));
+    }
+
     public function test_a_finished_visit_says_so(): void
     {
         $mine = Booking::factory()->forClinic($this->clinic)
@@ -325,8 +422,10 @@ class BookingTrackingPageTest extends TestCase
     public function test_the_tiles_count_only_the_patients_ahead(): void
     {
         $this->booking('09:00');
+        // An emergency counts once it is in the clinic.
         Booking::factory()->forClinic($this->clinic)
             ->at(Carbon::parse('2026-09-03 09:10', $this->clinic->timezone))
+            ->arrived()
             ->create(['booking_kind' => BookingKind::EMERGENCY]);
         $mine = $this->booking('09:40');
         foreach (['10:20', '10:40', '11:00', '11:20', '11:40'] as $later) {
