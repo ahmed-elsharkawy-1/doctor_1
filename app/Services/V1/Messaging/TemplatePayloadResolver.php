@@ -44,12 +44,14 @@ class TemplatePayloadResolver
             ),
 
             /*
-            | The hourly reminder — develop's own send, unchanged. The same
+            | The pre-visit reminder — develop's own send, unchanged. The same
             | five values, and the tracking button.
             | {{1}} patient · {{2}} date · {{3}} time · {{4}} doctor
             | {{5}} address. The arrival lead is fixed text in the approved
             | template ("30 دقيقة"), not a parameter — so a clinic that
-            | changes its own lead is not reflected here.
+            | changes its own lead is not reflected here. When it goes out is
+            | separate: the clinic's position × slot length, see
+            | SendBookingRemindersCommand.
             */
             WhatsAppMessagingService::REMINDER_KEY => new TemplatePayload(
                 body: [

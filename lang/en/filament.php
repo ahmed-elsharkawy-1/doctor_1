@@ -84,6 +84,8 @@ return [
         'slot_step_minutes_auto' => 'Automatic — follows each visit type',
         'reminder_time' => 'WhatsApp reminder time',
         'reminder_time_hint' => 'On the visit day, the time the WhatsApp reminder goes out to every patient booked that day.',
+        'reminder_position' => 'Slots before the visit',
+        'reminder_position_hint' => 'The pre-visit reminder goes out this many slot lengths before the appointment: position × visit length. At 6 with 30-minute visits, three hours ahead.',
         'whatsapp_cancel_cutoff_minutes' => 'WhatsApp cancel cutoff',
         'whatsapp_cancel_cutoff_minutes_hint' => 'This close to the visit, the reminder\'s Cancel button no longer cancels; the patient is sent the clinic number instead.',
         'whatsapp_cancel_cutoff_none' => 'Until the visit',

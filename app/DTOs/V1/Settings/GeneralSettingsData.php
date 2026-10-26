@@ -15,6 +15,7 @@ final class GeneralSettingsData
         public readonly ?int $firstVisitOnlyDays = null,
         public readonly ?int $patientArrivalLeadMinutes = null,
         public readonly ?string $reminderTime = null,
+        public readonly ?int $reminderPosition = null,
         public readonly ?int $whatsAppCancelCutoffMinutes = null,
     ) {}
 
@@ -36,6 +37,9 @@ final class GeneralSettingsData
             reminderTime: isset($validated['reminder_time'])
                 ? substr(trim((string) $validated['reminder_time']), 0, 5)
                 : null,
+            reminderPosition: isset($validated['reminder_position'])
+                ? (int) $validated['reminder_position']
+                : null,
             whatsAppCancelCutoffMinutes: isset($validated['whatsapp_cancel_cutoff_minutes'])
                 ? (int) $validated['whatsapp_cancel_cutoff_minutes']
                 : null,
@@ -56,6 +60,7 @@ final class GeneralSettingsData
                 'first_visit_only_days' => $this->firstVisitOnlyDays,
                 'patient_arrival_lead_minutes' => $this->patientArrivalLeadMinutes,
                 'reminder_time' => $this->reminderTime,
+                'reminder_position' => $this->reminderPosition,
                 'whatsapp_cancel_cutoff_minutes' => $this->whatsAppCancelCutoffMinutes,
             ],
             static fn (int|string|null $value): bool => $value !== null && $value !== '',

@@ -58,6 +58,11 @@ return [
         // One reminder per booking, on the visit day, at this clinic-local
         // time. Editable by the clinic in Settings → Timing.
         'reminder_time' => env('CLINIC_REMINDER_TIME', '11:00'),
+        // How many slot lengths before the visit the pre-visit reminder goes
+        // out: position × the booking's own duration. At 3 with 30-minute
+        // visits that is 90 minutes ahead. Editable by the clinic in
+        // Settings → Timing.
+        'reminder_position' => (int) env('CLINIC_REMINDER_POSITION', 3),
         // Inside this many minutes of the visit, the reminder's Cancel button
         // is refused and the patient is told to call. Gives the clinic time
         // to fill the slot. 0 means Cancel works until the visit starts.
@@ -74,10 +79,6 @@ return [
 
     'messaging' => [
         'driver' => env('CLINIC_MESSAGING_DRIVER', 'log'),
-        // How long before the appointment the hourly reminder goes out — the
-        // app's original reminder, kept alongside the visit-day one the
-        // clinic sets in Settings → Timing (defaults.reminder_time).
-        'reminder_lead_minutes' => (int) env('CLINIC_REMINDER_LEAD_MINUTES', 60),
     ],
 
     /*

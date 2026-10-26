@@ -36,6 +36,7 @@ class Clinic extends Model
         'slot_step_minutes',
         'patient_arrival_lead_minutes',
         'reminder_time',
+        'reminder_position',
         'whatsapp_cancel_cutoff_minutes',
         'self_booking_enabled',
         'whatsapp_enabled',
@@ -84,6 +85,7 @@ class Clinic extends Model
             'first_visit_only_days' => 'integer',
             'slot_step_minutes' => 'integer',
             'patient_arrival_lead_minutes' => 'integer',
+            'reminder_position' => 'integer',
             'whatsapp_cancel_cutoff_minutes' => 'integer',
         ];
     }
@@ -120,6 +122,16 @@ class Clinic extends Model
         $time = trim((string) $this->reminder_time);
 
         return $time === '' ? (string) config('clinic.defaults.reminder_time', '11:00') : $time;
+    }
+
+    /**
+     * How many slot lengths before the visit the pre-visit reminder goes out.
+     * The lead is this × the booking's own duration.
+     */
+    public function reminderPosition(): int
+    {
+        return max(1, (int) ($this->reminder_position
+            ?? config('clinic.defaults.reminder_position', 1)));
     }
 
     /**

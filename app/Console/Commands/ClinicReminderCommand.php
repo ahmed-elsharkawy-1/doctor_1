@@ -17,8 +17,8 @@ use Throwable;
  * The reminders themselves are separate commands, so each can be scheduled
  * (or run by hand) without the other:
  *
- *   clinic:send-reminders        an hour before the visit — the app's
- *                                original reminder, kept from develop
+ *   clinic:send-reminders        before the visit — slot length × the
+ *                                clinic's position, kept from develop
  *   clinic:send-daily-reminders  on the visit day, at the clinic's own time
  *
  * A command that finds nobody due is a few queries per clinic; both run

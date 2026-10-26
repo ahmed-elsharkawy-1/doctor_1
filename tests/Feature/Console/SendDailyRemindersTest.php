@@ -43,6 +43,7 @@ class SendDailyRemindersTest extends TestCase
             'address' => '12 شارع مصدق، الدقي',
             'patient_arrival_lead_minutes' => 15,
             'reminder_time' => '11:00',
+            'reminder_position' => 1,
         ]);
 
         Queue::fake();
@@ -257,7 +258,7 @@ class SendDailyRemindersTest extends TestCase
 
     /**
      * The two reminders are independent commands. The day's goes out from its
-     * scheduler, the hourly one from its own — and the booking gets each
+     * scheduler, the pre-visit one from its own — and the booking gets each
      * exactly once, under its own key.
      */
     public function test_running_both_commands_gives_a_booking_one_of_each(): void
@@ -273,7 +274,8 @@ class SendDailyRemindersTest extends TestCase
             WhatsAppMessagingService::REMINDER_KEY,
         )->get());
 
-        $this->at('14:00');
+        // Position 1 of a 20-minute visit: one slot before it.
+        $this->at('14:40');
         $this->artisan('clinic:send-reminders')->assertSuccessful();
         $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
 

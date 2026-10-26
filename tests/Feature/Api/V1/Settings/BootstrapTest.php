@@ -38,6 +38,7 @@ class BootstrapTest extends TestCase
                         'booking_window_days', 'first_visit_only_days', 'slot_step_minutes',
                         'patient_arrival_lead_minutes', 'patient_arrival_lead_minute_options',
                         'reminder_time',
+                        'reminder_position',
                         'whatsapp_cancel_cutoff_minutes', 'whatsapp_cancel_cutoff_minute_options',
                     ],
                     'visit_types',
@@ -61,6 +62,7 @@ class BootstrapTest extends TestCase
             'first_visit_only_days' => 90,
             'patient_arrival_lead_minutes' => 45,
             'reminder_time' => '18:30',
+            'reminder_position' => 4,
         ]);
 
         Sanctum::actingAs($this->owner);
@@ -71,7 +73,8 @@ class BootstrapTest extends TestCase
             ->assertJsonPath('data.clinic.first_visit_only_days', 90)
             ->assertJsonPath('data.clinic.patient_arrival_lead_minutes', 45)
             ->assertJsonPath('data.clinic.patient_arrival_lead_minute_options', [15, 20, 30, 45, 60])
-            ->assertJsonPath('data.clinic.reminder_time', '18:30');
+            ->assertJsonPath('data.clinic.reminder_time', '18:30')
+            ->assertJsonPath('data.clinic.reminder_position', 4);
     }
 
     public function test_the_schedule_comes_back_saturday_first_with_its_periods(): void

@@ -43,6 +43,13 @@
         </div>
 
         <div class="field">
+            <label for="reminder-position">{{ __('app.settings.reminder_position') }}</label>
+            <input id="reminder-position" type="number" min="1" max="50" wire:model="reminderPosition">
+            <small class="muted">{{ __('app.settings.reminder_position_hint') }}</small>
+            @error('reminderPosition') <div class="err">{{ $message }}</div> @enderror
+        </div>
+
+        <div class="field">
             <label>{{ __('app.settings.whatsapp_cancel_cutoff') }}</label>
             <div class="chips">
                 @foreach ($cancelCutoffOptions as $minutes)

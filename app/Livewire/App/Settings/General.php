@@ -8,8 +8,8 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
 
 /**
- * The three numbers that decide how far ahead patients may book and how early
- * they are asked to arrive.
+ * The numbers that decide how far ahead patients may book, how early they are
+ * asked to arrive, and when their reminders go out.
  */
 class General extends SettingsComponent
 {
@@ -20,6 +20,8 @@ class General extends SettingsComponent
     public int $patientArrivalLeadMinutes = 30;
 
     public string $reminderTime = '11:00';
+
+    public int $reminderPosition = 3;
 
     public int $whatsAppCancelCutoffMinutes = 60;
 
@@ -33,6 +35,7 @@ class General extends SettingsComponent
         $this->firstVisitOnlyDays = $clinic->first_visit_only_days;
         $this->patientArrivalLeadMinutes = $clinic->patient_arrival_lead_minutes;
         $this->reminderTime = $clinic->reminderTime();
+        $this->reminderPosition = $clinic->reminderPosition();
         $this->whatsAppCancelCutoffMinutes = $clinic->whatsAppCancelCutoffMinutes();
     }
 
@@ -56,6 +59,7 @@ class General extends SettingsComponent
                     'first_visit_only_days' => $this->firstVisitOnlyDays,
                     'patient_arrival_lead_minutes' => $this->patientArrivalLeadMinutes,
                     'reminder_time' => $this->reminderTime,
+                    'reminder_position' => $this->reminderPosition,
                     'whatsapp_cancel_cutoff_minutes' => $this->whatsAppCancelCutoffMinutes,
                 ]),
             );
@@ -77,6 +81,7 @@ class General extends SettingsComponent
                 Rule::in(config('clinic.settings.patient_arrival_lead_minute_options')),
             ],
             'reminderTime' => ['required', 'date_format:H:i'],
+            'reminderPosition' => ['required', 'integer', 'min:1', 'max:50'],
             'whatsAppCancelCutoffMinutes' => [
                 'required',
                 'integer',

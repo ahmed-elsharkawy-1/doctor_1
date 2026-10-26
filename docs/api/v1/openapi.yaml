@@ -558,6 +558,15 @@ paths:
                     Clinic-local `HH:MM` at which the visit-day reminder is
                     sent. Defaults to `11:00`.
                   example: "11:00"
+                reminder_position:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  description: |
+                    How many slot lengths before the visit the pre-visit
+                    reminder goes out: this × the booking's own duration.
+                    Defaults to `3`.
+                  example: 3
                 whatsapp_cancel_cutoff_minutes:
                   type: integer
                   enum: [0, 30, 60, 90, 120, 180, 240]
@@ -1749,6 +1758,14 @@ components:
             Clinic-local `HH:MM` at which the single visit-day reminder goes
             out. Defaults to `11:00`. Bookings created after this time are not
             reminded that day.
+        reminder_position:
+          type: integer
+          minimum: 1
+          maximum: 50
+          example: 3
+          description: |
+            How many slot lengths before the visit the pre-visit reminder goes
+            out: this × the booking's own duration. Defaults to `3`.
         whatsapp_cancel_cutoff_minutes:
           type: integer
           enum: [0, 30, 60, 90, 120, 180, 240]

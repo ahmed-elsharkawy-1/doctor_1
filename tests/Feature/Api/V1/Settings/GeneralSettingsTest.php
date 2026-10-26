@@ -56,6 +56,24 @@ class GeneralSettingsTest extends TestCase
         $this->assertSame('18:30', $this->clinic->refresh()->reminder_time);
     }
 
+    public function test_it_updates_the_reminder_position(): void
+    {
+        $this->putJson(route('api.v1.settings.general'), ['reminder_position' => 6])
+            ->assertOk()
+            ->assertJsonPath('data.reminder_position', 6);
+
+        $this->assertSame(6, $this->clinic->refresh()->reminder_position);
+    }
+
+    public function test_the_reminder_position_must_be_between_one_and_fifty(): void
+    {
+        $this->putJson(route('api.v1.settings.general'), ['reminder_position' => 0])
+            ->assertStatus(422)
+            ->assertJsonStructure(['error' => ['fields' => ['reminder_position']]]);
+
+        $this->assertSame(config('clinic.defaults.reminder_position'), $this->clinic->refresh()->reminderPosition());
+    }
+
     public function test_it_updates_the_whatsapp_cancel_cutoff(): void
     {
         $this->assertSame(60, $this->clinic->whatsAppCancelCutoffMinutes());

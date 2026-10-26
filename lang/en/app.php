@@ -152,6 +152,8 @@ return [
         'arrival_lead_hint' => 'Subtracted from the appointment time on the patient page.',
         'reminder_time' => 'WhatsApp reminder time',
         'reminder_time_hint' => 'On the visit day, the time the WhatsApp reminder goes out to every patient booked that day.',
+        'reminder_position' => 'Slots before the visit',
+        'reminder_position_hint' => 'The pre-visit reminder goes out this many slot lengths before the appointment: position × visit length. At 6 with 30-minute visits, it is sent three hours ahead.',
         'whatsapp_cancel_cutoff' => 'WhatsApp cancel cutoff (minutes before the visit)',
         'whatsapp_cancel_cutoff_hint' => 'If a patient taps Cancel this close to her visit, the booking is kept and she is sent the clinic number to call.',
         'whatsapp_cancel_cutoff_none' => 'Until the visit',
