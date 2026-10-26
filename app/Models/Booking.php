@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -153,10 +154,23 @@ class Booking extends Model
     }
 
     /**
-     * The one WhatsApp reminder queued for this booking, if any.
+     * Both of a booking's WhatsApp reminders — the one shortly before the
+     * appointment and the one on the visit day — newest first.
      *
-     * At most one exists by design, so a plain hasOne is exact — and it is
-     * the row the card reads to say Sent / Failed.
+     * @return HasMany<OutboundMessage, $this>
+     */
+    public function reminders(): HasMany
+    {
+        return $this->hasMany(OutboundMessage::class)
+            ->whereIn('template_key', [
+                WhatsAppMessagingService::REMINDER_KEY,
+                WhatsAppMessagingService::DAILY_REMINDER_KEY,
+            ])
+            ->latest('id');
+    }
+
+    /**
+     * The reminder sent shortly before the appointment, if any.
      *
      * @return HasOne<OutboundMessage, $this>
      */
@@ -164,6 +178,17 @@ class Booking extends Model
     {
         return $this->hasOne(OutboundMessage::class)
             ->where('template_key', WhatsAppMessagingService::REMINDER_KEY);
+    }
+
+    /**
+     * The reminder sent on the visit day at the clinic's time, if any.
+     *
+     * @return HasOne<OutboundMessage, $this>
+     */
+    public function dailyReminder(): HasOne
+    {
+        return $this->hasOne(OutboundMessage::class)
+            ->where('template_key', WhatsAppMessagingService::DAILY_REMINDER_KEY);
     }
 
     /** @return BelongsTo<User, $this> */
@@ -301,8 +326,8 @@ class Booking extends Model
     }
 
     /**
-     * What the booking card says about the reminder: `not_sent`, `sent` or
-     * `failed`.
+     * What the booking card says about the reminder sent shortly before the
+     * appointment: `not_sent`, `sent` or `failed`.
      *
      * A queued row has not reached the provider yet, so it still reads as
      * "not sent"; once Meta accepts it the row is `sent`, and delivery
@@ -312,9 +337,24 @@ class Booking extends Model
      */
     public function reminderStatus(): string
     {
-        $message = $this->relationLoaded('reminder')
-            ? $this->reminder
-            : $this->reminder()->first();
+        return $this->statusOf(WhatsAppMessagingService::REMINDER_KEY);
+    }
+
+    /** The same reading, for the reminder sent on the visit day. */
+    public function dailyReminderStatus(): string
+    {
+        return $this->statusOf(WhatsAppMessagingService::DAILY_REMINDER_KEY);
+    }
+
+    /**
+     * Reads one template's reminder without a query per call when the card
+     * already loaded them all.
+     */
+    private function statusOf(string $templateKey): string
+    {
+        $message = $this->relationLoaded('reminders')
+            ? $this->reminders->firstWhere('template_key', $templateKey)
+            : $this->reminders()->where('template_key', $templateKey)->first();
 
         return match ($message?->status) {
             null, 'queued', 'skipped' => 'not_sent',

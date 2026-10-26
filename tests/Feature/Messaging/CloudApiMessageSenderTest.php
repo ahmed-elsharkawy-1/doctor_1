@@ -102,6 +102,7 @@ class CloudApiMessageSenderTest extends TestCase
             WhatsAppMessagingService::CONFIRMATION_KEY => $messaging->sendConfirmation($this->clinic, $booking),
             WhatsAppMessagingService::VISIT_COMPLETED_KEY => $messaging->sendVisitCompleted($this->clinic, $booking),
             WhatsAppMessagingService::REMINDER_KEY => $messaging->sendReminder($this->clinic, $booking),
+            WhatsAppMessagingService::DAILY_REMINDER_KEY => $messaging->sendDailyReminder($this->clinic, $booking),
             default => $messaging->sendForBooking($this->clinic, $booking->id, $templateKey),
         };
 
@@ -191,15 +192,44 @@ class CloudApiMessageSenderTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
-    | The reminder — 5 body params, no button
+    | The reminders — the hourly one has the link button, the day's has
+    | Confirm/Cancel instead
     |--------------------------------------------------------------------------
     */
 
-    public function test_the_reminder_is_posted_in_the_approved_shape(): void
+    public function test_the_hourly_reminder_is_posted_in_develops_shape(): void
     {
         Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'wamid.REMIND']]])]);
 
         app(CloudApiMessageSender::class)->send($this->queueMessage(WhatsAppMessagingService::REMINDER_KEY));
+
+        Http::assertSent(function ($request) {
+            $template = $request->data()['template'];
+
+            $this->assertSame('appointment_reminder', $template['name']);
+            $this->assertSame('ar', $template['language']['code']);
+
+            [$bodyComponent, $buttonComponent] = $template['components'];
+
+            $this->assertSame('body', $bodyComponent['type']);
+            $this->assertCount(5, $bodyComponent['parameters']);
+            $this->assertSame('سارة أحمد', $bodyComponent['parameters'][0]['text']);
+            $this->assertSame('12 شارع مصدق، الدقي', $bodyComponent['parameters'][4]['text']);
+
+            // Develop's tracking button, unchanged.
+            $this->assertSame('button', $buttonComponent['type']);
+            $this->assertSame('url', $buttonComponent['sub_type']);
+            $this->assertStringStartsWith('booking/', $buttonComponent['parameters'][0]['text']);
+
+            return true;
+        });
+    }
+
+    public function test_the_daily_reminder_is_posted_in_the_approved_shape(): void
+    {
+        Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'wamid.REMIND']]])]);
+
+        app(CloudApiMessageSender::class)->send($this->queueMessage(WhatsAppMessagingService::DAILY_REMINDER_KEY));
 
         Http::assertSent(function ($request) {
             $template = $request->data()['template'];

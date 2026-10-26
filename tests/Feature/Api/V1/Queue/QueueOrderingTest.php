@@ -124,23 +124,31 @@ class QueueOrderingTest extends TestCase
     {
         $booking = $this->booking('09:00', 'سارة');
 
-        OutboundMessage::create([
-            'clinic_id' => $this->clinic->id,
-            'patient_id' => $booking->patient_id,
-            'booking_id' => $booking->id,
-            'template_key' => WhatsAppMessagingService::REMINDER_KEY,
-            'type' => 'template',
-            'rendered_body' => 'reminder',
-            'status' => 'delivered',
-            'provider_message_id' => 'wamid.REMINDER',
-        ]);
+        foreach ([
+            [WhatsAppMessagingService::REMINDER_KEY, 'sent'],
+            [WhatsAppMessagingService::DAILY_REMINDER_KEY, 'delivered'],
+        ] as [$templateKey, $status]) {
+            OutboundMessage::create([
+                'clinic_id' => $this->clinic->id,
+                'patient_id' => $booking->patient_id,
+                'booking_id' => $booking->id,
+                'template_key' => $templateKey,
+                'type' => 'template',
+                'rendered_body' => 'reminder',
+                'status' => $status,
+                'provider_message_id' => 'wamid.REMINDER',
+            ]);
+        }
 
         $booking->update(['patient_response' => PatientResponse::CONFIRMED]);
 
         $card = collect($this->calendar()['bookings']['2026-08-08'])->firstWhere('id', $booking->id);
 
+        // Each reminder is reported on its own.
         $this->assertSame('sent', $card['reminder_status']['value']);
         $this->assertSame(__('app.queue.reminder.sent'), $card['reminder_status']['display']);
+        $this->assertSame('sent', $card['daily_reminder_status']['value']);
+        $this->assertSame(__('app.queue.reminder.sent'), $card['daily_reminder_status']['display']);
         $this->assertSame('confirmed', $card['patient_response']['value']);
         $this->assertSame(__('booking.patient_response.confirmed'), $card['patient_response']['display']);
     }
@@ -152,6 +160,7 @@ class QueueOrderingTest extends TestCase
         $card = collect($this->calendar()['bookings']['2026-08-08'])->firstWhere('id', $booking->id);
 
         $this->assertSame('not_sent', $card['reminder_status']['value']);
+        $this->assertSame('not_sent', $card['daily_reminder_status']['value']);
         $this->assertNull($card['patient_response']);
     }
 

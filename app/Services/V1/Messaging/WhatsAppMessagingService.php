@@ -38,8 +38,16 @@ class WhatsAppMessagingService
     /** Sent to each patient an emergency delay moved, with their new time. */
     public const DELAYED_KEY = 'appointment_delayed';
 
-    /** Sent on the visit day at the clinic's reminder time. */
-    public const REMINDER_KEY = 'appointment_reminder_today';
+    /** Sent shortly before the appointment, by clinic:send-reminders. */
+    public const REMINDER_KEY = 'appointment_reminder';
+
+    /**
+     * Sent on the visit day at the clinic's reminder time, by
+     * clinic:send-daily-reminders. Its own key so the two reminders
+     * de-duplicate independently: a patient gets both, and never a repeat of
+     * either.
+     */
+    public const DAILY_REMINDER_KEY = 'appointment_reminder_today';
 
     /** Quick-reply button payloads on the approved reminder template. */
     public const REPLY_CONFIRM = 'confirm_attendance';
@@ -224,13 +232,24 @@ class WhatsAppMessagingService
     }
 
     /**
-     * The reminder sent on the visit day at the clinic's configured time.
-     * Same guarantees as the confirmation; deciding which bookings are due,
-     * and that none gets two, is the command's job.
+     * The reminder sent shortly before the appointment — develop's own send,
+     * unchanged, with its tracking button. Same guarantees as the rest of the
+     * per-booking messages; deciding which bookings are due, and that none
+     * gets two, is the command's job.
      */
     public function sendReminder(Clinic $clinic, Booking $booking): ?OutboundMessage
     {
         return $this->sendForBookingUsing($clinic, $booking, self::REMINDER_KEY);
+    }
+
+    /**
+     * The reminder sent on the visit day at the clinic's configured time, with
+     * the Confirm/Cancel buttons. Same guarantees; which bookings are due is
+     * the command's job.
+     */
+    public function sendDailyReminder(Clinic $clinic, Booking $booking): ?OutboundMessage
+    {
+        return $this->sendForBookingUsing($clinic, $booking, self::DAILY_REMINDER_KEY);
     }
 
     /**

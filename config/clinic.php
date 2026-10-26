@@ -74,6 +74,10 @@ return [
 
     'messaging' => [
         'driver' => env('CLINIC_MESSAGING_DRIVER', 'log'),
+        // How long before the appointment the hourly reminder goes out — the
+        // app's original reminder, kept alongside the visit-day one the
+        // clinic sets in Settings → Timing (defaults.reminder_time).
+        'reminder_lead_minutes' => (int) env('CLINIC_REMINDER_LEAD_MINUTES', 60),
     ],
 
     /*

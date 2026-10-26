@@ -74,7 +74,7 @@ class ReminderReplyTest extends TestCase
             'clinic_id' => $this->clinic->id,
             'patient_id' => $this->booking->patient_id,
             'booking_id' => $this->booking->id,
-            'template_key' => WhatsAppMessagingService::REMINDER_KEY,
+            'template_key' => WhatsAppMessagingService::DAILY_REMINDER_KEY,
             'type' => 'template',
             'rendered_body' => 'reminder',
             'status' => 'sent',

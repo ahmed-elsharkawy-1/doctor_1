@@ -2,82 +2,47 @@
 
 namespace App\Console\Commands;
 
-use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
 use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\OutboundMessage;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
-use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
-use Throwable;
 
 /**
- * Sends the day's one reminder at each clinic's own reminder time.
+ * The app's original reminder: an hour before each visit.
  *
- * A booking is reminded at most once: any row already queued for it under the
- * reminder template, whatever became of it, rules it out. So a run that
- * overlaps another, or follows a gap, never sends twice.
+ * A booking is reminded at most once: a message already queued for it under
+ * the hourly template, whatever became of it, rules it out. So a run that
+ * overlaps another, or follows a gap, never sends twice — and a gap is caught
+ * up, as long as the appointment is still ahead.
  *
- * Eligible is deliberately narrow: the visit is today, still `booked`, not an
- * emergency, was made before the reminder time, has not already started, and
- * the clinic is not on holiday. A morning appointment earlier than the
- * reminder time is skipped — the reminder would arrive after the visit — and
- * so is one already inside the clinic's WhatsApp cancel cutoff.
+ * A booking made inside that hour is left alone: its confirmation went out a
+ * moment ago and says everything the reminder would. Emergencies have no
+ * `start_at` on this branch, so the window excludes them on its own.
+ *
+ * Only bookings still `booked`: a patient who has arrived needs no reminder,
+ * and a cancelled one must not get one.
  *
  * Times are stored as the clinic's wall clock, so every comparison here is
  * made in the clinic's own timezone.
  */
-class SendBookingRemindersCommand extends Command
+class SendBookingRemindersCommand extends ClinicReminderCommand
 {
     protected $signature = 'clinic:send-reminders {--clinic= : Only this clinic id}';
 
-    protected $description = 'Send the daily WhatsApp reminder to every patient booked today';
+    protected $description = 'Send the WhatsApp reminder to patients whose appointment is coming up';
 
-    public function handle(WhatsAppMessagingService $messaging): int
+    protected function reminderMethod(): string
     {
-        $clinics = Clinic::query()
-            ->where('is_active', true)
-            ->when($this->option('clinic'), fn ($query, $id) => $query->whereKey($id))
-            ->get()
-            ->filter(fn (Clinic $clinic): bool => $clinic->sendsWhatsApp());
-
-        $sent = 0;
-
-        foreach ($clinics as $clinic) {
-            foreach ($this->due($clinic) as $booking) {
-                try {
-                    if ($messaging->sendReminder($clinic, $booking) !== null) {
-                        $sent++;
-                    }
-                } catch (Throwable $e) {
-                    report($e);
-                    $this->warn("Booking {$booking->id}: {$e->getMessage()}");
-                }
-            }
-        }
-
-        if ($sent > 0) {
-            $this->info("Queued {$sent} reminder(s).");
-        }
-
-        return self::SUCCESS;
+        return 'sendReminder';
     }
 
-    /**
-     * @return iterable<int, Booking>
-     */
-    private function due(Clinic $clinic): iterable
+    protected function due(Clinic $clinic): iterable
     {
+        // Times are stored as the clinic's wall clock.
         $now = Carbon::now($clinic->timezone);
         $today = $now->toDateString();
-        $reminderAt = Carbon::parse($today.' '.$clinic->reminderTime(), $clinic->timezone);
-
-        // Not yet the clinic's reminder time. The command runs every minute,
-        // so this is the ordinary case for almost the whole day.
-        if ($now->lt($reminderAt)) {
-            return [];
-        }
 
         // A closed day has nobody to remind; bookings should not exist on it,
         // but a holiday can be added after they were taken.
@@ -85,31 +50,24 @@ class SendBookingRemindersCommand extends Command
             return [];
         }
 
-        // A visit already inside the clinic's cancel cutoff would get a Cancel
-        // button that can only be refused, so it is not reminded at all. With
-        // no cutoff this is just `now`, which stops a late run reminding a
-        // patient whose visit has already begun.
-        $cancellableFrom = $now->copy()->addMinutes($clinic->whatsAppCancelCutoffMinutes());
-
-        // The times are wall-clock values for the clinic, so a string compare
-        // against the same wall clock is exact.
         return $clinic->bookings()
             ->with('patient')
-            ->whereDate('visit_date', $today)
             ->where('status', BookingStatus::BOOKED)
-            ->where('booking_kind', BookingKind::NORMAL)
-            ->where('start_at', '>', $reminderAt->format('Y-m-d H:i:s'))
-            ->where('start_at', '>', $cancellableFrom->format('Y-m-d H:i:s'))
+            ->where('start_at', '>', $now->format('Y-m-d H:i:s'))
+            ->where('start_at', '<=', $now->copy()->addMinutes((int) config('clinic.messaging.reminder_lead_minutes'))->format('Y-m-d H:i:s'))
             ->whereNotExists(fn ($query) => $query->from((new OutboundMessage)->getTable())
                 ->whereColumn('booking_id', 'bookings.id')
                 ->where('template_key', WhatsAppMessagingService::REMINDER_KEY))
             ->get()
-            ->filter(function (Booking $booking) use ($clinic, $reminderAt): bool {
+            ->filter(function (Booking $booking) use ($clinic): bool {
+                $remindAt = Carbon::parse($booking->start_at->format('Y-m-d H:i:s'), $clinic->timezone)
+                    ->subMinutes((int) config('clinic.messaging.reminder_lead_minutes'));
+
                 // created_at is stored in the application's clock, which is
                 // not necessarily the clinic's. Compare it in the clinic's.
                 $createdAt = $booking->created_at?->copy()->setTimezone($clinic->timezone);
 
-                return $createdAt !== null && $createdAt->lte($reminderAt);
+                return $createdAt !== null && $createdAt->lte($remindAt);
             });
     }
 }

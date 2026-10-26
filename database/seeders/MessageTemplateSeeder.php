@@ -91,16 +91,37 @@ class MessageTemplateSeeder extends Seeder
             ],
 
             /*
-            | Sent by clinic:send-reminders on the visit day, at the clinic's
-            | configured reminder time. Two quick-reply buttons and no URL —
-            | the booking link follows only after Confirm. Submitted to Meta
-            | 2026-10-24 (ID 1886523002487229); replaces appointment_reminder,
-            | the hour-before reminder.
+            | Develop's reminder, sent by clinic:send-reminders an hour before
+            | the visit. Nothing about this key, its provider template or its
+            | wording changed. Its provider_template_name was read back from
+            | the Graph API on 2026-10-24; confirm it is still approved at
+            | Meta before scheduling the command, the way current_templates.md
+            | does.
+            | {{1}} patient · {{2}} date · {{3}} time · {{4}} doctor
+            | {{5}} address. "30 دقيقة" is fixed text in the approved template.
+            | Button: https://elayadah.com/{{1}} <- booking/<token>
+            */
+            WhatsAppMessagingService::REMINDER_KEY => [
+                'category' => 'utility',
+                'is_broadcast' => false,
+                'provider_template_name' => 'appointment_reminder',
+                'language_code' => 'ar',
+                'body_ar' => "مرحبًا {{1}} 👋\n\nتذكير بموعدك النهارده ⏰\n\n"
+                    ."📅 {{2}}\n⏰ الساعة: {{3}}\n👨‍⚕️ {{4}}\n📌 {{5}}\n\n"
+                    .'يرجى الحضور قبل الموعد بـ 30 دقيقة 🙏',
+                'is_active' => true,
+            ],
+
+            /*
+            | The visit-day reminder, sent by clinic:send-daily-reminders at
+            | the clinic's configured reminder time. Two quick-reply buttons
+            | and no URL — the booking link follows only after Confirm.
+            | Submitted to Meta 2026-10-24 (ID 1886523002487229).
             | {{1}} patient · {{2}} date · {{3}} time · {{4}} doctor
             | {{5}} address
             | Buttons: تأكيد الحضور / إلغاء الحجز
             */
-            WhatsAppMessagingService::REMINDER_KEY => [
+            WhatsAppMessagingService::DAILY_REMINDER_KEY => [
                 'category' => 'utility',
                 'is_broadcast' => false,
                 'provider_template_name' => 'appointment_reminder_today',

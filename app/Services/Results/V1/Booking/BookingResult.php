@@ -37,6 +37,12 @@ final class BookingResult extends ServiceResult
                 'value' => $booking->reminderStatus(),
                 'display' => __('app.queue.reminder.'.$booking->reminderStatus()),
             ],
+            // Sent on the visit day at the clinic's own time — a second
+            // reminder, tracked on its own.
+            'daily_reminder_status' => [
+                'value' => $booking->dailyReminderStatus(),
+                'display' => __('app.queue.reminder.'.$booking->dailyReminderStatus()),
+            ],
             'cancel_reason' => $booking->cancel_reason === null
                 ? null
                 : Wire::enum($booking->cancel_reason, $booking->cancel_reason->label()),

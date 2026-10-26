@@ -343,7 +343,7 @@ class ClinicAppQueueTest extends TestCase
             'clinic_id' => $this->clinic->id,
             'patient_id' => $booking->patient_id,
             'booking_id' => $booking->id,
-            'template_key' => WhatsAppMessagingService::REMINDER_KEY,
+            'template_key' => WhatsAppMessagingService::DAILY_REMINDER_KEY,
             'type' => 'template',
             'rendered_body' => 'reminder',
             'status' => 'sent',
@@ -352,8 +352,12 @@ class ClinicAppQueueTest extends TestCase
 
         $booking->update(['patient_response' => PatientResponse::CONFIRMED]);
 
+        // One pill per reminder: the visit-day one was sent, the hourly one
+        // has not gone out yet.
         Livewire::actingAs($this->owner)
             ->test(Queue::class)
+            ->assertSee(__('app.queue.reminder.hourly_label'))
+            ->assertSee(__('app.queue.reminder.daily_label'))
             ->assertSee(__('app.queue.reminder.sent'))
             ->assertSee(PatientResponse::CONFIRMED->label());
     }
@@ -366,7 +370,7 @@ class ClinicAppQueueTest extends TestCase
             'clinic_id' => $this->clinic->id,
             'patient_id' => $booking->patient_id,
             'booking_id' => $booking->id,
-            'template_key' => WhatsAppMessagingService::REMINDER_KEY,
+            'template_key' => WhatsAppMessagingService::DAILY_REMINDER_KEY,
             'type' => 'template',
             'rendered_body' => 'reminder',
             'status' => 'failed',

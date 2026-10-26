@@ -198,7 +198,8 @@ return [
         'sign_out' => 'Sign out',
         'no_time' => 'No time',
         'reminder' => [
-            'label' => 'WhatsApp reminder',
+            'hourly_label' => 'Reminder before visit',
+            'daily_label' => 'Visit-day reminder',
             'not_sent' => 'Not sent',
             'sent' => 'Sent',
             'failed' => 'Failed',

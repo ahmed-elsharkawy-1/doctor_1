@@ -183,7 +183,7 @@ class Queue extends ClinicComponent
     private function bookings(): Collection
     {
         $bookings = $this->clinic()->bookings()
-            ->with(['patient', 'visitType', 'reminder'])
+            ->with(['patient', 'visitType', 'reminders'])
             ->onDate($this->date)
             ->get();
 

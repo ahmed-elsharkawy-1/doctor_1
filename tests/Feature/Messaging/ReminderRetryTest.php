@@ -112,6 +112,26 @@ class ReminderRetryTest extends TestCase
         $this->assertSame('not_sent', Booking::findOrFail($message->booking_id)->reminderStatus());
     }
 
+    public function test_the_daily_reminder_gets_the_same_single_retry(): void
+    {
+        $booking = Booking::factory()
+            ->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-09-03 15:00', 'Africa/Cairo'))
+            ->create();
+
+        $message = app(WhatsAppMessagingService::class)->sendDailyReminder($this->clinic, $booking);
+        $this->assertNotNull($message);
+        $this->sender->failFirst = 1;
+
+        (new SendWhatsAppMessage($message->id))->handle($this->sender);
+
+        $message->refresh();
+
+        $this->assertSame(2, $this->sender->sendAttempts);
+        $this->assertSame(2, $message->attempts);
+        $this->assertSame('sent', $message->status);
+    }
+
     public function test_the_card_reads_a_failed_reminder_as_failed(): void
     {
         $message = $this->reminder();

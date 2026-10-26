@@ -147,15 +147,21 @@
                                 </div>
                             @endif
 
-                            {{-- The reminder and what the patient said back.
-                                 Re-read on every render, so a WhatsApp reply
-                                 changes it without a refresh. --}}
-                            @php($reminderStatus = $booking->reminderStatus())
-                            <div style="margin-top:0.3rem">
-                                <span class="pill {{ $reminderStatus === 'failed' ? 'pill-off' : ($reminderStatus === 'sent' ? 'pill-new' : '') }}">
-                                    {{ __('app.queue.reminder.label') }}:
-                                    {{ __('app.queue.reminder.'.$reminderStatus) }}
-                                </span>
+                            {{-- The reminders and what the patient said back.
+                                 One pill per template; re-read on every
+                                 render, so a WhatsApp reply changes it
+                                 without a refresh. --}}
+                            @php($reminderStatuses = [
+                                __('app.queue.reminder.hourly_label') => $booking->reminderStatus(),
+                                __('app.queue.reminder.daily_label') => $booking->dailyReminderStatus(),
+                            ])
+                            <div style="margin-top:0.3rem; display:flex; gap:0.3rem; flex-wrap:wrap">
+                                @foreach ($reminderStatuses as $reminderLabel => $reminderStatus)
+                                    <span class="pill {{ $reminderStatus === 'failed' ? 'pill-off' : ($reminderStatus === 'sent' ? 'pill-new' : '') }}">
+                                        {{ $reminderLabel }}:
+                                        {{ __('app.queue.reminder.'.$reminderStatus) }}
+                                    </span>
+                                @endforeach
                             </div>
 
                             @if ($booking->patient_response !== null)

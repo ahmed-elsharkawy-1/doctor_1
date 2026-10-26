@@ -2049,8 +2049,13 @@ components:
         reminder_status:
           allOf: [{ $ref: "#/components/schemas/Display" }]
           description: |
-            `not_sent`, `sent` or `failed`. The reminder is sent at most once
-            per booking, on the visit day at the clinic's `reminder_time`.
+            `not_sent`, `sent` or `failed` for the reminder sent shortly before
+            the appointment — the one with the tracking button.
+        daily_reminder_status:
+          allOf: [{ $ref: "#/components/schemas/Display" }]
+          description: |
+            The same reading for the visit-day reminder sent at the clinic's
+            `reminder_time`, the one with Confirm and Cancel buttons.
         patient:
           type: [object, "null"]
           properties:

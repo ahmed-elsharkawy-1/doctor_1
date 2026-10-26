@@ -27,10 +27,13 @@ class SendWhatsAppMessage implements ShouldQueue
             return;
         }
 
-        // The reminder gets exactly one retry, as a product rule: a second
+        // The reminders get exactly one retry, as a product rule: a second
         // failure is final and must not become a retry loop. Other messages
         // keep the queue's retry behaviour.
-        if ($message->template_key === WhatsAppMessagingService::REMINDER_KEY) {
+        if (in_array($message->template_key, [
+            WhatsAppMessagingService::REMINDER_KEY,
+            WhatsAppMessagingService::DAILY_REMINDER_KEY,
+        ], true)) {
             $this->sendReminder($sender, $message);
 
             return;

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Console;
 
-use App\Enums\BookingKind;
 use App\Jobs\SendWhatsAppMessage;
 use App\Models\Booking;
 use App\Models\ClinicHoliday;
@@ -17,9 +16,11 @@ use Tests\Concerns\InteractsWithClinic;
 use Tests\TestCase;
 
 /**
- * One reminder per booking, on the visit day, at the clinic's own time.
+ * The app's original reminder: an hour before each visit.
  *
- * WhatsApp costs money, so the command's job is as much about who it leaves
+ * `clinic:send-reminders` is the command develop scheduled; the daily one at
+ * the clinic's own hour is `clinic:send-daily-reminders` and has its own
+ * suite. WhatsApp costs money, so this class is as much about who it leaves
  * alone as who it reaches.
  */
 class SendBookingRemindersTest extends TestCase
@@ -40,7 +41,6 @@ class SendBookingRemindersTest extends TestCase
         $this->clinic->update([
             'address' => '12 شارع مصدق، الدقي',
             'patient_arrival_lead_minutes' => 15,
-            'reminder_time' => '11:00',
         ]);
 
         Queue::fake();
@@ -72,37 +72,38 @@ class SendBookingRemindersTest extends TestCase
         return OutboundMessage::where('template_key', WhatsAppMessagingService::REMINDER_KEY)->get();
     }
 
-    public function test_the_reminder_goes_out_at_the_clinic_reminder_time(): void
+    public function test_the_reminder_goes_out_an_hour_before_the_visit(): void
     {
         $booking = $this->bookingAt('15:00');
 
-        $this->at('10:59');
+        $this->at('13:59');
         $this->artisan('clinic:send-reminders')->assertSuccessful();
         $this->assertCount(0, $this->reminders());
 
-        $this->at('11:00');
+        $this->at('14:00');
         $this->artisan('clinic:send-reminders')->assertSuccessful();
 
-        $reminder = $this->reminders()->sole();
+        $upcoming = $this->reminders()->sole();
 
-        $this->assertSame($booking->id, $reminder->booking_id);
-        $this->assertSame('queued', $reminder->status);
-        $this->assertSame('template', $reminder->type);
+        $this->assertSame($booking->id, $upcoming->booking_id);
+        $this->assertSame('queued', $upcoming->status);
+        $this->assertSame('template', $upcoming->type);
 
         // The approved template's five values, in its order.
-        $this->assertCount(5, $reminder->variables);
-        $this->assertSame('03:00 '.__('schedule.pm'), $reminder->variables[2]);
-        // No link in the first message — the buttons are the only action.
-        $this->assertNull($reminder->button_suffix);
-        $this->assertStringNotContainsString('booking/'.$booking->tracking_token, $reminder->rendered_body);
+        $this->assertCount(5, $upcoming->variables);
+        $this->assertSame('03:00 '.__('schedule.pm'), $upcoming->variables[2]);
+
+        // Develop's own reminder carried the tracking link on its button.
+        $this->assertSame('booking/'.$booking->tracking_token, $upcoming->button_suffix);
+        $this->assertStringNotContainsString('booking/'.$booking->tracking_token, $upcoming->rendered_body);
         Queue::assertPushed(SendWhatsAppMessage::class);
     }
 
-    public function test_a_booking_is_reminded_once(): void
+    public function test_a_reminder_is_sent_once(): void
     {
         $this->bookingAt('15:00');
 
-        foreach (['11:00', '11:01', '11:30', '13:00'] as $time) {
+        foreach (['13:30', '14:00', '14:45', '15:30'] as $time) {
             $this->at($time);
             $this->artisan('clinic:send-reminders')->assertSuccessful();
         }
@@ -110,82 +111,37 @@ class SendBookingRemindersTest extends TestCase
         $this->assertCount(1, $this->reminders());
     }
 
-    public function test_a_booking_made_after_the_reminder_time_is_skipped(): void
+    /** Its confirmation went out a moment ago and says everything it would. */
+    public function test_a_booking_made_inside_the_final_hour_gets_no_reminder(): void
     {
-        $this->at('11:03');
-
+        $this->at('14:10');
         $this->bookingAt('15:00');
 
-        $this->at('11:05');
+        $this->at('14:15');
         $this->artisan('clinic:send-reminders')->assertSuccessful();
 
         $this->assertCount(0, $this->reminders());
     }
 
-    public function test_an_emergency_booking_is_never_reminded(): void
+    public function test_a_visit_that_already_started_gets_no_reminder(): void
     {
-        Booking::factory()
-            ->forClinic($this->clinic)
-            ->at(Carbon::parse(self::DAY.' 15:00', 'Africa/Cairo'))
-            ->create(['booking_kind' => BookingKind::EMERGENCY, 'start_at' => null, 'end_at' => null]);
+        $this->bookingAt('14:50');
 
-        $this->at('11:00');
+        $this->at('14:55');
         $this->artisan('clinic:send-reminders')->assertSuccessful();
 
         $this->assertCount(0, $this->reminders());
     }
 
-    /** A morning appointment earlier than the reminder time would get it too late. */
-    public function test_an_appointment_before_the_reminder_time_is_skipped(): void
+    public function test_no_reminder_goes_out_on_a_holiday(): void
     {
-        $this->bookingAt('09:00');
+        ClinicHoliday::factory()->create([
+            'clinic_id' => $this->clinic->id,
+            'date' => self::DAY,
+        ]);
+        $this->bookingAt('15:00');
 
-        $this->at('11:00');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-
-        $this->assertCount(0, $this->reminders());
-    }
-
-    /** Cutoff 60 at 11:00: an 11:45 visit could not cancel from the reminder, so it gets none. */
-    public function test_a_visit_already_inside_the_cancel_cutoff_is_skipped(): void
-    {
-        $this->clinic->update(['whatsapp_cancel_cutoff_minutes' => 60]);
-        $this->bookingAt('11:45');
-        $later = $this->bookingAt('12:30');
-
-        $this->at('11:00');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-
-        $this->assertSame([$later->id], $this->reminders()->pluck('booking_id')->all());
-    }
-
-    public function test_with_no_cancel_cutoff_a_visit_soon_after_the_reminder_is_reminded(): void
-    {
-        $this->clinic->update(['whatsapp_cancel_cutoff_minutes' => 0]);
-        $this->bookingAt('11:15');
-
-        $this->at('11:00');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-
-        $this->assertCount(1, $this->reminders());
-    }
-
-    public function test_only_bookings_still_waiting_are_reminded(): void
-    {
-        Booking::factory()->forClinic($this->clinic)->at(Carbon::parse(self::DAY.' 15:00', 'Africa/Cairo'))->arrived()->create();
-        Booking::factory()->forClinic($this->clinic)->at(Carbon::parse(self::DAY.' 16:00', 'Africa/Cairo'))->cancelled()->create();
-
-        $this->at('11:00');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-
-        $this->assertCount(0, $this->reminders());
-    }
-
-    public function test_another_days_booking_is_never_reminded(): void
-    {
-        $this->bookingAt('15:00', '2026-09-04');
-
-        $this->at('11:00');
+        $this->at('14:00');
         $this->artisan('clinic:send-reminders')->assertSuccessful();
 
         $this->assertCount(0, $this->reminders());
@@ -195,7 +151,7 @@ class SendBookingRemindersTest extends TestCase
     {
         $this->bookingAt('15:00')->patient->update(['whatsapp_opt_in_at' => null]);
 
-        $this->at('11:00');
+        $this->at('14:00');
         $this->artisan('clinic:send-reminders')->assertSuccessful();
 
         $this->assertCount(0, $this->reminders());
@@ -206,50 +162,9 @@ class SendBookingRemindersTest extends TestCase
         $this->clinic->update(['whatsapp_enabled' => false]);
         $this->bookingAt('15:00');
 
-        $this->at('11:00');
+        $this->at('14:00');
         $this->artisan('clinic:send-reminders')->assertSuccessful();
 
         $this->assertCount(0, $this->reminders());
-    }
-
-    public function test_no_reminders_go_out_on_a_holiday(): void
-    {
-        ClinicHoliday::factory()->create([
-            'clinic_id' => $this->clinic->id,
-            'date' => self::DAY,
-        ]);
-        $this->bookingAt('15:00');
-
-        $this->at('11:00');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-
-        $this->assertCount(0, $this->reminders());
-    }
-
-    /** A booking moved to today before the reminder time is reminded today. */
-    public function test_a_booking_moved_to_today_follows_its_new_date(): void
-    {
-        $this->at('08:00', '2026-09-02');
-        $this->bookingAt('15:00');
-
-        $this->at('11:00');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-
-        $this->assertCount(1, $this->reminders());
-    }
-
-    public function test_changing_the_reminder_time_changes_the_next_days_send(): void
-    {
-        $this->bookingAt('15:00');
-
-        $this->clinic->update(['reminder_time' => '13:30']);
-
-        $this->at('11:00');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-        $this->assertCount(0, $this->reminders());
-
-        $this->at('13:30');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-        $this->assertCount(1, $this->reminders());
     }
 }
