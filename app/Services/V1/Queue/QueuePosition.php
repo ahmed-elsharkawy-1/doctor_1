@@ -7,18 +7,19 @@ use Illuminate\Support\Carbon;
 /**
  * Where a patient stands in today's queue, as shown on the tracking page.
  *
- * `ahead` is the count the patient reads as عدد الإنتظار. It counts everyone
- * ranked before this booking who is still waiting — not whoever is already
- * with the doctor, who is `withDoctor` instead — including patients
- * who have not arrived — so an emergency arriving later can push it up. The
- * design says so in writing, and `expectedAt` is what makes that tolerable.
- * A normal patient booked after this one never counts, even once they have
- * arrived early and the clinic ranks them first.
+ * `ahead` is the count the patient reads as عدد الإنتظار: earlier appointments
+ * not yet gone in to the doctor, arrived or not, and emergencies in the
+ * clinic (see QueuePositionService). An emergency arriving can push it up —
+ * the design says so in writing, and `expectedAt` is what makes that
+ * tolerable. Nobody turning up early ever does.
  *
  * `aheadNormal` and `aheadEmergency` split `ahead` — they are what the page's
  * tiles show, so a patient reads about their own wait and never about the
- * clinic's whole day. `total`, `normal` and `emergency` cover the whole day;
- * they drive the ring's fill and are not shown as numbers.
+ * clinic's whole day. `total`, `normal` and `emergency` cover the whole line
+ * still to go in; they drive the ring's fill and are not shown as numbers.
+ *
+ * `doctorBusy`: someone else is with the doctor right now. The patient with
+ * the doctor is not ahead of anyone, so nobody ahead is not yet "go in".
  */
 final class QueuePosition
 {
@@ -31,7 +32,7 @@ final class QueuePosition
         public readonly bool $hasArrived = false,
         public readonly int $aheadNormal = 0,
         public readonly int $aheadEmergency = 0,
-        public readonly int $withDoctor = 0,
+        public readonly bool $doctorBusy = false,
     ) {}
 
     /**
@@ -48,7 +49,7 @@ final class QueuePosition
      */
     public function behind(): int
     {
-        return $this->total - $this->withDoctor - $this->ahead - 1;
+        return $this->total - ($this->doctorBusy ? 1 : 0) - $this->ahead - 1;
     }
 
     /**
@@ -56,7 +57,7 @@ final class QueuePosition
      */
     public function doctorIsBusy(): bool
     {
-        return $this->withDoctor > 0;
+        return $this->doctorBusy;
     }
 
     /**
@@ -66,20 +67,21 @@ final class QueuePosition
      * Being first in the queue is not enough: the first booking of the day is
      * first from midnight onwards, and telling someone at home at 5am to walk
      * into the examination room for a 1pm appointment is worse than saying
-     * nothing. They have to be in the clinic for it to be their turn.
+     * nothing. They have to be in the clinic for it to be their turn — and the
+     * room has to be free.
      */
     public function isNext(): bool
     {
-        return $this->ahead === 0 && $this->hasArrived && ! $this->doctorIsBusy();
+        return $this->ahead === 0 && $this->hasArrived && ! $this->doctorBusy;
     }
 
     /**
-     * In the clinic with nobody left waiting before them, but the room is
-     * still taken: they go in as soon as it is free, and not before.
+     * In the clinic with nobody ahead, but the doctor is still with someone:
+     * they go in as soon as that visit ends.
      */
     public function isUpNext(): bool
     {
-        return $this->ahead === 0 && $this->hasArrived && $this->doctorIsBusy();
+        return $this->ahead === 0 && $this->hasArrived && $this->doctorBusy;
     }
 
     /**

@@ -21,6 +21,14 @@ return [
         'bad' => 'I have some notes',
     ],
 
+    // As the clinic reads them on its reviews screen.
+    'staff_rating' => [
+        'very_good' => 'Very good',
+        'good' => 'Good',
+        'bad' => 'Some notes',
+    ],
+    'list_loaded' => 'Reviews loaded',
+
     'thanks_title' => 'Thank you',
     'thanks_lead' => 'We have your feedback, and it helps us improve.',
     'your_rating' => 'Your rating',

@@ -133,7 +133,12 @@ class QueueSearchTest extends TestCase
         Booking::factory()
             ->forClinic($this->clinic)
             ->at(Carbon::parse('2026-09-03 10:30', $this->clinic->timezone))
-            ->create(['booking_kind' => BookingKind::EMERGENCY]);
+            ->create([
+                'booking_kind' => BookingKind::EMERGENCY,
+                'status' => BookingStatus::ARRIVED,
+                'arrived_at' => now(),
+                'queue_entered_at' => now(),
+            ]);
 
         $item = $this->search('سارة')['items'][0];
 

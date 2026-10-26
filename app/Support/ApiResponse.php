@@ -70,10 +70,11 @@ final class ApiResponse
      *
      * @param  LengthAwarePaginator<int, mixed>  $paginator
      * @param  list<mixed>  $items
+     * @param  array<string, mixed>  $extra  sits beside the list, e.g. a summary
      */
-    public static function paginated(LengthAwarePaginator $paginator, array $items, string $message = ''): JsonResponse
+    public static function paginated(LengthAwarePaginator $paginator, array $items, string $message = '', array $extra = []): JsonResponse
     {
-        return self::success([
+        return self::success($extra + [
             'items' => $items,
             'meta' => [
                 'current_page' => $paginator->currentPage(),

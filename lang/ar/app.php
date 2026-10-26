@@ -23,6 +23,7 @@ return [
         'delay' => 'تأخير طارئ',
         'rebooking' => 'قائمة الاتصال',
         'reports' => 'التقارير',
+        'reviews' => 'التقييمات',
         'messages' => 'رسائل واتساب',
     ],
 
@@ -90,6 +91,26 @@ return [
         'messages_none' => 'لم تُرسل رسائل واتساب — بلّغي المرضى بالمواعيد الجديدة.',
         'back_to_queue' => 'العودة لقائمة اليوم',
         'another' => 'تأخير آخر',
+    ],
+
+    'reviews' => [
+        'title' => 'التقييمات',
+        'satisfied' => 'من المرضى راضين',
+        'total' => 'إجمالي :count تقييم',
+        'all' => 'الكل',
+        'count' => ':count تقييم',
+        'count_of' => ':rating · :count تقييم',
+        'code' => 'كود :code',
+        'visit_on' => 'زيارة :day :date',
+        'read_more' => 'اقرأ المزيد',
+        'none' => 'لا توجد تقييمات بعد',
+        'load_more' => 'تحميل المزيد',
+        'rating' => 'التقييم',
+        'visit' => 'الزيارة',
+        'visit_type' => 'نوع الزيارة',
+        'note' => 'الملاحظة',
+        'call' => 'اتصال بالمريض',
+        'whatsapp' => 'واتساب',
     ],
 
     'rebooking' => [

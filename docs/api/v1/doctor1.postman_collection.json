@@ -1482,6 +1482,61 @@
             ]
         },
         {
+            "name": "Reviews",
+            "description": "What patients said about their visits",
+            "item": [
+                {
+                    "name": "The clinic's reviews",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/reviews?rating=&page=&per_page=",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "reviews"
+                            ],
+                            "query": [
+                                {
+                                    "key": "rating",
+                                    "value": "",
+                                    "description": "The filter chip. Omit for \"الكل\".",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "",
+                                    "description": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "",
+                                    "description": "",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "The whole reviews screen in one request.\n\n- `summary` is the card at the top: **every** review the clinic has,\n  never narrowed by `rating` or the page, so it does not change when a\n  chip is tapped. `satisfied_percent` is (very good + good) ÷ total,\n  rounded; null while there are no reviews yet.\n- `items` is one page of the list, newest first, narrowed by `rating`.\n  Reviews without a comment are included (`comment: null`).\n- `meta.total` is the count under the current filter (\"جيد · 28 تقييم\").\n\nEach item carries everything the details sheet shows — the whole\ncomment (shorten it on screen for the list), the visit, and the\npatient's **unmasked** phone for the call and WhatsApp buttons — so the\nsheet needs no further request."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
             "name": "Reports",
             "description": "Revenue and retention, and the link that opens the doctor's reports page in a WebView",
             "item": [

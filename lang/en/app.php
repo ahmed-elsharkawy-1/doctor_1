@@ -23,6 +23,7 @@ return [
         'delay' => 'Running late',
         'rebooking' => 'Call list',
         'reports' => 'Reports',
+        'reviews' => 'Reviews',
         'messages' => 'WhatsApp',
     ],
 
@@ -90,6 +91,26 @@ return [
         'messages_none' => 'No WhatsApp messages were sent — let the patients know their new times.',
         'back_to_queue' => "Back to today's list",
         'another' => 'Another delay',
+    ],
+
+    'reviews' => [
+        'title' => 'Reviews',
+        'satisfied' => 'of patients satisfied',
+        'total' => ':count reviews in total',
+        'all' => 'All',
+        'count' => ':count reviews',
+        'count_of' => ':rating · :count reviews',
+        'code' => 'Code :code',
+        'visit_on' => 'Visit :day :date',
+        'read_more' => 'Read more',
+        'none' => 'No reviews yet',
+        'load_more' => 'Load more',
+        'rating' => 'Rating',
+        'visit' => 'Visit',
+        'visit_type' => 'Visit type',
+        'note' => 'Note',
+        'call' => 'Call the patient',
+        'whatsapp' => 'WhatsApp',
     ],
 
     'rebooking' => [

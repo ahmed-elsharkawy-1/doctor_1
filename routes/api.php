@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\V1\Queue\UpdateBookingStatusController;
 use App\Http\Controllers\Api\V1\Reports\ReportWebLinkController;
 use App\Http\Controllers\Api\V1\Reports\RetentionReportController;
 use App\Http\Controllers\Api\V1\Reports\RevenueReportController;
+use App\Http\Controllers\Api\V1\Reviews\ListReviewsController;
 use App\Http\Controllers\Api\V1\Settings\BootstrapController;
 use App\Http\Controllers\Api\V1\Settings\CreateHolidayController;
 use App\Http\Controllers\Api\V1\Settings\CreateVisitTypeController;
@@ -200,6 +201,10 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
         Route::get('patients/{patient}', ShowPatientController::class)
             ->whereNumber('patient')
             ->name('api.v1.patients.show');
+
+        // What patients said about their visits. Here because every row
+        // carries the patient's full phone, for the call and WhatsApp buttons.
+        Route::get('reviews', ListReviewsController::class)->name('api.v1.reviews.index');
     });
 
     // The reports page for the app's WebView. Not under the owner-only

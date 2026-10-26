@@ -53,7 +53,7 @@ final class QueueSearchResult extends ServiceResult
             'ahead_emergency' => $position->aheadEmergency,
             'behind' => $position->behind(),
             // Already in the room, so never part of `ahead`.
-            'with_doctor' => $position->withDoctor,
+            'with_doctor' => $position->doctorBusy ? 1 : 0,
             'expected_at' => $position->expectedAt === null ? null : Wire::time($position->expectedAt),
             'is_next' => $position->isNext(),
         ];
