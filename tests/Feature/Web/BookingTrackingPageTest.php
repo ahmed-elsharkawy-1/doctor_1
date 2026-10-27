@@ -313,8 +313,8 @@ class BookingTrackingPageTest extends TestCase
         $this->get($mine->trackingUrl())
             ->assertOk()
             ->assertSee('http-equiv="refresh"', escape: false)
-            // Once a minute: a full reload every 30 seconds felt restless.
-            ->assertSee('content="60"', escape: false);
+            // Every two minutes: a full reload every 30 seconds felt restless.
+            ->assertSee('content="120"', escape: false);
     }
 
     public function test_a_finished_page_does_not_refresh_itself(): void

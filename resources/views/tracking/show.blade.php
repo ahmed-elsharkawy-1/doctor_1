@@ -157,15 +157,19 @@
             border-bottom: 1px solid var(--late-line);
         }
 
-        .late-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        .late-title { display: flex; align-items: center; gap: 7px; font-weight: 800; font-size: 15px; }
+        .late-head { display: flex; align-items: flex-start; gap: 7px; font-weight: 800; font-size: 15px; line-height: 1.9; }
+        .late-head svg { flex: 0 0 auto; margin-top: 5px; }
+        /* Part of the sentence: it follows "حوالي" and wraps with the words. */
         .late-badge {
+            display: inline-block;
+            margin-inline-start: 4px;
             background: var(--surface);
             color: var(--late);
             border-radius: 999px;
-            padding: 3px 12px;
-            font-size: 13px;
+            padding: 0 10px;
+            font-size: 13.5px;
             font-weight: 800;
+            line-height: 1.75;
             white-space: nowrap;
         }
 
@@ -186,7 +190,7 @@
         .late-box .am { display: block; color: var(--muted); font-size: 11px; }
         .late-arrow { flex: 0 0 auto; color: var(--muted); }
 
-        .late-note { display: flex; gap: 7px; margin-top: 10px; color: var(--danger); font-size: 12.5px; }
+        .late-note { display: flex; gap: 7px; margin-top: 10px; color: var(--danger); font-size: 13px; font-weight: 700; }
         .late-note svg { flex: 0 0 auto; margin-top: 2px; }
 
         /* ---------- tiles ---------- */
@@ -314,12 +318,12 @@
         @if ($delay)
             <div class="late">
                 <div class="late-head">
-                    <span class="late-title">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    <p>
                         {{ __('booking.tracking.delay_title') }}
-                    </span>
-                    {{-- "ساعة و40 دقيقة" rather than "100 دقيقة". --}}
-                    <span class="late-badge">{{ \App\Support\DelayLabel::for($delay->minutes) }}</span>
+                        {{-- "ساعة و40 دقيقة" rather than "100 دقيقة". --}}
+                        <span class="late-badge">{{ \App\Support\DelayLabel::for($delay->minutes) }}</span>
+                    </p>
                 </div>
 
                 <div class="late-times">

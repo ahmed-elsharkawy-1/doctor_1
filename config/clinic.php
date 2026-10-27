@@ -293,8 +293,8 @@ return [
         'token_bytes' => 16,
         // How often the waiting page reloads to re-read its position. A full
         // reload, so not too often: every 30 seconds read as a page that
-        // would not sit still.
-        'refresh_seconds' => (int) env('CLINIC_TRACKING_REFRESH_SECONDS', 60),
+        // would not sit still. Two minutes is fresh enough for a clinic wait.
+        'refresh_seconds' => (int) env('CLINIC_TRACKING_REFRESH_SECONDS', 120),
 
         // The waiting page's time box. Off: the time the patient booked
         // ("موعد حجزك"). On: the estimate of when they go in, from the
