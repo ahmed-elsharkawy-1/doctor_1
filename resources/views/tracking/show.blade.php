@@ -79,6 +79,9 @@
             --success-bg: #E7F4EC;
             --danger: #C0392B;
             --danger-bg: #FBECEA;
+            --late: #8A5A00;
+            --late-bg: #FFF5D9;
+            --late-line: #F2E2B3;
             --surface: #FFFFFF;
             --surface-2: #F6F9FC;
             --line: #E5ECF3;
@@ -142,6 +145,49 @@
         .ring.is-done .word { color: var(--success); }
         .ring.is-off .arc { stroke: var(--danger); }
         .ring.is-off .word { color: var(--danger); }
+
+        /* ---------- delay notice, the top of the queue card ---------- */
+        .stage.has-delay { padding-top: 0; overflow: hidden; }
+
+        .late {
+            background: var(--late-bg);
+            margin: 0 -16px 18px;
+            padding: 14px 16px;
+            text-align: start;
+            border-bottom: 1px solid var(--late-line);
+        }
+
+        .late-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .late-title { display: flex; align-items: center; gap: 7px; font-weight: 800; font-size: 15px; }
+        .late-badge {
+            background: var(--surface);
+            color: var(--late);
+            border-radius: 999px;
+            padding: 3px 12px;
+            font-size: 13px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .late-times { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+        .late-box {
+            flex: 1 1 0;
+            min-width: 0;
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 8px 10px;
+            text-align: center;
+        }
+
+        .late-box .k { display: block; color: var(--muted); font-size: 12px; }
+        .late-box .v { display: block; font-weight: 800; font-size: 18px; }
+        .late-box.was .v { color: var(--faint); font-size: 15px; text-decoration: line-through; }
+        .late-box.now { border: 1px solid var(--line); }
+        .late-box .am { display: block; color: var(--muted); font-size: 11px; }
+        .late-arrow { flex: 0 0 auto; color: var(--muted); }
+
+        .late-note { display: flex; gap: 7px; margin-top: 10px; color: var(--danger); font-size: 12.5px; }
+        .late-note svg { flex: 0 0 auto; margin-top: 2px; }
 
         /* ---------- tiles ---------- */
         .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
@@ -258,10 +304,45 @@
 <div class="wrap">
 
     {{-- Who the patient is seeing --}}
-    <x-doctor-card :clinic="$clinic" :doctor="$doctor" :facts="false" />
+    <x-doctor-card :clinic="$clinic" :doctor="$doctor" :facts="false" slim />
 
     {{-- The headline: a ring that fills as the patient moves up --}}
-    <section class="card stage">
+    <section class="card stage @if ($delay) has-delay @endif">
+        {{-- The clinic is running late for this patient (TrackingDelayService):
+             by how much, their appointment, and when they can now expect to go
+             in. Sits on top of the queue it explains. --}}
+        @if ($delay)
+            <div class="late">
+                <div class="late-head">
+                    <span class="late-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                        {{ __('booking.tracking.delay_title') }}
+                    </span>
+                    <span class="late-badge">{{ __('messages.minutes', ['count' => $delay->minutes]) }}</span>
+                </div>
+
+                <div class="late-times">
+                    <div class="late-box was">
+                        <span class="k">{{ __('booking.tracking.delay_previous') }}</span>
+                        <span class="v">{{ $clock($delay->bookedAt) }}</span>
+                    </div>
+                    <svg class="late-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+                    <div class="late-box now">
+                        <span class="k">{{ __('booking.tracking.delay_expected') }}</span>
+                        <span class="v">{{ $clock($delay->expectedAt) }}</span>
+                        @if ($delay->expectedAfterMidnight)
+                            <span class="am">{{ __('schedule.after_midnight') }}</span>
+                        @endif
+                    </div>
+                </div>
+
+                <p class="late-note">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.4 17a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+                    {{ __('booking.tracking.delay_note') }}
+                </p>
+            </div>
+        @endif
+
         {{-- A ring with a number in it does not say what the number counts.
              The heading does, and only while the ring is about the queue: a
              finished or cancelled visit has no position to report. --}}
@@ -347,6 +428,9 @@
             {{ __('booking.tracking.emergency_notice') }}
         </div>
 
+        {{-- The delay notice above already says both times; these come back
+             whenever it is not showing. --}}
+        @unless ($delay)
         <div class="duo">
             @if (! config('clinic.tracking.show_estimate'))
                 {{-- The time they booked, as booked. The estimate stays off
@@ -378,6 +462,7 @@
                 </span>
             </div>
         </div>
+        @endunless
     @endif
 
     {{-- Reaching the clinic: WhatsApp, call, then directions — the last only

@@ -233,6 +233,25 @@ class ClinicForm
                         // its own length, which is what a clinic expects.
                         ->placeholder(__('filament.clinic.slot_step_minutes_auto'))
                         ->helperText(__('filament.clinic.slot_step_minutes_hint')),
+
+                    // The delay notice on the patient's tracking page (only
+                    // while the estimate is switched on). Left empty, each
+                    // follows the platform default shown as its placeholder.
+                    TextInput::make('tracking_delay_reduction_minutes')
+                        ->label(__('filament.clinic.tracking_delay_reduction_minutes'))
+                        ->numeric()
+                        ->minValue(0)
+                        ->maxValue(240)
+                        ->placeholder((string) config('clinic.tracking.delay.reduction_minutes'))
+                        ->helperText(__('filament.clinic.tracking_delay_reduction_minutes_hint')),
+
+                    TextInput::make('tracking_delay_threshold_minutes')
+                        ->label(__('filament.clinic.tracking_delay_threshold_minutes'))
+                        ->numeric()
+                        ->minValue(0)
+                        ->maxValue(240)
+                        ->placeholder((string) config('clinic.tracking.delay.threshold_minutes'))
+                        ->helperText(__('filament.clinic.tracking_delay_threshold_minutes_hint')),
                 ])
                 ->columns(2),
         ]);

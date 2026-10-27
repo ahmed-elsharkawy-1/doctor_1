@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Services\V1\Queue\QueuePositionService;
+use App\Services\V1\Queue\TrackingDelayService;
 use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\App;
 use Illuminate\View\View;
@@ -18,7 +19,7 @@ use Illuminate\View\View;
  */
 class BookingTrackingController extends Controller
 {
-    public function __invoke(Booking $booking, QueuePositionService $positions): View
+    public function __invoke(Booking $booking, QueuePositionService $positions, TrackingDelayService $delays): View
     {
         // Patients are not sent an Accept-Language header worth trusting.
         App::setLocale(config('clinic.api.default_locale'));
@@ -43,6 +44,8 @@ class BookingTrackingController extends Controller
             ]),
         );
 
+        $position = $positions->for($booking);
+
         return view('tracking.show', [
             'booking' => $booking,
             'clinic' => $clinic,
@@ -50,7 +53,8 @@ class BookingTrackingController extends Controller
             'phone' => $phone,
             'whatsappLink' => $whatsappLink,
             'mapLink' => $clinic->mapLink(),
-            'position' => $positions->for($booking),
+            'position' => $position,
+            'delay' => $delays->for($booking, $position),
             'refreshSeconds' => config('clinic.tracking.refresh_seconds'),
         ]);
     }

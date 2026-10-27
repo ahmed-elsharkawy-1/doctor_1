@@ -3,7 +3,8 @@
     tracking page. One component, so the two stay identical.
 
     The tracking page passes :facts="false": a patient who has already booked
-    needs to know which doctor, not the working days.
+    needs to know which doctor, not the working days. It also passes :slim,
+    one compact row — photo beside the name — so the queue sits higher up.
 
     Photo at the top right with the name and specialty beside it, then two
     boxes: working days, and the location — the whole box opens Google Maps,
@@ -13,7 +14,7 @@
     It sits below the blue header with the air the brand bar leaves, rather
     than lapping into it.
 --}}
-@props(['clinic', 'doctor', 'facts' => true])
+@props(['clinic', 'doctor', 'facts' => true, 'slim' => false])
 
 @php
     $name = $doctor?->name ?? $clinic->name;
@@ -90,6 +91,15 @@
     .dcard-k svg { flex: 0 0 auto; color: #185FA5; }
     .dcard-v { display: block; margin-top: 2px; font-weight: 700; font-size: 14px; }
 
+    /* Slim: one row, photo at the start, name and specialty beside it. */
+    .dcard.is-slim { padding: 12px 14px; }
+    .dcard.is-slim .dcard-top { flex-direction: row; align-items: center; text-align: start; gap: 12px; }
+    .dcard.is-slim .dcard-photo { width: 56px; height: 56px; border-radius: 14px; }
+    .dcard.is-slim .dcard-initial { font-size: 24px; }
+    .dcard.is-slim .dcard-who { max-width: none; }
+    .dcard.is-slim h1 { font-size: 17px; }
+    .dcard.is-slim .dcard-role { margin-top: 2px; font-size: 13px; }
+
     @media (max-width: 900px) {
         .dcard { padding: 16px; }
         .dcard-top { gap: 12px; }
@@ -99,7 +109,7 @@
     }
 </style>
 
-<section {{ $attributes->merge(['class' => 'dcard']) }}>
+<section {{ $attributes->merge(['class' => 'dcard'.($slim ? ' is-slim' : '')]) }}>
     <div class="dcard-top">
         @if ($doctor?->avatarUrl())
             <img class="dcard-photo" src="{{ $doctor->avatarUrl() }}" alt="{{ $name }}" loading="lazy">

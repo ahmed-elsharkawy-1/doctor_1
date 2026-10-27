@@ -299,6 +299,17 @@ return [
         // visits still ahead — being refined on staging, so off by default
         // and switched on per environment once it is ready.
         'show_estimate' => (bool) env('CLINIC_TRACKING_SHOW_ESTIMATE', false),
+
+        // The delay notice at the top of the waiting page, when the estimate
+        // is on. Shown delay = (estimate − appointment) − reduction, rounded
+        // to `round_to`; the notice appears only when that is more than the
+        // threshold. Reduction and threshold are per-clinic overrides (null
+        // there means these).
+        'delay' => [
+            'reduction_minutes' => 30,
+            'threshold_minutes' => 15,
+            'round_to' => 5,
+        ],
     ],
 
     /*
