@@ -203,6 +203,7 @@
 
         .late-note { display: flex; gap: 7px; margin-top: 10px; color: var(--danger); font-size: 13px; font-weight: 700; }
         .late-note svg { flex: 0 0 auto; margin-top: 2px; }
+        .late-note span { min-width: 0; }
 
         /* ---------- tiles ---------- */
         .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
@@ -352,35 +353,40 @@
                     </div>
                 </div>
 
-                <script>
-                    // Fit "يوجد تأخير … حوالي <delay>" on one line: shrink from
-                    // 15px in half-pixel steps until it fits, down to 11px. If a
-                    // screen is narrower still, let it wrap rather than cut it.
-                    (function () {
-                        var head = document.currentScript.parentNode.querySelector('.late-head');
-                        var line = head.querySelector('p');
-                        function fit() {
-                            var size = 15;
-                            head.style.fontSize = size + 'px';
-                            line.style.whiteSpace = 'nowrap';
-                            while (line.scrollWidth > line.clientWidth && size > 11) {
-                                size -= 0.5;
-                                head.style.fontSize = size + 'px';
-                            }
-                            if (line.scrollWidth > line.clientWidth) {
-                                line.style.whiteSpace = 'normal';
-                            }
-                        }
-                        fit();
-                        window.addEventListener('resize', fit);
-                        if (document.fonts && document.fonts.ready) { document.fonts.ready.then(fit); }
-                    })();
-                </script>
-
                 <p class="late-note">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.4 17a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
-                    {{ __('booking.tracking.delay_note') }}
+                    <span>{{ __('booking.tracking.delay_note') }}</span>
                 </p>
+
+                <script>
+                    // Keep the sentence with its delay, and the alert, each on one
+                    // line on a phone: shrink from the normal size in half-pixel
+                    // steps until it fits, never below a readable minimum. A screen
+                    // narrower still wraps rather than cutting the text off.
+                    (function () {
+                        var notice = document.currentScript.parentNode;
+                        var lines = [
+                            { box: notice.querySelector('.late-head'), text: notice.querySelector('.late-head p'), max: 15, min: 11 },
+                            { box: notice.querySelector('.late-note'), text: notice.querySelector('.late-note span'), max: 13, min: 10.5 },
+                        ];
+                        function fit(line) {
+                            var size = line.max;
+                            line.box.style.fontSize = size + 'px';
+                            line.text.style.whiteSpace = 'nowrap';
+                            while (line.text.scrollWidth > line.text.clientWidth && size > line.min) {
+                                size -= 0.5;
+                                line.box.style.fontSize = size + 'px';
+                            }
+                            if (line.text.scrollWidth > line.text.clientWidth) {
+                                line.text.style.whiteSpace = 'normal';
+                            }
+                        }
+                        function fitAll() { lines.forEach(fit); }
+                        fitAll();
+                        window.addEventListener('resize', fitAll);
+                        if (document.fonts && document.fonts.ready) { document.fonts.ready.then(fitAll); }
+                    })();
+                </script>
             </div>
         @endif
 
