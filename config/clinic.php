@@ -291,8 +291,10 @@ return [
         'legacy_paths' => ['b'],
         // Bytes of randomness; the stored token is twice this in hex.
         'token_bytes' => 16,
-        // How often the waiting page re-reads its position.
-        'refresh_seconds' => (int) env('CLINIC_TRACKING_REFRESH_SECONDS', 30),
+        // How often the waiting page reloads to re-read its position. A full
+        // reload, so not too often: every 30 seconds read as a page that
+        // would not sit still.
+        'refresh_seconds' => (int) env('CLINIC_TRACKING_REFRESH_SECONDS', 60),
 
         // The waiting page's time box. Off: the time the patient booked
         // ("موعد حجزك"). On: the estimate of when they go in, from the

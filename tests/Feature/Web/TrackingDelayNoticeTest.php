@@ -5,6 +5,7 @@ namespace Tests\Feature\Web;
 use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
 use App\Models\Booking;
+use App\Support\DelayLabel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\Concerns\InteractsWithClinic;
@@ -75,7 +76,7 @@ class TrackingDelayNoticeTest extends TestCase
         $this->get($mine->trackingUrl())
             ->assertOk()
             ->assertSee(__('booking.tracking.delay_title'))
-            ->assertSee(__('messages.minutes', ['count' => 30]))
+            ->assertSee(DelayLabel::for(30))
             ->assertSeeInOrder([
                 __('booking.tracking.delay_previous'), '10:00 '.__('booking.tracking.am'),
                 __('booking.tracking.delay_expected'), '10:30 '.__('booking.tracking.am'),
@@ -109,7 +110,7 @@ class TrackingDelayNoticeTest extends TestCase
         // 50 − 30 = 20: shown, expected 09:20.
         $this->get($this->lateBy(50)->trackingUrl())
             ->assertOk()
-            ->assertSee(__('messages.minutes', ['count' => 20]))
+            ->assertSee(DelayLabel::for(20))
             ->assertSee('9:20 '.__('booking.tracking.am'));
     }
 
@@ -118,7 +119,7 @@ class TrackingDelayNoticeTest extends TestCase
         // 48 − 30 = 18 → 20, shown.
         $this->get($this->lateBy(48)->trackingUrl())
             ->assertOk()
-            ->assertSee(__('messages.minutes', ['count' => 20]));
+            ->assertSee(DelayLabel::for(20));
     }
 
     public function test_rounding_down_can_drop_it_under_the_threshold(): void
@@ -127,6 +128,16 @@ class TrackingDelayNoticeTest extends TestCase
         $this->get($this->lateBy(47)->trackingUrl())
             ->assertOk()
             ->assertDontSee(__('booking.tracking.delay_title'));
+    }
+
+    /** Hours and minutes in words, not a pile of minutes. */
+    public function test_a_long_delay_reads_as_hours_and_minutes(): void
+    {
+        // 130 − 30 = 100: "ساعة و40 دقيقة", never "100 دقيقة".
+        $this->get($this->lateBy(130)->trackingUrl())
+            ->assertOk()
+            ->assertSee(DelayLabel::for(100))
+            ->assertDontSee(__('messages.minutes', ['count' => 100]));
     }
 
     public function test_each_clinic_can_set_its_own_reduction_and_threshold(): void
@@ -139,7 +150,7 @@ class TrackingDelayNoticeTest extends TestCase
         // 45 − 10 = 35, more than 5: expected 09:35.
         $this->get($this->lateBy(45)->trackingUrl())
             ->assertOk()
-            ->assertSee(__('messages.minutes', ['count' => 35]))
+            ->assertSee(DelayLabel::for(35))
             ->assertSee('9:35 '.__('booking.tracking.am'));
     }
 

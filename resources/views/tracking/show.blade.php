@@ -318,7 +318,8 @@
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
                         {{ __('booking.tracking.delay_title') }}
                     </span>
-                    <span class="late-badge">{{ __('messages.minutes', ['count' => $delay->minutes]) }}</span>
+                    {{-- "ساعة و40 دقيقة" rather than "100 دقيقة". --}}
+                    <span class="late-badge">{{ \App\Support\DelayLabel::for($delay->minutes) }}</span>
                 </div>
 
                 <div class="late-times">

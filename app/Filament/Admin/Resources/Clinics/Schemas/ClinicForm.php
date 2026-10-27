@@ -237,11 +237,13 @@ class ClinicForm
                     // The delay notice on the patient's tracking page (only
                     // while the estimate is switched on). Left empty, each
                     // follows the platform default shown as its placeholder.
+                    // At most an hour: the expected time can fall behind "now"
+                    // by up to the reduction, and a typo must not make it hours.
                     TextInput::make('tracking_delay_reduction_minutes')
                         ->label(__('filament.clinic.tracking_delay_reduction_minutes'))
                         ->numeric()
                         ->minValue(0)
-                        ->maxValue(240)
+                        ->maxValue(60)
                         ->placeholder((string) config('clinic.tracking.delay.reduction_minutes'))
                         ->helperText(__('filament.clinic.tracking_delay_reduction_minutes_hint')),
 
@@ -249,7 +251,7 @@ class ClinicForm
                         ->label(__('filament.clinic.tracking_delay_threshold_minutes'))
                         ->numeric()
                         ->minValue(0)
-                        ->maxValue(240)
+                        ->maxValue(60)
                         ->placeholder((string) config('clinic.tracking.delay.threshold_minutes'))
                         ->helperText(__('filament.clinic.tracking_delay_threshold_minutes_hint')),
                 ])
