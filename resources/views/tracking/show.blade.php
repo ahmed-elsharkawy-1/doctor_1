@@ -157,17 +157,28 @@
             border-bottom: 1px solid var(--late-line);
         }
 
-        .late-head { display: flex; align-items: flex-start; gap: 7px; font-weight: 800; font-size: 15px; line-height: 1.9; }
-        .late-head svg { flex: 0 0 auto; margin-top: 5px; }
+        /* One line on a phone: the script under the notice shrinks the text only
+           as far as this sentence needs ("…حوالي ساعة" stays large, "…3 ساعات
+           و45 دقيقة" gets smaller), never below 11px. */
+        .late-head {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 800;
+            font-size: 15px;
+            line-height: 1.9;
+        }
+        .late-head p { min-width: 0; }
+        .late-head svg { flex: 0 0 auto; width: 1.15em; height: 1.15em; }
         /* Part of the sentence: it follows "حوالي" and wraps with the words. */
         .late-badge {
             display: inline-block;
-            margin-inline-start: 4px;
+            margin-inline-start: 3px;
             background: var(--surface);
             color: var(--late);
             border-radius: 999px;
-            padding: 0 10px;
-            font-size: 13.5px;
+            padding: 0 8px;
+            font-size: 0.92em;
             font-weight: 800;
             line-height: 1.75;
             white-space: nowrap;
@@ -340,6 +351,31 @@
                         @endif
                     </div>
                 </div>
+
+                <script>
+                    // Fit "يوجد تأخير … حوالي <delay>" on one line: shrink from
+                    // 15px in half-pixel steps until it fits, down to 11px. If a
+                    // screen is narrower still, let it wrap rather than cut it.
+                    (function () {
+                        var head = document.currentScript.parentNode.querySelector('.late-head');
+                        var line = head.querySelector('p');
+                        function fit() {
+                            var size = 15;
+                            head.style.fontSize = size + 'px';
+                            line.style.whiteSpace = 'nowrap';
+                            while (line.scrollWidth > line.clientWidth && size > 11) {
+                                size -= 0.5;
+                                head.style.fontSize = size + 'px';
+                            }
+                            if (line.scrollWidth > line.clientWidth) {
+                                line.style.whiteSpace = 'normal';
+                            }
+                        }
+                        fit();
+                        window.addEventListener('resize', fit);
+                        if (document.fonts && document.fonts.ready) { document.fonts.ready.then(fit); }
+                    })();
+                </script>
 
                 <p class="late-note">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.4 17a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
