@@ -681,6 +681,40 @@ booked/arrived --no_show--> no_show
 
 Cancelling **frees the slot immediately**, whatever the reason.
 
+### `GET /queue/search?q=&limit=`
+
+Finds a patient in **today's** queue as the secretary types — call it on every
+keystroke for an autocomplete. `q` (at least 2 characters) matches a name
+fragment, the patient code, or the last 4+ digits of the phone. `limit`
+defaults to 10, at most 20. Matches come first in line first.
+
+```json
+{
+  "date": "2026-09-03",
+  "total": 16,
+  "items": [
+    {
+      "booking": { "id": 88, "patient": { "name": "سارة أحمد" }, "...": "the usual queue card" },
+      "place": 10,
+      "ahead": 9,
+      "ahead_normal": 8,
+      "ahead_emergency": 1,
+      "behind": 5,
+      "with_doctor": 1,
+      "expected_at": { "value": "13:40", "display": "1:40 م" },
+      "is_next": false
+    }
+  ]
+}
+```
+
+The numbers are the patient tracking page's own, so the two never disagree:
+emergencies count as ahead; a normal patient booked later never does, even
+after arriving early. The patient already with the doctor is **not** in
+`ahead` — they are `with_doctor` — but the rest of their visit is in
+`expected_at`, and `is_next` stays false until the room is free.
+`with_doctor + place + behind` is always `total`. Finished, cancelled and no-show visits are never returned.
+
 ---
 
 ## 10. Postpone & the call list

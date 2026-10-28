@@ -1009,6 +1009,50 @@
                         }
                     },
                     "response": []
+                },
+                {
+                    "name": "Find a patient in today's queue",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/queue/search?q=سارة&limit=10",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "queue",
+                                "search"
+                            ],
+                            "query": [
+                                {
+                                    "key": "q",
+                                    "value": "سارة",
+                                    "description": "At least two characters.",
+                                    "disabled": false
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "10",
+                                    "description": "",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "For \"دوري امتى؟\" on the phone, and fast enough to call on every\nkeystroke for an autocomplete. Matches a name fragment, the patient\ncode, or the last four or more digits of the phone — the same rules\nas `/patients`.\n\nOnly today's queue is searched (`booked`, `arrived`, `with_doctor`),\nfirst in line first. Each match is the usual queue card plus where\nthat patient stands. The numbers are the **patient's tracking page's\nown**, so what the secretary reads out is what the patient sees:\nemergencies count as ahead; a normal patient booked later never does,\neven after arriving early. Whoever is already with the doctor is not\nahead — they are `with_doctor` — though the rest of their visit is in\n`expected_at`.\n\n`with_doctor + place + behind` always equals `total`."
+                    },
+                    "response": []
                 }
             ]
         },

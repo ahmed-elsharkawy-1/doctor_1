@@ -5,6 +5,7 @@ namespace App\Services\V1\Queue;
 use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
 use App\Models\Booking;
+use App\Models\Clinic;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -39,7 +40,6 @@ class QueuePositionService
     public function for(Booking $booking): ?QueuePosition
     {
         $clinic = $booking->clinic;
-        $now = Carbon::now($clinic->timezone);
 
         if ($booking->visit_date->toDateString() !== $clinic->currentDay()->toDateString()) {
             return null;
@@ -49,12 +49,49 @@ class QueuePositionService
             return null;
         }
 
-        $today = $this->todaysQueue($booking);
-        $withDoctor = $today->where('status', BookingStatus::WITH_DOCTOR);
+        return $this->within($clinic, $this->today($clinic), $booking);
+    }
+
+    /**
+     * Today's queue, read once. Hand it to `within()` when several patients
+     * need a position — a search result must not re-read the whole day for
+     * every row, or two rows could disagree.
+     *
+     * @return Collection<int, Booking>
+     */
+    public function today(Clinic $clinic): Collection
+    {
+        return $clinic->bookings()
+            ->with(['patient', 'visitType'])
+            ->onDate($clinic->currentDay()->toDateString())
+            ->whereIn('status', BookingStatus::inQueue())
+            ->get();
+    }
+
+    /**
+     * Where a booking stands in a queue already read by `today()`. Null when
+     * it is not in that queue.
+     *
+     * @param  Collection<int, Booking>  $queue
+     */
+    public function within(Clinic $clinic, Collection $queue, Booking $booking): ?QueuePosition
+    {
+        if (! $queue->contains(fn (Booking $each): bool => $each->id === $booking->id)) {
+            return null;
+        }
+
+        $now = Carbon::now($clinic->timezone);
+
+        // Whoever is in the room is what the clinic is busy with, but they are
+        // not ahead of anyone: only the rest of their visit delays the queue.
+        $withDoctor = $queue
+            ->where('status', BookingStatus::WITH_DOCTOR)
+            ->reject(fn (Booking $each): bool => $each->id === $booking->id)
+            ->values();
 
         // The line: everyone still to go in who counts at all — every normal
         // booking, and the emergencies already in the clinic.
-        $line = $today
+        $line = $queue
             ->reject(fn (Booking $each): bool => $each->status === BookingStatus::WITH_DOCTOR)
             ->filter(fn (Booking $each): bool => $each->booking_kind === BookingKind::NORMAL
                 || $each->status === BookingStatus::ARRIVED)
@@ -66,7 +103,7 @@ class QueuePositionService
             ? collect()
             : $line->filter(fn (Booking $each): bool => $this->isAhead($each, $booking))->values();
 
-        $total = $line->count() + 1;
+        $total = $line->count() + 1 + $withDoctor->count();
         $emergencies = $line->where('booking_kind', BookingKind::EMERGENCY)->count()
             + ($booking->booking_kind === BookingKind::EMERGENCY ? 1 : 0);
 
@@ -77,7 +114,7 @@ class QueuePositionService
             emergency: $emergencies,
             expectedAt: $this->expectedAt(
                 $booking,
-                $ahead->concat($withDoctor->reject(fn (Booking $each): bool => $each->id === $booking->id)),
+                $ahead->concat($withDoctor),
                 $now,
                 $clinic->timezone,
             ),
@@ -90,7 +127,7 @@ class QueuePositionService
             aheadEmergency: $ahead->where('booking_kind', BookingKind::EMERGENCY)->count(),
             // Someone else is in the room: nobody ahead means next, not now.
             doctorBusy: $booking->status !== BookingStatus::WITH_DOCTOR
-                && $withDoctor->contains(fn (Booking $each): bool => $each->id !== $booking->id),
+                && $withDoctor->isNotEmpty(),
         );
     }
 
@@ -125,17 +162,6 @@ class QueuePositionService
     {
         return (($booking->queue_entered_at ?? $booking->arrived_at)?->format('Y-m-d H:i:s.u') ?? '9999-12-31 23:59:59')
             .'|'.str_pad((string) $booking->id, 12, '0', STR_PAD_LEFT);
-    }
-
-    /**
-     * @return Collection<int, Booking>
-     */
-    private function todaysQueue(Booking $booking): Collection
-    {
-        return $booking->clinic->bookings()
-            ->onDate($booking->visit_date->toDateString())
-            ->whereIn('status', BookingStatus::inQueue())
-            ->get();
     }
 
     /**

@@ -4,7 +4,9 @@ namespace Tests\Feature\Queue;
 
 use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
+use App\Enums\CancelReason;
 use App\Models\Booking;
+use App\Services\V1\Queue\BookingStatusService;
 use App\Services\V1\Queue\QueuePositionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -140,6 +142,7 @@ class QueuePositionServiceTest extends TestCase
             ->create();
 
         $mine = $this->booking('10:00');
+        $this->booking('10:20');
 
         $this->assertSame(0, $this->positions->for($mine)->ahead);
     }
@@ -548,5 +551,92 @@ class QueuePositionServiceTest extends TestCase
             '10:00',
             $this->positions->for($mine)->expectedAt->format('H:i'),
         );
+    }
+
+    /**
+     * The complaint: ten booked ahead and on time, then the count reads
+     * fifteen. Evening patients who turn up early are ranked first on the
+     * clinic's screen, but they were never in front of this patient.
+     */
+    public function test_patients_booked_later_who_arrive_early_are_not_counted(): void
+    {
+        $this->booking('10:20');
+        $this->booking('10:40');
+        $mine = $this->booking('11:00');
+
+        foreach (['12:00', '12:20', '12:40'] as $time) {
+            $this->booking($time)->update(['status' => BookingStatus::ARRIVED, 'arrived_at' => now(), 'queue_entered_at' => now()]);
+        }
+
+        $position = $this->positions->for($mine->fresh());
+
+        $this->assertSame(2, $position->ahead);
+        $this->assertSame(2, $position->aheadNormal);
+        // Their visits are not waited on either.
+        $this->assertSame('11:00', $position->expectedAt->format('H:i'));
+    }
+
+    public function test_an_arrival_booked_later_never_makes_an_arrived_patient_wait(): void
+    {
+        $early = $this->booking('12:00');
+        $early->update(['status' => BookingStatus::ARRIVED, 'arrived_at' => now(), 'queue_entered_at' => now()]);
+
+        $mine = $this->booking('10:20');
+        $mine->update(['status' => BookingStatus::ARRIVED, 'arrived_at' => now()->addMinutes(5), 'queue_entered_at' => now()->addMinutes(5)]);
+
+        $this->assertTrue($this->positions->for($mine->fresh())->isNext());
+    }
+
+    /**
+     * Whoever is in the room is what is being waited on, whenever they were
+     * booked for — a clinic running ahead of itself calls a later patient in.
+     */
+    public function test_a_patient_booked_later_but_with_the_doctor_still_counts(): void
+    {
+        $mine = $this->booking('10:20');
+
+        Booking::factory()
+            ->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-09-03 12:00', $this->clinic->timezone))
+            ->withDoctor()
+            ->create();
+
+        $position = $this->positions->for($mine->fresh());
+
+        $this->assertSame(0, $position->ahead);
+        $this->assertTrue($position->doctorBusy);
+    }
+
+    /**
+     * Every status change, a cancellation and the booking that replaces it:
+     * none of it may count anybody twice or push the number up.
+     */
+    public function test_status_changes_and_a_replaced_booking_never_raise_the_count(): void
+    {
+        $statuses = app(BookingStatusService::class);
+
+        $ahead = collect(['10:00', '10:20', '10:40'])->map(fn (string $time): Booking => $this->booking($time));
+        $mine = $this->booking('11:00');
+        $this->booking('11:20');
+
+        $count = fn (): int => $this->positions->for($mine->fresh())->ahead;
+
+        $this->assertSame(3, $count());
+
+        $statuses->cancel($ahead[1], CancelReason::selectable()[0]);
+        $this->assertSame(2, $count());
+
+        $this->booking('10:20');
+        $this->assertSame(3, $count());
+
+        $statuses->arrive($ahead[0]->fresh());
+        $this->assertSame(3, $count());
+
+        // In the room now: no longer waiting before them.
+        $statuses->callIn($ahead[0]->fresh());
+        $this->assertSame(2, $count());
+
+        $statuses->complete($ahead[0]->fresh());
+        $this->assertSame(2, $count());
     }
 }

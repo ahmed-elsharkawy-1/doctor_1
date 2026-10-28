@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\V1\Queue\MarkContactedController;
 use App\Http\Controllers\Api\V1\Queue\PostponeCandidatesController;
 use App\Http\Controllers\Api\V1\Queue\PostponeController;
 use App\Http\Controllers\Api\V1\Queue\RebookingListController;
+use App\Http\Controllers\Api\V1\Queue\SearchQueueController;
 use App\Http\Controllers\Api\V1\Queue\UpdateBookingStatusController;
 use App\Http\Controllers\Api\V1\Reports\ReportWebLinkController;
 use App\Http\Controllers\Api\V1\Reports\RetentionReportController;
@@ -183,6 +184,10 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
         Route::post('emergency', EmergencyController::class)->name('api.v1.emergency');
 
         Route::get('rebooking-list', RebookingListController::class)->name('api.v1.rebooking-list');
+
+        // Finds a patient in today's queue as the secretary types, with the
+        // same place and counts their tracking page shows.
+        Route::get('queue/search', SearchQueueController::class)->name('api.v1.queue.search');
     });
 
     /*
