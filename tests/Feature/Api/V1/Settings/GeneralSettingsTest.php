@@ -47,6 +47,64 @@ class GeneralSettingsTest extends TestCase
         $this->assertSame(45, $this->clinic->refresh()->patient_arrival_lead_minutes);
     }
 
+    public function test_it_updates_the_reminder_time(): void
+    {
+        $this->putJson(route('api.v1.settings.general'), ['reminder_time' => '18:30'])
+            ->assertOk()
+            ->assertJsonPath('data.reminder_time', '18:30');
+
+        $this->assertSame('18:30', $this->clinic->refresh()->reminder_time);
+    }
+
+    public function test_it_updates_the_reminder_position(): void
+    {
+        $this->putJson(route('api.v1.settings.general'), ['reminder_position' => 6])
+            ->assertOk()
+            ->assertJsonPath('data.reminder_position', 6);
+
+        $this->assertSame(6, $this->clinic->refresh()->reminder_position);
+    }
+
+    public function test_the_reminder_position_must_be_between_one_and_fifty(): void
+    {
+        $this->putJson(route('api.v1.settings.general'), ['reminder_position' => 0])
+            ->assertStatus(422)
+            ->assertJsonStructure(['error' => ['fields' => ['reminder_position']]]);
+
+        $this->assertSame(config('clinic.defaults.reminder_position'), $this->clinic->refresh()->reminderPosition());
+    }
+
+    public function test_it_updates_the_whatsapp_cancel_cutoff(): void
+    {
+        $this->assertSame(60, $this->clinic->whatsAppCancelCutoffMinutes());
+
+        $this->putJson(route('api.v1.settings.general'), ['whatsapp_cancel_cutoff_minutes' => 120])
+            ->assertOk()
+            ->assertJsonPath('data.whatsapp_cancel_cutoff_minutes', 120)
+            ->assertJsonPath('data.whatsapp_cancel_cutoff_minute_options', [0, 30, 60, 90, 120, 180, 240]);
+
+        $this->assertSame(120, $this->clinic->refresh()->whatsapp_cancel_cutoff_minutes);
+    }
+
+    public function test_a_whatsapp_cancel_cutoff_outside_the_options_is_rejected(): void
+    {
+        $this->putJson(route('api.v1.settings.general'), ['whatsapp_cancel_cutoff_minutes' => 45])
+            ->assertStatus(422)
+            ->assertJsonStructure(['error' => ['fields' => ['whatsapp_cancel_cutoff_minutes']]]);
+
+        $this->assertSame(60, $this->clinic->refresh()->whatsapp_cancel_cutoff_minutes);
+    }
+
+    public function test_a_malformed_reminder_time_is_rejected(): void
+    {
+        $this->putJson(route('api.v1.settings.general'), ['reminder_time' => '25:99'])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED')
+            ->assertJsonStructure(['error' => ['fields' => ['reminder_time']]]);
+
+        $this->assertSame('11:00', $this->clinic->refresh()->reminder_time);
+    }
+
     /**
      * The app can save one field without echoing the other back.
      */
@@ -68,6 +126,7 @@ class GeneralSettingsTest extends TestCase
             'booking_window_days',
             'first_visit_only_days',
             'patient_arrival_lead_minutes',
+            'reminder_time',
         ]);
 
         $this->putJson(route('api.v1.settings.general'), [])->assertOk();
@@ -76,6 +135,7 @@ class GeneralSettingsTest extends TestCase
             'booking_window_days',
             'first_visit_only_days',
             'patient_arrival_lead_minutes',
+            'reminder_time',
         ]));
     }
 

@@ -17,6 +17,7 @@ class LogMessageSender implements MessageSender
         Log::info('WhatsApp log driver message rendered.', [
             'outbound_message_id' => $message->id,
             'template_key' => $message->template_key,
+            'type' => $message->type,
             'patient_id' => $message->patient_id,
             'booking_id' => $message->booking_id,
             'to' => $message->patient?->phone,
@@ -29,6 +30,16 @@ class LogMessageSender implements MessageSender
             'sent_at' => now(),
             'error' => null,
         ]);
+    }
+
+    public function sendText(string $to, string $body): ?string
+    {
+        Log::info('WhatsApp log driver text rendered.', [
+            'to' => $to,
+            'body' => $body,
+        ]);
+
+        return 'log_'.Str::uuid();
     }
 
     public function sendTemplate(string $to, MessageTemplate $template, array $variables, ?string $buttonSuffix): ?string

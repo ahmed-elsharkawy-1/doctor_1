@@ -146,6 +146,31 @@
                                     <span class="pill pill-new">{{ $booking->source->label() }}</span>
                                 </div>
                             @endif
+
+                            {{-- The reminders and what the patient said back.
+                                 One pill per template; re-read on every
+                                 render, so a WhatsApp reply changes it
+                                 without a refresh. --}}
+                            @php($reminderStatuses = [
+                                __('app.queue.reminder.hourly_label') => $booking->reminderStatus(),
+                                __('app.queue.reminder.daily_label') => $booking->dailyReminderStatus(),
+                            ])
+                            <div style="margin-top:0.3rem; display:flex; gap:0.3rem; flex-wrap:wrap">
+                                @foreach ($reminderStatuses as $reminderLabel => $reminderStatus)
+                                    <span class="pill {{ $reminderStatus === 'failed' ? 'pill-off' : ($reminderStatus === 'sent' ? 'pill-new' : '') }}">
+                                        {{ $reminderLabel }}:
+                                        {{ __('app.queue.reminder.'.$reminderStatus) }}
+                                    </span>
+                                @endforeach
+                            </div>
+
+                            @if ($booking->patient_response !== null)
+                                <div style="margin-top:0.3rem">
+                                    <span class="pill {{ $booking->patient_response->value === 'cancelled' ? 'pill-warn' : 'pill-new' }}">
+                                        {{ $booking->patient_response->label() }}
+                                    </span>
+                                </div>
+                            @endif
                         </div>
                     </header>
 
@@ -252,6 +277,14 @@
                 .bind('SelfBookingReceived', function (data) {
                     if (window.Livewire) {
                         window.Livewire.dispatch('self-booking-received', { name: data.patient_name });
+                    }
+                })
+                .bind('ReminderResponseReceived', function (data) {
+                    if (window.Livewire) {
+                        window.Livewire.dispatch('reminder-responded', {
+                            name: data.patient_name,
+                            response: data.patient_response,
+                        });
                     }
                 });
         })();

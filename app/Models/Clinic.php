@@ -37,6 +37,9 @@ class Clinic extends Model
         'patient_arrival_lead_minutes',
         'tracking_delay_reduction_minutes',
         'tracking_delay_threshold_minutes',
+        'reminder_time',
+        'reminder_position',
+        'whatsapp_cancel_cutoff_minutes',
         'self_booking_enabled',
         'whatsapp_enabled',
         'reports_enabled',
@@ -86,6 +89,8 @@ class Clinic extends Model
             'patient_arrival_lead_minutes' => 'integer',
             'tracking_delay_reduction_minutes' => 'integer',
             'tracking_delay_threshold_minutes' => 'integer',
+            'reminder_position' => 'integer',
+            'whatsapp_cancel_cutoff_minutes' => 'integer',
         ];
     }
 
@@ -125,6 +130,39 @@ class Clinic extends Model
             ?: (int) config('clinic.defaults.patient_booking_window_days');
 
         return (int) max(1, min($window, $this->booking_window_days));
+    }
+
+    /**
+     * The clinic-local time the daily reminder goes out, `HH:MM`.
+     *
+     * The column is authoritative; config is only the fallback for a row that
+     * predates the setting or was written by hand.
+     */
+    public function reminderTime(): string
+    {
+        $time = trim((string) $this->reminder_time);
+
+        return $time === '' ? (string) config('clinic.defaults.reminder_time', '11:00') : $time;
+    }
+
+    /**
+     * How many slot lengths before the visit the pre-visit reminder goes out.
+     * The lead is this × the booking's own duration.
+     */
+    public function reminderPosition(): int
+    {
+        return max(1, (int) ($this->reminder_position
+            ?? config('clinic.defaults.reminder_position', 1)));
+    }
+
+    /**
+     * Minutes before the visit after which Cancel from the WhatsApp reminder
+     * is refused. 0 means it is allowed until the visit starts.
+     */
+    public function whatsAppCancelCutoffMinutes(): int
+    {
+        return max(0, (int) ($this->whatsapp_cancel_cutoff_minutes
+            ?? config('clinic.defaults.whatsapp_cancel_cutoff_minutes', 60)));
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Services\V1\Messaging;
 use App\Enums\ApiErrorCode;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
+use App\Enums\PatientResponse;
 use App\Exceptions\ApiException;
 use App\Jobs\SendWhatsAppMessage;
 use App\Models\Booking;
@@ -12,6 +13,7 @@ use App\Models\Clinic;
 use App\Models\MessageTemplate;
 use App\Models\OutboundMessage;
 use App\Models\Patient;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -38,6 +40,27 @@ class WhatsAppMessagingService
 
     /** Sent shortly before the appointment, by clinic:send-reminders. */
     public const REMINDER_KEY = 'appointment_reminder';
+
+    /**
+     * Sent on the visit day at the clinic's reminder time, by
+     * clinic:send-daily-reminders. Its own key so the two reminders
+     * de-duplicate independently: a patient gets both, and never a repeat of
+     * either.
+     */
+    public const DAILY_REMINDER_KEY = 'appointment_reminder_today';
+
+    /** Quick-reply button payloads on the approved reminder template. */
+    public const REPLY_CONFIRM = 'confirm_attendance';
+
+    public const REPLY_CANCEL = 'cancel_booking';
+
+    /** The free-text messages sent after a button, while the session is open. */
+    public const REMINDER_CONFIRMED_KEY = 'appointment_reminder_confirmed';
+
+    public const REMINDER_CANCELLED_KEY = 'appointment_reminder_cancelled';
+
+    /** Cancel tapped inside the clinic's cutoff: refused, with the phone. */
+    public const REMINDER_CANCEL_REFUSED_KEY = 'appointment_reminder_cancel_refused';
 
     /**
      * What staff may send. Given a clinic with WhatsApp off, only the
@@ -209,13 +232,98 @@ class WhatsAppMessagingService
     }
 
     /**
-     * The reminder sent shortly before the appointment. Same guarantees as the
-     * confirmation; deciding which bookings are due, and that none gets two,
-     * is the command's job.
+     * The reminder sent shortly before the appointment — develop's own send,
+     * unchanged, with its tracking button. Same guarantees as the rest of the
+     * per-booking messages; deciding which bookings are due, and that none
+     * gets two, is the command's job.
      */
     public function sendReminder(Clinic $clinic, Booking $booking): ?OutboundMessage
     {
         return $this->sendForBookingUsing($clinic, $booking, self::REMINDER_KEY);
+    }
+
+    /**
+     * The reminder sent on the visit day at the clinic's configured time, with
+     * the Confirm/Cancel buttons. Same guarantees; which bookings are due is
+     * the command's job.
+     */
+    public function sendDailyReminder(Clinic $clinic, Booking $booking): ?OutboundMessage
+    {
+        return $this->sendForBookingUsing($clinic, $booking, self::DAILY_REMINDER_KEY);
+    }
+
+    /**
+     * The free text after the patient taps a reminder button. Not a template:
+     * the tap opened WhatsApp's 24-hour session window, so free text is
+     * allowed and carries no template cost.
+     */
+    public function sendReminderFollowUp(Clinic $clinic, Booking $booking, PatientResponse $response): ?OutboundMessage
+    {
+        $key = $response === PatientResponse::CONFIRMED
+            ? self::REMINDER_CONFIRMED_KEY
+            : self::REMINDER_CANCELLED_KEY;
+
+        $body = $response === PatientResponse::CONFIRMED
+            ? __('messages.reminder_follow_up.confirmed', ['link' => $booking->trackingUrl()])
+            : __('messages.reminder_follow_up.cancelled', ['phone' => $this->clinicPhone($clinic)]);
+
+        return $this->queueText($clinic, $booking, $key, $body);
+    }
+
+    /**
+     * The free text after Cancel was tapped too close to the visit, by the
+     * clinic's cutoff. Nothing was cancelled; the patient is told to call.
+     */
+    public function sendReminderCancelRefused(Clinic $clinic, Booking $booking): ?OutboundMessage
+    {
+        return $this->queueText($clinic, $booking, self::REMINDER_CANCEL_REFUSED_KEY, __(
+            'messages.reminder_follow_up.cancel_refused',
+            [
+                'minutes' => __('messages.minutes', ['count' => $clinic->whatsAppCancelCutoffMinutes()]),
+                'phone' => $this->clinicPhone($clinic),
+            ],
+        ));
+    }
+
+    private function queueText(Clinic $clinic, Booking $booking, string $key, string $body): ?OutboundMessage
+    {
+        if (! $clinic->sendsWhatsApp()) {
+            return null;
+        }
+
+        $patient = $booking->patient;
+
+        if ($patient === null) {
+            return null;
+        }
+
+        $message = OutboundMessage::create([
+            'clinic_id' => $clinic->id,
+            'patient_id' => $patient->id,
+            'booking_id' => $booking->id,
+            'template_key' => $key,
+            'type' => 'text',
+            'rendered_body' => $body,
+            'variables' => [],
+            'status' => 'queued',
+        ]);
+
+        SendWhatsAppMessage::dispatch($message->id);
+
+        return $message;
+    }
+
+    /**
+     * The number printed in the cancellation follow-up — normalised the same
+     * way as the number in the approved templates.
+     */
+    private function clinicPhone(Clinic $clinic): string
+    {
+        $phone = $clinic->phone === null
+            ? null
+            : PhoneNumber::tryParse($clinic->phone, $clinic->country_code)?->e164;
+
+        return $phone ?? $clinic->phone ?? __('messages.fallback.phone');
     }
 
     /**
@@ -321,6 +429,7 @@ class WhatsAppMessagingService
             'patient_id' => $patient->id,
             'booking_id' => $booking->id,
             'template_key' => $template->key,
+            'type' => 'template',
             'rendered_body' => $this->render($template, $payload->body),
             'variables' => $payload->body,
             'button_suffix' => $payload->buttonSuffix,

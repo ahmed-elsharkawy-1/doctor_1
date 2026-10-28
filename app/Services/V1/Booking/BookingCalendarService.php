@@ -26,7 +26,7 @@ class BookingCalendarService
         $to = $this->clinicDate($clinic, $to);
 
         $bookings = $clinic->bookings()
-            ->with(['patient', 'visitType'])
+            ->with(['patient', 'visitType', 'reminders'])
             ->whereBetween('visit_date', [$from->toDateString(), $to->toDateString()])
             ->orderBy('visit_date')
             ->orderBy('start_at')

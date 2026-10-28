@@ -102,6 +102,7 @@ class CloudApiMessageSenderTest extends TestCase
             WhatsAppMessagingService::CONFIRMATION_KEY => $messaging->sendConfirmation($this->clinic, $booking),
             WhatsAppMessagingService::VISIT_COMPLETED_KEY => $messaging->sendVisitCompleted($this->clinic, $booking),
             WhatsAppMessagingService::REMINDER_KEY => $messaging->sendReminder($this->clinic, $booking),
+            WhatsAppMessagingService::DAILY_REMINDER_KEY => $messaging->sendDailyReminder($this->clinic, $booking),
             default => $messaging->sendForBooking($this->clinic, $booking->id, $templateKey),
         };
 
@@ -191,11 +192,12 @@ class CloudApiMessageSenderTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
-    | The reminder — 5 body params and a URL button
+    | The reminders — the hourly one has the link button, the day's has
+    | Confirm/Cancel instead
     |--------------------------------------------------------------------------
     */
 
-    public function test_the_reminder_is_posted_in_the_approved_shape(): void
+    public function test_the_hourly_reminder_is_posted_in_develops_shape(): void
     {
         Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'wamid.REMIND']]])]);
 
@@ -209,14 +211,64 @@ class CloudApiMessageSenderTest extends TestCase
 
             [$bodyComponent, $buttonComponent] = $template['components'];
 
-            // Five: the arrival lead is fixed text in the approved template.
+            $this->assertSame('body', $bodyComponent['type']);
             $this->assertCount(5, $bodyComponent['parameters']);
             $this->assertSame('سارة أحمد', $bodyComponent['parameters'][0]['text']);
-            $this->assertSame($this->clinic->address, $bodyComponent['parameters'][4]['text']);
+            $this->assertSame('12 شارع مصدق، الدقي', $bodyComponent['parameters'][4]['text']);
+
+            // Develop's tracking button, unchanged.
+            $this->assertSame('button', $buttonComponent['type']);
+            $this->assertSame('url', $buttonComponent['sub_type']);
             $this->assertStringStartsWith('booking/', $buttonComponent['parameters'][0]['text']);
 
             return true;
         });
+    }
+
+    public function test_the_daily_reminder_is_posted_in_the_approved_shape(): void
+    {
+        Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'wamid.REMIND']]])]);
+
+        app(CloudApiMessageSender::class)->send($this->queueMessage(WhatsAppMessagingService::DAILY_REMINDER_KEY));
+
+        Http::assertSent(function ($request) {
+            $template = $request->data()['template'];
+
+            $this->assertSame('appointment_reminder_today', $template['name']);
+            $this->assertSame('ar', $template['language']['code']);
+
+            // No link and no URL button: the only actions are Confirm/Cancel.
+            $this->assertCount(1, $template['components']);
+            $this->assertSame('body', $template['components'][0]['type']);
+
+            $parameters = $template['components'][0]['parameters'];
+
+            $this->assertCount(5, $parameters);
+            $this->assertSame('سارة أحمد', $parameters[0]['text']);
+            $this->assertSame('12 شارع مصدق، الدقي', $parameters[4]['text']);
+
+            return true;
+        });
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Free text inside the 24-hour session
+    |--------------------------------------------------------------------------
+    */
+
+    public function test_a_free_text_follow_up_is_posted_as_text_not_a_template(): void
+    {
+        Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'wamid.TEXT']]])]);
+
+        $id = (new CloudApiMessageSender)->sendText('+20 101 234 5678', 'تم تأكيد حضورك');
+
+        $this->assertSame('wamid.TEXT', $id);
+
+        Http::assertSent(fn ($request): bool => $request['to'] === '201012345678'
+            && $request['type'] === 'text'
+            && $request['text']['body'] === 'تم تأكيد حضورك'
+            && ! isset($request['template']));
     }
 
     /*

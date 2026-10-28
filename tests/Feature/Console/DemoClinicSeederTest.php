@@ -13,6 +13,7 @@ use Database\Seeders\DemoClinicSeeder;
 use Database\Seeders\SpecialtySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use RuntimeException;
 use Tests\TestCase;
@@ -122,6 +123,13 @@ class DemoClinicSeederTest extends TestCase
     /** Re-running refreshes the test clinic — and only the test clinic. */
     public function test_running_it_again_refreshes_only_the_test_clinic(): void
     {
+        // The queue for "today" is built from the real clock, so the two runs
+        // have to stand on the same minute for their counts to compare — and
+        // the cache is flushed around both, so availability left over from
+        // earlier tests (or from the first run) cannot tilt either of them.
+        Carbon::setTestNow(Carbon::parse('2026-10-05 09:00', 'Africa/Cairo')); // a Monday
+        Cache::flush();
+
         $this->seed(SpecialtySeeder::class);
         $real = Clinic::factory()->create(['slug' => 'real-clinic']);
         Booking::factory()->forClinic($real)->create();
@@ -129,10 +137,13 @@ class DemoClinicSeederTest extends TestCase
         $this->seed(DemoClinicSeeder::class);
         $first = Clinic::where('slug', TestClinic::SLUG)->sole()->bookings()->count();
 
+        Cache::flush();
         $this->seed(DemoClinicSeeder::class);
 
         $this->assertSame(1, Clinic::where('is_test', true)->count());
         $this->assertSame($first, Clinic::where('slug', TestClinic::SLUG)->sole()->bookings()->count());
         $this->assertSame(1, $real->bookings()->count());
+
+        Carbon::setTestNow();
     }
 }

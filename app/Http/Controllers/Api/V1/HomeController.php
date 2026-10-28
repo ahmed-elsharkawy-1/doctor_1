@@ -38,7 +38,7 @@ class HomeController extends V1Controller
          * moment it starts needing attention.
          */
         $upcoming = $clinic->bookings()
-            ->with(['patient', 'visitType'])
+            ->with(['patient', 'visitType', 'reminders'])
             ->onDate($today->toDateString())
             ->whereIn('status', BookingStatus::inQueue())
             ->get()

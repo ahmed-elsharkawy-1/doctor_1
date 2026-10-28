@@ -12,10 +12,12 @@ class OutboundMessage extends Model
         'patient_id',
         'booking_id',
         'template_key',
+        'type',
         'rendered_body',
         'variables',
         'button_suffix',
         'status',
+        'attempts',
         'provider_message_id',
         'error',
         'sent_at',
@@ -27,6 +29,7 @@ class OutboundMessage extends Model
     {
         return [
             'variables' => 'array',
+            'attempts' => 'integer',
             'sent_at' => 'datetime',
             'delivered_at' => 'datetime',
             'read_at' => 'datetime',

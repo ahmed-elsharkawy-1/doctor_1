@@ -5,10 +5,13 @@ namespace Tests\Feature\Web;
 use App\Enums\BookingSource;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
+use App\Enums\PatientResponse;
 use App\Enums\UserRole;
 use App\Livewire\App\Queue;
 use App\Models\Booking;
+use App\Models\OutboundMessage;
 use App\Models\User;
+use App\Services\V1\Messaging\WhatsAppMessagingService;
 use App\Services\V1\Queue\QueuePositionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -324,5 +327,71 @@ class ClinicAppQueueTest extends TestCase
             ->assertSee(BookingSource::PATIENT_WEB->label());
 
         $this->assertSame(BookingStatus::ARRIVED, $booking->fresh()->status);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | The reminder and the patient's answer
+    |--------------------------------------------------------------------------
+    */
+
+    public function test_the_card_shows_the_reminder_status_and_patient_response(): void
+    {
+        $booking = $this->booking('09:40');
+
+        OutboundMessage::create([
+            'clinic_id' => $this->clinic->id,
+            'patient_id' => $booking->patient_id,
+            'booking_id' => $booking->id,
+            'template_key' => WhatsAppMessagingService::DAILY_REMINDER_KEY,
+            'type' => 'template',
+            'rendered_body' => 'reminder',
+            'status' => 'sent',
+            'provider_message_id' => 'wamid.REMINDER',
+        ]);
+
+        $booking->update(['patient_response' => PatientResponse::CONFIRMED]);
+
+        // One pill per reminder: the visit-day one was sent, the hourly one
+        // has not gone out yet.
+        Livewire::actingAs($this->owner)
+            ->test(Queue::class)
+            ->assertSee(__('app.queue.reminder.hourly_label'))
+            ->assertSee(__('app.queue.reminder.daily_label'))
+            ->assertSee(__('app.queue.reminder.sent'))
+            ->assertSee(PatientResponse::CONFIRMED->label());
+    }
+
+    public function test_a_failed_reminder_is_visible_on_the_card(): void
+    {
+        $booking = $this->booking('09:40');
+
+        OutboundMessage::create([
+            'clinic_id' => $this->clinic->id,
+            'patient_id' => $booking->patient_id,
+            'booking_id' => $booking->id,
+            'template_key' => WhatsAppMessagingService::DAILY_REMINDER_KEY,
+            'type' => 'template',
+            'rendered_body' => 'reminder',
+            'status' => 'failed',
+            'error' => 'Invalid number',
+        ]);
+
+        Livewire::actingAs($this->owner)
+            ->test(Queue::class)
+            ->assertSee(__('app.queue.reminder.failed'));
+    }
+
+    public function test_a_whatsapp_reply_updates_the_card_without_a_manual_refresh(): void
+    {
+        $booking = $this->booking('09:40');
+
+        Livewire::actingAs($this->owner)
+            ->test(Queue::class)
+            ->assertSee(__('app.queue.reminder.not_sent'))
+            // The broadcast listener the page binds is what dispatches this.
+            ->dispatch('reminder-responded', name: 'سارة', response: 'cancelled')
+            ->assertSee(__('app.queue.reminder_cancelled', ['name' => 'سارة']))
+            ->assertSet('failed', false);
     }
 }

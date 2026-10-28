@@ -35,8 +35,8 @@ already categorised UTILITY, with the verification template alongside.
 > `appointment_rating_v3` (ar, 1 param — the patient's name — review button).
 > The app sends these from the release that adds the reminder. Two more UTILITY
 > templates were approved alongside: `appointment_delayed` (emergency delay,
-> 5 params) and `appointment_reminder` (an hour before the visit, 5 params,
-> "30 دقيقة" fixed in the text). The record of the problem is kept below.
+> 5 params) and `appointment_reminder` (before the visit — slot length × queue
+> position — 5 params, "30 دقيقة" fixed in the text). The record of the problem is kept below.
 
 Meta caps how many marketing messages one person receives and **withholds the
 excess silently** — the API returns success with a valid message ID, and the

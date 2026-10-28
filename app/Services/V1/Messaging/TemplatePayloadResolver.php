@@ -17,11 +17,12 @@ use App\Support\PhoneNumber;
  * message might need", which is what this replaced.
  *
  * The counts below are the approved ones, read back from the Graph API
- * (2026-10-24):
+ * (2026-10-24), plus the visit-day reminder as submitted that day:
  *
  *   appointment_booking_confirmation_v3  ar   6 body params, URL button
  *   appointment_rating_v3                ar   1 body param, URL button
  *   appointment_reminder                 ar   5 body params, URL button
+ *   appointment_reminder_today           ar   5 body params, 2 quick replies
  *   appointment_delayed                  ar   5 body params, URL button
  *   booking_cancellation                 ar   4 body params, no button
  */
@@ -42,9 +43,16 @@ class TemplatePayloadResolver
                 buttonSuffix: $this->suffix('tracking', $booking),
             ),
 
-            // The confirmation's first five. The arrival lead is fixed text in
-            // the approved template ("30 دقيقة"), not a parameter — so a clinic
-            // that changes its own lead is not reflected here.
+            /*
+            | The pre-visit reminder — develop's own send, unchanged. The same
+            | five values, and the tracking button.
+            | {{1}} patient · {{2}} date · {{3}} time · {{4}} doctor
+            | {{5}} address. The arrival lead is fixed text in the approved
+            | template ("30 دقيقة"), not a parameter — so a clinic that
+            | changes its own lead is not reflected here. When it goes out is
+            | separate: the clinic's position × slot length, see
+            | SendBookingRemindersCommand.
+            */
             WhatsAppMessagingService::REMINDER_KEY => new TemplatePayload(
                 body: [
                     $this->patientName($booking),
@@ -54,6 +62,22 @@ class TemplatePayloadResolver
                     $this->address($clinic),
                 ],
                 buttonSuffix: $this->suffix('tracking', $booking),
+            ),
+
+            /*
+            | The visit-day reminder deliberately carries no link. Its only
+            | buttons are Confirm and Cancel, and the booking link follows
+            | after Confirm. The same five values as the hourly one; the
+            | arrival lead is fixed text in its template too.
+            */
+            WhatsAppMessagingService::DAILY_REMINDER_KEY => new TemplatePayload(
+                body: [
+                    $this->patientName($booking),
+                    $this->date($booking, $clinic),
+                    $this->time($booking, $clinic),
+                    $this->doctorName($clinic),
+                    $this->address($clinic),
+                ],
             ),
 
             WhatsAppMessagingService::VISIT_COMPLETED_KEY => new TemplatePayload(

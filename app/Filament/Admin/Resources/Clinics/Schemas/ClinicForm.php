@@ -10,6 +10,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -254,6 +255,39 @@ class ClinicForm
                         ->maxValue(60)
                         ->placeholder((string) config('clinic.tracking.delay.threshold_minutes'))
                         ->helperText(__('filament.clinic.tracking_delay_threshold_minutes_hint')),
+
+                    // The one reminder per booking goes out on the visit day
+                    // at this clinic-local time. It is a super-admin default;
+                    // the clinic may change it later from Settings → Timing.
+                    TimePicker::make('reminder_time')
+                        ->label(__('filament.clinic.reminder_time'))
+                        ->seconds(false)
+                        ->default($defaults['reminder_time'])
+                        ->helperText(__('filament.clinic.reminder_time_hint')),
+
+                    // The pre-visit reminder goes out this many slot lengths
+                    // before the visit: position × the booking's duration.
+                    // Editable by the clinic later from Settings → Timing.
+                    TextInput::make('reminder_position')
+                        ->label(__('filament.clinic.reminder_position'))
+                        ->numeric()
+                        ->minValue(1)
+                        ->maxValue(50)
+                        ->required()
+                        ->default($defaults['reminder_position'])
+                        ->helperText(__('filament.clinic.reminder_position_hint')),
+
+                    // Same options as Settings → Timing, so a value set here
+                    // is always one the clinic's own screen can show.
+                    Select::make('whatsapp_cancel_cutoff_minutes')
+                        ->label(__('filament.clinic.whatsapp_cancel_cutoff_minutes'))
+                        ->options(collect(config('clinic.settings.whatsapp_cancel_cutoff_minute_options'))
+                            ->mapWithKeys(fn (int $minutes): array => [$minutes => $minutes === 0
+                                ? __('filament.clinic.whatsapp_cancel_cutoff_none')
+                                : __('messages.minutes', ['count' => $minutes])]))
+                        ->required()
+                        ->default($defaults['whatsapp_cancel_cutoff_minutes'])
+                        ->helperText(__('filament.clinic.whatsapp_cancel_cutoff_minutes_hint')),
                 ])
                 ->columns(2),
         ]);

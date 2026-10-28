@@ -55,6 +55,18 @@ return [
         // duration. A number overrides that with fixed rolling starts.
         'slot_step_minutes' => null,
         'patient_arrival_lead_minutes' => 30,
+        // One reminder per booking, on the visit day, at this clinic-local
+        // time. Editable by the clinic in Settings → Timing.
+        'reminder_time' => env('CLINIC_REMINDER_TIME', '11:00'),
+        // How many slot lengths before the visit the pre-visit reminder goes
+        // out: position × the booking's own duration. At 3 with 30-minute
+        // visits that is 90 minutes ahead. Editable by the clinic in
+        // Settings → Timing.
+        'reminder_position' => (int) env('CLINIC_REMINDER_POSITION', 3),
+        // Inside this many minutes of the visit, the reminder's Cancel button
+        // is refused and the patient is told to call. Gives the clinic time
+        // to fill the slot. 0 means Cancel works until the visit starts.
+        'whatsapp_cancel_cutoff_minutes' => (int) env('CLINIC_WHATSAPP_CANCEL_CUTOFF_MINUTES', 60),
     ],
 
     /*
@@ -62,12 +74,11 @@ return [
     */
     'settings' => [
         'patient_arrival_lead_minute_options' => [15, 20, 30, 45, 60],
+        'whatsapp_cancel_cutoff_minute_options' => [0, 30, 60, 90, 120, 180, 240],
     ],
 
     'messaging' => [
         'driver' => env('CLINIC_MESSAGING_DRIVER', 'log'),
-        // How long before the appointment the WhatsApp reminder goes out.
-        'reminder_lead_minutes' => (int) env('CLINIC_REMINDER_LEAD_MINUTES', 60),
     ],
 
     /*

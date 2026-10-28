@@ -22,12 +22,14 @@ class CloudApiMessageSender implements MessageSender
 {
     public function send(OutboundMessage $message): void
     {
-        $id = $this->post(
-            $this->recipient($message),
-            $this->template($message),
-            $message->variables ?? [],
-            $message->button_suffix,
-        );
+        $id = $message->type === 'text'
+            ? $this->postText($this->recipient($message), (string) $message->rendered_body)
+            : $this->post(
+                $this->recipient($message),
+                $this->template($message),
+                $message->variables ?? [],
+                $message->button_suffix,
+            );
 
         $message->update([
             'status' => 'sent',
@@ -35,6 +37,17 @@ class CloudApiMessageSender implements MessageSender
             'sent_at' => now(),
             'error' => null,
         ]);
+    }
+
+    public function sendText(string $to, string $body): ?string
+    {
+        $digits = preg_replace('/[^0-9]/', '', $to) ?? '';
+
+        if ($digits === '') {
+            throw new RuntimeException('There is no phone number to send this message to.');
+        }
+
+        return $this->postText($digits, $body);
     }
 
     public function sendTemplate(string $to, MessageTemplate $template, array $variables, ?string $buttonSuffix): ?string
@@ -55,6 +68,37 @@ class CloudApiMessageSender implements MessageSender
      */
     private function post(string $to, MessageTemplate $template, array $variables, ?string $buttonSuffix): ?string
     {
+        return $this->postPayload([
+            'messaging_product' => 'whatsapp',
+            'to' => $to,
+            'type' => 'template',
+            'template' => array_filter([
+                'name' => $template->provider_template_name ?: $template->key,
+                'language' => ['code' => $template->language_code ?: 'ar'],
+                'components' => $this->components($variables, $buttonSuffix),
+            ]),
+        ]);
+    }
+
+    /**
+     * A free-text message inside an open session.
+     */
+    private function postText(string $to, string $body): ?string
+    {
+        return $this->postPayload([
+            'messaging_product' => 'whatsapp',
+            'recipient_type' => 'individual',
+            'to' => $to,
+            'type' => 'text',
+            'text' => ['preview_url' => true, 'body' => $body],
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function postPayload(array $payload): ?string
+    {
         $token = (string) config('services.whatsapp.token');
         $phoneNumberId = (string) config('services.whatsapp.phone_number_id');
 
@@ -68,16 +112,7 @@ class CloudApiMessageSender implements MessageSender
         $response = Http::withToken($token)
             ->acceptJson()
             ->timeout((int) config('services.whatsapp.timeout', 15))
-            ->post($this->endpoint($phoneNumberId), [
-                'messaging_product' => 'whatsapp',
-                'to' => $to,
-                'type' => 'template',
-                'template' => array_filter([
-                    'name' => $template->provider_template_name ?: $template->key,
-                    'language' => ['code' => $template->language_code ?: 'ar'],
-                    'components' => $this->components($variables, $buttonSuffix),
-                ]),
-            ]);
+            ->post($this->endpoint($phoneNumberId), $payload);
 
         if ($response->failed()) {
             // Meta's own words are far more useful than a status code — an

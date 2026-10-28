@@ -6,8 +6,11 @@ use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
 use App\Enums\DayOfWeek;
 use App\Enums\PatientLocation;
+use App\Enums\PatientResponse;
 use App\Models\Booking;
+use App\Models\OutboundMessage;
 use App\Models\Patient;
+use App\Services\V1\Messaging\WhatsAppMessagingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
@@ -115,6 +118,50 @@ class QueueOrderingTest extends TestCase
         $this->assertSame('arrived', $card['next_status']['value']);
         $this->assertSame(['call', 'whatsapp', 'edit', 'no_show', 'cancel'], $card['available_actions']);
         $this->assertArrayNotHasKey('queue_position', $card);
+    }
+
+    public function test_a_card_reports_the_reminder_and_the_patients_answer(): void
+    {
+        $booking = $this->booking('09:00', 'سارة');
+
+        foreach ([
+            [WhatsAppMessagingService::REMINDER_KEY, 'sent'],
+            [WhatsAppMessagingService::DAILY_REMINDER_KEY, 'delivered'],
+        ] as [$templateKey, $status]) {
+            OutboundMessage::create([
+                'clinic_id' => $this->clinic->id,
+                'patient_id' => $booking->patient_id,
+                'booking_id' => $booking->id,
+                'template_key' => $templateKey,
+                'type' => 'template',
+                'rendered_body' => 'reminder',
+                'status' => $status,
+                'provider_message_id' => 'wamid.REMINDER',
+            ]);
+        }
+
+        $booking->update(['patient_response' => PatientResponse::CONFIRMED]);
+
+        $card = collect($this->calendar()['bookings']['2026-08-08'])->firstWhere('id', $booking->id);
+
+        // Each reminder is reported on its own.
+        $this->assertSame('sent', $card['reminder_status']['value']);
+        $this->assertSame(__('app.queue.reminder.sent'), $card['reminder_status']['display']);
+        $this->assertSame('sent', $card['daily_reminder_status']['value']);
+        $this->assertSame(__('app.queue.reminder.sent'), $card['daily_reminder_status']['display']);
+        $this->assertSame('confirmed', $card['patient_response']['value']);
+        $this->assertSame(__('booking.patient_response.confirmed'), $card['patient_response']['display']);
+    }
+
+    public function test_a_card_without_a_reminder_says_not_sent(): void
+    {
+        $booking = $this->booking('09:00', 'سارة');
+
+        $card = collect($this->calendar()['bookings']['2026-08-08'])->firstWhere('id', $booking->id);
+
+        $this->assertSame('not_sent', $card['reminder_status']['value']);
+        $this->assertSame('not_sent', $card['daily_reminder_status']['value']);
+        $this->assertNull($card['patient_response']);
     }
 
     public function test_with_doctor_cards_can_be_cancelled_but_not_marked_no_show(): void
