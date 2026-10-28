@@ -302,14 +302,27 @@ return [
         'legacy_paths' => ['b'],
         // Bytes of randomness; the stored token is twice this in hex.
         'token_bytes' => 16,
-        // How often the waiting page re-reads its position.
-        'refresh_seconds' => (int) env('CLINIC_TRACKING_REFRESH_SECONDS', 30),
+        // How often the waiting page reloads to re-read its position. A full
+        // reload, so not too often: every 30 seconds read as a page that
+        // would not sit still. Two minutes is fresh enough for a clinic wait.
+        'refresh_seconds' => (int) env('CLINIC_TRACKING_REFRESH_SECONDS', 120),
 
         // The waiting page's time box. Off: the time the patient booked
         // ("موعد حجزك"). On: the estimate of when they go in, from the
         // visits still ahead — being refined on staging, so off by default
         // and switched on per environment once it is ready.
         'show_estimate' => (bool) env('CLINIC_TRACKING_SHOW_ESTIMATE', false),
+
+        // The delay notice at the top of the waiting page, when the estimate
+        // is on. Shown delay = (estimate − appointment) − reduction, rounded
+        // to `round_to`; the notice appears only when that is more than the
+        // threshold. Reduction and threshold are per-clinic overrides (null
+        // there means these).
+        'delay' => [
+            'reduction_minutes' => 30,
+            'threshold_minutes' => 15,
+            'round_to' => 5,
+        ],
     ],
 
     /*

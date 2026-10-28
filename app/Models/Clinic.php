@@ -35,6 +35,8 @@ class Clinic extends Model
         'first_visit_only_days',
         'slot_step_minutes',
         'patient_arrival_lead_minutes',
+        'tracking_delay_reduction_minutes',
+        'tracking_delay_threshold_minutes',
         'reminder_time',
         'reminder_position',
         'whatsapp_cancel_cutoff_minutes',
@@ -85,9 +87,28 @@ class Clinic extends Model
             'first_visit_only_days' => 'integer',
             'slot_step_minutes' => 'integer',
             'patient_arrival_lead_minutes' => 'integer',
+            'tracking_delay_reduction_minutes' => 'integer',
+            'tracking_delay_threshold_minutes' => 'integer',
             'reminder_position' => 'integer',
             'whatsapp_cancel_cutoff_minutes' => 'integer',
         ];
+    }
+
+    /**
+     * Minutes taken off the estimated lateness before the tracking page shows
+     * it. The column is this clinic's override, the config the default.
+     */
+    public function trackingDelayReductionMinutes(): int
+    {
+        return $this->tracking_delay_reduction_minutes
+            ?? (int) config('clinic.tracking.delay.reduction_minutes');
+    }
+
+    /** A shown delay must be more than this for the notice to appear at all. */
+    public function trackingDelayThresholdMinutes(): int
+    {
+        return $this->tracking_delay_threshold_minutes
+            ?? (int) config('clinic.tracking.delay.threshold_minutes');
     }
 
     /**

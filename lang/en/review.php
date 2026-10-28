@@ -16,15 +16,15 @@ return [
     'submit' => 'Send feedback',
 
     'rating' => [
-        'very_good' => 'Very good',
-        'good' => 'Good',
+        'very_good' => 'Very satisfied',
+        'good' => 'Satisfied',
         'bad' => 'I have some notes',
     ],
 
     // As the clinic reads them on its reviews screen.
     'staff_rating' => [
-        'very_good' => 'Very good',
-        'good' => 'Good',
+        'very_good' => 'Very satisfied',
+        'good' => 'Satisfied',
         'bad' => 'Some notes',
     ],
     'list_loaded' => 'Reviews loaded',

@@ -223,9 +223,12 @@ class BookingTrackingPageTest extends TestCase
     {
         config(['clinic.tracking.show_estimate' => true]);
 
+        // Ten minutes late — under the delay notice's threshold, so the
+        // estimate box shows (a longer delay shows TrackingDelayNoticeTest's
+        // notice in its place).
         $this->booking('09:00');
         $this->booking('09:20');
-        $mine = $this->booking('09:40');
+        $mine = $this->booking('10:30');
 
         $this->get($mine->trackingUrl())
             ->assertOk()
@@ -309,7 +312,9 @@ class BookingTrackingPageTest extends TestCase
 
         $this->get($mine->trackingUrl())
             ->assertOk()
-            ->assertSee('http-equiv="refresh"', escape: false);
+            ->assertSee('http-equiv="refresh"', escape: false)
+            // Every two minutes: a full reload every 30 seconds felt restless.
+            ->assertSee('content="120"', escape: false);
     }
 
     public function test_a_finished_page_does_not_refresh_itself(): void
@@ -354,7 +359,8 @@ class BookingTrackingPageTest extends TestCase
 
         $html = $this->get($this->booking()->trackingUrl())->assertOk()->getContent();
 
-        preg_match('#<section class="dcard">.*?</section>#s', $html, $card);
+        // The slim card on this page: one row, photo beside the name.
+        preg_match('#<section class="dcard is-slim">.*?</section>#s', $html, $card);
         $this->assertNotEmpty($card, 'The page has no doctor card.');
 
         // The same card as the doctor page, without its working-days and

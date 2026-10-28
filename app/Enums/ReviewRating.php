@@ -21,7 +21,8 @@ enum ReviewRating: string
 
     /**
      * The same rating as the clinic reads it: "بعض الملاحظات" rather than the
-     * patient's own "يوجد بعض الملاحظات".
+     * patient's own "عندي بعض الملاحظات". Only the wording changes —
+     * the stored values (very_good, good, bad) never do.
      */
     public function staffLabel(): string
     {

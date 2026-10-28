@@ -1365,11 +1365,15 @@ paths:
 
         - `summary` is the card at the top: **every** review the clinic has,
           never narrowed by `rating` or the page, so it does not change when a
-          chip is tapped. `satisfied_percent` is (very good + good) ÷ total,
+          chip is tapped. `satisfied_percent` is (very_good + good) ÷ total,
           rounded; null while there are no reviews yet.
         - `items` is one page of the list, newest first, narrowed by `rating`.
           Reviews without a comment are included (`comment: null`).
-        - `meta.total` is the count under the current filter ("جيد · 28 تقييم").
+        - `meta.total` is the count under the current filter ("راضي · 28 تقييم").
+
+        Ratings are filtered and returned by their fixed `value`
+        (`very_good`, `good`, `bad`); show the `display` text, which is
+        "راضي جدًا", "راضي" and "بعض الملاحظات".
 
         Each item carries everything the details sheet shows — the whole
         comment (shorten it on screen for the list), the visit, and the
@@ -2325,7 +2329,7 @@ components:
         satisfied_percent:
           type: [integer, "null"]
           example: 97
-          description: (very good + good) ÷ total, rounded. Null with no reviews.
+          description: (very_good + good) ÷ total, rounded. Null with no reviews.
         ratings:
           type: array
           description: Always all three, best first.

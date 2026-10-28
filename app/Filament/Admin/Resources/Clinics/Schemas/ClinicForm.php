@@ -235,6 +235,27 @@ class ClinicForm
                         ->placeholder(__('filament.clinic.slot_step_minutes_auto'))
                         ->helperText(__('filament.clinic.slot_step_minutes_hint')),
 
+                    // The delay notice on the patient's tracking page (only
+                    // while the estimate is switched on). Left empty, each
+                    // follows the platform default shown as its placeholder.
+                    // At most an hour: the expected time can fall behind "now"
+                    // by up to the reduction, and a typo must not make it hours.
+                    TextInput::make('tracking_delay_reduction_minutes')
+                        ->label(__('filament.clinic.tracking_delay_reduction_minutes'))
+                        ->numeric()
+                        ->minValue(0)
+                        ->maxValue(60)
+                        ->placeholder((string) config('clinic.tracking.delay.reduction_minutes'))
+                        ->helperText(__('filament.clinic.tracking_delay_reduction_minutes_hint')),
+
+                    TextInput::make('tracking_delay_threshold_minutes')
+                        ->label(__('filament.clinic.tracking_delay_threshold_minutes'))
+                        ->numeric()
+                        ->minValue(0)
+                        ->maxValue(60)
+                        ->placeholder((string) config('clinic.tracking.delay.threshold_minutes'))
+                        ->helperText(__('filament.clinic.tracking_delay_threshold_minutes_hint')),
+
                     // The one reminder per booking goes out on the visit day
                     // at this clinic-local time. It is a super-admin default;
                     // the clinic may change it later from Settings → Timing.
