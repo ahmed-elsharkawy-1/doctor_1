@@ -106,6 +106,7 @@ return [
         'whatsapp' => 'WhatsApp',
         'whatsapp_greeting' => 'Hello, about my booking at :clinic — patient code #:code',
         'call_clinic' => 'Call the clinic',
+        'book_again' => 'Book a new appointment',
         'patient_code' => 'Patient code',
         'appointment' => 'Appointment',
         'your_turn' => "It's your turn",

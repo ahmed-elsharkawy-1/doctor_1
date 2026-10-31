@@ -542,6 +542,12 @@
         </div>
     @endif
 
+    {{-- Once the booking is over — seen, cancelled or missed — the way back
+         to the doctor. Not before: that patient already has an appointment. --}}
+    @if ($status->isTerminal())
+        @include('partials.book-again', ['link' => $bookAgainLink])
+    @endif
+
     {{-- The booking itself --}}
     <section class="card rows">
         <div class="row">

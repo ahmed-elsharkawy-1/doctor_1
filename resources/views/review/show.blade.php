@@ -137,6 +137,9 @@
 
         .btn:hover { filter: brightness(.95); }
 
+        /* Air between the send button and the book-again link under it. */
+        form { margin-bottom: 12px; }
+
         .err {
             background: #FBECEA;
             color: #8E2F23;
@@ -302,6 +305,12 @@
                 radio.addEventListener('change', () => follow(radio.value));
             });
         </script>
+    @endif
+
+    {{-- Once the visit is over, either way: the way back to the doctor. Not
+         while it is still ahead — that patient already has an appointment. --}}
+    @if ($review !== null || $reviewable || $unavailable)
+        @include('partials.book-again', ['link' => $bookAgainLink])
     @endif
 
 </div>

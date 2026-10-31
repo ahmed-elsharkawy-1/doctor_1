@@ -521,4 +521,35 @@ class BookingTrackingPageTest extends TestCase
     {
         $this->assertArrayNotHasKey('tracking_token', $this->booking()->toArray());
     }
+
+    public function test_a_booking_still_ahead_offers_no_second_booking(): void
+    {
+        $this->clinic->update(['slug' => 'dr-sara']);
+        $this->get($this->booking()->trackingUrl())
+            ->assertOk()
+            ->assertDontSee(__('booking.tracking.book_again'));
+    }
+
+    public function test_a_finished_booking_links_back_to_the_doctor_page(): void
+    {
+        $this->clinic->update(['slug' => 'dr-sara']);
+        $booking = $this->booking();
+        $booking->update(['status' => BookingStatus::DONE, 'completed_at' => now()]);
+
+        $this->get($booking->trackingUrl())
+            ->assertOk()
+            ->assertSee(__('booking.tracking.book_again'))
+            ->assertSee('href="'.route('landing', $this->clinic->slug).'"', false);
+    }
+
+    public function test_a_cancelled_booking_links_to_the_booking_page_when_the_clinic_takes_online_bookings(): void
+    {
+        $this->clinic->update(['slug' => 'dr-sara', 'self_booking_enabled' => true]);
+        $booking = $this->booking();
+        $booking->update(['status' => BookingStatus::CANCELLED]);
+
+        $this->get($booking->trackingUrl())
+            ->assertOk()
+            ->assertSee('href="'.route('patient.book', $this->clinic->slug).'"', false);
+    }
 }
