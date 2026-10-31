@@ -691,7 +691,7 @@ defaults to 10, at most 20. Matches come first in line first.
 ```json
 {
   "date": "2026-09-03",
-  "total": 16,
+  "total": 17,
   "items": [
     {
       "booking": { "id": 88, "patient": { "name": "سارة أحمد" }, "...": "the usual queue card" },
@@ -701,6 +701,7 @@ defaults to 10, at most 20. Matches come first in line first.
       "ahead_emergency": 1,
       "behind": 5,
       "with_doctor": 1,
+      "total": 16,
       "expected_at": { "value": "13:40", "display": "1:40 م" },
       "is_next": false
     }
@@ -709,11 +710,13 @@ defaults to 10, at most 20. Matches come first in line first.
 ```
 
 The numbers are the patient tracking page's own, so the two never disagree:
-emergencies count as ahead; a normal patient booked later never does, even
-after arriving early. The patient already with the doctor is **not** in
+emergencies count as ahead once they are in the clinic; a normal patient
+booked later never does, even after arriving early. The patient already with the doctor is **not** in
 `ahead` — they are `with_doctor` — but the rest of their visit is in
 `expected_at`, and `is_next` stays false until the room is free.
-`with_doctor + place + behind` is always `total`. Finished, cancelled and no-show visits are never returned.
+Each match's `with_doctor + place + behind` is its own `total` — the line that
+patient waits in. The top-level `total` is everyone in today's queue, so it is
+larger by any emergency not yet in the clinic. Finished, cancelled and no-show visits are never returned.
 
 ---
 

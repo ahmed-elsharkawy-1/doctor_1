@@ -16,10 +16,13 @@ use Illuminate\Support\Carbon;
  * `aheadNormal` and `aheadEmergency` split `ahead` — they are what the page's
  * tiles show, so a patient reads about their own wait and never about the
  * clinic's whole day. `total`, `normal` and `emergency` cover the whole line
- * still to go in; they drive the ring's fill and are not shown as numbers.
+ * still to go in, plus whoever is in the room; they drive the ring's fill and
+ * are not shown as numbers. An emergency not yet in the clinic is in none of
+ * them.
  *
  * `doctorBusy`: someone else is with the doctor right now. The patient with
  * the doctor is not ahead of anyone, so nobody ahead is not yet "go in".
+ * `withDoctor` is how many — one, unless a visit was never marked done.
  */
 final class QueuePosition
 {
@@ -33,6 +36,7 @@ final class QueuePosition
         public readonly int $aheadNormal = 0,
         public readonly int $aheadEmergency = 0,
         public readonly bool $doctorBusy = false,
+        public readonly int $withDoctor = 0,
     ) {}
 
     /**
@@ -44,20 +48,12 @@ final class QueuePosition
     }
 
     /**
-     * Everyone else still in today's queue. Whoever is neither with the
-     * doctor nor ahead is behind, so the four add up to the day's total.
+     * Everyone else in the line. Whoever is neither with the doctor nor ahead
+     * is behind, so with-doctor, place and behind add up to `total`.
      */
     public function behind(): int
     {
-        return $this->total - ($this->doctorBusy ? 1 : 0) - $this->ahead - 1;
-    }
-
-    /**
-     * Somebody else is in the examination room right now.
-     */
-    public function doctorIsBusy(): bool
-    {
-        return $this->doctorBusy;
+        return $this->total - $this->withDoctor - $this->ahead - 1;
     }
 
     /**

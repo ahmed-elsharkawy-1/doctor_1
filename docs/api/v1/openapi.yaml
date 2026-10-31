@@ -1006,12 +1006,15 @@ paths:
         first in line first. Each match is the usual queue card plus where
         that patient stands. The numbers are the **patient's tracking page's
         own**, so what the secretary reads out is what the patient sees:
-        emergencies count as ahead; a normal patient booked later never does,
-        even after arriving early. Whoever is already with the doctor is not
+        emergencies count as ahead once they are in the clinic; a normal
+        patient booked later never does, even after arriving early. Whoever is already with the doctor is not
         ahead — they are `with_doctor` — though the rest of their visit is in
         `expected_at`.
 
-        `with_doctor + place + behind` always equals `total`.
+        Each match's `with_doctor + place + behind` equals its own `total`:
+        the line that patient waits in. The top-level `total` is everyone in
+        today's queue, so it is larger by any emergencies not yet in the
+        clinic, who are in nobody's line.
       operationId: searchQueue
       parameters:
         - name: q
@@ -1039,7 +1042,7 @@ paths:
                           date: { type: string, format: date }
                           total:
                             type: integer
-                            description: Everyone still in today's queue
+                            description: Everyone in today's queue, including emergencies not yet in the clinic
                           items:
                             type: array
                             items:
@@ -1051,7 +1054,8 @@ paths:
                                 ahead_normal: { type: integer, example: 8 }
                                 ahead_emergency: { type: integer, example: 1 }
                                 behind: { type: integer, example: 5 }
-                                with_doctor: { type: integer, example: 1, description: "Someone else in the room now (0 or 1; 0 when it is them)" }
+                                with_doctor: { type: integer, example: 1, description: "How many others are in the room now — normally 0 or 1; more only when a visit was never marked done" }
+                                total: { type: integer, example: 16, description: "The line this patient waits in: with_doctor + place + behind" }
                                 expected_at:
                                   description: Never earlier than their own appointment
                                   oneOf:

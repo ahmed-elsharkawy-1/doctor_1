@@ -193,7 +193,51 @@ class QueueSearchTest extends TestCase
         $this->assertSame(1, $item['with_doctor']);
         $this->assertSame(2, $item['place']);
         $this->assertSame(1, $item['behind']);
-        $this->assertSame($data['total'], $item['with_doctor'] + $item['place'] + $item['behind']);
+        $this->assertSame($item['total'], $item['with_doctor'] + $item['place'] + $item['behind']);
+    }
+
+    /**
+     * An emergency the secretary added but who is not in the clinic yet is in
+     * the day's queue, but nobody waits for them — so they are in nobody's
+     * count, ahead or behind.
+     */
+    public function test_an_emergency_on_the_way_is_in_nobodys_count(): void
+    {
+        $this->booking('10:20', 'أحمد علي');
+        $this->booking('11:00', 'سارة محمود');
+        Booking::factory()->forClinic($this->clinic)->create([
+            'booking_kind' => BookingKind::EMERGENCY,
+            'start_at' => null,
+            'end_at' => null,
+            'status' => BookingStatus::BOOKED,
+        ]);
+
+        $data = $this->search('سارة');
+        $item = $data['items'][0];
+
+        $this->assertSame(3, $data['total']);
+        $this->assertSame(2, $item['place']);
+        $this->assertSame(0, $item['behind']);
+        $this->assertSame(2, $item['total']);
+        $this->assertSame($item['total'], $item['with_doctor'] + $item['place'] + $item['behind']);
+    }
+
+    /**
+     * A visit nobody marked done while the next patient went in: both are in
+     * the room, and neither is behind anyone.
+     */
+    public function test_two_patients_left_with_the_doctor_are_both_in_the_room(): void
+    {
+        $this->booking('09:20', 'أحمد علي')->update(['status' => BookingStatus::WITH_DOCTOR, 'called_in_at' => now()]);
+        $this->booking('09:40', 'منى سعيد')->update(['status' => BookingStatus::WITH_DOCTOR, 'called_in_at' => now()]);
+        $this->booking('11:00', 'سارة محمود');
+
+        $item = $this->search('سارة')['items'][0];
+
+        $this->assertSame(2, $item['with_doctor']);
+        $this->assertSame(1, $item['place']);
+        $this->assertSame(0, $item['behind']);
+        $this->assertSame($item['total'], $item['with_doctor'] + $item['place'] + $item['behind']);
     }
 
     public function test_the_patient_with_the_doctor_is_found_and_is_their_turn(): void

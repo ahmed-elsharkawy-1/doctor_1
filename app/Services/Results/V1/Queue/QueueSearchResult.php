@@ -13,7 +13,10 @@ use Illuminate\Support\Collection;
 
 /**
  * Queue search: each match is the ordinary queue card plus where that
- * patient stands. `with_doctor + place + behind` is always `total`.
+ * patient stands. The top-level `total` is everyone in today's queue; each
+ * match's own `total` is the line that patient waits in, and
+ * `with_doctor + place + behind` is always that. They differ by the
+ * emergencies not yet in the clinic, who are in nobody's line.
  */
 final class QueueSearchResult extends ServiceResult
 {
@@ -53,7 +56,8 @@ final class QueueSearchResult extends ServiceResult
             'ahead_emergency' => $position->aheadEmergency,
             'behind' => $position->behind(),
             // Already in the room, so never part of `ahead`.
-            'with_doctor' => $position->doctorBusy ? 1 : 0,
+            'with_doctor' => $position->withDoctor,
+            'total' => $position->total,
             'expected_at' => $position->expectedAt === null ? null : Wire::time($position->expectedAt),
             'is_next' => $position->isNext(),
         ];

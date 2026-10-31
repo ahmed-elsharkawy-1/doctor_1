@@ -114,8 +114,6 @@ return [
         'first_in_line' => "You're first",
         'first_in_line_note' => 'Your appointment is at :time. Please arrive :lead beforehand.',
         'first_in_line_note_no_time' => 'Nobody is ahead of you in the queue right now.',
-        'up_next' => "You're next",
-        'with_doctor_note' => 'A patient is with the doctor now; they are not in the count.',
         'your_turn_note' => 'Please go through to the consulting room',
         'done' => 'Visit complete',
         'done_note' => 'Thank you for your visit',

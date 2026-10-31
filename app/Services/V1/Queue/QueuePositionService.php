@@ -105,6 +105,7 @@ class QueuePositionService
 
         $total = $line->count() + 1 + $withDoctor->count();
         $emergencies = $line->where('booking_kind', BookingKind::EMERGENCY)->count()
+            + $withDoctor->where('booking_kind', BookingKind::EMERGENCY)->count()
             + ($booking->booking_kind === BookingKind::EMERGENCY ? 1 : 0);
 
         return new QueuePosition(
@@ -128,6 +129,7 @@ class QueuePositionService
             // Someone else is in the room: nobody ahead means next, not now.
             doctorBusy: $booking->status !== BookingStatus::WITH_DOCTOR
                 && $withDoctor->isNotEmpty(),
+            withDoctor: $withDoctor->count(),
         );
     }
 

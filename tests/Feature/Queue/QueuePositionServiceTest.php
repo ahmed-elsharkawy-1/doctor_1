@@ -195,6 +195,26 @@ class QueuePositionServiceTest extends TestCase
     }
 
     /**
+     * The patient in the room is part of the total, so their kind belongs in
+     * the split too — an emergency being seen is not a normal patient.
+     */
+    public function test_an_emergency_with_the_doctor_is_split_as_an_emergency(): void
+    {
+        $mine = $this->booking('09:20');
+        $this->emergency(arrivedAt: '09:00')->update([
+            'status' => BookingStatus::WITH_DOCTOR,
+            'called_in_at' => Carbon::parse('2026-09-03 09:05', $this->clinic->timezone),
+        ]);
+
+        $position = $this->positions->for($mine->fresh());
+
+        $this->assertSame(2, $position->total);
+        $this->assertSame(1, $position->normal);
+        $this->assertSame(1, $position->emergency);
+        $this->assertSame(1, $position->withDoctor);
+    }
+
+    /**
      * The patient's own wait, split: only those ranked ahead count, never the
      * patients who come after them or the clinic's whole day.
      */
