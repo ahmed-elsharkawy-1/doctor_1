@@ -201,6 +201,18 @@ return [
         'done' => 'Seen',
         'sign_out' => 'Sign out',
         'no_time' => 'No time',
+        'search' => [
+            'placeholder' => "Search today's list by name, code or the last digits of the phone",
+            'clear' => 'Clear',
+            'no_matches' => "Nobody in today's list matches",
+            'is_next' => 'Their turn now',
+            'place' => 'Place',
+            'ahead' => 'Ahead',
+            'ahead_emergency' => 'Of them emergencies',
+            'behind' => 'Behind',
+            'with_doctor' => 'With the doctor',
+            'expected_at' => 'Expected in',
+        ],
         'reminder' => [
             'hourly_label' => 'Reminder before visit',
             'daily_label' => 'Visit-day reminder',

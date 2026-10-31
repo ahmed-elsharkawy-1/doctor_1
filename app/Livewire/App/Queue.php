@@ -8,6 +8,8 @@ use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Services\V1\Booking\BookingService;
 use App\Services\V1\Queue\BookingStatusService;
+use App\Services\V1\Queue\QueuePosition;
+use App\Services\V1\Queue\QueueSearchService;
 use App\Services\V1\Queue\QueueService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
@@ -27,6 +29,11 @@ class Queue extends ClinicComponent
     public string $date = '';
 
     public ?int $cancelling = null;
+
+    /**
+     * "دوري امتى؟" on the phone: a patient looked up in today's queue.
+     */
+    public string $search = '';
 
     /**
      * The outcome of the last action. A public property rather than a flash:
@@ -51,7 +58,15 @@ class Queue extends ClinicComponent
             'bookings' => $bookings,
             'counts' => $this->counts($bookings),
             'cancelReasons' => app(QueueService::class)->selectableCancelReasons(),
+            'isToday' => $this->isToday(),
+            'matches' => $this->matches(),
+            'searching' => $this->searchTerm() !== null,
         ])->title(__('app.queue.title'));
+    }
+
+    public function clearSearch(): void
+    {
+        $this->search = '';
     }
 
     public function goToDay(int $offset): void
@@ -188,6 +203,46 @@ class Queue extends ClinicComponent
             ->get();
 
         return app(QueueService::class)->sortBookings($bookings);
+    }
+
+    private function isToday(): bool
+    {
+        return $this->date === $this->clinic()->currentDay()->toDateString();
+    }
+
+    /**
+     * The term once it is long enough to search on, under the same rule as
+     * the API's; null before then.
+     */
+    private function searchTerm(): ?string
+    {
+        $term = mb_substr(trim($this->search), 0, 100);
+
+        return mb_strlen($term) >= config('clinic.queue_search.min_chars') ? $term : null;
+    }
+
+    /**
+     * Today's queue only, through QueueSearchService — the service behind
+     * GET /api/v1/queue/search — so she reads out exactly what the mobile
+     * app and the patient's tracking page show.
+     *
+     * @return Collection<int, array{booking: Booking, position: QueuePosition}>
+     */
+    private function matches(): Collection
+    {
+        $term = $this->searchTerm();
+
+        if ($term === null || ! $this->isToday()) {
+            return collect();
+        }
+
+        $this->requireAbility('queue.manage');
+
+        return app(QueueSearchService::class)->search(
+            $this->clinic(),
+            $term,
+            config('clinic.queue_search.limit'),
+        )['matches'];
     }
 
     /**

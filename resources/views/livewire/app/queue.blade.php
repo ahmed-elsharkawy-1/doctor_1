@@ -61,6 +61,24 @@
 
         .booking.is-terminal { opacity: 0.62; }
 
+        .search { display: flex; gap: 0.5rem; margin-bottom: 0.85rem; }
+
+        .search input {
+            flex: 1;
+            min-width: 0;
+            padding: 0.7rem 0.9rem;
+            border: 1px solid var(--line);
+            border-radius: 0.7rem;
+            background: var(--card);
+            color: var(--ink);
+            font: inherit;
+        }
+
+        .search input:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+        .found { display: grid; gap: 0.5rem; margin-bottom: 0.85rem; }
+        .found .stats { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.5rem; }
+
         /* One layout, widened. On a desk monitor the cards sit two abreast
            rather than becoming a different screen. */
         @media (min-width: 48rem) {
@@ -92,6 +110,74 @@
             {{ __('app.queue.next_day') }}
         </button>
     </div>
+
+    {{-- "دوري امتى؟" on the phone. Today's queue only, so only on today's
+         list; the numbers are the patient's tracking page's own. --}}
+    @if ($isToday)
+        <div class="search">
+            <input type="text" wire:model.live.debounce.300ms="search"
+                   placeholder="{{ __('app.queue.search.placeholder') }}"
+                   aria-label="{{ __('app.queue.search.placeholder') }}">
+            @if ($search !== '')
+                <button type="button" class="btn btn-sm" wire:click="clearSearch">
+                    {{ __('app.queue.search.clear') }}
+                </button>
+            @endif
+        </div>
+
+        @if ($searching)
+            <div class="found">
+                @forelse ($matches as $match)
+                    @php($found = $match['booking'])
+                    @php($position = $match['position'])
+                    <div class="card booking" wire:key="found-{{ $found->id }}">
+                        <header>
+                            <div>
+                                <div class="name">{{ $found->patient?->name }}</div>
+                                <div class="meta">
+                                    {{ $clock($found->start_at) }}
+                                    <x-after-midnight :show="$found->startsAfterMidnight()" />
+                                    &middot; {{ $found->visitType?->name }}
+                                    &middot; {{ $found->patient?->code }}
+                                </div>
+                            </div>
+
+                            <div style="text-align:end">
+                                <span class="pill">{{ $found->status->label() }}</span>
+                                @if ($found->booking_kind === BookingKind::EMERGENCY)
+                                    <div style="margin-top:0.3rem">
+                                        <span class="pill pill-warn">{{ $found->booking_kind->label() }}</span>
+                                    </div>
+                                @endif
+                            </div>
+                        </header>
+
+                        <div class="stats">
+                            @if ($position->isNext())
+                                <span class="pill pill-new">{{ __('app.queue.search.is_next') }}</span>
+                            @endif
+                            <span class="pill">{{ __('app.queue.search.place') }}: {{ $position->place() }}</span>
+                            <span class="pill">{{ __('app.queue.search.ahead') }}: {{ $position->ahead }}</span>
+                            @if ($position->aheadEmergency > 0)
+                                <span class="pill pill-warn">{{ __('app.queue.search.ahead_emergency') }}: {{ $position->aheadEmergency }}</span>
+                            @endif
+                            <span class="pill">{{ __('app.queue.search.behind') }}: {{ $position->behind() }}</span>
+                            @if ($position->withDoctor > 0)
+                                <span class="pill">{{ __('app.queue.search.with_doctor') }}: {{ $position->withDoctor }}</span>
+                            @endif
+                            {{-- Only when the patient's page shows an estimate too:
+                                 she reads out what they are looking at. --}}
+                            @if (config('clinic.tracking.show_estimate') && $position->expectedAt !== null)
+                                <span class="pill">{{ __('app.queue.search.expected_at') }}: {{ $clock($position->expectedAt) }}</span>
+                            @endif
+                        </div>
+                    </div>
+                @empty
+                    <div class="card empty">{{ __('app.queue.search.no_matches') }}</div>
+                @endforelse
+            </div>
+        @endif
+    @endif
 
     <div class="tallies">
         <div class="card tally">

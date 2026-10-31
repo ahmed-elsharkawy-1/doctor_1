@@ -489,6 +489,18 @@ return [
     ],
 
     /*
+    | Finding a patient in today's queue as the secretary types — the mobile
+    | app's GET /api/v1/queue/search and the box on the web queue alike.
+    */
+    'queue_search' => [
+        // One letter of a name matches most of the day.
+        'min_chars' => 2,
+        // An autocomplete list, not a page of results.
+        'limit' => 10,
+        'max_limit' => 20,
+    ],
+
+    /*
     | The doctor's report: a page under /reports, and a WhatsApp message each
     | morning linking to it. One send time for every clinic — clinics do not
     | each get their own clock. Which clinics get it, and who may read it, are

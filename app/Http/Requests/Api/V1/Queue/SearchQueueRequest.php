@@ -6,32 +6,27 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class SearchQueueRequest extends FormRequest
 {
-    /** An autocomplete list, not a page of results. */
-    private const DEFAULT_LIMIT = 10;
-
-    private const MAX_LIMIT = 20;
-
     public function authorize(): bool
     {
         return true;
     }
 
     /**
-     * Two characters before anything is searched: one letter of a name
-     * matches most of the day.
+     * The lengths and limits are config('clinic.queue_search'), shared with
+     * the search box on the web queue.
      *
      * @return array<string, list<mixed>>
      */
     public function rules(): array
     {
         return [
-            'q' => ['required', 'string', 'min:2', 'max:100'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_LIMIT],
+            'q' => ['required', 'string', 'min:'.config('clinic.queue_search.min_chars'), 'max:100'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:'.config('clinic.queue_search.max_limit')],
         ];
     }
 
     public function limit(): int
     {
-        return (int) ($this->validated('limit') ?? self::DEFAULT_LIMIT);
+        return (int) ($this->validated('limit') ?? config('clinic.queue_search.limit'));
     }
 }
