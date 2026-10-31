@@ -79,6 +79,7 @@ class BookingReviewController extends Controller
             'unavailable' => $this->reviews->isUnavailable($booking),
             'ratings' => ReviewRating::ordered(),
             'commentMax' => config('clinic.review.comment_max'),
+            'bookAgainLink' => $booking->clinic->bookAgainUrl(),
         ];
     }
 }

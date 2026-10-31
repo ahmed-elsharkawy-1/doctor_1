@@ -215,6 +215,23 @@ class Clinic extends Model
         return $this->is_active && $this->self_booking_enabled;
     }
 
+    /**
+     * Where a patient goes to book again: the booking page when it is open,
+     * otherwise the doctor page, which says how to book. Null for a
+     * deactivated clinic, whose public pages are all gone, and for one with
+     * no slug, which never had any.
+     */
+    public function bookAgainUrl(): ?string
+    {
+        if (! $this->is_active || blank($this->slug)) {
+            return null;
+        }
+
+        return $this->allowsSelfBooking()
+            ? route('patient.book', $this->slug)
+            : route('landing', $this->slug);
+    }
+
     /** @return BelongsTo<Specialty, $this> */
     public function specialty(): BelongsTo
     {

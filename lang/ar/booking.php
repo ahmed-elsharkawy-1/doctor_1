@@ -106,6 +106,7 @@ return [
         'whatsapp' => 'واتساب',
         'whatsapp_greeting' => 'السلام عليكم، بخصوص حجزي في :clinic — كود المريض #:code',
         'call_clinic' => 'اتصال بالعيادة',
+        'book_again' => 'احجز موعد جديد',
         'patient_code' => 'كود المريض',
         'appointment' => 'موعد الحجز',
         'your_turn' => 'دورك الآن',
