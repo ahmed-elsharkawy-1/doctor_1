@@ -36,6 +36,31 @@ final class QueuePosition
     ) {}
 
     /**
+     * Their place in line, counting from one: the patients ahead, then them.
+     */
+    public function place(): int
+    {
+        return $this->ahead + 1;
+    }
+
+    /**
+     * Everyone else still in today's queue. Whoever is neither with the
+     * doctor nor ahead is behind, so the four add up to the day's total.
+     */
+    public function behind(): int
+    {
+        return $this->total - ($this->doctorBusy ? 1 : 0) - $this->ahead - 1;
+    }
+
+    /**
+     * Somebody else is in the examination room right now.
+     */
+    public function doctorIsBusy(): bool
+    {
+        return $this->doctorBusy;
+    }
+
+    /**
      * The clinic is ready for this patient *now* — the page swaps to دورك الآن
      * and tells them to go to the examination room.
      *

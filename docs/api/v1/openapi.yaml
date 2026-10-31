@@ -992,6 +992,77 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
 
+  /queue/search:
+    get:
+      tags: [Status]
+      summary: Find a patient in today's queue
+      description: |
+        For "دوري امتى؟" on the phone, and fast enough to call on every
+        keystroke for an autocomplete. Matches a name fragment, the patient
+        code, or the last four or more digits of the phone — the same rules
+        as `/patients`.
+
+        Only today's queue is searched (`booked`, `arrived`, `with_doctor`),
+        first in line first. Each match is the usual queue card plus where
+        that patient stands. The numbers are the **patient's tracking page's
+        own**, so what the secretary reads out is what the patient sees:
+        emergencies count as ahead; a normal patient booked later never does,
+        even after arriving early. Whoever is already with the doctor is not
+        ahead — they are `with_doctor` — though the rest of their visit is in
+        `expected_at`.
+
+        `with_doctor + place + behind` always equals `total`.
+      operationId: searchQueue
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: At least two characters.
+          schema: { type: string, minLength: 2, maxLength: 100 }
+          example: سارة
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+      responses:
+        "200":
+          description: Matches
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          date: { type: string, format: date }
+                          total:
+                            type: integer
+                            description: Everyone still in today's queue
+                          items:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                booking: { $ref: "#/components/schemas/BookingCard" }
+                                place: { type: integer, example: 10, description: "Their turn, counting from 1" }
+                                ahead: { type: integer, example: 9, description: Still waiting before them — not the patient with the doctor }
+                                ahead_normal: { type: integer, example: 8 }
+                                ahead_emergency: { type: integer, example: 1 }
+                                behind: { type: integer, example: 5 }
+                                with_doctor: { type: integer, example: 1, description: "Someone else in the room now (0 or 1; 0 when it is them)" }
+                                expected_at:
+                                  description: Never earlier than their own appointment
+                                  oneOf:
+                                    - allOf: [{ $ref: "#/components/schemas/Display" }]
+                                    - type: "null"
+                                is_next:
+                                  type: boolean
+                                  description: Nobody ahead, in the clinic, **and** the room is free
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
   /bookings/{booking}/contacted:
     parameters:
       - $ref: "#/components/parameters/BookingId"

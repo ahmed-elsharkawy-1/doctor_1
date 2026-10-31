@@ -177,6 +177,7 @@ APIs:
 | `POST` | `/bookings/{booking}/status` | Move booking to the next allowed status |
 | `POST` | `/bookings/{booking}/cancel` | Patient cancellation |
 | `POST` | `/bookings/{booking}/message` | Send WhatsApp template for one booking |
+| `GET` | `/queue/search?q=` | Find a patient in today's queue, with their place and who is ahead and behind |
 
 Allowed status path:
 
