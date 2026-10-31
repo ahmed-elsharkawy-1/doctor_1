@@ -571,7 +571,7 @@
                         "description": "All fields optional — send only what changed.",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"booking_window_days\": 7,\n    \"first_visit_only_days\": 60,\n    \"patient_arrival_lead_minutes\": 30\n}\n",
+                            "raw": "{\n    \"booking_window_days\": 7,\n    \"first_visit_only_days\": 60,\n    \"patient_arrival_lead_minutes\": 30,\n    \"reminder_time\": \"11:00\",\n    \"daily_reminder_min_hours\": 12,\n    \"reminder_position\": 3,\n    \"whatsapp_cancel_cutoff_minutes\": 60\n}\n",
                             "options": {
                                 "raw": {
                                     "language": "json"

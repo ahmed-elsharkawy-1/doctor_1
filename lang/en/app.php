@@ -152,6 +152,8 @@ return [
         'arrival_lead_hint' => 'Subtracted from the appointment time on the patient page.',
         'reminder_time' => 'WhatsApp reminder time',
         'reminder_time_hint' => 'On the visit day, the time the WhatsApp reminder goes out to every patient booked that day.',
+        'daily_reminder_min_hours' => 'Morning reminder: booked at least (hours before)',
+        'daily_reminder_min_hours_hint' => 'A booking made fewer hours than this before the reminder time gets no morning reminder. At 11:00 with 12, a booking made after 23:00 the night before.',
         'reminder_position' => 'Slots before the visit',
         'reminder_position_hint' => 'The pre-visit reminder goes out this many slot lengths before the appointment: position × visit length. At 6 with 30-minute visits, it is sent three hours ahead.',
         'whatsapp_cancel_cutoff' => 'WhatsApp cancel cutoff (minutes before the visit)',

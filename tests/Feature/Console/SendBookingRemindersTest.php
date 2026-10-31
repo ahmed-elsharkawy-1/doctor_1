@@ -44,6 +44,8 @@ class SendBookingRemindersTest extends TestCase
             'patient_arrival_lead_minutes' => 15,
             // One slot ahead: the simplest baseline to read the tests against.
             'reminder_position' => 1,
+            // Off on every clinic until a super admin switches it on.
+            'pre_visit_reminder_enabled' => true,
         ]);
 
         Queue::fake();
@@ -265,5 +267,31 @@ class SendBookingRemindersTest extends TestCase
         $this->artisan('clinic:send-reminders')->assertSuccessful();
 
         $this->assertCount(0, $this->reminders());
+    }
+
+    public function test_nothing_goes_out_while_the_clinics_switch_is_off(): void
+    {
+        $this->clinic->update(['pre_visit_reminder_enabled' => false]);
+        $this->bookingAt('15:00');
+
+        $this->at('14:40');
+        $this->artisan('clinic:send-reminders')->assertSuccessful();
+
+        $this->assertCount(0, $this->reminders());
+    }
+
+    /**
+     * The two reminders are switched separately: the morning one being off
+     * must not take this one with it.
+     */
+    public function test_it_does_not_depend_on_the_morning_switch(): void
+    {
+        $this->clinic->update(['daily_reminder_enabled' => false]);
+        $this->bookingAt('15:00');
+
+        $this->at('14:40');
+        $this->artisan('clinic:send-reminders')->assertSuccessful();
+
+        $this->assertCount(1, $this->reminders());
     }
 }

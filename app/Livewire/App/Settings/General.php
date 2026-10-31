@@ -21,6 +21,8 @@ class General extends SettingsComponent
 
     public string $reminderTime = '11:00';
 
+    public int $dailyReminderMinHours = 12;
+
     public int $reminderPosition = 3;
 
     public int $whatsAppCancelCutoffMinutes = 60;
@@ -35,6 +37,7 @@ class General extends SettingsComponent
         $this->firstVisitOnlyDays = $clinic->first_visit_only_days;
         $this->patientArrivalLeadMinutes = $clinic->patient_arrival_lead_minutes;
         $this->reminderTime = $clinic->reminderTime();
+        $this->dailyReminderMinHours = $clinic->dailyReminderMinHours();
         $this->reminderPosition = $clinic->reminderPosition();
         $this->whatsAppCancelCutoffMinutes = $clinic->whatsAppCancelCutoffMinutes();
     }
@@ -59,6 +62,7 @@ class General extends SettingsComponent
                     'first_visit_only_days' => $this->firstVisitOnlyDays,
                     'patient_arrival_lead_minutes' => $this->patientArrivalLeadMinutes,
                     'reminder_time' => $this->reminderTime,
+                    'daily_reminder_min_hours' => $this->dailyReminderMinHours,
                     'reminder_position' => $this->reminderPosition,
                     'whatsapp_cancel_cutoff_minutes' => $this->whatsAppCancelCutoffMinutes,
                 ]),
@@ -81,6 +85,7 @@ class General extends SettingsComponent
                 Rule::in(config('clinic.settings.patient_arrival_lead_minute_options')),
             ],
             'reminderTime' => ['required', 'date_format:H:i'],
+            'dailyReminderMinHours' => ['required', 'integer', 'min:0', 'max:24'],
             'reminderPosition' => ['required', 'integer', 'min:1', 'max:50'],
             'whatsAppCancelCutoffMinutes' => [
                 'required',

@@ -108,6 +108,48 @@ class GeneralSettingsTest extends TestCase
     /**
      * The app can save one field without echoing the other back.
      */
+    public function test_it_updates_the_morning_reminders_minimum_hours(): void
+    {
+        $this->getJson(route('api.v1.bootstrap'))
+            ->assertJsonPath('data.clinic.daily_reminder_min_hours', 12);
+
+        $this->putJson(route('api.v1.settings.general'), ['daily_reminder_min_hours' => 6])
+            ->assertOk()
+            ->assertJsonPath('data.daily_reminder_min_hours', 6);
+
+        $this->assertSame(6, $this->clinic->refresh()->daily_reminder_min_hours);
+    }
+
+    public function test_the_minimum_hours_are_between_zero_and_twenty_four(): void
+    {
+        foreach ([-1, 25] as $hours) {
+            $this->putJson(route('api.v1.settings.general'), ['daily_reminder_min_hours' => $hours])
+                ->assertStatus(422)
+                ->assertJsonStructure(['error' => ['fields' => ['daily_reminder_min_hours']]]);
+        }
+
+        $this->putJson(route('api.v1.settings.general'), ['daily_reminder_min_hours' => 0])->assertOk();
+
+        $this->assertSame(0, $this->clinic->refresh()->dailyReminderMinHours());
+    }
+
+    /**
+     * Whether a clinic gets the reminders at all is a super admin's call, made
+     * in the admin panel. The clinic's own settings cannot turn them on.
+     */
+    public function test_the_clinic_cannot_switch_its_reminders_on(): void
+    {
+        $this->putJson(route('api.v1.settings.general'), [
+            'daily_reminder_enabled' => true,
+            'pre_visit_reminder_enabled' => true,
+        ])->assertOk();
+
+        $this->clinic->refresh();
+
+        $this->assertFalse($this->clinic->daily_reminder_enabled);
+        $this->assertFalse($this->clinic->pre_visit_reminder_enabled);
+    }
+
     public function test_omitting_a_field_leaves_it_untouched(): void
     {
         $original = $this->clinic->only(['first_visit_only_days', 'patient_arrival_lead_minutes']);

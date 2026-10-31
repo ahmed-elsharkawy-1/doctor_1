@@ -43,6 +43,11 @@ class SendBookingRemindersCommand extends ClinicReminderCommand
         return 'sendReminder';
     }
 
+    protected function enabledFor(Clinic $clinic): bool
+    {
+        return $clinic->sendsPreVisitReminder();
+    }
+
     protected function due(Clinic $clinic): iterable
     {
         // Times are stored as the clinic's wall clock.

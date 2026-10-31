@@ -38,7 +38,10 @@ class Clinic extends Model
         'tracking_delay_reduction_minutes',
         'tracking_delay_threshold_minutes',
         'reminder_time',
+        'daily_reminder_enabled',
+        'daily_reminder_min_hours',
         'reminder_position',
+        'pre_visit_reminder_enabled',
         'whatsapp_cancel_cutoff_minutes',
         'self_booking_enabled',
         'whatsapp_enabled',
@@ -89,7 +92,10 @@ class Clinic extends Model
             'patient_arrival_lead_minutes' => 'integer',
             'tracking_delay_reduction_minutes' => 'integer',
             'tracking_delay_threshold_minutes' => 'integer',
+            'daily_reminder_enabled' => 'boolean',
+            'daily_reminder_min_hours' => 'integer',
             'reminder_position' => 'integer',
+            'pre_visit_reminder_enabled' => 'boolean',
             'whatsapp_cancel_cutoff_minutes' => 'integer',
         ];
     }
@@ -143,6 +149,32 @@ class Clinic extends Model
         $time = trim((string) $this->reminder_time);
 
         return $time === '' ? (string) config('clinic.defaults.reminder_time', '11:00') : $time;
+    }
+
+    /**
+     * Whether the morning reminder, with its Confirm/Cancel buttons, goes to
+     * this clinic's patients. A super admin's switch, off until turned on,
+     * and only ever on while the clinic sends WhatsApp at all.
+     */
+    public function sendsDailyReminder(): bool
+    {
+        return $this->sendsWhatsApp() && $this->daily_reminder_enabled === true;
+    }
+
+    /** The same switch, for the reminder shortly before the visit. */
+    public function sendsPreVisitReminder(): bool
+    {
+        return $this->sendsWhatsApp() && $this->pre_visit_reminder_enabled === true;
+    }
+
+    /**
+     * How many hours before the reminder time a booking must have been made
+     * to get the morning reminder. 0 means made any time before it.
+     */
+    public function dailyReminderMinHours(): int
+    {
+        return max(0, (int) ($this->daily_reminder_min_hours
+            ?? config('clinic.defaults.daily_reminder_min_hours', 12)));
     }
 
     /**

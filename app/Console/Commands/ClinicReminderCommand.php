@@ -34,6 +34,12 @@ abstract class ClinicReminderCommand extends Command
     abstract protected function reminderMethod(): string;
 
     /**
+     * Whether this clinic gets this reminder at all — its own super-admin
+     * switch, which already folds in the clinic's WhatsApp switch.
+     */
+    abstract protected function enabledFor(Clinic $clinic): bool;
+
+    /**
      * @return iterable<int, Booking>
      */
     abstract protected function due(Clinic $clinic): iterable;
@@ -44,7 +50,7 @@ abstract class ClinicReminderCommand extends Command
             ->where('is_active', true)
             ->when($this->option('clinic'), fn ($query, $id) => $query->whereKey($id))
             ->get()
-            ->filter(fn (Clinic $clinic): bool => $clinic->sendsWhatsApp());
+            ->filter(fn (Clinic $clinic): bool => $this->enabledFor($clinic));
 
         $sent = 0;
 

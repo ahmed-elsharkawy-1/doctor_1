@@ -265,6 +265,28 @@ class ClinicForm
                         ->default($defaults['reminder_time'])
                         ->helperText(__('filament.clinic.reminder_time_hint')),
 
+                    // Each reminder has its own switch, off for every clinic
+                    // until somebody decides it gets it. Here only, so a
+                    // clinic cannot turn its own reminders on.
+                    Toggle::make('daily_reminder_enabled')
+                        ->label(__('filament.clinic.daily_reminder_enabled'))
+                        ->default(false)
+                        ->helperText(__('filament.clinic.daily_reminder_enabled_hint')),
+
+                    TextInput::make('daily_reminder_min_hours')
+                        ->label(__('filament.clinic.daily_reminder_min_hours'))
+                        ->numeric()
+                        ->minValue(0)
+                        ->maxValue(24)
+                        ->required()
+                        ->default($defaults['daily_reminder_min_hours'])
+                        ->helperText(__('filament.clinic.daily_reminder_min_hours_hint')),
+
+                    Toggle::make('pre_visit_reminder_enabled')
+                        ->label(__('filament.clinic.pre_visit_reminder_enabled'))
+                        ->default(false)
+                        ->helperText(__('filament.clinic.pre_visit_reminder_enabled_hint')),
+
                     // The pre-visit reminder goes out this many slot lengths
                     // before the visit: position × the booking's duration.
                     // Editable by the clinic later from Settings → Timing.

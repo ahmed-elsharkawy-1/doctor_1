@@ -33,6 +33,7 @@ final class ClinicSettingsResult extends ServiceResult
             'patient_arrival_lead_minutes' => $this->clinic->patient_arrival_lead_minutes,
             'patient_arrival_lead_minute_options' => config('clinic.settings.patient_arrival_lead_minute_options'),
             'reminder_time' => $this->clinic->reminderTime(),
+            'daily_reminder_min_hours' => $this->clinic->dailyReminderMinHours(),
             'reminder_position' => $this->clinic->reminderPosition(),
             'whatsapp_cancel_cutoff_minutes' => $this->clinic->whatsAppCancelCutoffMinutes(),
             'whatsapp_cancel_cutoff_minute_options' => config('clinic.settings.whatsapp_cancel_cutoff_minute_options'),

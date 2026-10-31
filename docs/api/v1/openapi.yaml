@@ -558,6 +558,16 @@ paths:
                     Clinic-local `HH:MM` at which the visit-day reminder is
                     sent. Defaults to `11:00`.
                   example: "11:00"
+                daily_reminder_min_hours:
+                  type: integer
+                  minimum: 0
+                  maximum: 24
+                  description: |
+                    A booking made fewer than this many hours before
+                    `reminder_time` gets no visit-day reminder. Defaults to
+                    `12`: at 11:00, a booking made after 23:00 the night before.
+                    `0` means any booking made before `reminder_time`.
+                  example: 12
                 reminder_position:
                   type: integer
                   minimum: 1
@@ -1760,8 +1770,16 @@ components:
           example: "11:00"
           description: |
             Clinic-local `HH:MM` at which the single visit-day reminder goes
-            out. Defaults to `11:00`. Bookings created after this time are not
-            reminded that day.
+            out. Defaults to `11:00`. Only bookings created at least
+            `daily_reminder_min_hours` before it are reminded that day.
+        daily_reminder_min_hours:
+          type: integer
+          minimum: 0
+          maximum: 24
+          example: 12
+          description: |
+            A booking made fewer than this many hours before `reminder_time`
+            gets no visit-day reminder. Defaults to `12`.
         reminder_position:
           type: integer
           minimum: 1

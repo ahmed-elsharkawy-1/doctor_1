@@ -44,6 +44,13 @@ class SendDailyRemindersTest extends TestCase
             'patient_arrival_lead_minutes' => 15,
             'reminder_time' => '11:00',
             'reminder_position' => 1,
+            // Both reminders start off on every clinic; these tests are about
+            // what each does once a super admin switches it on.
+            'daily_reminder_enabled' => true,
+            'pre_visit_reminder_enabled' => true,
+            // "Made before the reminder time" is the baseline these tests
+            // read against; the minimum-hours rule has its own tests below.
+            'daily_reminder_min_hours' => 0,
         ]);
 
         Queue::fake();
@@ -202,6 +209,95 @@ class SendDailyRemindersTest extends TestCase
         $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
 
         $this->assertCount(0, $this->dailyReminders());
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Booked at least N hours before the reminder time
+    |--------------------------------------------------------------------------
+    |
+    | A booking made late the night before has just had its confirmation; the
+    | morning reminder would be a second message about the same visit.
+    */
+
+    private function bookingMadeAt(string $madeAt, string $visitAt): Booking
+    {
+        [$day, $time] = explode(' ', $madeAt);
+        $this->at($time, $day);
+
+        return $this->bookingAt($visitAt);
+    }
+
+    public function test_a_booking_made_twelve_hours_before_the_reminder_time_is_reminded(): void
+    {
+        $this->clinic->update(['daily_reminder_min_hours' => 12]);
+
+        $this->bookingMadeAt('2026-09-02 23:00', '15:00');
+
+        $this->at('11:00');
+        $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
+
+        $this->assertCount(1, $this->dailyReminders());
+    }
+
+    public function test_a_booking_made_less_than_twelve_hours_before_is_skipped(): void
+    {
+        $this->clinic->update(['daily_reminder_min_hours' => 12]);
+
+        $this->bookingMadeAt('2026-09-02 23:01', '15:00');
+
+        foreach (['11:00', '12:00', '14:00'] as $time) {
+            $this->at($time);
+            $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
+        }
+
+        $this->assertCount(0, $this->dailyReminders());
+    }
+
+    public function test_the_hours_follow_the_clinics_own_setting(): void
+    {
+        $this->clinic->update(['daily_reminder_min_hours' => 3]);
+
+        $early = $this->bookingMadeAt(self::DAY.' 08:00', '15:00');
+        $late = $this->bookingMadeAt(self::DAY.' 08:01', '16:00');
+
+        $this->at('11:00');
+        $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
+
+        $this->assertSame([$early->id], $this->dailyReminders()->pluck('booking_id')->all());
+        $this->assertSame('booked', $late->fresh()->status->value);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | The clinic's switch
+    |--------------------------------------------------------------------------
+    */
+
+    public function test_nothing_goes_out_while_the_clinics_switch_is_off(): void
+    {
+        $this->clinic->update(['daily_reminder_enabled' => false]);
+        $this->bookingAt('15:00');
+
+        $this->at('11:00');
+        $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
+
+        $this->assertCount(0, $this->dailyReminders());
+    }
+
+    /**
+     * The two reminders are switched separately: the pre-visit one being off
+     * must not take the morning one with it.
+     */
+    public function test_it_does_not_depend_on_the_pre_visit_switch(): void
+    {
+        $this->clinic->update(['pre_visit_reminder_enabled' => false]);
+        $this->bookingAt('15:00');
+
+        $this->at('11:00');
+        $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
+
+        $this->assertCount(1, $this->dailyReminders());
     }
 
     public function test_nothing_goes_out_for_a_clinic_with_whatsapp_off(): void

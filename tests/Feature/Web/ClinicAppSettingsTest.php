@@ -50,6 +50,7 @@ class ClinicAppSettingsTest extends TestCase
             ->set('reminderTime', '19:15')
             ->set('reminderPosition', 6)
             ->set('whatsAppCancelCutoffMinutes', 120)
+            ->set('dailyReminderMinHours', 8)
             ->call('save')
             ->assertSet('failed', false);
 
@@ -61,6 +62,19 @@ class ClinicAppSettingsTest extends TestCase
         $this->assertSame('19:15', $clinic->reminder_time);
         $this->assertSame(6, $clinic->reminder_position);
         $this->assertSame(120, $clinic->whatsapp_cancel_cutoff_minutes);
+        $this->assertSame(8, $clinic->daily_reminder_min_hours);
+    }
+
+    public function test_the_minimum_hours_default_to_twelve_and_stay_within_a_day(): void
+    {
+        Livewire::actingAs($this->owner)
+            ->test(General::class)
+            ->assertSet('dailyReminderMinHours', 12)
+            ->set('dailyReminderMinHours', 25)
+            ->call('save')
+            ->assertHasErrors('dailyReminderMinHours');
+
+        $this->assertSame(12, $this->clinic->fresh()->dailyReminderMinHours());
     }
 
     public function test_the_reminder_position_stays_between_one_and_fifty(): void
