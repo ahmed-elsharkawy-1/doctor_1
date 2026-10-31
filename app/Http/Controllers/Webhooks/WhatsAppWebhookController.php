@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Services\Messaging\DeliveryReceipts;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
+use Psr\Log\LoggerInterface;
 
 /**
  * Meta's delivery receipts.
@@ -30,12 +32,16 @@ class WhatsAppWebhookController extends Controller
         $offered = (string) $request->query('hub_verify_token');
 
         if ($expected === '' || ! hash_equals($expected, $offered)) {
+            $this->log()->warning('handshake', ['ok' => false]);
+
             return response('', 403);
         }
 
         if ($request->query('hub_mode') !== 'subscribe') {
             return response('', 400);
         }
+
+        $this->log()->info('handshake', ['ok' => true]);
 
         return response((string) $request->query('hub_challenge'), 200);
     }
@@ -49,18 +55,45 @@ class WhatsAppWebhookController extends Controller
     public function handle(Request $request): Response
     {
         if (! $this->signed($request)) {
+            $this->log()->warning('refused', [
+                'reason' => config('services.whatsapp.app_secret') ? 'bad_signature' : 'no_app_secret',
+            ]);
+
             return response('', 403);
         }
+
+        $statuses = 0;
+        $matched = 0;
+        $states = [];
+        $messages = 0;
 
         foreach ($request->input('entry', []) as $entry) {
             foreach ($entry['changes'] ?? [] as $change) {
                 foreach ($change['value']['statuses'] ?? [] as $status) {
-                    $this->receipts->record(is_array($status) ? $status : []);
+                    $status = is_array($status) ? $status : [];
+                    $statuses++;
+                    $state = is_string($status['status'] ?? null) ? $status['status'] : 'unknown';
+                    $states[$state] = ($states[$state] ?? 0) + 1;
+
+                    if ($this->receipts->record($status) !== null) {
+                        $matched++;
+                    }
                 }
+
+                $messages += count($change['value']['messages'] ?? []);
             }
         }
 
+        // Counts only: whether Meta is calling, and whether what it reports
+        // is about messages we sent. No phone numbers, no message text.
+        $this->log()->info('callback', compact('statuses', 'matched', 'states', 'messages'));
+
         return response('', 200);
+    }
+
+    private function log(): LoggerInterface
+    {
+        return Log::channel('whatsapp_webhook');
     }
 
     /**

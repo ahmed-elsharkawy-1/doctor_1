@@ -81,13 +81,17 @@ class DeliveryReceipts
     }
 
     /**
-     * Meta sends seconds since the epoch as a string.
+     * Meta sends seconds since the epoch as a string. Read on the app's clock,
+     * as `sent_at` is written: left in UTC it is stored as UTC wall time and a
+     * message looks delivered hours before it was sent.
      */
     private function timestamp(array $status): Carbon
     {
         $seconds = $status['timestamp'] ?? null;
 
-        return is_numeric($seconds) ? Carbon::createFromTimestamp((int) $seconds) : Carbon::now();
+        return is_numeric($seconds)
+            ? Carbon::createFromTimestamp((int) $seconds, config('app.timezone'))
+            : Carbon::now();
     }
 
     /**
