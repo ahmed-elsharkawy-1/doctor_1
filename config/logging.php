@@ -73,6 +73,17 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // One line per Meta callback. A file on the storage volume rather than
+        // the stack: production's stack is stderr, which a deploy discards,
+        // and "has Meta called us at all?" has to outlive one.
+        'whatsapp_webhook' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/whatsapp-webhook.log'),
+            'level' => 'info',
+            'days' => env('WHATSAPP_WEBHOOK_LOG_DAYS', 30),
+            'replace_placeholders' => true,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

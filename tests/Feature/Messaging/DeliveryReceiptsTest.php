@@ -6,7 +6,11 @@ use App\Models\Booking;
 use App\Models\OutboundMessage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Testing\TestResponse;
+use Mockery;
+use Mockery\MockInterface;
+use Psr\Log\LoggerInterface;
 use Tests\Concerns\InteractsWithClinic;
 use Tests\TestCase;
 
@@ -63,10 +67,12 @@ class DeliveryReceiptsTest extends TestCase
 
     /**
      * @param  list<array<string, mixed>>  $statuses
+     * @param  list<array<string, mixed>>  $messages  patients' replies, if any
      */
-    private function receipt(array $statuses, ?string $secret = self::SECRET): TestResponse
+    private function receipt(array $statuses, ?string $secret = self::SECRET, array $messages = []): TestResponse
     {
-        $payload = ['entry' => [['changes' => [['value' => ['statuses' => $statuses]]]]]];
+        $value = ['statuses' => $statuses] + ($messages === [] ? [] : ['messages' => $messages]);
+        $payload = ['entry' => [['changes' => [['value' => $value]]]]];
         $body = json_encode($payload);
 
         $headers = $secret === null
@@ -134,6 +140,24 @@ class DeliveryReceiptsTest extends TestCase
         $this->assertNotNull($message->delivered_at);
     }
 
+    /**
+     * Meta's timestamp is an instant; the table holds the app's wall clock,
+     * as `sent_at` does. Stored as UTC it read two hours before the send.
+     */
+    public function test_receipt_times_are_stored_on_the_same_clock_as_the_send(): void
+    {
+        $this->receipt([[
+            'id' => 'wamid.TEST',
+            'status' => 'read',
+            'timestamp' => (string) Carbon::parse('2026-09-12 16:01:00', 'Africa/Cairo')->timestamp,
+        ]])->assertOk();
+
+        $message = $this->message->fresh();
+
+        $this->assertSame('2026-09-12 16:01:00', $message->read_at->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-09-12 16:01:00', $message->delivered_at->format('Y-m-d H:i:s'));
+    }
+
     public function test_a_failure_records_metas_own_reason(): void
     {
         $this->receipt([[
@@ -190,6 +214,83 @@ class DeliveryReceiptsTest extends TestCase
     {
         $this->receipt([['nothing' => 'useful']])->assertOk();
         $this->receipt([])->assertOk();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | The callback log
+    |--------------------------------------------------------------------------
+    |
+    | One line per callback in a file on the storage volume, so whether Meta
+    | is calling at all survives a deploy. Counts only — never a phone number
+    | or a message body.
+    */
+
+    public function test_every_accepted_callback_leaves_one_line_with_its_counts(): void
+    {
+        $log = $this->spyOnWebhookLog();
+
+        $this->receipt([
+            ['id' => 'wamid.TEST', 'status' => 'delivered', 'recipient_id' => '201001234567'],
+            ['id' => 'wamid.SOMEONE-ELSE', 'status' => 'read'],
+        ], messages: [
+            ['from' => '201001234567', 'type' => 'text', 'text' => ['body' => 'hello']],
+        ])->assertOk();
+
+        $log->shouldHaveReceived('info')->once()->with('callback', [
+            'statuses' => 2,
+            'matched' => 1,
+            'states' => ['delivered' => 1, 'read' => 1],
+            'messages' => 1,
+        ]);
+    }
+
+    public function test_a_refused_callback_is_logged_too(): void
+    {
+        $log = $this->spyOnWebhookLog();
+
+        $this->receipt([['id' => 'wamid.TEST', 'status' => 'delivered']], secret: 'not-the-secret')
+            ->assertForbidden();
+
+        $log->shouldHaveReceived('warning')->once()->with('refused', ['reason' => 'bad_signature']);
+        $log->shouldNotHaveReceived('info');
+    }
+
+    public function test_a_refusal_for_a_missing_secret_says_so(): void
+    {
+        config(['services.whatsapp.app_secret' => '']);
+        $log = $this->spyOnWebhookLog();
+
+        $this->receipt([['id' => 'wamid.TEST', 'status' => 'delivered']])->assertForbidden();
+
+        $log->shouldHaveReceived('warning')->once()->with('refused', ['reason' => 'no_app_secret']);
+    }
+
+    public function test_the_handshake_is_logged_with_its_outcome(): void
+    {
+        $log = $this->spyOnWebhookLog();
+
+        $this->get('/webhooks/whatsapp?hub_mode=subscribe&hub_verify_token=wrong&hub_challenge=1');
+        $this->get('/webhooks/whatsapp?hub_mode=subscribe&hub_verify_token=test-verify-token&hub_challenge=1');
+
+        $log->shouldHaveReceived('warning')->once()->with('handshake', ['ok' => false]);
+        $log->shouldHaveReceived('info')->once()->with('handshake', ['ok' => true]);
+    }
+
+    public function test_the_log_has_its_own_file_kept_across_deploys(): void
+    {
+        $channel = config('logging.channels.whatsapp_webhook');
+
+        $this->assertSame('daily', $channel['driver']);
+        $this->assertSame(storage_path('logs/whatsapp-webhook.log'), $channel['path']);
+    }
+
+    private function spyOnWebhookLog(): MockInterface
+    {
+        $logger = Mockery::spy(LoggerInterface::class);
+        Log::shouldReceive('channel')->with('whatsapp_webhook')->andReturn($logger);
+
+        return $logger;
     }
 
     /*
