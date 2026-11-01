@@ -272,6 +272,14 @@
                     <p class="hint" style="text-align: center">{{ __('booking.self_booking.upcoming_change') }}</p>
                 @endif
 
+                {{-- Not allowed to book here ------------------------------ --}}
+                @if ($stage === 'blocked')
+                    <div style="text-align: center; padding-top: 4px">
+                        <h1 class="h1">{{ __('booking.self_booking.blocked_title') }}</h1>
+                        <p class="hint" style="margin: 7px 0 0">{{ $blockedMessage }}</p>
+                    </div>
+                @endif
+
                 {{-- 4 ·  Choosing the time -------------------------------- --}}
                 @if ($stage === 'appointment')
                     <div>
@@ -508,6 +516,19 @@
                     <span class="btn-spin" wire:loading wire:target="back" aria-hidden="true"></span>
                     {{ __('booking.self_booking.previous') }}
                 </button>
+
+            @elseif ($stage === 'blocked')
+                @if ($whatsappUrl)
+                    <a class="btn btn-wa" href="{{ $whatsappUrl }}">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.6 14.1c-.2.6-1.2 1.2-1.7 1.2-.4 0-.9.2-3.1-.7-2.6-1.1-4.2-3.8-4.3-4-.1-.2-1-1.4-1-2.6 0-1.2.6-1.8.9-2 .2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.3.3c-.1.1-.3.3-.1.6.1.3.7 1.2 1.5 1.9 1 .9 1.8 1.2 2.1 1.3.2.1.4.1.6-.1l.8-1c.2-.2.3-.2.5-.1l2 1c.2.1.4.2.4.3.1.1.1.6-.1 1.2Z"/></svg>
+                        {{ __('booking.self_booking.contact_clinic') }}
+                    </a>
+                @endif
+                @if ($clinicPhone)
+                    <a class="btn btn-outline" href="tel:{{ $clinicPhone }}">
+                        {{ __('booking.self_booking.call_clinic') }}
+                    </a>
+                @endif
 
             @elseif ($stage === 'upcoming' && $upcoming !== null)
                 <a class="btn btn-primary" href="{{ $upcoming->trackingUrl() }}">

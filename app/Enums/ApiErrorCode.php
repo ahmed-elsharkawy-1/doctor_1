@@ -69,6 +69,9 @@ enum ApiErrorCode: string
     // not possible — they are what a tampered request gets.
     case PHONE_NOT_VERIFIED = 'PHONE_NOT_VERIFIED';
     case SELF_BOOKING_DISABLED = 'SELF_BOOKING_DISABLED';
+    // This patient may not book on the public page (too many no-shows, or
+    // blocked by the clinic). The page shows its own screen before this.
+    case ONLINE_BOOKING_BLOCKED = 'ONLINE_BOOKING_BLOCKED';
 
     // A review whose rating needs an explanation, sent without one.
     case REVIEW_COMMENT_REQUIRED = 'REVIEW_COMMENT_REQUIRED';

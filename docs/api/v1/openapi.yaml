@@ -1530,6 +1530,61 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
 
+  /patients/{patient}/online-booking:
+    parameters:
+      - name: patient
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Patients]
+      summary: Allow or block online booking
+      description: |
+        Whether this patient may book on the public booking page.
+
+        - `allowed: true` lifts a block. No-shows marked before this moment
+          stop counting, so the patient starts clean.
+        - `allowed: false` blocks by hand (`reason: manual`). It applies even
+          where the clinic's automatic rule is off.
+
+        Blocking only closes the public page. The clinic books the patient by
+        phone exactly as before, and a booking they already have is kept.
+
+        The automatic rule: `threshold` no-shows inside the last
+        `window_days` days (2 in 30 by default), at a clinic with the rule on,
+        counting every no-show whoever made the booking. Needs the
+        `bookings.manage` ability (doctor and secretary).
+      operationId: updatePatientOnlineBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [allowed]
+              properties:
+                allowed: { type: boolean }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          online_booking: { $ref: "#/components/schemas/OnlineBookingStatus" }
+        "404":
+          description: "`PATIENT_NOT_FOUND`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
   # ------------------------------------------------------------- Reports ----
 
   /reports/revenue:
@@ -2064,6 +2119,9 @@ components:
             code: { type: string, example: "60001" }
             name: { type: string }
             visits_count: { type: integer }
+            online_booking_blocked:
+              type: boolean
+              description: Blocked from the public booking page — show a badge.
         is_returning: { type: boolean }
         name_conflict:
           type: boolean
@@ -2176,6 +2234,9 @@ components:
             id: { type: integer }
             code: { type: string }
             name: { type: string }
+            online_booking_blocked:
+              type: boolean
+              description: Blocked from the public booking page — show a badge.
             phone:
               allOf: [{ $ref: "#/components/schemas/Display" }]
               description: Unmasked — the card has a call action.
@@ -2363,6 +2424,9 @@ components:
         visits_count:
           type: integer
           description: Real visits only; cancellations and no-shows excluded.
+        online_booking_blocked:
+          type: boolean
+          description: Blocked from the public booking page — show a badge.
 
     PatientFile:
       type: object
@@ -2385,6 +2449,14 @@ components:
             cancelled_count: { type: integer }
             first_visit: { oneOf: [{ $ref: "#/components/schemas/Display" }, { type: "null" }] }
             last_visit: { oneOf: [{ $ref: "#/components/schemas/Display" }, { type: "null" }] }
+            last_no_show: { oneOf: [{ $ref: "#/components/schemas/Display" }, { type: "null" }] }
+            online_bookings_count:
+              type: integer
+              description: Bookings the patient made on the public page, any status.
+            clinic_bookings_count:
+              type: integer
+              description: Bookings the clinic made, any status.
+        online_booking: { $ref: "#/components/schemas/OnlineBookingStatus" }
         visits:
           type: array
           description: Newest first, cancellations and no-shows included.
@@ -2414,6 +2486,27 @@ components:
               price:
                 allOf: [{ $ref: "#/components/schemas/Money" }]
                 description: Owner only.
+
+    OnlineBookingStatus:
+      type: object
+      description: Whether the patient may book on the public page.
+      properties:
+        allowed: { type: boolean }
+        blocked_at:
+          oneOf: [{ $ref: "#/components/schemas/Display" }, { type: "null" }]
+        reason:
+          description: "`no_shows` (the automatic rule) or `manual` (the clinic). Null while allowed."
+          oneOf:
+            - allOf: [{ $ref: "#/components/schemas/Display" }]
+            - type: "null"
+        counted_no_shows:
+          type: integer
+          description: No-shows the rule counts now — inside the window and after the last lift.
+        threshold: { type: integer, example: 2 }
+        window_days: { type: integer, example: 30 }
+        rule_enabled:
+          type: boolean
+          description: Whether no-shows block automatically at this clinic. A hand block applies either way.
 
     ReviewSummary:
       type: object

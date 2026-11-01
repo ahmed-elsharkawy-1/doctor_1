@@ -3,6 +3,7 @@
 namespace App\Services\V1\Patients;
 
 use App\Enums\ApiErrorCode;
+use App\Enums\BookingSource;
 use App\Enums\BookingStatus;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
@@ -74,7 +75,7 @@ class PatientSearchService
 
     /**
      * @param  Collection<int, Booking>  $history
-     * @return array{visits_count: int, no_show_count: int, cancelled_count: int, first_visit: ?Booking, last_visit: ?Booking}
+     * @return array{visits_count: int, no_show_count: int, cancelled_count: int, first_visit: ?Booking, last_visit: ?Booking, last_no_show: ?Booking, online_bookings_count: int, clinic_bookings_count: int}
      */
     public function summary(Collection $history): array
     {
@@ -89,6 +90,12 @@ class PatientSearchService
             // Ordered newest first, so the earliest visit is at the end.
             'first_visit' => $visits->last(),
             'last_visit' => $visits->first(),
+            // Newest first, so the most recent no-show is the first one.
+            'last_no_show' => $history->firstWhere('status', BookingStatus::NO_SHOW),
+            // Where her bookings came from — a habit of no-shows on the public
+            // page reads differently from one on bookings the clinic made.
+            'online_bookings_count' => $history->where('source', BookingSource::PATIENT_WEB)->count(),
+            'clinic_bookings_count' => $history->where('source', BookingSource::CLINIC)->count(),
         ];
     }
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\BookingStatus;
+use App\Enums\OnlineBookingBlockReason;
 use Database\Factories\PatientFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -22,6 +23,9 @@ class Patient extends Model
         'phone',
         'age',
         'whatsapp_opt_in_at',
+        'online_booking_blocked_at',
+        'online_booking_block_reason',
+        'online_booking_allowed_at',
     ];
 
     protected function casts(): array
@@ -29,6 +33,9 @@ class Patient extends Model
         return [
             'age' => 'integer',
             'whatsapp_opt_in_at' => 'datetime',
+            'online_booking_blocked_at' => 'datetime',
+            'online_booking_block_reason' => OnlineBookingBlockReason::class,
+            'online_booking_allowed_at' => 'datetime',
         ];
     }
 

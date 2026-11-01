@@ -143,6 +143,9 @@
                             <span>
                                 <strong>{{ $patient->name }}</strong>
                                 <span class="muted"> · {{ $patient->code }}</span>
+                                @if ($patient->online_booking_blocked_at !== null)
+                                    <span class="pill pill-off">{{ __('patient.online_booking.blocked') }}</span>
+                                @endif
                             </span>
                             <span class="muted">{{ $patient->visits_count }} {{ __('app.booking.visits') }}</span>
                         </button>

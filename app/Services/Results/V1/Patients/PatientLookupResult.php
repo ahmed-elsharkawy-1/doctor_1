@@ -46,6 +46,8 @@ final class PatientLookupResult extends ServiceResult
                 'code' => $this->patient->code,
                 'name' => $this->patient->name,
                 'visits_count' => $this->visitsCount,
+                // Kept off the public booking page — a badge for the secretary.
+                'online_booking_blocked' => $this->patient->online_booking_blocked_at !== null,
             ],
             'is_returning' => $this->visitsCount > 0,
             // The typed name differs from the one on file — offer to keep or

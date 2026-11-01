@@ -10,6 +10,7 @@ use App\Services\V1\Booking\PatientBookingService;
 use App\Services\V1\Booking\SlotAvailabilityService;
 use App\Services\V1\Booking\SlotGroup;
 use App\Support\HeldSlotSession;
+use App\Support\PhoneNumber;
 use Closure;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\On;
@@ -194,9 +195,13 @@ class BookVisit extends Component
                     ->startAt($clinic, $this->date, (string) $this->startTime)
                     ->toDateString() !== $this->date,
             'upcoming' => $stage === 'upcoming' ? $this->upcoming() : null,
+            'blockedMessage' => $stage === 'blocked' ? $this->service()->blockedMessage($clinic) : null,
             'confirmed' => $stage === 'done' ? $this->confirmed() : null,
             'verifiedPhone' => $this->service()->verifiedPhone($clinic),
             'whatsappUrl' => $this->service()->clinicWhatsAppUrl($clinic),
+            'clinicPhone' => $clinic->phone === null
+                ? null
+                : PhoneNumber::tryParse($clinic->phone, $clinic->country_code),
             // One fewer step when there is no code to confirm, so the counter
             // never promises a screen the patient will not see.
             'stepNumber' => match ($stage) {
@@ -263,6 +268,12 @@ class BookVisit extends Component
 
         if ($this->upcoming() !== null) {
             return 'upcoming';
+        }
+
+        // After the booking they already have: that one is kept, and showing
+        // it is more use to them than a refusal.
+        if ($this->service()->isBlocked($clinic)) {
+            return 'blocked';
         }
 
         return 'appointment';

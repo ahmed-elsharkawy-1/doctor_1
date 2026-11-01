@@ -816,7 +816,8 @@ Paginated (§6.5), default 15 per page, capped at 50.
       "code": "SAAH5521",
       "name": "سارة أحمد",
       "phone": { "value": "+201012225521", "display": "0101***5521" },
-      "visits_count": 3
+      "visits_count": 3,
+      "online_booking_blocked": false
     }
   ],
   "meta": { "current_page": 1, "last_page": 2, "per_page": 15, "total": 18 }
@@ -844,7 +845,19 @@ The patient's page: who she is, a summary, and every visit newest first.
     "no_show_count": 1,
     "cancelled_count": 2,
     "first_visit": { "value": "2026-05-10", "display": "10 مايو 2026" },
-    "last_visit":  { "value": "2026-07-02", "display": "2 يوليو 2026" }
+    "last_visit":  { "value": "2026-07-02", "display": "2 يوليو 2026" },
+    "last_no_show": { "value": "2026-06-20", "display": "20 يونيو 2026" },
+    "online_bookings_count": 2,
+    "clinic_bookings_count": 4
+  },
+  "online_booking": {
+    "allowed": false,
+    "blocked_at": { "value": "2026-06-21 05:00:00", "display": "5:00 ص" },
+    "reason": { "value": "no_shows", "display": "تكرار عدم الحضور" },
+    "counted_no_shows": 2,
+    "threshold": 2,
+    "window_days": 30,
+    "rule_enabled": true
   },
   "visits": [
     {
@@ -870,6 +883,38 @@ The patient's page: who she is, a summary, and every visit newest first.
 - `price` appears only for callers with `prices.view`.
 
 `PATIENT_NOT_FOUND` (404) for an unknown id, or another clinic's patient.
+
+### Online booking: allowed or blocked
+
+A patient can be kept off the **public booking page** (`/{slug}/book`). It
+never affects the app: the clinic books a blocked patient by phone exactly as
+before, and a booking they already have is kept.
+
+- **Automatic:** `threshold` no-shows inside the last `window_days` days (2 in
+  30) block the patient, at a clinic whose rule is on (`rule_enabled`). Every
+  no-show counts, whoever made the booking. `reason.value` is `no_shows`.
+- **By hand:** the clinic can block anyone (`reason.value` is `manual`),
+  whether the rule is on or not.
+- **Lifting:** the clinic allows them again. No-shows before that moment stop
+  counting, so the patient starts clean.
+
+Where to show it:
+
+- `online_booking` on `GET /patients/{id}` — the status, why, and how close the
+  rule is (`counted_no_shows` of `threshold`). Show the switch here.
+- `online_booking_blocked: true` on every booking's `patient` (queue cards,
+  calendar, booking details), on `POST /patients/lookup`'s `patient`, and on
+  search results — show a small "ممنوع من الحجز أونلاين" badge.
+
+#### `POST /patients/{id}/online-booking`
+
+```json
+{ "allowed": true }
+```
+
+`true` lifts a block, `false` blocks by hand. Returns
+`{ "online_booking": { ... } }` in the shape above. Needs `bookings.manage`
+(doctor and secretary). `PATIENT_NOT_FOUND` (404) for another clinic's patient.
 
 ---
 

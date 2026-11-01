@@ -57,6 +57,8 @@ final class BookingResult extends ServiceResult
                 'id' => $patient->id,
                 'code' => $patient->code,
                 'name' => $patient->name,
+                // Kept off the public booking page — a badge for the secretary.
+                'online_booking_blocked' => $patient->online_booking_blocked_at !== null,
                 // Full number: the queue card offers a call action.
                 'phone' => Wire::phone($phone),
             ],

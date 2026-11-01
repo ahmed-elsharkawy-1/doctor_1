@@ -118,6 +118,8 @@ return [
         'whatsapp_enabled_hint' => 'When off, this clinic sends no WhatsApp at all: no booking confirmation, no after-visit message, nothing from the Messages screen. Cancelling a day still works, without messages.',
         'self_booking_enabled_hint' => 'Opens a public booking page for this clinic. Patients verify their phone by message before booking.',
         'patient_booking_window_days' => 'Patient booking window (days)',
+        'no_show_block_enabled' => 'Block online booking after repeated no-shows',
+        'no_show_block_enabled_hint' => 'A patient with :count no-shows in the last :days days is blocked from booking online and told why. The clinic can allow them again from their file; phone booking always stays open.',
         'patient_booking_window_days_hint' => 'Must be at or below the clinic booking window, so the clinic keeps room for the people who phone.',
         'first_visit_only_days' => 'First-visit-only threshold (days)',
         'first_visit_only_days_hint' => 'A patient with a single visit older than this counts as never returned.',

@@ -233,6 +233,13 @@
                                 </div>
                             @endif
 
+                            {{-- Kept off the public booking page. --}}
+                            @if ($booking->patient?->online_booking_blocked_at !== null)
+                                <div style="margin-top:0.3rem">
+                                    <span class="pill pill-off">{{ __('patient.online_booking.blocked') }}</span>
+                                </div>
+                            @endif
+
                             {{-- The reminders and what the patient said back.
                                  One pill per template; re-read on every
                                  render, so a WhatsApp reply changes it

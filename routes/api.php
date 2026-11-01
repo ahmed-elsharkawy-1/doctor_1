@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V1\Messaging\ListMessageTemplatesController;
 use App\Http\Controllers\Api\V1\Messaging\SendBookingMessageController;
 use App\Http\Controllers\Api\V1\Patients\SearchPatientsController;
 use App\Http\Controllers\Api\V1\Patients\ShowPatientController;
+use App\Http\Controllers\Api\V1\Patients\UpdateOnlineBookingController;
 use App\Http\Controllers\Api\V1\Queue\CancelBookingController;
 use App\Http\Controllers\Api\V1\Queue\DelayOptionsController;
 use App\Http\Controllers\Api\V1\Queue\EmergencyController;
@@ -205,6 +206,17 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
         // What patients said about their visits. Here because every row
         // carries the patient's full phone, for the call and WhatsApp buttons.
         Route::get('reviews', ListReviewsController::class)->name('api.v1.reviews.index');
+    });
+
+    /*
+    | Whether a patient may book on the public page: `allowed: true` lifts a
+    | block, `false` blocks by hand. Under the booking ability — it decides
+    | who may book, and both the doctor and the secretary hold it.
+    */
+    Route::middleware('ability:bookings.manage')->group(function (): void {
+        Route::post('patients/{patient}/online-booking', UpdateOnlineBookingController::class)
+            ->whereNumber('patient')
+            ->name('api.v1.patients.online-booking');
     });
 
     // The reports page for the app's WebView. Not under the owner-only

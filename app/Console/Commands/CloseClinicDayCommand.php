@@ -6,6 +6,7 @@ use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Models\Clinic;
 use App\Services\V1\Booking\SlotHoldService;
+use App\Services\V1\Patients\OnlineBookingService;
 use App\Services\V1\Patients\PhoneVerificationService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
@@ -74,10 +75,16 @@ class CloseClinicDayCommand extends Command
             ->orWhere('start_at', '<=', $now->format('Y-m-d H:i:s'));
 
         // Never touched the clinic: she never turned up.
-        $noShows = $clinic->bookings()
+        $untouched = $clinic->bookings()
             ->whereDate('visit_date', '<', $today)
             ->where('status', BookingStatus::BOOKED)
-            ->where($started)
+            ->where($started);
+
+        // Read before the bulk update, which fires no model events: these are
+        // the patients the no-show rule has to look at again.
+        $noShowPatients = (clone $untouched)->whereNotNull('patient_id')->pluck('patient_id');
+
+        $noShows = $untouched
             ->update([
                 'status' => BookingStatus::NO_SHOW,
                 'cancel_reason' => null,
@@ -97,6 +104,8 @@ class CloseClinicDayCommand extends Command
                 'cancelled_at' => $now,
                 'updated_at' => $now,
             ]);
+
+        app(OnlineBookingService::class)->checkPatients($clinic, $noShowPatients);
 
         return $noShows + $incomplete;
     }

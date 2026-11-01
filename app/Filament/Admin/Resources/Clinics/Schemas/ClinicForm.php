@@ -179,6 +179,17 @@ class ClinicForm
                         ->default(false)
                         ->helperText(__('filament.clinic.self_booking_enabled_hint')),
 
+                    // Blocks a patient from the public page after repeated
+                    // no-shows. Off until somebody decides this clinic gets
+                    // it; the clinic can still block or allow anyone by hand.
+                    Toggle::make('no_show_block_enabled')
+                        ->label(__('filament.clinic.no_show_block_enabled'))
+                        ->default(false)
+                        ->helperText(fn (): string => __('filament.clinic.no_show_block_enabled_hint', [
+                            'count' => config('clinic.self_booking.no_show_block.threshold'),
+                            'days' => config('clinic.self_booking.no_show_block.window_days'),
+                        ])),
+
                     // Every WhatsApp message this clinic's patients would get.
                     // On by default; switched off while a clinic pilots the
                     // app. The panel is super-admin-only, so clinics cannot

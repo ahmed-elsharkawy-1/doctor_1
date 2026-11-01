@@ -35,7 +35,14 @@
         .visit .meta { color: var(--muted); font-size: 0.85rem; }
         .visit.is-terminal { opacity: 0.65; }
         .money { font-weight: 700; white-space: nowrap; }
+
+        .online { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; padding: 0.9rem 1rem; margin-bottom: 0.85rem; }
+        .online .meta { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
     </style>
+
+    @if ($notice !== null)
+        <div class="flash {{ $failed ? 'flash-err' : 'flash-ok' }}">{{ $notice }}</div>
+    @endif
 
     <div class="topbar">
         <div>
@@ -63,6 +70,56 @@
             <div class="n">{{ $summary['cancelled_count'] }}</div>
             <div class="k">{{ __('booking.status.cancelled') }}</div>
         </div>
+    </div>
+
+    {{-- Whether they may book on the public page, and how close the no-show
+         rule is to stopping them. --}}
+    <div class="card online">
+        <div>
+            <div style="font-size:0.85rem;color:var(--muted)">{{ __('patient.online_booking.title') }}</div>
+            <div style="margin-top:0.3rem">
+                @if ($onlineBooking['allowed'])
+                    <span class="pill">{{ __('patient.online_booking.allowed') }}</span>
+                @else
+                    <span class="pill pill-off">{{ __('patient.online_booking.blocked') }}</span>
+                    <span class="meta">· {{ $onlineBooking['reason']['display'] ?? '' }}</span>
+                @endif
+            </div>
+            <div class="meta">
+                @if (! $onlineBooking['allowed'] && $onlineBooking['blocked_at'] !== null)
+                    {{ __('patient.online_booking.blocked_since', ['date' => $patient->online_booking_blocked_at->format('Y-m-d')]) }} ·
+                @endif
+                @if ($onlineBooking['rule_enabled'])
+                    {{ __('patient.online_booking.counted', [
+                        'days' => $onlineBooking['window_days'],
+                        'count' => $onlineBooking['counted_no_shows'],
+                        'threshold' => $onlineBooking['threshold'],
+                    ]) }}
+                @else
+                    {{ __('patient.online_booking.rule_off') }}
+                @endif
+            </div>
+            <div class="meta">
+                {{ __('patient.online_booking.online_bookings') }}: {{ $summary['online_bookings_count'] }}
+                · {{ __('patient.online_booking.clinic_bookings') }}: {{ $summary['clinic_bookings_count'] }}
+                @if ($summary['last_no_show'] !== null)
+                    · {{ __('patient.online_booking.last_no_show') }}: {{ $summary['last_no_show']->visit_date->format('Y-m-d') }}
+                @endif
+            </div>
+        </div>
+
+        @if ($canSwitchOnlineBooking)
+            @if ($onlineBooking['allowed'])
+                <button type="button" class="btn btn-sm" wire:click="blockOnlineBooking"
+                        wire:confirm="{{ __('patient.online_booking.block_confirm') }}">
+                    {{ __('patient.online_booking.block') }}
+                </button>
+            @else
+                <button type="button" class="btn btn-sm btn-primary" wire:click="allowOnlineBooking">
+                    {{ __('patient.online_booking.allow') }}
+                </button>
+            @endif
+        @endif
     </div>
 
     <div class="card" style="padding:1rem">

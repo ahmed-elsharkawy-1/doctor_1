@@ -25,6 +25,7 @@ final class PatientHistoryResult extends ServiceResult
         private readonly Collection $history,
         private readonly array $summary,
         private readonly bool $withPrice = false,
+        private readonly ?OnlineBookingStatusResult $onlineBooking = null,
     ) {}
 
     public function toArray(): array
@@ -49,7 +50,13 @@ final class PatientHistoryResult extends ServiceResult
                 'last_visit' => $this->summary['last_visit'] === null
                     ? null
                     : Wire::date($this->summary['last_visit']->visit_date),
+                'last_no_show' => $this->summary['last_no_show'] === null
+                    ? null
+                    : Wire::date($this->summary['last_no_show']->visit_date),
+                'online_bookings_count' => $this->summary['online_bookings_count'],
+                'clinic_bookings_count' => $this->summary['clinic_bookings_count'],
             ],
+            'online_booking' => $this->onlineBooking?->toArray(),
             'visits' => $this->history
                 ->map(fn (Booking $booking) => $this->visit($booking))
                 ->values()

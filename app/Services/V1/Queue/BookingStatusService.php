@@ -9,6 +9,7 @@ use App\Events\SlotsChanged;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
+use App\Services\V1\Patients\OnlineBookingService;
 use Illuminate\Support\Carbon;
 
 /**
@@ -23,6 +24,7 @@ class BookingStatusService
 {
     public function __construct(
         private readonly WhatsAppMessagingService $messaging,
+        private readonly OnlineBookingService $onlineBooking,
     ) {}
 
     public function arrive(Booking $booking): Booking
@@ -73,10 +75,18 @@ class BookingStatusService
         }
 
         if ($target === BookingStatus::NO_SHOW) {
-            return $this->advance($booking, $target, [
+            $booking = $this->advance($booking, $target, [
                 'cancel_reason' => null,
                 'cancelled_at' => $this->now($booking),
             ]);
+
+            // A patient who keeps not turning up loses the public booking
+            // page. After the transition, so the rule counts this one too.
+            if ($booking->patient !== null) {
+                $this->onlineBooking->checkAfterNoShow($booking->patient);
+            }
+
+            return $booking;
         }
 
         return match ($target) {

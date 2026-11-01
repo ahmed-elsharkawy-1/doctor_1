@@ -390,6 +390,20 @@ return [
         'require_otp' => (bool) env('CLINIC_SELF_BOOKING_REQUIRE_OTP', true),
 
         /*
+        | Keeping a patient who keeps not turning up off this page.
+        |
+        | This many no-shows inside the last `window_days` days blocks the
+        | patient from booking here, at a clinic with `no_show_block_enabled`
+        | on. Every no-show counts, whoever made the booking; the block only
+        | closes this page — the clinic can still book them by phone, and can
+        | lift it (after which only newer no-shows count).
+        */
+        'no_show_block' => [
+            'threshold' => (int) env('CLINIC_NO_SHOW_BLOCK_COUNT', 2),
+            'window_days' => (int) env('CLINIC_NO_SHOW_BLOCK_DAYS', 30),
+        ],
+
+        /*
         | Grouping the day's slots for display.
         |
         | A ten-minute visit across an eight-hour day is forty-eight buttons,

@@ -44,6 +44,7 @@ class Clinic extends Model
         'pre_visit_reminder_enabled',
         'whatsapp_cancel_cutoff_minutes',
         'self_booking_enabled',
+        'no_show_block_enabled',
         'whatsapp_enabled',
         'reports_enabled',
         'is_test',
@@ -82,6 +83,7 @@ class Clinic extends Model
         return [
             'is_active' => 'boolean',
             'self_booking_enabled' => 'boolean',
+            'no_show_block_enabled' => 'boolean',
             'whatsapp_enabled' => 'boolean',
             'reports_enabled' => 'boolean',
             'is_test' => 'boolean',

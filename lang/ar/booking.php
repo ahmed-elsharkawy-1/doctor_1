@@ -161,6 +161,7 @@ return [
         'available' => 'متاح',
         'full' => 'مكتمل',
         'contact_clinic' => 'تواصل عبر واتساب',
+        'call_clinic' => 'اتصل بالعيادة',
 
         'steps' => [
             'details' => 'البيانات',
@@ -234,6 +235,11 @@ return [
 
         // لديه موعد قائم بالفعل.
         'upcoming_title' => 'لديك موعد قائم بالفعل',
+        // A patient blocked from booking here — too many no-shows, or the
+        // clinic's own decision.
+        'blocked_title' => 'لا يمكن الحجز أونلاين من هذا الرقم',
+        'blocked_lead' => 'عذرًا، تم إيقاف الحجز أونلاين لهذا الرقم بسبب تكرار عدم الحضور في المواعيد السابقة. يرجى التواصل مع العيادة مباشرة للحجز.',
+        'blocked_lead_manual' => 'عذرًا، الحجز أونلاين غير متاح لهذا الرقم حاليًا. يرجى التواصل مع العيادة مباشرة للحجز.',
         'upcoming_lead' => 'لدى :patient موعد قائم مع :doctor. يمكنك متابعة الدور من هنا.',
         'upcoming_change' => 'لتغيير الموعد، تواصل مع العيادة.',
         'track' => 'متابعة الدور',

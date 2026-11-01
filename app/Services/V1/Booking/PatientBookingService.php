@@ -6,11 +6,13 @@ use App\DTOs\V1\Booking\BookingData;
 use App\Enums\ApiErrorCode;
 use App\Enums\BookingSource;
 use App\Enums\DayOfWeek;
+use App\Enums\OnlineBookingBlockReason;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\Patient;
 use App\Models\VisitType;
+use App\Services\V1\Patients\OnlineBookingService;
 use App\Services\V1\Patients\PatientService;
 use App\Services\V1\Patients\PhoneVerificationService;
 use App\Services\V1\QrPoster\QrScanService;
@@ -44,6 +46,7 @@ class PatientBookingService
         private readonly VerifiedPhoneSession $verified,
         private readonly SlotGrouper $grouper,
         private readonly QrScanService $qrScans,
+        private readonly OnlineBookingService $onlineBooking,
     ) {}
 
     /*
@@ -500,6 +503,31 @@ class PatientBookingService
             ->first();
     }
 
+    /**
+     * Whether the patient behind the verified number may not book here — too
+     * many no-shows, or blocked by the clinic. Asked only once the number is
+     * proved, so typing somebody's number reveals nothing.
+     */
+    public function isBlocked(Clinic $clinic): bool
+    {
+        $patient = $this->verifiedPatient($clinic);
+
+        return $patient !== null && $this->onlineBooking->isBlocked($patient);
+    }
+
+    /**
+     * What a blocked patient is told. The reason is named when it is their
+     * no-shows; a block the clinic set by hand is not explained for it.
+     */
+    public function blockedMessage(Clinic $clinic): string
+    {
+        $reason = $this->verifiedPatient($clinic)?->online_booking_block_reason;
+
+        return $reason === OnlineBookingBlockReason::MANUAL
+            ? __('booking.self_booking.blocked_lead_manual')
+            : __('booking.self_booking.blocked_lead');
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Holding and booking
@@ -519,6 +547,7 @@ class PatientBookingService
     ): string {
         $this->assertOpen($clinic);
         $this->assertVerified($clinic);
+        $this->assertNotBlocked($clinic);
         $this->assertWithinPatientWindow($clinic, $date);
 
         return $this->holds->hold(
@@ -553,6 +582,7 @@ class PatientBookingService
     ): Booking {
         $this->assertOpen($clinic);
         $phone = $this->assertVerified($clinic);
+        $this->assertNotBlocked($clinic);
         $this->assertWithinPatientWindow($clinic, $date);
         $this->assertSelfBookable($clinic, $visitTypeId);
 
@@ -631,6 +661,21 @@ class PatientBookingService
         }
 
         return $phone;
+    }
+
+    /**
+     * The page shows a blocked patient their own screen; this is what a
+     * request that skips it gets.
+     */
+    private function assertNotBlocked(Clinic $clinic): void
+    {
+        if ($this->isBlocked($clinic)) {
+            throw ApiException::make(
+                ApiErrorCode::ONLINE_BOOKING_BLOCKED,
+                $this->blockedMessage($clinic),
+                http: 403,
+            );
+        }
     }
 
     /**

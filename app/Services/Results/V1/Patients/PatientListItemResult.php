@@ -29,6 +29,7 @@ final class PatientListItemResult extends ServiceResult
             'name' => $this->patient->name,
             'phone' => Wire::maskedPhone($phone),
             'visits_count' => (int) ($this->patient->visits_count ?? 0),
+            'online_booking_blocked' => $this->patient->online_booking_blocked_at !== null,
             'last_visit' => $this->patient->last_visit_date === null
                 ? null
                 : Wire::date($this->patient->last_visit_date),

@@ -1478,6 +1478,50 @@
                         "description": "Summary plus every visit, newest first — **cancellations and no-shows\nincluded**, each with its reason. A pattern of them is exactly what the\nsecretary wants to see.\n\nThe phone is **unmasked** here; this screen has a call action."
                     },
                     "response": []
+                },
+                {
+                    "name": "Allow or block online booking",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/patients/{patient}/online-booking",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "patients",
+                                "{patient}",
+                                "online-booking"
+                            ]
+                        },
+                        "description": "Whether this patient may book on the public booking page.\n\n- `allowed: true` lifts a block. No-shows marked before this moment\n  stop counting, so the patient starts clean.\n- `allowed: false` blocks by hand (`reason: manual`). It applies even\n  where the clinic's automatic rule is off.\n\nBlocking only closes the public page. The clinic books the patient by\nphone exactly as before, and a booking they already have is kept.\n\nThe automatic rule: `threshold` no-shows inside the last\n`window_days` days (2 in 30 by default), at a clinic with the rule on,\ncounting every no-show whoever made the booking. Needs the\n`bookings.manage` ability (doctor and secretary).",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"allowed\": false\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
                 }
             ]
         },

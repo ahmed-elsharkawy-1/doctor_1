@@ -58,6 +58,9 @@
                             @if ($patient->phone)
                                 · <span dir="ltr">{{ $patient->phone }}</span>
                             @endif
+                            @if ($patient->online_booking_blocked_at !== null)
+                                <span class="pill pill-off">{{ __('patient.online_booking.blocked') }}</span>
+                            @endif
                         </span>
                     </span>
 

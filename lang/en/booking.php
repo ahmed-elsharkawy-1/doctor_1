@@ -160,6 +160,7 @@ return [
         'available' => 'Available',
         'full' => 'Fully booked',
         'contact_clinic' => 'Message on WhatsApp',
+        'call_clinic' => 'Call the clinic',
 
         'steps' => [
             'details' => 'Details',
@@ -221,6 +222,11 @@ return [
         'minutes_count' => '{1} one minute|[2,*] :count minutes',
 
         'upcoming_title' => 'You already have an appointment',
+        // A patient blocked from booking here — too many no-shows, or the
+        // clinic's own decision.
+        'blocked_title' => 'Online booking is not available for this number',
+        'blocked_lead' => 'Sorry, online booking has been stopped for this number because of repeated missed appointments. Please contact the clinic directly to book.',
+        'blocked_lead_manual' => 'Sorry, online booking is not available for this number right now. Please contact the clinic directly to book.',
         'upcoming_lead' => ':patient already has an appointment with :doctor. You can follow the queue here.',
         'upcoming_change' => 'To change it, contact the clinic.',
         'track' => 'Follow the queue',
