@@ -206,13 +206,16 @@ class ClinicForm
                     // Patients get a shorter horizon than the secretary, so
                     // she keeps room to place the people who phone her. The
                     // rule is enforced again in Clinic::patientBookingWindowDays()
-                    // — this only catches it at the form.
+                    // — this only catches it at the form. Filament's lte(), not
+                    // a raw 'lte:' rule: the form's fields live under `data.`,
+                    // so a raw rule compares against a field that isn't there
+                    // and refuses every value.
                     TextInput::make('patient_booking_window_days')
                         ->label(__('filament.clinic.patient_booking_window_days'))
                         ->numeric()
                         ->minValue(1)
                         ->maxValue(90)
-                        ->rules(['lte:booking_window_days'])
+                        ->lte('booking_window_days')
                         ->default($defaults['patient_booking_window_days'])
                         ->helperText(__('filament.clinic.patient_booking_window_days_hint')),
 

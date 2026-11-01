@@ -47,6 +47,13 @@ return [
     | الرسالة بالاسم البرمجي — "حقل start time مطلوب" — وهو ما لا يعني شيئًا
     | لمريضة تحجز موعدًا.
     */
+    'lte' => [
+        'numeric' => 'يجب ألا يزيد :attribute عن :value.',
+        'string' => 'يجب ألا يزيد :attribute عن :value حرفًا.',
+        'array' => 'يجب ألا تزيد عناصر :attribute عن :value.',
+        'file' => 'يجب ألا يزيد حجم :attribute عن :value كيلوبايت.',
+    ],
+
     'attributes' => [
         'name' => 'الاسم',
         'patient_name' => 'اسم المريضة',
