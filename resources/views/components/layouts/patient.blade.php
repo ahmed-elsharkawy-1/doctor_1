@@ -472,6 +472,86 @@
         }
 
         /* Notes ------------------------------------------------------------ */
+        /* The waiting list: a full day's offer, the sheet that explains it,
+           and the screen once joined. */
+        .wl-full {
+            display: grid; gap: 12px;
+            padding: 14px; border-radius: var(--radius);
+            background: var(--danger-bg); border: 1px solid #F0CFCA;
+        }
+        .wl-full-head { display: flex; align-items: center; gap: 8px; color: var(--danger); font-size: 15px; font-weight: 800; }
+        .wl-full-text { margin: 0; font-size: 13px; color: var(--danger-ink); line-height: 1.6; }
+
+        .sheet-backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(19, 36, 51, .45); }
+        .sheet {
+            position: fixed; z-index: 41; inset-inline: 0; bottom: 0;
+            width: min(30rem, 100%); margin: 0 auto;
+            padding: 10px 16px calc(16px + env(safe-area-inset-bottom));
+            background: var(--surface); border-radius: 24px 24px 0 0;
+            box-shadow: 0 -10px 30px rgba(20, 60, 100, .18);
+            display: grid; gap: 16px;
+        }
+        .sheet-grip { justify-self: center; width: 40px; height: 4px; border-radius: 2px; background: var(--line-strong); }
+        .sheet-title { margin: 0; font-size: 19px; font-weight: 800; text-align: center; }
+        .sheet-actions { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+
+        .wl-steps {
+            list-style: none; margin: 0; padding: 14px; display: grid; gap: 22px;
+            border-radius: var(--radius); background: var(--surface-2);
+        }
+        .wl-steps li { position: relative; display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 700; }
+        /* The line joining the steps, behind the icons. */
+        .wl-steps li + li::before {
+            content: ""; position: absolute; inset-inline-start: 21px; bottom: 44px;
+            width: 2px; height: 22px; background: var(--primary-100);
+        }
+        .wl-step-icon {
+            position: relative; flex: 0 0 auto;
+            width: 44px; height: 44px; border-radius: 50%;
+            display: grid; place-items: center;
+            background: var(--surface); border: 2px solid var(--primary-100); color: var(--primary);
+        }
+        .wl-step-icon::after {
+            content: attr(data-n);
+            position: absolute; top: -4px; inset-inline-end: -4px;
+            width: 17px; height: 17px; border-radius: 50%;
+            display: grid; place-items: center;
+            background: var(--primary); color: #fff; font-size: 10px; font-weight: 800;
+        }
+
+        .wl-joined { display: grid; justify-items: center; gap: 10px; text-align: center; padding-top: 4px; }
+        .wl-clock {
+            width: 76px; height: 76px; border-radius: 50%;
+            display: grid; place-items: center;
+            background: var(--primary-50); border: 5px solid var(--primary-100); color: var(--primary);
+        }
+        .wl-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 12px; border-radius: 999px;
+            border: 1px solid var(--line-strong); background: var(--surface);
+            font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+        }
+        .wl-rank {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 18px; border-radius: var(--radius);
+            background: var(--primary-50); border: 1px solid var(--primary-100);
+            font-size: 15px; font-weight: 800;
+        }
+        .wl-rank b { font-size: 30px; line-height: 1; color: var(--primary); }
+        .wl-facts { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+        .wl-fact { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+        .wl-fact + .wl-fact { border-top: 1px solid var(--line); }
+        .wl-fact b { font-size: 14px; }
+        .wl-fact-icon {
+            flex: 0 0 auto; width: 34px; height: 34px; border-radius: 10px;
+            display: grid; place-items: center;
+            background: var(--surface-2); color: var(--muted);
+        }
+        .wl-leave {
+            align-self: center; border: 0; background: none; padding: 8px;
+            font: inherit; font-size: 14px; font-weight: 700; color: var(--danger); cursor: pointer;
+        }
+
         .note { display: flex; gap: 10px; align-items: flex-start; border-radius: 14px; padding: 12px 14px; font-size: 12.5px; line-height: 1.6; }
         .note svg { flex: 0 0 auto; margin-top: 2px; }
         .note-info { background: var(--primary-50); color: var(--ink-soft); }

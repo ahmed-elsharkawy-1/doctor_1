@@ -141,3 +141,20 @@ WHATSAPP_SYSTEM_USER_TOKEN=...      # permanent system-user token; never commit
 WHATSAPP_PHONE_NUMBER_ID=1287295631138307
 WHATSAPP_API_VERSION=v25.0
 ```
+
+---
+
+## Waiting list and clinic announcement
+
+Taken from the template editor (2026-11-02), **not yet read back from the
+Graph API** — confirm each name and parameter count there before switching a
+clinic's waiting list on. Bodies are in `MessageTemplateSeeder`.
+
+| Meta name | Our key | Body params | Button | Sent when |
+|---|---|---|---|---|
+| `waiting_list_joined` | `waiting_list_joined` | `{{1}}` patient · `{{2}}` day asked for | — | A patient joins a full day's list, or the secretary adds them |
+| `waiting_list_no_slot_opened_v3` | `waiting_list_no_slot_opened` | `{{1}}` patient · `{{2}}` day asked for | URL `<slug>/book` | `clinic:close-waiting-lists`, once the day's last period has ended |
+| `waiting_list_slot_booked` | `waiting_list_slot_booked` | `{{1}}` patient · `{{2}}` date · `{{3}}` time · `{{4}}` doctor · `{{5}}` address | URL `booking/<token>` | The secretary books a patient from the list — instead of the confirmation |
+| `clinic_announcement_v2` | `clinic_announcement` | `{{1}}` doctor · `{{2}}` patient · `{{3}}` announcement (one paragraph) · `{{4}}` clinic phone | — | A super admin sends it from the clinic's page in the admin panel. Never offered in the clinic app |
+
+The "day asked for" reads like `الثلاثاء 10 نوفمبر`.

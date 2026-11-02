@@ -6,6 +6,7 @@ use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\VisitType;
+use App\Models\WaitingListEntry;
 use App\Services\V1\Booking\PatientBookingService;
 use App\Services\V1\Booking\SlotAvailabilityService;
 use App\Services\V1\Booking\SlotGroup;
@@ -80,6 +81,15 @@ class BookVisit extends Component
      * every render, so pointing it at somebody else's booking shows nothing.
      */
     public ?int $confirmedBookingId = null;
+
+    /**
+     * Set after joining a full day's waiting list. Re-checked against the
+     * verified phone on every render, the same as the booking above.
+     */
+    public ?int $waitingEntryId = null;
+
+    /** Whether the "how the waiting list works" sheet is open. */
+    public bool $showWaitingSheet = false;
 
     public ?string $notice = null;
 
@@ -195,6 +205,18 @@ class BookVisit extends Component
                     ->startAt($clinic, $this->date, (string) $this->startTime)
                     ->toDateString() !== $this->date,
             'upcoming' => $stage === 'upcoming' ? $this->upcoming() : null,
+            // Only for a selected day with nothing free: what the waiting
+            // list offers there, if anything.
+            'waitingOffer' => $stage === 'appointment' && $availability !== null && ! $availability->hasAvailableSlot()
+                ? $this->service()->waitingListOffer($clinic, $this->date)
+                : null,
+            // Whether a full day may be tapped at all. Without a list there
+            // is nothing to do on one, so it stays shut.
+            'waitingListOpen' => $clinic->offersWaitingList(),
+            'waitingEntry' => $stage === 'waitlisted' ? $this->waitingEntry() : null,
+            'waitingPosition' => $stage === 'waitlisted' && ($entry = $this->waitingEntry()) !== null
+                ? $this->service()->waitingPosition($entry)
+                : null,
             'blockedMessage' => $stage === 'blocked' ? $this->service()->blockedMessage($clinic) : null,
             'confirmed' => $stage === 'done' ? $this->confirmed() : null,
             'verifiedPhone' => $this->service()->verifiedPhone($clinic),
@@ -256,6 +278,10 @@ class BookVisit extends Component
 
         if ($this->confirmed() !== null) {
             return 'done';
+        }
+
+        if ($this->waitingEntry() !== null) {
+            return 'waitlisted';
         }
 
         // Verified, but we have no name to book under: a first-time patient
@@ -434,6 +460,7 @@ class BookVisit extends Component
     public function selectVisitType(int $visitTypeId): void
     {
         $this->visitTypeId = $visitTypeId;
+        $this->showWaitingSheet = false;
         $this->forgetOpenGroup();
         $this->startTime = null;
         $this->releaseHold();
@@ -450,6 +477,7 @@ class BookVisit extends Component
     public function selectDay(string $date): void
     {
         $this->date = $date;
+        $this->showWaitingSheet = false;
         $this->forgetOpenGroup();
         $this->startTime = null;
         $this->releaseHold();
@@ -544,6 +572,63 @@ class BookVisit extends Component
 
     /*
     |--------------------------------------------------------------------------
+    | The waiting list
+    |--------------------------------------------------------------------------
+    */
+
+    /** The sheet explaining the list, before anything is written. */
+    public function openWaitingSheet(): void
+    {
+        $this->showWaitingSheet = true;
+        $this->clearNotice();
+    }
+
+    public function closeWaitingSheet(): void
+    {
+        $this->showWaitingSheet = false;
+    }
+
+    public function joinWaitingList(): void
+    {
+        $this->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'visitTypeId' => ['required', 'integer'],
+            'date' => ['required', 'date_format:Y-m-d'],
+        ]);
+
+        $this->run(function (): void {
+            $entry = $this->service()->joinWaitingList(
+                $this->clinic(),
+                $this->name,
+                (int) $this->visitTypeId,
+                $this->date,
+            );
+
+            $this->waitingEntryId = $entry->id;
+        }, null);
+
+        $this->showWaitingSheet = false;
+    }
+
+    /** Already on this day's list: show them their place. */
+    public function showWaitingEntry(int $entryId): void
+    {
+        $this->waitingEntryId = $this->service()->waitingEntry($this->clinic(), $entryId)?->id;
+    }
+
+    public function leaveWaitingList(): void
+    {
+        if ($this->waitingEntryId !== null) {
+            $this->service()->leaveWaitingList($this->clinic(), $this->waitingEntryId);
+        }
+
+        $this->waitingEntryId = null;
+        $this->notice = __('waiting_list.patient.left');
+        $this->failed = false;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Reading
     |--------------------------------------------------------------------------
     */
@@ -591,6 +676,11 @@ class BookVisit extends Component
             ->whereKey($this->confirmedBookingId)
             ->whereHas('patient', fn ($query) => $query->where('phone', $phone))
             ->first();
+    }
+
+    private function waitingEntry(): ?WaitingListEntry
+    {
+        return $this->service()->waitingEntry($this->clinic(), $this->waitingEntryId);
     }
 
     /*

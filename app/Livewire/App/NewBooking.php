@@ -15,6 +15,7 @@ use App\Services\V1\Booking\DayAvailability;
 use App\Services\V1\Booking\SlotAvailabilityService;
 use App\Services\V1\Booking\SlotHoldService;
 use App\Services\V1\Patients\PatientSearchService;
+use App\Services\V1\WaitingList\WaitingListService;
 use App\Support\HeldSlotSession;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
@@ -64,6 +65,17 @@ class NewBooking extends ClinicComponent
     #[Url(as: 'rebooking_for', except: null)]
     public ?int $rebookingFor = null;
 
+    /**
+     * Set when the secretary came here from the waiting list. Saving takes
+     * the patient off it and sends "booked from the waiting list" instead of
+     * the confirmation — see WaitingListService::settleForBooking().
+     */
+    #[Url(as: 'waiting_list', except: null)]
+    public ?int $waitingListEntry = null;
+
+    /** Who the waiting-list entry is for, for the banner. */
+    public ?string $waitingListPatient = null;
+
     public ?string $notice = null;
 
     public bool $failed = false;
@@ -79,6 +91,45 @@ class NewBooking extends ClinicComponent
         $this->visitTypeId = $clinic->visitTypes()->active()->value('id');
 
         $this->prefillFromRebooking($clinic);
+        $this->prefillFromWaitingList($clinic);
+    }
+
+    /**
+     * Coming from the waiting list: the patient, the day they asked for and
+     * the visit are known. The id is checked, not trusted — it must be this
+     * clinic's and still on the list.
+     */
+    private function prefillFromWaitingList(Clinic $clinic): void
+    {
+        if ($this->waitingListEntry === null) {
+            return;
+        }
+
+        try {
+            $entry = app(WaitingListService::class)->find($clinic, $this->waitingListEntry);
+        } catch (ApiException $e) {
+            $this->waitingListEntry = null;
+            $this->notice = $e->getMessage();
+            $this->failed = true;
+
+            return;
+        }
+
+        $this->patientId = $entry->patient_id;
+        $this->patientName = (string) $entry->patient?->name;
+        $this->phone = (string) $entry->patient?->phone;
+        $this->age = (string) ($entry->patient?->age ?? '');
+        $this->waitingListPatient = $this->patientName;
+
+        // The day they asked for, unless it has already gone by.
+        if ($entry->visit_date->toDateString() >= $clinic->currentDay()->toDateString()) {
+            $this->date = $entry->visit_date->toDateString();
+        }
+
+        if ($entry->visit_type_id !== null
+            && $clinic->visitTypes()->active()->whereKey($entry->visit_type_id)->exists()) {
+            $this->visitTypeId = $entry->visit_type_id;
+        }
     }
 
     /**
@@ -165,6 +216,10 @@ class NewBooking extends ClinicComponent
         $this->patientName = '';
         $this->phone = '';
         $this->age = '';
+
+        // A different patient is no longer the one on the waiting list.
+        $this->waitingListEntry = null;
+        $this->waitingListPatient = null;
     }
 
     public function selectVisitType(int $visitTypeId): void
@@ -296,6 +351,7 @@ class NewBooking extends ClinicComponent
                         : PatientLocation::from($this->patientLocation),
                     notes: $this->notes === '' ? null : $this->notes,
                     rebookingForBookingId: $this->rebookingFor,
+                    waitingListEntryId: $this->waitingListEntry,
                     // The slot this screen has been sitting on. Without it the
                     // write path would refuse the very time it offered.
                     holdToken: $this->holdToken(),
@@ -369,6 +425,7 @@ class NewBooking extends ClinicComponent
         $this->reset([
             'patientSearch', 'patientId', 'patientName', 'phone', 'age',
             'startTime', 'notes', 'patientLocation', 'rebookingFor',
+            'waitingListEntry', 'waitingListPatient',
         ]);
 
         $this->kind = BookingKind::NORMAL->value;

@@ -114,6 +114,10 @@
         <div class="flash flash-ok">{{ __('app.booking.replacing') }}</div>
     @endif
 
+    @if ($waitingListEntry !== null)
+        <div class="flash flash-ok">{{ __('waiting_list.app.booking_from_list', ['name' => $waitingListPatient]) }}</div>
+    @endif
+
     {{-- Patient --}}
     <div class="card section">
         <h2>{{ __('app.booking.patient') }}</h2>

@@ -190,6 +190,27 @@ class ClinicForm
                             'days' => config('clinic.self_booking.no_show_block.window_days'),
                         ])),
 
+                    // The waiting list for a full day. Off until somebody
+                    // decides this clinic gets it; the cap is "the count of
+                    // patients on the day" and falls back to the platform
+                    // default when left empty.
+                    Toggle::make('waiting_list_enabled')
+                        ->label(__('filament.clinic.waiting_list_enabled'))
+                        ->default(false)
+                        ->live()
+                        ->helperText(__('filament.clinic.waiting_list_enabled_hint')),
+
+                    TextInput::make('waiting_list_max_per_day')
+                        ->label(__('filament.clinic.waiting_list_max_per_day'))
+                        ->numeric()
+                        ->minValue(1)
+                        ->maxValue(100)
+                        ->placeholder((string) config('clinic.waiting_list.max_per_day'))
+                        ->visible(fn ($get): bool => (bool) $get('waiting_list_enabled'))
+                        ->helperText(fn (): string => __('filament.clinic.waiting_list_max_per_day_hint', [
+                            'count' => config('clinic.waiting_list.max_per_day'),
+                        ])),
+
                     // Every WhatsApp message this clinic's patients would get.
                     // On by default; switched off while a clinic pilots the
                     // app. The panel is super-admin-only, so clinics cannot

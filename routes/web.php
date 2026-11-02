@@ -27,6 +27,7 @@ use App\Livewire\App\Settings\General;
 use App\Livewire\App\Settings\Holidays;
 use App\Livewire\App\Settings\Hours;
 use App\Livewire\App\Settings\VisitTypes;
+use App\Livewire\App\WaitingList;
 use App\Livewire\Patient\BookVisit;
 use Illuminate\Support\Facades\Route;
 
@@ -152,6 +153,9 @@ Route::prefix('app')->name('app.')->group(function (): void {
         // Postponing a day and the call list it produces (SPEC §4.5).
         Route::get('postpone', Postpone::class)->name('postpone');
         Route::get('rebooking', Rebooking::class)->name('rebooking');
+
+        // Patients asking for a day that is already full.
+        Route::get('waiting-list', WaitingList::class)->name('waiting-list');
 
         // The doctor is held up: the rest of today moves later.
         Route::get('delay', Delay::class)->name('delay');

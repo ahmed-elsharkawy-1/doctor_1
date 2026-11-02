@@ -44,6 +44,12 @@ final class BookingData
          * caller. Never from the request, for the same reason as `source`.
          */
         public readonly ?BookingReferral $referral = null,
+        /**
+         * The waiting-list entry the secretary is booking from. Takes the
+         * patient off the list and sends "booked from the waiting list"
+         * instead of the usual confirmation.
+         */
+        public readonly ?int $waitingListEntryId = null,
     ) {}
 
     /**
@@ -79,6 +85,9 @@ final class BookingData
                 : null,
             holdToken: isset($validated['hold_token'])
                 ? (string) $validated['hold_token']
+                : null,
+            waitingListEntryId: isset($validated['waiting_list_entry_id'])
+                ? (int) $validated['waiting_list_entry_id']
                 : null,
         );
     }

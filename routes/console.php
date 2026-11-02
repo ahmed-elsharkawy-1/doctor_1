@@ -53,3 +53,13 @@ Schedule::command('clinic:send-reports')
     ->timezone(config('clinic.reports.timezone'))
     ->withoutOverlapping()
     ->runInBackground();
+
+/*
+| Waiting lists close when each clinic's own day ends, not at a fixed hour,
+| so this runs often and gates itself on each clinic's schedule. A run with
+| nobody on any list is one query.
+*/
+Schedule::command('clinic:close-waiting-lists')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();

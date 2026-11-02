@@ -42,6 +42,9 @@ use App\Http\Controllers\Api\V1\Settings\ListVisitTypesController;
 use App\Http\Controllers\Api\V1\Settings\UpdateGeneralSettingsController;
 use App\Http\Controllers\Api\V1\Settings\UpdateScheduleDayController;
 use App\Http\Controllers\Api\V1\Settings\UpdateVisitTypeController;
+use App\Http\Controllers\Api\V1\WaitingList\ListWaitingListController;
+use App\Http\Controllers\Api\V1\WaitingList\RemoveWaitingListEntryController;
+use App\Http\Controllers\Api\V1\WaitingList\StoreWaitingListEntryController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -154,6 +157,16 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
         Route::get('message-templates', ListMessageTemplatesController::class)
             ->name('api.v1.message-templates.index');
         Route::post('broadcasts', CreateBroadcastController::class)->name('api.v1.broadcasts.store');
+
+        // Patients asking for a full day. Booking one of them is an ordinary
+        // booking carrying `waiting_list_entry_id`.
+        Route::prefix('waiting-list')->group(function (): void {
+            Route::get('/', ListWaitingListController::class)->name('api.v1.waiting-list.index');
+            Route::post('/', StoreWaitingListEntryController::class)->name('api.v1.waiting-list.store');
+            Route::delete('{entry}', RemoveWaitingListEntryController::class)
+                ->whereNumber('entry')
+                ->name('api.v1.waiting-list.destroy');
+        });
     });
 
     /*
