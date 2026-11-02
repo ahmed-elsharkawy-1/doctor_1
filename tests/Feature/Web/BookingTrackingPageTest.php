@@ -223,12 +223,14 @@ class BookingTrackingPageTest extends TestCase
     {
         config(['clinic.tracking.show_estimate' => true]);
 
-        // Ten minutes late — under the delay notice's threshold, so the
-        // estimate box shows (a longer delay shows TrackingDelayNoticeTest's
-        // notice in its place).
+        // Ten minutes late — under the delay notice's threshold — and already
+        // in the clinic, so the estimate box shows. (A patient still to come
+        // gets the arrival notice instead; a longer delay, the delay notice.
+        // Both in TrackingDelayNoticeTest.)
         $this->booking('09:00');
         $this->booking('09:20');
         $mine = $this->booking('10:30');
+        $mine->update(['status' => BookingStatus::ARRIVED]);
 
         $this->get($mine->trackingUrl())
             ->assertOk()

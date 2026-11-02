@@ -23,6 +23,15 @@
     $isFirstInLine = $position !== null && $position->isFirstInLine();
     $isWaiting = $position !== null && ! $isNext && ! $isUpNext && ! $isFirstInLine;
     $isDone = $status === BookingStatus::DONE;
+
+    // With the estimate on, a patient still to come always gets the yellow
+    // notice: the delay when there is one worth announcing, otherwise this —
+    // come before the time you booked. Never once they are in the clinic.
+    $arrival = config('clinic.tracking.show_estimate')
+        && $delay === null
+        && $status === BookingStatus::BOOKED
+        && $booking->start_at !== null
+        && ($isWaiting || $isFirstInLine);
     $isOff = $status->isTerminal() && ! $isDone;
 
     // How far the patient has come, as a fraction of today's queue. The arc
@@ -201,6 +210,9 @@
         .late-box .am { display: block; color: var(--muted); font-size: 11px; }
         .late-arrow { flex: 0 0 auto; color: var(--muted); }
 
+        .arrive-time { color: var(--late); white-space: nowrap; }
+        .arrive-note { margin-top: 4px; color: var(--muted); font-size: 12.5px; }
+
         .late-note { display: flex; gap: 7px; margin-top: 10px; color: var(--danger); font-size: 13px; font-weight: 700; }
         .late-note svg { flex: 0 0 auto; margin-top: 2px; }
         .late-note span { min-width: 0; }
@@ -323,7 +335,7 @@
     <x-doctor-card :clinic="$clinic" :doctor="$doctor" :facts="false" slim />
 
     {{-- The headline: a ring that fills as the patient moves up --}}
-    <section class="card stage @if ($delay) has-delay @endif">
+    <section class="card stage @if ($delay || $arrival) has-delay @endif">
         {{-- The clinic is running late for this patient (TrackingDelayService):
              by how much, their appointment, and when they can now expect to go
              in. Sits on top of the queue it explains. --}}
@@ -388,6 +400,19 @@
                     })();
                 </script>
             </div>
+        @elseif ($arrival)
+            {{-- No delay worth announcing: the time they booked, and the same
+                 warning the delay notice gives. A smaller slip is not shown. --}}
+            <div class="late">
+                <div class="late-head">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    <p>
+                        {{ __('booking.tracking.arrive_title') }}
+                        <span class="arrive-time">{{ $clock($booking->start_at) }}{{ $booking->startsAfterMidnight() ? ' · '.__('schedule.after_midnight') : '' }}</span>
+                    </p>
+                </div>
+                <p class="arrive-note">{{ __('booking.tracking.delay_note') }}</p>
+            </div>
         @endif
 
         {{-- A ring with a number in it does not say what the number counts.
@@ -436,7 +461,7 @@
         </div>
     @endif
 
-    @if ($isFirstInLine)
+    @if ($isFirstInLine && ! $arrival)
         {{-- Nobody before them, but they are not here yet: say when to come
              rather than calling them into the examination room. --}}
         <div class="notice">
@@ -477,7 +502,7 @@
 
         {{-- The delay notice above already says both times; these come back
              whenever it is not showing. --}}
-        @unless ($delay)
+        @unless ($delay || $arrival)
         <div class="duo">
             @if (! config('clinic.tracking.show_estimate'))
                 {{-- The time they booked, as booked. The estimate stays off

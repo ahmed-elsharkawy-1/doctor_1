@@ -98,6 +98,7 @@ return [
         'your_status' => 'حالتك الآن',
         'expected_at' => 'الوصول للعيادة',
         'booked_at' => 'موعد حجزك',
+        'arrive_title' => 'احضر قبل موعدك',
         'delay_title' => 'يوجد تأخير في مواعيد العيادة حوالي',
         'delay_previous' => 'موعد حجزك الأساسي',
         'delay_expected' => 'موعد دخولك المتوقع',

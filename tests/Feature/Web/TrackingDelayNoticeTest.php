@@ -97,12 +97,109 @@ class TrackingDelayNoticeTest extends TestCase
 
     public function test_the_threshold_is_exclusive(): void
     {
-        // 45 − 30 = 15: not more than 15, so nothing — and the boxes stay.
+        // 45 − 30 = 15: not more than 15, so no delay — the arrival notice
+        // instead, and the boxes stay hidden.
         $this->get($this->lateBy(45)->trackingUrl())
             ->assertOk()
             ->assertDontSee(__('booking.tracking.delay_title'))
-            ->assertSee(__('booking.tracking.expected_at'))
+            ->assertSee(__('booking.tracking.arrive_title'))
+            ->assertDontSee(__('booking.tracking.expected_at'))
+            ->assertDontSee(__('booking.tracking.your_status'));
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | No delay: the arrival notice
+    |--------------------------------------------------------------------------
+    |
+    | With the estimate on, a patient still to come always gets the yellow
+    | notice: the delay when there is one worth announcing, otherwise "be here
+    | before your appointment" with the time they booked.
+    */
+
+    public function test_on_time_the_notice_asks_the_patient_to_come_before_the_booked_time(): void
+    {
+        $this->now('08:00');
+        $this->booking('08:00');
+        $mine = $this->booking('08:30');
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSeeInOrder([__('booking.tracking.arrive_title'), '8:30 '.__('booking.tracking.am')])
+            ->assertSee(__('booking.tracking.delay_note'))
+            ->assertDontSee(__('booking.tracking.delay_title'))
+            ->assertDontSee(__('booking.tracking.expected_at'))
+            ->assertDontSee(__('booking.tracking.your_status'));
+    }
+
+    /** A slip too small to announce is not announced: the booked time stands. */
+    public function test_a_small_delay_still_shows_the_booked_time(): void
+    {
+        // 40 − 30 = 10, under the threshold; the estimate is 09:40.
+        $this->get($this->lateBy(40)->trackingUrl())
+            ->assertOk()
+            ->assertSeeInOrder([__('booking.tracking.arrive_title'), '9:00 '.__('booking.tracking.am')])
+            ->assertDontSee('9:40 '.__('booking.tracking.am'));
+    }
+
+    public function test_a_delay_worth_announcing_replaces_the_arrival_notice(): void
+    {
+        $this->get($this->lateBy(60)->trackingUrl())
+            ->assertOk()
+            ->assertSee(__('booking.tracking.delay_title'))
+            ->assertDontSee(__('booking.tracking.arrive_title'));
+    }
+
+    /** Nobody ahead yet: the same notice, in place of the first-in-line note. */
+    public function test_the_first_in_line_gets_the_notice_too(): void
+    {
+        $this->now('08:00');
+        $mine = $this->booking('08:30');
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(__('booking.tracking.arrive_title'))
+            ->assertDontSee(__('booking.tracking.first_in_line_note', [
+                'time' => '8:30 '.__('booking.tracking.am'),
+                'lead' => __('messages.minutes', ['count' => (int) $this->clinic->patient_arrival_lead_minutes]),
+            ]));
+    }
+
+    /** Already in the clinic: telling them to come would make no sense. */
+    public function test_a_patient_already_in_the_clinic_is_not_asked_to_come(): void
+    {
+        $this->now('08:00');
+        $this->booking('08:00');
+        $mine = $this->booking('08:30', attributes: ['status' => BookingStatus::ARRIVED]);
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertDontSee(__('booking.tracking.arrive_title'))
             ->assertSee(__('booking.tracking.your_status'));
+    }
+
+    public function test_a_finished_visit_gets_no_notice(): void
+    {
+        $this->now('09:00');
+        $mine = $this->booking('08:30', attributes: ['status' => BookingStatus::DONE]);
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertDontSee(__('booking.tracking.arrive_title'));
+    }
+
+    public function test_with_the_estimate_switched_off_there_is_no_arrival_notice(): void
+    {
+        config(['clinic.tracking.show_estimate' => false]);
+
+        $this->now('08:00');
+        $this->booking('08:00');
+        $mine = $this->booking('08:30');
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertDontSee(__('booking.tracking.arrive_title'))
+            ->assertSee(__('booking.tracking.booked_at'));
     }
 
     public function test_just_over_the_threshold_shows(): void
