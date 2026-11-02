@@ -167,7 +167,7 @@
                             @endif
                             {{-- Only when the patient's page shows an estimate too:
                                  she reads out what they are looking at. --}}
-                            @if (config('clinic.tracking.show_estimate') && $position->expectedAt !== null)
+                            @if ($clinic->showsTrackingEstimate() && $position->expectedAt !== null)
                                 <span class="pill">{{ __('app.queue.search.expected_at') }}: {{ $clock($position->expectedAt) }}</span>
                             @endif
                         </div>

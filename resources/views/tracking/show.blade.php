@@ -27,7 +27,7 @@
     // With the estimate on, a patient still to come always gets the yellow
     // notice: the delay when there is one worth announcing, otherwise this —
     // come before the time you booked. Never once they are in the clinic.
-    $arrival = config('clinic.tracking.show_estimate')
+    $arrival = $clinic->showsTrackingEstimate()
         && $delay === null
         && $status === BookingStatus::BOOKED
         && $booking->start_at !== null
@@ -507,9 +507,9 @@
              whenever it is not showing. --}}
         @unless ($delay || $arrival)
         <div class="duo">
-            @if (! config('clinic.tracking.show_estimate'))
+            @if (! $clinic->showsTrackingEstimate())
                 {{-- The time they booked, as booked. The estimate stays off
-                     until it is ready (clinic.tracking.show_estimate). --}}
+                     until this clinic is switched on (Clinic::showsTrackingEstimate). --}}
                 @if ($booking->start_at)
                     <div class="box">
                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>

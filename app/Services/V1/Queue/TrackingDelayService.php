@@ -22,7 +22,7 @@ class TrackingDelayService
 {
     public function for(Booking $booking, ?QueuePosition $position): ?TrackingDelay
     {
-        if (! config('clinic.tracking.show_estimate')) {
+        if (! $booking->clinic->showsTrackingEstimate()) {
             return null;
         }
 

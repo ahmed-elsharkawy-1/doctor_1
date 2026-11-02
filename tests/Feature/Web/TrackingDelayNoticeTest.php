@@ -29,6 +29,7 @@ class TrackingDelayNoticeTest extends TestCase
 
         $this->setUpClinic();
         $this->clinic->update(['timezone' => 'Africa/Cairo']);
+        $this->clinic->update(['tracking_estimate_enabled' => true]);
         config(['clinic.tracking.show_estimate' => true]);
     }
 
@@ -242,6 +243,42 @@ class TrackingDelayNoticeTest extends TestCase
         $mine = $this->booking('08:30');
 
         $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertDontSee(__('booking.tracking.arrive_title'))
+            ->assertSee(__('booking.tracking.booked_at'));
+    }
+
+    /**
+     * The platform switch is the master; each clinic is then turned on by
+     * itself. A clinic left off shows exactly what production shows today.
+     */
+    public function test_a_clinic_switched_off_gets_neither_notice(): void
+    {
+        $this->clinic->update(['tracking_estimate_enabled' => false]);
+
+        $this->get($this->lateBy(120)->trackingUrl())
+            ->assertOk()
+            ->assertDontSee(__('booking.tracking.delay_title'))
+            ->assertDontSee(__('booking.tracking.arrive_title'))
+            ->assertSee(__('booking.tracking.booked_at'))
+            ->assertDontSee(__('booking.tracking.expected_at'));
+    }
+
+    public function test_one_clinic_switched_on_does_not_turn_on_another(): void
+    {
+        $other = $this->otherClinic();
+        $other->update(['timezone' => 'Africa/Cairo']);
+
+        // Someone ahead, so the lower boxes show (first in line has none).
+        $this->now('08:00');
+        Booking::factory()->forClinic($other)
+            ->at(Carbon::parse('2026-09-03 08:00'), 20)
+            ->create();
+        $theirs = Booking::factory()->forClinic($other)
+            ->at(Carbon::parse('2026-09-03 08:30'), 20)
+            ->create();
+
+        $this->get($theirs->trackingUrl())
             ->assertOk()
             ->assertDontSee(__('booking.tracking.arrive_title'))
             ->assertSee(__('booking.tracking.booked_at'));

@@ -249,6 +249,14 @@ class ClinicForm
                         ->placeholder(__('filament.clinic.slot_step_minutes_auto'))
                         ->helperText(__('filament.clinic.slot_step_minutes_hint')),
 
+                    // The expected time on the patient's tracking page, per
+                    // clinic, under the platform switch. Off for every clinic
+                    // until a super admin turns it on here.
+                    Toggle::make('tracking_estimate_enabled')
+                        ->label(__('filament.clinic.tracking_estimate_enabled'))
+                        ->default(false)
+                        ->helperText(__('filament.clinic.tracking_estimate_enabled_hint')),
+
                     // The delay notice on the patient's tracking page (only
                     // while the estimate is switched on). Left empty, each
                     // follows the platform default shown as its placeholder.

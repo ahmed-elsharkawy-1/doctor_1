@@ -239,7 +239,14 @@ class ClinicAppQueueSearchTest extends TestCase
             ->set('search', 'سارة')
             ->assertDontSee(__('app.queue.search.expected_at'));
 
+        // On for the platform but not for this clinic: still none.
         config(['clinic.tracking.show_estimate' => true]);
+        Livewire::actingAs($this->secretary)
+            ->test(Queue::class)
+            ->set('search', 'سارة')
+            ->assertDontSee(__('app.queue.search.expected_at'));
+
+        $this->clinic->update(['tracking_estimate_enabled' => true]);
         Livewire::actingAs($this->secretary)
             ->test(Queue::class)
             ->set('search', 'سارة')

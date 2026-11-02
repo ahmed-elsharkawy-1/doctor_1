@@ -222,6 +222,7 @@ class BookingTrackingPageTest extends TestCase
     public function test_with_the_estimate_switched_on_it_shows_the_estimate(): void
     {
         config(['clinic.tracking.show_estimate' => true]);
+        $this->clinic->update(['tracking_estimate_enabled' => true]);
 
         // Ten minutes late — under the delay notice's threshold — and already
         // in the clinic, so the estimate box shows. (A patient still to come

@@ -125,6 +125,8 @@ return [
         'first_visit_only_days_hint' => 'A patient with a single visit older than this counts as never returned.',
         'slot_step_minutes' => 'Slot step (minutes)',
         'slot_step_minutes_hint' => 'Leave empty so each visit type builds its grid from its own length. Set a number only for fixed rolling start times.',
+        'tracking_estimate_enabled' => 'Show the expected time to patients',
+        'tracking_estimate_enabled_hint' => "The delay and arrival notices on the patient's tracking page, and the expected time in the secretary's queue search. Works only while the platform setting is on too.",
         'tracking_delay_reduction_minutes' => 'Delay reduction (minutes)',
         'tracking_delay_reduction_minutes_hint' => "Taken off the estimated lateness before the patient's tracking page shows it. Leave empty for the default.",
         'tracking_delay_threshold_minutes' => 'Delay notice threshold (minutes)',

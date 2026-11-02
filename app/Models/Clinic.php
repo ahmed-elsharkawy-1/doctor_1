@@ -35,6 +35,7 @@ class Clinic extends Model
         'first_visit_only_days',
         'slot_step_minutes',
         'patient_arrival_lead_minutes',
+        'tracking_estimate_enabled',
         'tracking_delay_reduction_minutes',
         'tracking_delay_threshold_minutes',
         'reminder_time',
@@ -92,6 +93,7 @@ class Clinic extends Model
             'first_visit_only_days' => 'integer',
             'slot_step_minutes' => 'integer',
             'patient_arrival_lead_minutes' => 'integer',
+            'tracking_estimate_enabled' => 'boolean',
             'tracking_delay_reduction_minutes' => 'integer',
             'tracking_delay_threshold_minutes' => 'integer',
             'daily_reminder_enabled' => 'boolean',
@@ -100,6 +102,18 @@ class Clinic extends Model
             'pre_visit_reminder_enabled' => 'boolean',
             'whatsapp_cancel_cutoff_minutes' => 'integer',
         ];
+    }
+
+    /**
+     * Whether this clinic's patients see the expected time on their tracking
+     * page — the delay notice, the arrival notice, the estimate box — and the
+     * secretary sees it in the queue search. The platform switch is the
+     * master; under it a super admin turns each clinic on, off until then.
+     */
+    public function showsTrackingEstimate(): bool
+    {
+        return (bool) config('clinic.tracking.show_estimate')
+            && $this->tracking_estimate_enabled === true;
     }
 
     /**
