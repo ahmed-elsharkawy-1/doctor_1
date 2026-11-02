@@ -33,8 +33,11 @@
         && $booking->start_at !== null
         && ($isWaiting || $isFirstInLine);
     // Past the booked time and still not here: "come before" would ask for
-    // the impossible, so the notice says come now.
-    $arrivalLate = $arrival && now()->gt($booking->start_at);
+    // the impossible, so the notice says come now. The booked time is the
+    // clinic's wall clock, so it is read in the clinic's timezone.
+    $arrivalLate = $arrival && now()->gt(
+        \Illuminate\Support\Carbon::parse($booking->start_at->format('Y-m-d H:i:s'), $clinic->timezone)
+    );
     $isOff = $status->isTerminal() && ! $isDone;
 
     // How far the patient has come, as a fraction of today's queue. The arc

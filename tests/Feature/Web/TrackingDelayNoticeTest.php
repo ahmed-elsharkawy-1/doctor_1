@@ -176,6 +176,28 @@ class TrackingDelayNoticeTest extends TestCase
             ->assertDontSee(__('booking.tracking.arrive_title'));
     }
 
+    /**
+     * The booked time is the clinic's wall clock, not the server's: a Riyadh
+     * clinic an hour ahead of the server is late by its own clock.
+     */
+    public function test_past_the_booked_time_is_judged_by_the_clinics_own_clock(): void
+    {
+        $this->clinic->update(['timezone' => 'Asia/Riyadh']);
+
+        // In winter (Egypt has no summer time then) the server's 08:10 Cairo
+        // is 09:10 in Riyadh. The booking is stored as the clinic's wall
+        // time, 09:00.
+        Carbon::setTestNow(Carbon::parse('2026-12-03 08:10', 'Africa/Cairo'));
+        $mine = Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-12-03 09:00', 'Africa/Cairo'), 20)
+            ->create();
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(__('booking.tracking.arrive_late_title'))
+            ->assertDontSee(__('booking.tracking.arrive_title'));
+    }
+
     /** At the booked minute itself they are not late yet. */
     public function test_at_the_booked_time_the_notice_still_says_come_before(): void
     {
