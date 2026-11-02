@@ -99,6 +99,8 @@ return [
         'expected_at' => 'Be at the clinic by',
         'booked_at' => 'Your appointment',
         'arrive_title' => 'Arrive before your appointment at',
+        'arrive_late_title' => 'Your appointment was at',
+        'arrive_late_note' => 'Please come right away so you do not miss your turn.',
         'delay_title' => 'The clinic is running late by about',
         'delay_previous' => 'Your original appointment',
         'delay_expected' => 'Expected to go in',

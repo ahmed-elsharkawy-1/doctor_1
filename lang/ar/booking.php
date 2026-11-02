@@ -99,6 +99,8 @@ return [
         'expected_at' => 'الوصول للعيادة',
         'booked_at' => 'موعد حجزك',
         'arrive_title' => 'احضر قبل موعدك',
+        'arrive_late_title' => 'موعدك كان الساعة',
+        'arrive_late_note' => 'برجاء الحضور فورًا حتى لا تفوت دورك.',
         'delay_title' => 'يوجد تأخير في مواعيد العيادة حوالي',
         'delay_previous' => 'موعد حجزك الأساسي',
         'delay_expected' => 'موعد دخولك المتوقع',

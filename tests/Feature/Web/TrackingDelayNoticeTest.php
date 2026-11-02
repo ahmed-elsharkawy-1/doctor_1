@@ -142,6 +142,51 @@ class TrackingDelayNoticeTest extends TestCase
             ->assertDontSee('9:40 '.__('booking.tracking.am'));
     }
 
+    /**
+     * Past the booked time and still not here: "come before 8:30" at 8:50
+     * would ask for the impossible, so the notice says come now instead.
+     */
+    public function test_past_the_booked_time_the_notice_asks_the_patient_to_come_now(): void
+    {
+        $this->now('08:50');
+        $mine = $this->booking('08:30');
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSeeInOrder([__('booking.tracking.arrive_late_title'), '8:30 '.__('booking.tracking.am')])
+            ->assertSee(__('booking.tracking.arrive_late_note'))
+            ->assertDontSee(__('booking.tracking.arrive_title'))
+            ->assertDontSee(__('booking.tracking.delay_note'))
+            ->assertDontSee(__('booking.tracking.expected_at'));
+    }
+
+    /** A short visit ahead keeps the slip under the threshold: still late. */
+    public function test_past_the_booked_time_with_someone_ahead_but_no_delay_says_come_now(): void
+    {
+        // At 08:50, booked 08:30, 10 minutes ahead: gap 30 − 30 = 0.
+        $this->now('08:50');
+        $this->booking('08:00', 10);
+        $mine = $this->booking('08:30');
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertDontSee(__('booking.tracking.delay_title'))
+            ->assertSee(__('booking.tracking.arrive_late_title'))
+            ->assertDontSee(__('booking.tracking.arrive_title'));
+    }
+
+    /** At the booked minute itself they are not late yet. */
+    public function test_at_the_booked_time_the_notice_still_says_come_before(): void
+    {
+        $this->now('08:30');
+        $mine = $this->booking('08:30');
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(__('booking.tracking.arrive_title'))
+            ->assertDontSee(__('booking.tracking.arrive_late_title'));
+    }
+
     public function test_a_delay_worth_announcing_replaces_the_arrival_notice(): void
     {
         $this->get($this->lateBy(60)->trackingUrl())

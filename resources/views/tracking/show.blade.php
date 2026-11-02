@@ -32,6 +32,9 @@
         && $status === BookingStatus::BOOKED
         && $booking->start_at !== null
         && ($isWaiting || $isFirstInLine);
+    // Past the booked time and still not here: "come before" would ask for
+    // the impossible, so the notice says come now.
+    $arrivalLate = $arrival && now()->gt($booking->start_at);
     $isOff = $status->isTerminal() && ! $isDone;
 
     // How far the patient has come, as a fraction of today's queue. The arc
@@ -407,11 +410,11 @@
                 <div class="late-head">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
                     <p>
-                        {{ __('booking.tracking.arrive_title') }}
+                        {{ __($arrivalLate ? 'booking.tracking.arrive_late_title' : 'booking.tracking.arrive_title') }}
                         <span class="arrive-time">{{ $clock($booking->start_at) }}{{ $booking->startsAfterMidnight() ? ' · '.__('schedule.after_midnight') : '' }}</span>
                     </p>
                 </div>
-                <p class="arrive-note">{{ __('booking.tracking.delay_note') }}</p>
+                <p class="arrive-note">{{ __($arrivalLate ? 'booking.tracking.arrive_late_note' : 'booking.tracking.delay_note') }}</p>
             </div>
         @endif
 
