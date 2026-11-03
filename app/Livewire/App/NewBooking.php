@@ -98,6 +98,10 @@ class NewBooking extends ClinicComponent
      * Coming from the waiting list: the patient, the day they asked for and
      * the visit are known. The id is checked, not trusted — it must be this
      * clinic's and still on the list.
+     *
+     * The day is the one they are waiting for and stays fixed (see
+     * selectDay): the list is for that day only. A day already gone by has
+     * nothing left to book from.
      */
     private function prefillFromWaitingList(Clinic $clinic): void
     {
@@ -115,16 +119,20 @@ class NewBooking extends ClinicComponent
             return;
         }
 
+        if ($entry->visit_date->toDateString() < $clinic->currentDay()->toDateString()) {
+            $this->waitingListEntry = null;
+            $this->notice = __('waiting_list.closed');
+            $this->failed = true;
+
+            return;
+        }
+
         $this->patientId = $entry->patient_id;
         $this->patientName = (string) $entry->patient?->name;
         $this->phone = (string) $entry->patient?->phone;
         $this->age = (string) ($entry->patient?->age ?? '');
         $this->waitingListPatient = $this->patientName;
-
-        // The day they asked for, unless it has already gone by.
-        if ($entry->visit_date->toDateString() >= $clinic->currentDay()->toDateString()) {
-            $this->date = $entry->visit_date->toDateString();
-        }
+        $this->date = $entry->visit_date->toDateString();
 
         if ($entry->visit_type_id !== null
             && $clinic->visitTypes()->active()->whereKey($entry->visit_type_id)->exists()) {
@@ -233,6 +241,17 @@ class NewBooking extends ClinicComponent
 
     public function selectKind(string $kind): void
     {
+        // An emergency is today, so from the waiting list it only fits a
+        // patient waiting for today.
+        if ($kind === BookingKind::EMERGENCY->value
+            && $this->waitingListEntry !== null
+            && $this->date !== $this->clinic()->currentDay()->toDateString()) {
+            $this->notice = __('waiting_list.wrong_day', ['date' => $this->date]);
+            $this->failed = true;
+
+            return;
+        }
+
         $this->kind = $kind;
 
         if ($this->isEmergency()) {
@@ -249,6 +268,11 @@ class NewBooking extends ClinicComponent
 
     public function selectDay(string $date): void
     {
+        // Booking from the waiting list: only the day they are waiting for.
+        if ($this->waitingListEntry !== null && $date !== $this->date) {
+            return;
+        }
+
         $this->date = $date;
         $this->startTime = null;
         $this->releaseHold();

@@ -531,13 +531,6 @@
             border: 1px solid var(--line-strong); background: var(--surface);
             font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
         }
-        .wl-rank {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 16px 18px; border-radius: var(--radius);
-            background: var(--primary-50); border: 1px solid var(--primary-100);
-            font-size: 15px; font-weight: 800;
-        }
-        .wl-rank b { font-size: 30px; line-height: 1; color: var(--primary); }
         .wl-facts { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
         .wl-fact { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
         .wl-fact + .wl-fact { border-top: 1px solid var(--line); }

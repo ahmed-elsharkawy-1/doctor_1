@@ -652,6 +652,8 @@ class PatientBookingService
         return [
             'full' => $this->waitingList->isFull($clinic, $date),
             'entry' => $patient === null ? null : $this->waitingList->entryFor($clinic, $patient, $date),
+            // Said on the page, before they tap — rather than a refusal after.
+            'left_too_often' => $patient !== null && $this->waitingList->hasLeftTooOften($clinic, $patient, $date),
         ];
     }
 
@@ -669,6 +671,17 @@ class PatientBookingService
         $this->assertNotBlocked($clinic);
         $this->assertWithinPatientWindow($clinic, $date);
         $visitType = $this->assertSelfBookable($clinic, $visitTypeId);
+
+        // As in confirm(): one visit still to come is all a patient may have
+        // online. The page shows them that visit before the list; this is
+        // for a request that skipped the page.
+        if ($this->upcomingBooking($clinic) !== null) {
+            throw ApiException::make(
+                ApiErrorCode::BOOKING_NOT_EDITABLE,
+                __('booking.self_booking.already_booked'),
+                http: 409,
+            );
+        }
 
         $availability = $this->availability($clinic, $visitType, $date);
 
@@ -709,11 +722,6 @@ class PatientBookingService
             ->where('patient_id', $patient->id)
             ->whereKey($entryId)
             ->first();
-    }
-
-    public function waitingPosition(WaitingListEntry $entry): int
-    {
-        return $this->waitingList->position($entry);
     }
 
     public function leaveWaitingList(Clinic $clinic, int $entryId): void

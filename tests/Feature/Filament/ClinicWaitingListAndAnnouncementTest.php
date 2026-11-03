@@ -92,25 +92,26 @@ class ClinicWaitingListAndAnnouncementTest extends TestCase
         return $patient;
     }
 
-    public function test_an_announcement_reaches_each_upcoming_patient_once(): void
+    public function test_an_announcement_reaches_each_patient_booked_that_day_once(): void
     {
-        $upcoming = $this->bookedPatient('+201011110001', '2026-11-04');
-        // A second booking for the same patient: still one message.
+        $onTheDay = $this->bookedPatient('+201011110001', '2026-11-04');
+        // A second booking the same day: still one message.
         Booking::factory()->create([
             'clinic_id' => $this->clinic->id,
             'doctor_id' => $this->clinic->doctor->id,
-            'patient_id' => $upcoming->id,
+            'patient_id' => $onTheDay->id,
             'visit_type_id' => $this->visitType->id,
-            'visit_date' => '2026-11-05',
-            'start_at' => Carbon::parse('2026-11-05 18:00'),
-            'end_at' => Carbon::parse('2026-11-05 18:20'),
+            'visit_date' => '2026-11-04',
+            'start_at' => Carbon::parse('2026-11-04 19:00'),
+            'end_at' => Carbon::parse('2026-11-04 19:20'),
         ]);
-        $this->bookedPatient('+201011110002', '2026-10-20', BookingStatus::DONE);
-        $this->bookedPatient('+201011110003', '2026-11-04', optIn: false);
+        $this->bookedPatient('+201011110002', '2026-11-05');
+        $this->bookedPatient('+201011110003', '2026-11-04', BookingStatus::CANCELLED);
+        $this->bookedPatient('+201011110004', '2026-11-04', optIn: false);
 
         Livewire::test(EditClinic::class, ['record' => $this->clinic->getRouteKey()])
             ->callAction('sendAnnouncement', data: [
-                'audience' => 'upcoming',
+                'date' => '2026-11-04',
                 'text' => "العيادة هتكون مقفولة يوم الخميس\nبسبب سفر الدكتورة.",
             ])
             ->assertHasNoActionErrors()
@@ -120,34 +121,45 @@ class ClinicWaitingListAndAnnouncementTest extends TestCase
             ->where('template_key', WhatsAppMessagingService::ANNOUNCEMENT_KEY)
             ->sole();
 
-        $this->assertSame($upcoming->id, $message->patient_id);
+        $this->assertSame($onTheDay->id, $message->patient_id);
         $this->assertNull($message->booking_id);
         $this->assertSame([
             'د. سهام عبدالعزيز',
-            $upcoming->name,
+            $onTheDay->name,
             // One paragraph: Meta refuses a newline inside a parameter.
             'العيادة هتكون مقفولة يوم الخميس بسبب سفر الدكتورة.',
             '+201001234567',
         ], $message->variables);
     }
 
-    public function test_an_announcement_for_one_day(): void
+    public function test_the_form_says_how_many_will_get_it_before_sending(): void
     {
-        $onTheDay = $this->bookedPatient('+201011110001', '2026-11-04');
-        $this->bookedPatient('+201011110002', '2026-11-05');
+        $this->bookedPatient('+201011110001', '2026-11-04');
+        $this->bookedPatient('+201011110002', '2026-11-04');
+        $this->bookedPatient('+201011110003', '2026-11-04', optIn: false);
+        $this->bookedPatient('+201011110004', '2026-11-05');
 
         Livewire::test(EditClinic::class, ['record' => $this->clinic->getRouteKey()])
-            ->callAction('sendAnnouncement', data: [
-                'audience' => 'day',
-                'date' => '2026-11-04',
-                'text' => 'مواعيد العيادة اتغيرت.',
-            ])
-            ->assertHasNoActionErrors();
+            ->mountAction('sendAnnouncement')
+            // Today, by default — nobody booked.
+            ->assertMountedActionModalSee(__('filament.clinic.announcement_nobody'))
+            ->fillForm(['date' => '2026-11-04'])
+            ->assertMountedActionModalSee(__('filament.clinic.announcement_will_send', ['sent' => 2, 'skipped' => 1]))
+            ->fillForm(['date' => '2026-11-05'])
+            ->assertMountedActionModalSee(__('filament.clinic.announcement_will_send', ['sent' => 1, 'skipped' => 0]));
 
-        $this->assertSame(
-            [$onTheDay->id],
-            OutboundMessage::query()->where('template_key', WhatsAppMessagingService::ANNOUNCEMENT_KEY)->pluck('patient_id')->all(),
-        );
+        $this->assertSame(0, OutboundMessage::query()->count());
+    }
+
+    public function test_a_day_with_nobody_booked_sends_nothing(): void
+    {
+        $this->bookedPatient('+201011110001', '2026-11-05');
+
+        Livewire::test(EditClinic::class, ['record' => $this->clinic->getRouteKey()])
+            ->callAction('sendAnnouncement', data: ['date' => '2026-11-04', 'text' => 'خبر'])
+            ->assertNotified(__('filament.clinic.announcement_nobody'));
+
+        $this->assertSame(0, OutboundMessage::query()->count());
     }
 
     public function test_nothing_goes_while_the_clinic_whatsapp_is_off(): void
@@ -156,7 +168,7 @@ class ClinicWaitingListAndAnnouncementTest extends TestCase
         $this->bookedPatient('+201011110001', '2026-11-04');
 
         Livewire::test(EditClinic::class, ['record' => $this->clinic->getRouteKey()])
-            ->callAction('sendAnnouncement', data: ['audience' => 'all', 'text' => 'خبر'])
+            ->callAction('sendAnnouncement', data: ['date' => '2026-11-04', 'text' => 'خبر'])
             ->assertNotified(__('messages.whatsapp_disabled'));
 
         $this->assertSame(0, OutboundMessage::query()->count());

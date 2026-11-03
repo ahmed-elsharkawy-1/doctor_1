@@ -76,12 +76,17 @@ enum ApiErrorCode: string
     // The waiting list for a full day. `WAITING_LIST_CLOSED` covers a day
     // that is closed, over, or outside the window; `WAITING_LIST_DAY_NOT_FULL`
     // is the public page refusing a list for a day with a free slot.
+    // `WAITING_LIST_WRONG_DAY` is a booking from an entry that is not on the
+    // day the patient is waiting for.
     case WAITING_LIST_DISABLED = 'WAITING_LIST_DISABLED';
     case WAITING_LIST_FULL = 'WAITING_LIST_FULL';
     case WAITING_LIST_CLOSED = 'WAITING_LIST_CLOSED';
     case WAITING_LIST_DAY_NOT_FULL = 'WAITING_LIST_DAY_NOT_FULL';
     case WAITING_LIST_ALREADY_BOOKED = 'WAITING_LIST_ALREADY_BOOKED';
     case WAITING_LIST_ENTRY_NOT_FOUND = 'WAITING_LIST_ENTRY_NOT_FOUND';
+    case WAITING_LIST_WRONG_DAY = 'WAITING_LIST_WRONG_DAY';
+    // Left that day's list too many times to join it again.
+    case WAITING_LIST_LEFT_TOO_OFTEN = 'WAITING_LIST_LEFT_TOO_OFTEN';
 
     // A review whose rating needs an explanation, sent without one.
     case REVIEW_COMMENT_REQUIRED = 'REVIEW_COMMENT_REQUIRED';

@@ -23,15 +23,15 @@ use Illuminate\Support\Collection;
 /**
  * Every rule of the waiting list for a full day.
  *
- * A patient on the list holds nothing. If a slot opens the secretary calls
- * them and books it as any other booking — BookingService then takes them
+ * A patient on the list holds nothing. If a slot opens that day the secretary
+ * calls them and books it as any other booking — BookingService then takes them
  * off the list (settleForBooking) and sends "booked from the waiting list"
  * instead of the usual confirmation. When the day's last period ends, whoever
  * is still on it is told no slot opened (closeEndedDays).
  *
- * The public page, the clinic web app and the mobile API all come through
- * here, so the cap, the duplicate check and the "day is over" rule are asked
- * the same way everywhere.
+ * Only patients join, on the public page (PatientBookingService). The clinic
+ * web app and the mobile API read the list, book from it and remove from it,
+ * but never add to it.
  */
 class WaitingListService
 {
@@ -106,6 +106,23 @@ class WaitingListService
             ->where('patient_id', $patient->id)
             ->onDate($date)
             ->first();
+    }
+
+    /**
+     * Whether this patient has left that day's list often enough that they
+     * may not join it again (config: clinic.waiting_list.max_leaves_per_day).
+     * Only the times they left themselves count — a removal by the clinic is
+     * not theirs to answer for.
+     */
+    public function hasLeftTooOften(Clinic $clinic, Patient $patient, string $date): bool
+    {
+        $left = $clinic->waitingListEntries()
+            ->where('patient_id', $patient->id)
+            ->onDate($date)
+            ->where('status', WaitingListStatus::LEFT)
+            ->count();
+
+        return $left >= (int) config('clinic.waiting_list.max_leaves_per_day');
     }
 
     public function find(Clinic $clinic, int $entryId): WaitingListEntry
@@ -219,6 +236,15 @@ class WaitingListService
                 return $existing;
             }
 
+            if ($this->hasLeftTooOften($clinic, $patient, $date)) {
+                throw ApiException::make(
+                    ApiErrorCode::WAITING_LIST_LEFT_TOO_OFTEN,
+                    __('waiting_list.left_too_often'),
+                    details: ['max_leaves_per_day' => (int) config('clinic.waiting_list.max_leaves_per_day')],
+                    http: 409,
+                );
+            }
+
             $booked = $patient->bookings()
                 ->where('clinic_id', $clinic->id)
                 ->onDate($date)
@@ -291,12 +317,18 @@ class WaitingListService
     */
 
     /**
-     * A booking was just written: whoever it is for comes off the list.
+     * A booking was just written or moved: whoever it is for comes off that
+     * day's list.
      *
-     * `$entryId` is the entry the secretary booked from, which may be for
-     * another day than the one booked — the patient took whatever opened.
-     * Without one, the patient's entry for the booked day is settled, so a
-     * patient booked the ordinary way never also stays on that day's list.
+     * `$entryId` is the entry the secretary booked from. That booking must be
+     * on the entry's own day — the list is for that day only, and any booking
+     * the patient has on another day is left as it is. It is refused when the
+     * patient already has a booking that day: there is nothing left to wait
+     * for, and a second booking would be a duplicate.
+     *
+     * Without an entry, the patient's entry for the booked day is settled, so
+     * a patient booked the ordinary way — or moved onto that day — never also
+     * stays on its list.
      *
      * Runs inside BookingService's day lock and transaction, so a booking
      * that rolls back leaves the list as it was. Returns the entry the
@@ -305,26 +337,13 @@ class WaitingListService
      */
     public function settleForBooking(Clinic $clinic, Booking $booking, ?int $entryId = null): ?WaitingListEntry
     {
-        $chosen = null;
-
-        if ($entryId !== null) {
-            $chosen = $this->find($clinic, $entryId);
-
-            if ($chosen->patient_id !== $booking->patient_id) {
-                throw ApiException::make(
-                    ApiErrorCode::WAITING_LIST_ENTRY_NOT_FOUND,
-                    __('waiting_list.other_patient'),
-                    http: 422,
-                );
-            }
-        }
+        $date = $booking->visit_date->toDateString();
+        $chosen = $entryId === null ? null : $this->assertBookableFrom($clinic, $booking, $entryId);
 
         $entries = $clinic->waitingListEntries()
             ->waiting()
             ->where('patient_id', $booking->patient_id)
-            ->where(fn ($query) => $query
-                ->whereDate('visit_date', $booking->visit_date->toDateString())
-                ->when($chosen !== null, fn ($query) => $query->orWhere('id', $chosen->id)))
+            ->whereDate('visit_date', $date)
             ->get();
 
         foreach ($entries as $entry) {
@@ -336,6 +355,82 @@ class WaitingListService
         }
 
         return $chosen?->refresh();
+    }
+
+    /**
+     * The entry a booking is being made from: this patient's, on the booked
+     * day, and with no other booking that day already.
+     *
+     * An entry that stopped waiting while the secretary was on the phone
+     * does not cost the booking. Already booked from the list, it is refused
+     * — that is the duplicate this link exists to catch. Left, removed or
+     * closed, it is ignored (null): the call still happened and the patient
+     * still wants the time, so they are booked the ordinary way and get the
+     * ordinary confirmation.
+     */
+    private function assertBookableFrom(Clinic $clinic, Booking $booking, int $entryId): ?WaitingListEntry
+    {
+        $entry = $clinic->waitingListEntries()
+            ->with(['patient', 'visitType'])
+            ->whereKey($entryId)
+            ->first();
+
+        if ($entry === null) {
+            throw ApiException::make(
+                ApiErrorCode::WAITING_LIST_ENTRY_NOT_FOUND,
+                __('waiting_list.not_found'),
+                http: 404,
+            );
+        }
+
+        if ($entry->patient_id !== $booking->patient_id) {
+            throw ApiException::make(
+                ApiErrorCode::WAITING_LIST_ENTRY_NOT_FOUND,
+                __('waiting_list.other_patient'),
+                http: 422,
+            );
+        }
+
+        if ($entry->status === WaitingListStatus::BOOKED) {
+            throw ApiException::make(
+                ApiErrorCode::WAITING_LIST_ALREADY_BOOKED,
+                __('waiting_list.already_booked_from_list'),
+                details: ['booking_id' => $entry->booking_id],
+                http: 409,
+            );
+        }
+
+        if (! $entry->isWaiting()) {
+            return null;
+        }
+
+        $date = $booking->visit_date->toDateString();
+
+        if ($entry->visit_date->toDateString() !== $date) {
+            throw ApiException::make(
+                ApiErrorCode::WAITING_LIST_WRONG_DAY,
+                __('waiting_list.wrong_day', ['date' => $entry->visit_date->toDateString()]),
+                details: ['waiting_date' => $entry->visit_date->toDateString()],
+                http: 422,
+            );
+        }
+
+        $alreadyBooked = $clinic->bookings()
+            ->where('patient_id', $booking->patient_id)
+            ->whereKeyNot($booking->id)
+            ->onDate($date)
+            ->whereIn('status', BookingStatus::pending())
+            ->exists();
+
+        if ($alreadyBooked) {
+            throw ApiException::make(
+                ApiErrorCode::WAITING_LIST_ALREADY_BOOKED,
+                __('waiting_list.already_booked'),
+                http: 409,
+            );
+        }
+
+        return $entry;
     }
 
     /**

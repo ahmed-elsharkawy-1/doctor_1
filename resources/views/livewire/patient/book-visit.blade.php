@@ -373,6 +373,8 @@
                                     <button type="button" class="btn btn-primary" wire:click="showWaitingEntry({{ $waitingOffer['entry']->id }})">
                                         {{ __('waiting_list.patient.view_place') }}
                                     </button>
+                                @elseif ($waitingOffer['left_too_often'])
+                                    <p class="wl-full-text">{{ __('waiting_list.patient.left_too_often') }}</p>
                                 @elseif ($waitingOffer['full'])
                                     <p class="wl-full-text">{{ __('waiting_list.patient.list_full') }}</p>
                                 @else
@@ -455,11 +457,8 @@
                         </span>
                     </div>
 
-                    <div class="wl-rank">
-                        <span>{{ __('waiting_list.patient.position') }}</span>
-                        <b>{{ $waitingPosition }}</b>
-                    </div>
-
+                    {{-- No place number: nothing is accepted yet, and a "3"
+                         reads as a promise the clinic has not made. --}}
                     <div class="wl-facts">
                         <div class="wl-fact">
                             <span class="wl-fact-icon">
@@ -709,7 +708,7 @@
     </div>
 
     {{-- How the waiting list works, before anything is written. --}}
-    @if ($stage === 'appointment' && $showWaitingSheet && $waitingOffer !== null && $waitingOffer['entry'] === null && ! $waitingOffer['full'])
+    @if ($stage === 'appointment' && $showWaitingSheet && $waitingOffer !== null && $waitingOffer['entry'] === null && ! $waitingOffer['full'] && ! $waitingOffer['left_too_often'])
         <div class="sheet-backdrop" wire:click="closeWaitingSheet"></div>
         <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="wl-sheet-title">
             <span class="sheet-grip" aria-hidden="true"></span>

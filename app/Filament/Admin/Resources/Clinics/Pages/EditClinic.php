@@ -16,6 +16,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Collection;
@@ -70,28 +71,26 @@ class EditClinic extends EditRecord
                     $this->sendReport((string) $data['period'], (bool) ($data['resend'] ?? false));
                 }),
 
-            // Operational news for the clinic's patients — a closure, new
-            // hours, a new address. Here only: the clinic app never offers it,
-            // so what goes out under a doctor's name is always reviewed.
+            // Operational news for one day's patients — the clinic closes,
+            // the doctor is late. Here only: the clinic app never offers it,
+            // so what goes out under a doctor's name is always reviewed. Only
+            // the patients booked that day get it, and the form says how many
+            // before anything is sent: each one is a real, billed message.
             Action::make('sendAnnouncement')
                 ->label(__('filament.clinic.send_announcement'))
                 ->icon('heroicon-o-megaphone')
                 ->color('gray')
                 ->schema([
-                    Select::make('audience')
-                        ->label(__('filament.clinic.announcement_audience'))
-                        ->options([
-                            'day' => __('filament.clinic.announcement_audience_day'),
-                            'upcoming' => __('filament.clinic.announcement_audience_upcoming'),
-                            'all' => __('filament.clinic.announcement_audience_all'),
-                        ])
-                        ->default('upcoming')
-                        ->live()
-                        ->required(),
                     DatePicker::make('date')
                         ->label(__('filament.clinic.announcement_date'))
-                        ->visible(fn ($get): bool => $get('audience') === 'day')
-                        ->required(fn ($get): bool => $get('audience') === 'day'),
+                        ->helperText(__('filament.clinic.announcement_date_hint'))
+                        ->default(fn (): string => $this->clinicRecord()->currentDay()->toDateString())
+                        ->minDate(fn (): string => $this->clinicRecord()->currentDay()->toDateString())
+                        ->live()
+                        ->required(),
+                    TextEntry::make('recipients')
+                        ->label(__('filament.clinic.announcement_recipients'))
+                        ->state(fn ($get): string => $this->announcementSummary($get('date'))),
                     Textarea::make('text')
                         ->label(__('filament.clinic.announcement_text'))
                         ->helperText(__('filament.clinic.announcement_text_hint'))
@@ -101,7 +100,7 @@ class EditClinic extends EditRecord
                 ])
                 ->requiresConfirmation()
                 ->action(function (array $data): void {
-                    $this->sendAnnouncement((string) $data['audience'], $data['date'] ?? null, (string) $data['text']);
+                    $this->sendAnnouncement((string) $data['date'], (string) $data['text']);
                 }),
 
             Action::make('previewReport')
@@ -179,12 +178,44 @@ class EditClinic extends EditRecord
         }
     }
 
-    private function sendAnnouncement(string $audience, ?string $date, string $text): void
+    private function clinicRecord(): Clinic
     {
         /** @var Clinic $clinic */
         $clinic = $this->record;
 
-        $patients = $this->announcementAudience($clinic, $audience, $date);
+        return $clinic;
+    }
+
+    /**
+     * What the form shows before sending: how many will get it, and how many
+     * are skipped for having no WhatsApp consent — the same rule the send
+     * applies (WhatsAppMessagingService::sendAnnouncement).
+     */
+    private function announcementSummary(?string $date): string
+    {
+        if (blank($date)) {
+            return '—';
+        }
+
+        $patients = $this->announcementAudience($this->clinicRecord(), (string) $date);
+
+        if ($patients->isEmpty()) {
+            return __('filament.clinic.announcement_nobody');
+        }
+
+        $sent = $patients->whereNotNull('whatsapp_opt_in_at')->count();
+
+        return __('filament.clinic.announcement_will_send', [
+            'sent' => $sent,
+            'skipped' => $patients->count() - $sent,
+        ]);
+    }
+
+    private function sendAnnouncement(string $date, string $text): void
+    {
+        $clinic = $this->clinicRecord();
+
+        $patients = $this->announcementAudience($clinic, $date);
 
         if ($patients->isEmpty()) {
             Notification::make()->warning()->title(__('filament.clinic.announcement_nobody'))->send();
@@ -207,20 +238,17 @@ class EditClinic extends EditRecord
     }
 
     /**
-     * Each patient once, however many bookings they have.
+     * The patients booked on that day and still expected — each once,
+     * however many bookings they have.
      *
      * @return Collection<int, Patient>
      */
-    private function announcementAudience(Clinic $clinic, string $audience, ?string $date): Collection
+    private function announcementAudience(Clinic $clinic, string $date): Collection
     {
-        $booked = fn ($query) => match ($audience) {
-            'day' => $query->whereDate('visit_date', (string) $date)
-                ->whereIn('status', BookingStatus::pending()),
-            default => $query->upcoming($clinic->currentDay()),
-        };
-
         return $clinic->patients()
-            ->when($audience !== 'all', fn ($query) => $query->whereHas('bookings', $booked))
+            ->whereHas('bookings', fn ($query) => $query
+                ->whereDate('visit_date', $date)
+                ->whereIn('status', BookingStatus::pending()))
             ->orderBy('id')
             ->get();
     }

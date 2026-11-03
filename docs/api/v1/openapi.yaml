@@ -1294,8 +1294,10 @@ paths:
         When the day's last working period ends, whoever is still on the list
         is told no slot opened (`waiting_list_no_slot_opened`).
 
-        `enabled` is the clinic's switch, set by a super admin; while it is
-        false nobody can be added. Phones are **unmasked**.
+        Patients join the list themselves, on the clinic's public booking
+        page; the clinic cannot add anyone. `enabled` is the clinic's switch,
+        set by a super admin; while it is false nobody can join. Phones are
+        **unmasked**.
       operationId: waitingList
       parameters:
         - name: date
@@ -1316,58 +1318,6 @@ paths:
                       data: { $ref: "#/components/schemas/WaitingList" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "422": { $ref: "#/components/responses/ValidationFailed" }
-    post:
-      tags: [Waiting list]
-      summary: Add a patient to a day's waiting list
-      description: |
-        Usually somebody who phoned for a full day. An existing patient by
-        `patient_id`, or a caller by `patient_name` and `phone`. The patient
-        gets the "joined the waiting list" WhatsApp. Already on that day's
-        list: their entry comes back unchanged, with no second message.
-      operationId: storeWaitingListEntry
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [date]
-              properties:
-                date: { type: string, format: date }
-                visit_type_id: { type: [integer, "null"] }
-                patient_id: { type: [integer, "null"] }
-                patient_name: { type: [string, "null"], description: "Required without `patient_id`." }
-                phone: { type: [string, "null"], description: "Required without `patient_id`." }
-      responses:
-        "201":
-          description: On the list
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: "#/components/schemas/SuccessEnvelope"
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          entry: { $ref: "#/components/schemas/WaitingListEntry" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403":
-          description: "`WAITING_LIST_DISABLED` — the clinic has no waiting list"
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409":
-          description: |
-            `WAITING_LIST_FULL` (`details.max_per_day`), `WAITING_LIST_CLOSED`
-            (closed that day, outside the window, or the day is over) or
-            `WAITING_LIST_ALREADY_BOOKED` (the patient has a booking that day).
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
 
   /waiting-list/{entry}:
@@ -2295,8 +2245,13 @@ components:
           description: |
             The waiting-list entry being booked — takes the patient off the
             list and sends `waiting_list_slot_booked` instead of the
-            confirmation. Must be this patient's entry, still on the list
-            (`WAITING_LIST_ENTRY_NOT_FOUND` otherwise).
+            confirmation. Must be this patient's entry
+            (`WAITING_LIST_ENTRY_NOT_FOUND` otherwise) and the booking must be
+            on the entry's day (`WAITING_LIST_WRONG_DAY`). Refused with
+            `WAITING_LIST_ALREADY_BOOKED` when the entry was already booked or
+            the patient already has a booking that day. An entry the patient
+            left, or that was removed or closed, is ignored: the booking is
+            made as usual, with the usual confirmation.
         hold_token:
           type: string
           description: |

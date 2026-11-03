@@ -503,6 +503,11 @@ return [
     'waiting_list' => [
         'max_per_day' => (int) env('CLINIC_WAITING_LIST_MAX_PER_DAY', 10),
         'notify_within_hours' => 6,
+        // A patient who has left a day's list this many times cannot join it
+        // again — joining and leaving over and over only churns the list and
+        // the "joined" WhatsApp. Leaving counts; being removed by the clinic
+        // does not.
+        'max_leaves_per_day' => 2,
     ],
 
     /*

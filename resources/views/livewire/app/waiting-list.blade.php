@@ -22,19 +22,6 @@
         .entry .meta { color: var(--muted); font-size: 0.85rem; }
         .entry .acts { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.65rem; }
 
-        .add { padding: 1rem; margin-top: 0.85rem; }
-        .add h2 { font-size: 0.95rem; margin: 0 0 0.75rem; }
-        .field { margin-bottom: 0.75rem; }
-        .field label { display: block; font-weight: 600; margin-bottom: 0.3rem; font-size: 0.9rem; }
-        .field input, .field select {
-            width: 100%; padding: 0.55rem 0.7rem; font: inherit;
-            border: 1px solid var(--line, #dde3ea); border-radius: 10px; background: #fff;
-        }
-        .err { color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem; }
-
-        @media (min-width: 48rem) {
-            .cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.85rem; align-items: end; }
-        }
     </style>
 
     <h1 style="font-size:1.05rem;font-weight:700;margin:0 0 12px">{{ __('waiting_list.app.title') }}</h1>
@@ -105,38 +92,5 @@
                 </div>
             @endforeach
         </div>
-    @endif
-
-    @if ($enabled && $joinable)
-        <form class="card add" wire:submit="add">
-            <h2>{{ __('waiting_list.app.add_title') }}</h2>
-
-            <div class="cols">
-                <div class="field">
-                    <label for="wl-name">{{ __('waiting_list.app.patient_name') }}</label>
-                    <input id="wl-name" type="text" wire:model="patientName">
-                    @error('patientName') <div class="err">{{ $message }}</div> @enderror
-                </div>
-
-                <div class="field">
-                    <label for="wl-phone">{{ __('waiting_list.app.phone') }}</label>
-                    <input id="wl-phone" type="text" dir="ltr" wire:model="phone">
-                    @error('phone') <div class="err">{{ $message }}</div> @enderror
-                </div>
-
-                <div class="field">
-                    <label for="wl-type">{{ __('waiting_list.app.visit_type') }}</label>
-                    <select id="wl-type" wire:model="visitTypeId">
-                        @foreach ($visitTypes as $type)
-                            <option value="{{ $type->id }}">{{ $type->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary" wire:loading.attr="disabled" wire:target="add">
-                {{ __('waiting_list.app.add') }}
-            </button>
-        </form>
     @endif
 </div>

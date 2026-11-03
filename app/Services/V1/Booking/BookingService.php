@@ -182,7 +182,13 @@ class BookingService
                 'notes' => $data->notes,
             ]);
 
-            return $booking->refresh();
+            $booking->refresh();
+
+            // Moved onto a day they were waiting for: booked now, so off that
+            // day's list — no "no slot opened" for them when it closes.
+            $this->waitingList->settleForBooking($clinic, $booking);
+
+            return $booking;
         });
 
         foreach (array_unique([$movedFrom, $updated->visit_date->toDateString()]) as $date) {

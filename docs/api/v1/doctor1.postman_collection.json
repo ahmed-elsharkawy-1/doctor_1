@@ -1323,48 +1323,6 @@
                     "response": []
                 },
                 {
-                    "name": "Add a patient to a day's waiting list",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json"
-                            },
-                            {
-                                "key": "Accept-Language",
-                                "value": "{{locale}}"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/api/v1/waiting-list",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "api",
-                                "v1",
-                                "waiting-list"
-                            ]
-                        },
-                        "description": "Usually somebody who phoned for a full day. An existing patient by\n`patient_id`, or a caller by `patient_name` and `phone`. The patient\ngets the \"joined the waiting list\" WhatsApp. Already on that day's\nlist: their entry comes back unchanged, with no second message.",
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"date\": \"\"\n}\n",
-                            "options": {
-                                "raw": {
-                                    "language": "json"
-                                }
-                            }
-                        }
-                    },
-                    "response": []
-                },
-                {
                     "name": "Take a patient off the waiting list",
                     "request": {
                         "method": "DELETE",

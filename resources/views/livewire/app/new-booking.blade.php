@@ -238,7 +238,7 @@
                     <button type="button" class="chip day-chip"
                             wire:key="day-{{ $day['date']->toDateString() }}"
                             aria-pressed="{{ $date === $day['date']->toDateString() ? 'true' : 'false' }}"
-                            @disabled(! $day['is_open'])
+                            @disabled(! $day['is_open'] || ($waitingListEntry !== null && $date !== $day['date']->toDateString()))
                             wire:click="selectDay('{{ $day['date']->toDateString() }}')">
                         {{ $day['day']->label() }}
                         <small>{{ $day['date']->format('m/d') }}</small>

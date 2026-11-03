@@ -69,21 +69,17 @@ class ClinicAppWaitingListTest extends TestCase
         );
     }
 
-    public function test_the_secretary_adds_a_caller_and_removes_them(): void
+    public function test_the_secretary_sees_who_joined_and_removes_them_but_cannot_add(): void
     {
-        $page = Livewire::actingAs($this->secretary)->test(WaitingList::class)
-            ->assertSee(__('waiting_list.app.empty'))
-            ->set('patientName', 'مريض بالتليفون')
-            ->set('phone', '01077778888')
-            ->call('add')
-            ->assertSet('failed', false)
-            ->assertSee('مريض بالتليفون');
+        $entry = $this->onTheList();
 
-        $entry = WaitingListEntry::query()->sole();
-        $this->assertSame(BookingSource::CLINIC, $entry->source);
-        $this->assertSame($this->secretary->id, $entry->created_by);
-        $this->assertSame(1, OutboundMessage::query()
-            ->where('template_key', WhatsAppMessagingService::WAITING_LIST_JOINED_KEY)->count());
+        $page = Livewire::actingAs($this->secretary)->test(WaitingList::class)
+            ->assertSee('منى السيد')
+            ->assertSee(route('app.bookings.new', ['waiting_list' => $entry->id]))
+            // Patients join themselves, on the public page.
+            ->assertDontSeeHtml('wire:submit="add"');
+
+        $this->assertFalse(method_exists($page->instance(), 'add'));
 
         $page->call('remove', $entry->id)->assertSee(__('waiting_list.app.empty'));
 
@@ -112,6 +108,33 @@ class ClinicAppWaitingListTest extends TestCase
         );
     }
 
+    public function test_booking_from_the_list_keeps_the_day_they_wait_for(): void
+    {
+        $entry = $this->onTheList();
+        $friday = Carbon::parse(self::DAY)->addDay()->toDateString();
+
+        Livewire::actingAs($this->owner)
+            ->withQueryParams(['waiting_list' => $entry->id])
+            ->test(NewBooking::class)
+            ->call('selectDay', $friday)
+            ->assertSet('date', self::DAY)
+            ->call('selectKind', 'emergency')
+            ->assertSet('kind', 'emergency');
+    }
+
+    public function test_an_entry_for_a_day_gone_by_is_dropped(): void
+    {
+        $entry = $this->onTheList();
+        Carbon::setTestNow(Carbon::parse(self::DAY)->addDay()->setTime(10, 0)->shiftTimezone('Africa/Cairo'));
+
+        Livewire::actingAs($this->owner)
+            ->withQueryParams(['waiting_list' => $entry->id])
+            ->test(NewBooking::class)
+            ->assertSet('waitingListEntry', null)
+            ->assertSet('patientId', null)
+            ->assertSet('notice', __('waiting_list.closed'));
+    }
+
     public function test_an_entry_already_off_the_list_books_normally(): void
     {
         $entry = $this->onTheList();
@@ -138,7 +161,6 @@ class ClinicAppWaitingListTest extends TestCase
             ->assertDontSee(route('app.waiting-list'));
 
         Livewire::actingAs($this->secretary)->test(WaitingList::class)
-            ->assertSee(__('waiting_list.app.disabled'))
-            ->assertDontSee(__('waiting_list.app.add'));
+            ->assertSee(__('waiting_list.app.disabled'));
     }
 }

@@ -4,8 +4,10 @@ namespace Tests\Feature\WaitingList;
 
 use App\DTOs\V1\Booking\BookingData;
 use App\Enums\ApiErrorCode;
+use App\Enums\BookingKind;
 use App\Enums\BookingSource;
 use App\Enums\DayOfWeek;
+use App\Enums\PatientLocation;
 use App\Enums\WaitingListStatus;
 use App\Exceptions\ApiException;
 use App\Livewire\Patient\BookVisit;
@@ -119,7 +121,7 @@ class WaitingListTest extends TestCase
     private function join(Patient $patient): WaitingListEntry
     {
         return app(WaitingListService::class)->join(
-            $this->clinic, $patient, $this->visitType, self::DAY, BookingSource::CLINIC,
+            $this->clinic, $patient, $this->visitType, self::DAY, BookingSource::PATIENT_WEB,
         );
     }
 
@@ -162,7 +164,7 @@ class WaitingListTest extends TestCase
             ->assertSee(__('waiting_list.patient.join'));
     }
 
-    public function test_a_patient_joins_and_sees_their_place(): void
+    public function test_a_patient_joins_and_is_shown_no_place_number(): void
     {
         $this->join($this->patient('+201011112222', 'أول المنتظرين'));
 
@@ -171,8 +173,10 @@ class WaitingListTest extends TestCase
             ->assertSee(__('waiting_list.patient.sheet_title'))
             ->call('joinWaitingList')
             ->assertViewHas('stage', 'waitlisted')
-            ->assertViewHas('waitingPosition', 2)
-            ->assertSee(__('waiting_list.patient.not_confirmed'));
+            ->assertSee(__('waiting_list.patient.not_confirmed'))
+            // Nothing is accepted yet, so no "you are number 2".
+            ->assertDontSee('ترتيبك في القائمة')
+            ->assertDontSee('Your place on the list');
 
         $entry = WaitingListEntry::query()->whereHas('patient', fn ($q) => $q->where('phone', self::E164))->firstOrFail();
 
@@ -192,6 +196,50 @@ class WaitingListTest extends TestCase
         $page->call('leaveWaitingList')->assertViewHas('stage', 'appointment');
 
         $this->assertSame(WaitingListStatus::LEFT, $entry->fresh()->status);
+    }
+
+    public function test_leaving_a_days_list_twice_shuts_it_for_that_patient(): void
+    {
+        $patient = $this->patient();
+        $service = app(WaitingListService::class);
+
+        // Once: they may come back.
+        $service->leave($this->join($patient));
+        $service->leave($this->join($patient));
+
+        $this->assertRefused(ApiErrorCode::WAITING_LIST_LEFT_TOO_OFTEN, fn () => $this->join($patient));
+        $this->assertSame(0, WaitingListEntry::query()->waiting()->count());
+    }
+
+    public function test_being_removed_by_the_clinic_does_not_count_as_leaving(): void
+    {
+        $patient = $this->patient();
+        $service = app(WaitingListService::class);
+
+        $service->remove($this->join($patient));
+        $service->leave($this->join($patient));
+
+        $this->assertSame(WaitingListStatus::WAITING, $this->join($patient)->status);
+    }
+
+    public function test_the_page_says_so_instead_of_offering_the_list_again(): void
+    {
+        $page = $this->verified();
+
+        for ($i = 0; $i < 2; $i++) {
+            $page->call('openWaitingSheet')->call('joinWaitingList')->assertViewHas('stage', 'waitlisted')
+                ->call('leaveWaitingList')->assertViewHas('stage', 'appointment');
+        }
+
+        $page->call('selectDay', self::DAY)
+            ->assertSee(__('waiting_list.patient.left_too_often'))
+            ->assertDontSee(__('waiting_list.patient.join'))
+            // A request that skips the page is refused too.
+            ->call('joinWaitingList');
+
+        $this->assertSame(0, WaitingListEntry::query()->waiting()->count());
+        $this->assertSame(2, OutboundMessage::query()
+            ->where('template_key', WhatsAppMessagingService::WAITING_LIST_JOINED_KEY)->count());
     }
 
     public function test_a_patient_back_on_the_day_sees_their_place_and_joins_once(): void
@@ -365,6 +413,170 @@ class WaitingListTest extends TestCase
         $this->assertSame(0, Booking::query()->count());
     }
 
+    /** The day after DAY, open 09:00–13:00. */
+    private function openTheNextDay(): string
+    {
+        $next = Carbon::parse(self::DAY)->addDay();
+
+        $schedule = $this->clinic->scheduleFor(DayOfWeek::fromDate($next));
+        $schedule->update(['is_open' => true]);
+        $schedule->periods()->delete();
+        $schedule->periods()->create(['start_time' => '09:00', 'end_time' => '13:00']);
+
+        return $next->toDateString();
+    }
+
+    private function bookingFor(Patient $patient, string $date, ?int $entryId = null): BookingData
+    {
+        return new BookingData(
+            patientId: $patient->id,
+            patientName: null,
+            phone: null,
+            age: null,
+            whatsappOptIn: true,
+            visitTypeId: $this->visitType->id,
+            date: $date,
+            startTime: '09:00',
+            waitingListEntryId: $entryId,
+        );
+    }
+
+    public function test_booking_from_the_list_on_another_day_is_refused(): void
+    {
+        $nextDay = $this->openTheNextDay();
+        $patient = $this->patient();
+        $entry = $this->join($patient);
+
+        $this->assertRefused(ApiErrorCode::WAITING_LIST_WRONG_DAY, fn () => app(BookingService::class)
+            ->create($this->clinic, $this->bookingFor($patient, $nextDay, $entry->id)));
+
+        $this->assertSame(WaitingListStatus::WAITING, $entry->fresh()->status);
+        $this->assertFalse(Booking::query()->where('patient_id', $patient->id)->exists());
+    }
+
+    public function test_booking_from_the_list_leaves_a_booking_on_another_day_alone(): void
+    {
+        $nextDay = $this->openTheNextDay();
+        $patient = $this->patient();
+        $other = app(BookingService::class)->create($this->clinic, $this->bookingFor($patient, $nextDay));
+        $entry = $this->join($patient);
+        Booking::query()->whereKeyNot($other->id)->delete();
+
+        $booking = app(BookingService::class)->create($this->clinic, $this->bookingFor($patient, self::DAY, $entry->id));
+
+        $this->assertSame(WaitingListStatus::BOOKED, $entry->fresh()->status);
+        $this->assertSame(self::DAY, $booking->visit_date->toDateString());
+        $this->assertSame($nextDay, $other->fresh()->visit_date->toDateString());
+    }
+
+    public function test_a_patient_already_booked_that_day_cannot_be_booked_from_the_list(): void
+    {
+        $patient = $this->patient();
+        $entry = $this->join($patient);
+        $this->freeTheSlot();
+        app(BookingService::class)->create($this->clinic, $this->bookingFor($patient, self::DAY));
+
+        // Left waiting by data from before a moved booking settled the list.
+        $entry->refresh()->update(['status' => WaitingListStatus::WAITING, 'booking_id' => null, 'left_at' => null]);
+
+        $this->assertRefused(ApiErrorCode::WAITING_LIST_ALREADY_BOOKED, fn () => app(BookingService::class)->create(
+            $this->clinic,
+            new BookingData(
+                patientId: $patient->id,
+                patientName: null,
+                phone: null,
+                age: null,
+                whatsappOptIn: true,
+                visitTypeId: $this->visitType->id,
+                date: self::DAY,
+                startTime: null,
+                bookingKind: BookingKind::EMERGENCY,
+                patientLocation: PatientLocation::INSIDE_CLINIC,
+                waitingListEntryId: $entry->id,
+            ),
+        ));
+
+        $this->assertSame(1, Booking::query()->where('patient_id', $patient->id)->count());
+    }
+
+    public function test_an_entry_already_booked_from_is_refused_as_a_duplicate(): void
+    {
+        $patient = $this->patient();
+        $entry = $this->join($patient);
+        $this->freeTheSlot();
+        app(BookingService::class)->create($this->clinic, $this->bookingFor($patient, self::DAY, $entry->id));
+
+        // The same call saved twice — a double tap, or two secretaries.
+        $this->assertRefused(ApiErrorCode::WAITING_LIST_ALREADY_BOOKED, fn () => app(BookingService::class)->create(
+            $this->clinic,
+            new BookingData(
+                patientId: $patient->id,
+                patientName: null,
+                phone: null,
+                age: null,
+                whatsappOptIn: true,
+                visitTypeId: $this->visitType->id,
+                date: self::DAY,
+                startTime: null,
+                bookingKind: BookingKind::EMERGENCY,
+                patientLocation: PatientLocation::INSIDE_CLINIC,
+                waitingListEntryId: $entry->id,
+            ),
+        ));
+
+        $this->assertSame(1, Booking::query()->where('patient_id', $patient->id)->count());
+    }
+
+    public function test_an_entry_that_stopped_waiting_still_books_with_the_usual_confirmation(): void
+    {
+        $patient = $this->patient();
+        $entry = $this->join($patient);
+        app(WaitingListService::class)->leave($entry);
+        $this->freeTheSlot();
+
+        $booking = app(BookingService::class)->create($this->clinic, $this->bookingFor($patient, self::DAY, $entry->id));
+
+        $this->assertSame(WaitingListStatus::LEFT, $entry->fresh()->status);
+        $this->assertSame(
+            [WhatsAppMessagingService::CONFIRMATION_KEY],
+            OutboundMessage::query()->where('booking_id', $booking->id)->pluck('template_key')->all(),
+        );
+    }
+
+    public function test_a_patient_with_an_upcoming_visit_cannot_join_online(): void
+    {
+        $nextDay = $this->openTheNextDay();
+        $patient = $this->patient();
+        app(BookingService::class)->create($this->clinic, $this->bookingFor($patient, $nextDay));
+
+        // The page shows the upcoming visit instead; this is the call made
+        // without it.
+        $this->verified()->call('joinWaitingList');
+
+        $this->assertFalse(WaitingListEntry::query()->where('patient_id', $patient->id)->exists());
+        $this->assertSame(0, OutboundMessage::query()
+            ->where('template_key', WhatsAppMessagingService::WAITING_LIST_JOINED_KEY)->count());
+    }
+
+    public function test_moving_a_booking_onto_the_waited_day_takes_them_off_the_list(): void
+    {
+        $nextDay = $this->openTheNextDay();
+        $patient = $this->patient();
+        $booking = app(BookingService::class)->create($this->clinic, $this->bookingFor($patient, $nextDay));
+        $entry = $this->join($patient);
+        Booking::query()->whereKeyNot($booking->id)->delete();
+
+        app(BookingService::class)->update($this->clinic, $booking->id, $this->bookingFor($patient, self::DAY));
+
+        $entry->refresh();
+        $this->assertSame(WaitingListStatus::BOOKED, $entry->status);
+        $this->assertSame($booking->id, $entry->booking_id);
+
+        // The day closes with nobody left to tell.
+        Carbon::setTestNow(Carbon::parse(self::DAY.' 23:00:00', 'Africa/Cairo'));
+        $this->assertSame(['closed' => 0, 'messaged' => 0], app(WaitingListService::class)->closeEndedDays($this->clinic));
+    }
+
     /*
     |--------------------------------------------------------------------------
     | The end of the day
@@ -412,25 +624,24 @@ class WaitingListTest extends TestCase
     |--------------------------------------------------------------------------
     */
 
-    public function test_the_secretary_lists_adds_and_removes(): void
+    public function test_the_secretary_lists_and_removes_but_cannot_add(): void
     {
-        Sanctum::actingAs($this->secretary);
+        $this->join($this->patient());
 
-        $this->postJson('/api/v1/waiting-list', [
-            'date' => self::DAY,
-            'visit_type_id' => $this->visitType->id,
-            'patient_name' => 'مريض بالتليفون',
-            'phone' => '01077778888',
-        ])
-            ->assertCreated()
-            ->assertJsonPath('data.entry.position', 1)
-            ->assertJsonPath('data.entry.source.value', 'clinic');
+        Sanctum::actingAs($this->secretary);
 
         $this->getJson('/api/v1/waiting-list?date='.self::DAY)
             ->assertOk()
             ->assertJsonPath('data.enabled', true)
             ->assertJsonPath('data.count', 1)
-            ->assertJsonPath('data.items.0.patient.name', 'مريض بالتليفون');
+            ->assertJsonPath('data.items.0.patient.name', 'فاطمة عبد الرحمن');
+
+        // Patients join themselves, on the public page.
+        $this->postJson('/api/v1/waiting-list', [
+            'date' => self::DAY,
+            'patient_name' => 'مريض بالتليفون',
+            'phone' => '01077778888',
+        ])->assertStatus(405);
 
         $id = WaitingListEntry::query()->sole()->id;
 
@@ -452,29 +663,13 @@ class WaitingListTest extends TestCase
             'patient_id' => $patient->id,
             'visit_date' => self::DAY,
             'status' => WaitingListStatus::WAITING,
-            'source' => BookingSource::CLINIC,
+            'source' => BookingSource::PATIENT_WEB,
         ]);
 
         Sanctum::actingAs($this->secretary);
 
         $this->deleteJson('/api/v1/waiting-list/'.$entry->id)->assertNotFound();
         $this->assertSame(WaitingListStatus::WAITING, $entry->fresh()->status);
-    }
-
-    public function test_a_full_api_add_is_refused(): void
-    {
-        $this->clinic->update(['waiting_list_max_per_day' => 1]);
-        $this->join($this->patient());
-
-        Sanctum::actingAs($this->secretary);
-
-        $this->postJson('/api/v1/waiting-list', [
-            'date' => self::DAY,
-            'patient_name' => 'مريض',
-            'phone' => '01077778888',
-        ])
-            ->assertStatus(409)
-            ->assertJsonPath('error.code', ApiErrorCode::WAITING_LIST_FULL->value);
     }
 
     public function test_the_availability_service_still_sees_the_day_as_full(): void

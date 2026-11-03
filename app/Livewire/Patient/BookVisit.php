@@ -214,9 +214,6 @@ class BookVisit extends Component
             // is nothing to do on one, so it stays shut.
             'waitingListOpen' => $clinic->offersWaitingList(),
             'waitingEntry' => $stage === 'waitlisted' ? $this->waitingEntry() : null,
-            'waitingPosition' => $stage === 'waitlisted' && ($entry = $this->waitingEntry()) !== null
-                ? $this->service()->waitingPosition($entry)
-                : null,
             'blockedMessage' => $stage === 'blocked' ? $this->service()->blockedMessage($clinic) : null,
             'confirmed' => $stage === 'done' ? $this->confirmed() : null,
             'verifiedPhone' => $this->service()->verifiedPhone($clinic),
