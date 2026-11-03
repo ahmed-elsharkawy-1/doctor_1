@@ -147,6 +147,10 @@ jobs:
             # wrong somewhere in thirty lines.
             echo "--- git ---"
 
+            # What the box runs now, before the pull: the rollback copy below
+            # is this commit's images.
+            RUNNING_COMMIT="$(git rev-parse --short HEAD)"
+
             # A deploy has already been lost to one failed fetch. The whole
             # release is worth more than five seconds of waiting.
             for attempt in 1 2 3; do
@@ -164,6 +168,31 @@ jobs:
             done
 
             git --no-pager log --oneline -1
+
+            # Production keeps one way back: the images running before this
+            # release, as :rollback, and nothing older. Each release replaces
+            # the copy rather than adding one, so it stays one copy's worth of
+            # disk (~0.3 GB) — see docs/deploy/rollback.md. Staging needs none.
+            if [ "$DEPLOY_ENV" = "production" ]; then
+              echo "--- rollback copy ---"
+              for service in app web; do
+                image="${DEPLOY_STACK}-${service}"
+                if ! docker image inspect "${image}:latest" > /dev/null 2>&1; then
+                  echo "No ${image}:latest yet; nothing to keep."
+                  continue
+                fi
+
+                previous="$(docker image inspect -f '{{.Id}}' "${image}:rollback" 2>/dev/null || true)"
+                docker tag "${image}:latest" "${image}:rollback"
+
+                # The copy it replaces, if nothing else still names it.
+                if [ -n "$previous" ] && [ "$previous" != "$(docker image inspect -f '{{.Id}}' "${image}:rollback")" ]; then
+                  docker rmi "$previous" > /dev/null 2>&1 || true
+                fi
+              done
+              echo "$RUNNING_COMMIT" > "/var/tmp/${DEPLOY_STACK}-rollback-commit"
+              echo "Rollback copy is ${RUNNING_COMMIT}."
+            fi
 
             echo "--- build ---"
             # < /dev/null for the same reason as the artisan commands below:
@@ -202,6 +231,14 @@ jobs:
             docker compose -f compose.prod.yml exec -T app php artisan db:seed --class=MessageTemplateSeeder --force < /dev/null
             docker compose -f compose.prod.yml exec -T app php artisan optimize:clear < /dev/null
             docker compose -f compose.prod.yml exec -T app php artisan filament:optimize < /dev/null
+
+            # Every build leaves cache behind (8.8 GB by November 2026) and
+            # nothing else clears it. Capped by size, not age: we build several
+            # times a week, so an age limit kept almost all of it. 3 GB holds a
+            # full build for both stacks, so the next one stays quick; the
+            # least recently used goes first. Never fails the release.
+            echo "--- build cache ---"
+            docker builder prune -f --max-used-space 3gb < /dev/null | tail -1 || true
 
             echo "--- deployed $(git rev-parse --short HEAD) to ${DEPLOY_ENV} ---"
           DEPLOY
