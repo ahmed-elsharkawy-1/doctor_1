@@ -449,9 +449,14 @@ Dense day strip plus sparse date-keyed booking cards. `status=` filters cards on
 
 - `is_open` is already false on a holiday — check `is_holiday` only to show
   "إجازة" rather than a date.
-- Booking cards are sorted as the active clinic queue: `with_doctor`, emergency
-  arrived, normal arrived, emergency booked, normal booked, then finished
-  history. Normal appointment time still breaks ties.
+- Booking cards are sorted in the order the doctor calls: `with_doctor`
+  first; then the line — emergencies that have arrived (by arrival time),
+  emergencies still on the way, then every normal booking **by appointment
+  time, arrived or not** (same time: booked first); then `done`, `cancelled`,
+  `no_show`. Arriving early does not move a patient up, and arriving late does
+  not move them down — the same order the patient's tracking page and
+  `GET /queue/search` count by. Keep the server's order; do not re-sort.
+  `/home` and the postpone list use the same order.
 - `normal_count` / `emergency_count` drive the "حالات عادية" / "حالة طارئة"
   counters in the design.
 
@@ -640,7 +645,8 @@ Changing the phone moves the booking to a different patient.
 
 ## 9. Booking Status
 
-Cards are ordered by appointment time. There is no `queue_position`; `arrived_at` is still returned for future wait-time reporting.
+Cards are ordered as described under the calendar (§ above): the doctor's
+calling order, by appointment, emergencies first. There is no `queue_position`; `arrived_at` is still returned for future wait-time reporting.
 
 ### `available_actions`
 

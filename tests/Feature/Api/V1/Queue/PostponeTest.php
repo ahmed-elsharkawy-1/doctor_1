@@ -66,7 +66,8 @@ class PostponeTest extends TestCase
 
         $items = $this->getJson(route('api.v1.postpone.candidates'))->assertOk()->json('data.items');
 
-        $this->assertSame(['وصلت', 'محجوزة'], array_column(array_column($items, 'patient'), 'name'));
+        // By appointment, as the queue is: arriving does not move her up.
+        $this->assertSame(['محجوزة', 'وصلت'], array_column(array_column($items, 'patient'), 'name'));
     }
 
     public function test_postponing_everyone_cancels_them_with_the_emergency_reason(): void

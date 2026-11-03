@@ -27,8 +27,10 @@ use Illuminate\Support\Collection;
  *
  * So the number moves only when someone ahead cancels, is marked no-show or
  * goes in to the doctor (down), or a booking lands in an earlier slot or an
- * emergency arrives (up). It is not the secretary's queue screen, which
- * ranks by arrival (QueueService) and is deliberately left that way.
+ * emergency arrives (up). The clinic's lists (QueueService) are in the same
+ * order — both read QueueOrder — so a waiting patient's place on the
+ * secretary's screen is the number on their tracking page, give or take an
+ * emergency still on the way, which she sees near the top before it counts.
  */
 class QueuePositionService
 {
@@ -142,28 +144,12 @@ class QueuePositionService
 
         if ($booking->booking_kind === BookingKind::NORMAL) {
             // An emergency in the line is always first; normals by appointment.
-            return $otherIsEmergency || $this->appointmentKey($other) < $this->appointmentKey($booking);
+            return $otherIsEmergency || QueueOrder::appointmentKey($other) < QueueOrder::appointmentKey($booking);
         }
 
         // An emergency waits only for emergencies in the clinic before it. Not
         // arrived itself, it has no arrival time and sorts after all of them.
-        return $otherIsEmergency && $this->arrivalKey($other) < $this->arrivalKey($booking);
-    }
-
-    /**
-     * Appointment time, then the order the bookings were made in — fixed, so
-     * two bookings on one time never swap places.
-     */
-    private function appointmentKey(Booking $booking): string
-    {
-        return ($booking->start_at?->format('Y-m-d H:i:s') ?? '9999-12-31 23:59:59')
-            .'|'.str_pad((string) $booking->id, 12, '0', STR_PAD_LEFT);
-    }
-
-    private function arrivalKey(Booking $booking): string
-    {
-        return (($booking->queue_entered_at ?? $booking->arrived_at)?->format('Y-m-d H:i:s.u') ?? '9999-12-31 23:59:59')
-            .'|'.str_pad((string) $booking->id, 12, '0', STR_PAD_LEFT);
+        return $otherIsEmergency && QueueOrder::arrivalKey($other) < QueueOrder::arrivalKey($booking);
     }
 
     /**

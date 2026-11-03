@@ -160,6 +160,26 @@ class ClinicAppQueueTest extends TestCase
             ->assertSeeInOrder([$early->patient->name, $late->patient->name]);
     }
 
+    /**
+     * A later patient who arrives early stays below an earlier one still on
+     * the way — the order the doctor calls in, and the API's.
+     */
+    public function test_an_early_arrival_does_not_climb_the_list(): void
+    {
+        $late = $this->booking('11:00');
+        $early = $this->booking('10:30');
+
+        $late->update([
+            'status' => BookingStatus::ARRIVED,
+            'arrived_at' => Carbon::now('Africa/Cairo'),
+            'queue_entered_at' => Carbon::now('Africa/Cairo'),
+        ]);
+
+        Livewire::actingAs($this->owner)
+            ->test(Queue::class)
+            ->assertSeeInOrder([$early->patient->name, $late->patient->name]);
+    }
+
     public function test_the_day_can_be_stepped_and_reset(): void
     {
         Livewire::actingAs($this->owner)
