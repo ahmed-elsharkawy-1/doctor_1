@@ -365,4 +365,65 @@ class BookingReviewPageTest extends TestCase
 
         $this->assertSame('done', $booking->fresh()->status->value);
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Booking again
+    |--------------------------------------------------------------------------
+    */
+
+    public function test_a_finished_visit_links_back_to_the_doctor_page(): void
+    {
+        $this->clinic->update(['slug' => 'dr-sara']);
+        $this->get($this->url($this->booking()))
+            ->assertOk()
+            ->assertSee(__('booking.tracking.book_again'))
+            ->assertSee('href="'.route('landing', $this->clinic->slug).'"', false);
+    }
+
+    public function test_it_links_to_the_booking_page_when_the_clinic_takes_online_bookings(): void
+    {
+        $this->clinic->update(['slug' => 'dr-sara', 'self_booking_enabled' => true]);
+
+        $this->get($this->url($this->booking()))
+            ->assertOk()
+            ->assertSee('href="'.route('patient.book', $this->clinic->slug).'"', false);
+    }
+
+    public function test_the_link_stays_after_the_review_is_sent_and_on_a_cancelled_booking(): void
+    {
+        $this->clinic->update(['slug' => 'dr-sara']);
+        $reviewed = $this->booking();
+        app(BookingReviewService::class)->submit($reviewed, ReviewRating::VERY_GOOD, null);
+
+        $this->get($this->url($reviewed))->assertSee(__('booking.tracking.book_again'));
+        $this->get($this->url($this->booking('cancelled')))->assertSee(__('booking.tracking.book_again'));
+        $this->get($this->url($this->booking('no_show')))->assertSee(__('booking.tracking.book_again'));
+    }
+
+    public function test_a_visit_still_ahead_offers_no_second_booking(): void
+    {
+        $this->clinic->update(['slug' => 'dr-sara']);
+        $this->get($this->url($this->booking('booked')))
+            ->assertOk()
+            ->assertDontSee(__('booking.tracking.book_again'));
+    }
+
+    public function test_a_clinic_with_no_public_page_offers_no_link(): void
+    {
+        $this->get($this->url($this->booking()))
+            ->assertOk()
+            ->assertDontSee(__('booking.tracking.book_again'));
+    }
+
+    public function test_a_deactivated_clinic_offers_no_link(): void
+    {
+        $this->clinic->update(['slug' => 'dr-sara']);
+        $booking = $this->booking();
+        $this->clinic->update(['is_active' => false]);
+
+        $this->get($this->url($booking))
+            ->assertOk()
+            ->assertDontSee(__('booking.tracking.book_again'));
+    }
 }

@@ -55,6 +55,7 @@ class BookingTrackingController extends Controller
             'phone' => $phone,
             'whatsappLink' => $whatsappLink,
             'mapLink' => $clinic->mapLink(),
+            'bookAgainLink' => $clinic->bookAgainUrl(),
             'position' => $position,
             'delay' => $delays->for($booking, $position),
             'refreshSeconds' => config('clinic.tracking.refresh_seconds'),
