@@ -12,10 +12,12 @@ use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\Patient;
 use App\Models\VisitType;
+use App\Models\WaitingListEntry;
 use App\Services\V1\Patients\OnlineBookingService;
 use App\Services\V1\Patients\PatientService;
 use App\Services\V1\Patients\PhoneVerificationService;
 use App\Services\V1\QrPoster\QrScanService;
+use App\Services\V1\WaitingList\WaitingListService;
 use App\Support\PhoneNumber;
 use App\Support\VerifiedPhoneSession;
 use Illuminate\Support\Carbon;
@@ -47,6 +49,7 @@ class PatientBookingService
         private readonly SlotGrouper $grouper,
         private readonly QrScanService $qrScans,
         private readonly OnlineBookingService $onlineBooking,
+        private readonly WaitingListService $waitingList,
     ) {}
 
     /*
@@ -620,6 +623,114 @@ class PatientBookingService
             // No account behind a public page.
             actor: null,
         );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | The waiting list
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * What the page offers on a full day: whether the list can be joined,
+     * whether it has room, and this patient's place on it if they have one.
+     * Null when there is nothing to offer — the clinic has no list, or the
+     * day cannot take one.
+     *
+     * @return array{full: bool, entry: WaitingListEntry|null}|null
+     */
+    public function waitingListOffer(Clinic $clinic, string $date): ?array
+    {
+        if (! $clinic->offersWaitingList()
+            || ! $this->isWithinPatientWindow($clinic, $date)
+            || ! $this->waitingList->isJoinable($clinic, $date)) {
+            return null;
+        }
+
+        $patient = $this->verifiedPatient($clinic);
+
+        return [
+            'full' => $this->waitingList->isFull($clinic, $date),
+            'entry' => $patient === null ? null : $this->waitingList->entryFor($clinic, $patient, $date),
+            // Said on the page, before they tap — rather than a refusal after.
+            'left_too_often' => $patient !== null && $this->waitingList->hasLeftTooOften($clinic, $patient, $date),
+        ];
+    }
+
+    /**
+     * Puts the verified patient on a full day's list.
+     *
+     * The same guards as a booking, asked again, plus one of its own: the day
+     * must really be full for this visit type. A list for a day with a free
+     * slot would only keep somebody waiting for what they could book now.
+     */
+    public function joinWaitingList(Clinic $clinic, string $name, int $visitTypeId, string $date): WaitingListEntry
+    {
+        $this->assertOpen($clinic);
+        $phone = $this->assertVerified($clinic);
+        $this->assertNotBlocked($clinic);
+        $this->assertWithinPatientWindow($clinic, $date);
+        $visitType = $this->assertSelfBookable($clinic, $visitTypeId);
+
+        // As in confirm(): one visit still to come is all a patient may have
+        // online. The page shows them that visit before the list; this is
+        // for a request that skipped the page.
+        if ($this->upcomingBooking($clinic) !== null) {
+            throw ApiException::make(
+                ApiErrorCode::BOOKING_NOT_EDITABLE,
+                __('booking.self_booking.already_booked'),
+                http: 409,
+            );
+        }
+
+        $availability = $this->availability($clinic, $visitType, $date);
+
+        if ($availability !== null && $availability->hasAvailableSlot()) {
+            throw ApiException::make(
+                ApiErrorCode::WAITING_LIST_DAY_NOT_FULL,
+                __('waiting_list.day_not_full'),
+                http: 409,
+            );
+        }
+
+        // As in confirm(): the verified number is the identity, and a name
+        // only ever creates a patient the clinic does not know yet.
+        $patient = $this->patients->findOrCreate(
+            $clinic,
+            trim($name),
+            $this->patients->parsePhone($clinic, $phone),
+        );
+
+        return $this->waitingList->join($clinic, $patient, $visitType, $date, BookingSource::PATIENT_WEB);
+    }
+
+    /**
+     * The verified patient's own entry, still on the list — or null, so a
+     * tampered id shows nothing rather than somebody else's place.
+     */
+    public function waitingEntry(Clinic $clinic, ?int $entryId): ?WaitingListEntry
+    {
+        $patient = $this->verifiedPatient($clinic);
+
+        if ($entryId === null || $patient === null) {
+            return null;
+        }
+
+        return $clinic->waitingListEntries()
+            ->with(['patient', 'visitType'])
+            ->waiting()
+            ->where('patient_id', $patient->id)
+            ->whereKey($entryId)
+            ->first();
+    }
+
+    public function leaveWaitingList(Clinic $clinic, int $entryId): void
+    {
+        $entry = $this->waitingEntry($clinic, $entryId);
+
+        if ($entry !== null) {
+            $this->waitingList->leave($entry);
+        }
     }
 
     /*

@@ -153,6 +153,79 @@ class MessageTemplateSeeder extends Seeder
             ],
 
             /*
+            | A patient joined a full day's waiting list, or the secretary
+            | added them. Not a booking, and it says so.
+            | {{1}} patient · {{2}} the day asked for ("الثلاثاء 10 نوفمبر")
+            | No button.
+            */
+            WhatsAppMessagingService::WAITING_LIST_JOINED_KEY => [
+                'category' => 'utility',
+                'is_broadcast' => false,
+                'provider_template_name' => 'waiting_list_joined',
+                'language_code' => 'ar',
+                'body_ar' => "👋 أهلاً {{1}}،\n*تم تسجيلك في قائمة الانتظار* ✅\n\n"
+                    ."📅 اليوم المطلوب: {{2}}\n\n"
+                    ."أول ما يفضى ميعاد، العيادة هتتواصل على الرقم ده لتأكيد الحجز.\n\n"
+                    .'⚠️ التسجيل في القائمة مش معناه إن الحجز اتأكد.',
+                'is_active' => true,
+            ],
+
+            /*
+            | Sent by clinic:close-waiting-lists once the day's last period has
+            | ended, to whoever is still on its list.
+            | {{1}} patient · {{2}} the day asked for
+            | Button: https://elayadah.com/{{1}} <- <slug>/book
+            */
+            WhatsAppMessagingService::WAITING_LIST_NO_SLOT_KEY => [
+                'category' => 'utility',
+                'is_broadcast' => false,
+                'provider_template_name' => 'waiting_list_no_slot_opened_v3',
+                'language_code' => 'ar',
+                'body_ar' => "👋 أهلاً {{1}}،\n\nبخصوص تسجيلك في قائمة الانتظار ليوم {{2}}:\n\n"
+                    ."نعتذر، لم يتوفر موعد شاغر خلال اليوم المطلوب، ولذلك لم يتم تأكيد حجز.\n\n"
+                    ."يمكنك مراجعة المواعيد المتاحة من الزر بالأسفل.\n\n"
+                    .'شكرًا لتفهمك 🙏',
+                'is_active' => true,
+            ],
+
+            /*
+            | Sent instead of the confirmation when the secretary books a
+            | waiting-list patient, after calling them.
+            | {{1}} patient · {{2}} date · {{3}} time · {{4}} doctor
+            | {{5}} address
+            | Button: https://elayadah.com/{{1}} <- booking/<token>
+            */
+            WhatsAppMessagingService::WAITING_LIST_SLOT_BOOKED_KEY => [
+                'category' => 'utility',
+                'is_broadcast' => false,
+                'provider_template_name' => 'waiting_list_slot_booked',
+                'language_code' => 'ar',
+                'body_ar' => "👋 أهلاً {{1}}،\nخبر حلو! اتحجزلك ميعاد من قائمة الانتظار 🎉\n\n"
+                    ."📅 التاريخ: {{2}}\n⏰ الموعد: {{3}}\n👨‍⚕️ الطبيب: {{4}}\n📌 العنوان: {{5}}\n\n"
+                    ."⏳ الموعد ممكن يتأخر لو فيه حالة طارئة، وهنبلغك بأي تغيير.\n\n"
+                    .'🕐 في حالة التأخير عن الموعد، الدخول هيكون بعد الحالات المحجوزة الموجودة.',
+                'is_active' => true,
+            ],
+
+            /*
+            | Written by a super admin in the panel — never offered in the
+            | clinic app, which is why it is not a broadcast.
+            | {{1}} doctor · {{2}} patient · {{3}} the announcement, one
+            | paragraph · {{4}} clinic phone
+            | No button.
+            */
+            WhatsAppMessagingService::ANNOUNCEMENT_KEY => [
+                'category' => 'utility',
+                'is_broadcast' => false,
+                'provider_template_name' => 'clinic_announcement_v2',
+                'language_code' => 'ar',
+                'body_ar' => "📢 تنبيه من عيادة {{1}}\n\n👋 أهلاً {{2}}،\n{{3}}\n\n"
+                    ."لأي استفسار، العيادة متاحة على: {{4}}\n"
+                    .'شكرًا 🙏',
+                'is_active' => true,
+            ],
+
+            /*
             | Written for the app but never submitted to Meta, so there is
             | nothing to send them through. Kept as rows — the clinic may want
             | them later and a deleted row would take its history with it —

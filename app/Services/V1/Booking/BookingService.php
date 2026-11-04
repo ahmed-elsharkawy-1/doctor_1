@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Models\VisitType;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
 use App\Services\V1\Patients\PatientService;
+use App\Services\V1\WaitingList\WaitingListService;
 use App\Support\PhoneNumber;
 use Illuminate\Support\Carbon;
 
@@ -31,6 +32,7 @@ class BookingService
         private readonly ClinicDayLock $lock,
         private readonly SlotHoldService $holds,
         private readonly SlotAvailabilityService $slots,
+        private readonly WaitingListService $waitingList,
     ) {}
 
     /**
@@ -48,8 +50,10 @@ class BookingService
 
         $phone = $data->phone === null ? null : $this->patients->parsePhone($clinic, $data->phone);
 
+        $fromWaitingList = null;
+
         $booking = $this->claimingTheDay($clinic, $this->clinicDate($clinic, $data->date), function () use (
-            $clinic, $data, $visitType, $startAt, $doctor, $actor, $phone
+            $clinic, $data, $visitType, $startAt, $doctor, $actor, $phone, &$fromWaitingList
         ) {
             if ($data->bookingKind === BookingKind::NORMAL) {
                 // Asked with this caller's own hold, so the slot they have
@@ -88,6 +92,9 @@ class BookingService
 
             $this->linkRebooking($clinic, $data->rebookingForBookingId, $booking);
 
+            // Booked: off the waiting list, whichever way the booking came.
+            $fromWaitingList = $this->waitingList->settleForBooking($clinic, $booking, $data->waitingListEntryId);
+
             // The hold has done its job. Released inside the transaction so a
             // rolled-back booking never leaves its slot unguarded, and without
             // re-taking the day lock we are already inside.
@@ -100,7 +107,11 @@ class BookingService
         // mobile app reaches the patient exactly as one taken on the web does,
         // with no button for anyone to forget. Deliberately outside the day
         // lock — a queued message must never outlive a rolled-back booking.
-        $this->messaging->sendConfirmation($clinic, $booking);
+        // Booked from the waiting list, the patient gets that message
+        // instead: it records the call that just took place.
+        $fromWaitingList === null
+            ? $this->messaging->sendConfirmation($clinic, $booking)
+            : $this->messaging->sendWaitingListSlotBooked($clinic, $booking);
 
         // Outside the lock, for the same reason the message is: everyone
         // watching this day is about to re-read it, and none of them should
@@ -171,7 +182,13 @@ class BookingService
                 'notes' => $data->notes,
             ]);
 
-            return $booking->refresh();
+            $booking->refresh();
+
+            // Moved onto a day they were waiting for: booked now, so off that
+            // day's list — no "no slot opened" for them when it closes.
+            $this->waitingList->settleForBooking($clinic, $booking);
+
+            return $booking;
         });
 
         foreach (array_unique([$movedFrom, $updated->visit_date->toDateString()]) as $date) {

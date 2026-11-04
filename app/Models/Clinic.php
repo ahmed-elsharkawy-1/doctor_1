@@ -46,6 +46,8 @@ class Clinic extends Model
         'whatsapp_cancel_cutoff_minutes',
         'self_booking_enabled',
         'no_show_block_enabled',
+        'waiting_list_enabled',
+        'waiting_list_max_per_day',
         'whatsapp_enabled',
         'reports_enabled',
         'is_test',
@@ -85,6 +87,8 @@ class Clinic extends Model
             'is_active' => 'boolean',
             'self_booking_enabled' => 'boolean',
             'no_show_block_enabled' => 'boolean',
+            'waiting_list_enabled' => 'boolean',
+            'waiting_list_max_per_day' => 'integer',
             'whatsapp_enabled' => 'boolean',
             'reports_enabled' => 'boolean',
             'is_test' => 'boolean',
@@ -226,6 +230,26 @@ class Clinic extends Model
         return $this->whatsapp_enabled !== false;
     }
 
+    /**
+     * Whether a full day offers its waiting list — a super admin's switch,
+     * off until turned on. Off, nobody can join: not on the public page and
+     * not through the secretary.
+     */
+    public function offersWaitingList(): bool
+    {
+        return $this->is_active && $this->waiting_list_enabled === true;
+    }
+
+    /**
+     * How many patients one day's waiting list may hold. The column is this
+     * clinic's override, the config the default.
+     */
+    public function waitingListMaxPerDay(): int
+    {
+        return max(1, (int) ($this->waiting_list_max_per_day
+            ?? config('clinic.waiting_list.max_per_day', 10)));
+    }
+
     public function allowsSelfBooking(): bool
     {
         return $this->is_active && $this->self_booking_enabled;
@@ -311,6 +335,12 @@ class Clinic extends Model
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);
+    }
+
+    /** @return HasMany<WaitingListEntry, $this> */
+    public function waitingListEntries(): HasMany
+    {
+        return $this->hasMany(WaitingListEntry::class);
     }
 
     /** @return HasOne<ClinicQrPoster, $this> */

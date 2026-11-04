@@ -1,0 +1,66 @@
+<?php
+
+return [
+    'status' => [
+        'waiting' => 'On the list',
+        'booked' => 'Booked',
+        'left' => 'Left the list',
+        'removed' => 'Removed',
+        'closed' => 'Day ended',
+    ],
+
+    'source' => [
+        'clinic' => 'Added by the clinic',
+        'patient_web' => 'Joined online',
+    ],
+
+    'disabled' => 'This clinic has no waiting list',
+    'closed' => 'That day’s waiting list cannot be joined',
+    'full' => 'That day’s waiting list is full',
+    'already_booked' => 'The patient already has a booking that day',
+    'already_booked_from_list' => 'This patient was already booked from the waiting list',
+    'day_not_full' => 'That day still has free times — book one instead',
+    'not_found' => 'That patient is not on the waiting list',
+    'other_patient' => 'That waiting-list place belongs to another patient',
+    'left_too_often' => 'You have left this day’s waiting list more than once, so you cannot join it again. Try another day.',
+    'wrong_day' => 'A patient on the waiting list can only be booked on the day they are waiting for (:date)',
+    'loaded' => 'Waiting list loaded',
+    'removed_ok' => 'Removed from the waiting list',
+
+    'patient' => [
+        'today_full' => 'Today is full',
+        'day_full' => 'This day is full',
+        'join' => 'Join the waiting list',
+        'list_full' => 'The waiting list for this day is full. Try another day.',
+        'left_too_often' => 'You left this day’s waiting list more than once, so you cannot join it again. Try another day.',
+        'already_on' => 'You are on this day’s waiting list',
+        'view_place' => 'See my details',
+        'sheet_title' => 'How does the waiting list work?',
+        'step_join' => 'You join the list',
+        'step_slot' => 'A time opens up',
+        'step_call' => 'The clinic calls you',
+        'confirm' => 'Join the list',
+        'back' => 'Back',
+        'joined_title' => 'You are on the waiting list',
+        'not_confirmed' => 'Not a confirmed booking yet',
+        'day' => 'Day',
+        'call_on' => 'We will call',
+        'visit_type' => 'Visit type',
+        'leave' => 'Leave the list',
+        'left' => 'You have left the waiting list',
+        'finish' => 'Done',
+    ],
+
+    'app' => [
+        'title' => 'Waiting list',
+        'nav' => 'Waiting list',
+        'empty' => 'Nobody is on the waiting list for this day',
+        'lead' => ':count of :max on the waiting list',
+        'disabled' => 'The waiting list is not switched on for your clinic. Contact support to turn it on.',
+        'joined_at' => 'Joined :time',
+        'book' => 'Book them',
+        'remove' => 'Remove',
+        'remove_confirm' => 'Remove :name from the waiting list?',
+        'booking_from_list' => 'Booking :name from the waiting list. They will be told the time was booked from the list instead of the usual confirmation.',
+    ],
+];

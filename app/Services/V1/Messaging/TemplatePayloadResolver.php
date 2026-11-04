@@ -5,6 +5,8 @@ namespace App\Services\V1\Messaging;
 use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\MessageTemplate;
+use App\Models\Patient;
+use App\Models\WaitingListEntry;
 use App\Support\PhoneNumber;
 
 /**
@@ -25,6 +27,14 @@ use App\Support\PhoneNumber;
  *   appointment_reminder_today           ar   5 body params, 2 quick replies
  *   appointment_delayed                  ar   5 body params, URL button
  *   booking_cancellation                 ar   4 body params, no button
+ *   waiting_list_slot_booked             ar   5 body params, URL button
+ *
+ * The waiting-list messages are about an entry, not a booking, and the
+ * announcement about a patient — see forWaitingList() and forAnnouncement():
+ *
+ *   waiting_list_joined                  ar   2 body params, no button
+ *   waiting_list_no_slot_opened_v3       ar   2 body params, URL button
+ *   clinic_announcement_v2               ar   4 body params, no button
  */
 class TemplatePayloadResolver
 {
@@ -99,6 +109,22 @@ class TemplatePayloadResolver
             ),
 
             /*
+            | The secretary booked a waiting-list patient after calling them.
+            | Same five values and button as the confirmation; only the
+            | headline differs, and there is no arrival lead.
+            */
+            WhatsAppMessagingService::WAITING_LIST_SLOT_BOOKED_KEY => new TemplatePayload(
+                body: [
+                    $this->patientName($booking),
+                    $this->date($booking, $clinic),
+                    $this->time($booking, $clinic),
+                    $this->doctorName($clinic),
+                    $this->address($clinic),
+                ],
+                buttonSuffix: $this->suffix('tracking', $booking),
+            ),
+
+            /*
             | Sent after the times have moved, so the booking already carries
             | its new time. The approved template has no delay amount — the
             | new time says it.
@@ -134,6 +160,48 @@ class TemplatePayloadResolver
                 "No WhatsApp parameter mapping for template [{$template->key}].",
             ),
         };
+    }
+
+    /**
+     * The two waiting-list messages: {{1}} patient · {{2}} the day asked for.
+     * "No slot opened" carries the clinic's booking page on its button, so a
+     * dead end becomes a rebooking.
+     */
+    public function forWaitingList(MessageTemplate $template, WaitingListEntry $entry, Clinic $clinic): TemplatePayload
+    {
+        $body = [
+            $this->clean($entry->patient?->name, __('messages.fallback.patient')),
+            $this->clean($entry->visit_date->copy()->locale('ar')->isoFormat('dddd D MMMM'), '—'),
+        ];
+
+        return match ($template->key) {
+            WhatsAppMessagingService::WAITING_LIST_JOINED_KEY => new TemplatePayload(body: $body),
+
+            WhatsAppMessagingService::WAITING_LIST_NO_SLOT_KEY => new TemplatePayload(
+                body: $body,
+                buttonSuffix: $clinic->slug.'/'.trim((string) config('clinic.self_booking.path'), '/'),
+            ),
+
+            default => throw new \RuntimeException(
+                "No WhatsApp parameter mapping for waiting-list template [{$template->key}].",
+            ),
+        };
+    }
+
+    /**
+     * {{1}} doctor · {{2}} patient · {{3}} the announcement · {{4}} clinic
+     * phone. The doctor's name is the same one the "الطبيب" line of the
+     * other templates prints. The text is one paragraph: Meta refuses a
+     * parameter with a newline, so clean() folds any into spaces.
+     */
+    public function forAnnouncement(Clinic $clinic, Patient $patient, string $text): TemplatePayload
+    {
+        return new TemplatePayload(body: [
+            $this->doctorName($clinic),
+            $this->clean($patient->name, __('messages.fallback.patient')),
+            $this->clean($text, '—'),
+            $this->clinicPhone($clinic),
+        ]);
     }
 
     /*

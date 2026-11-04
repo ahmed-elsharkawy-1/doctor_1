@@ -1282,6 +1282,79 @@
             ]
         },
         {
+            "name": "Waiting list",
+            "description": "Patients asking for a day that is already full",
+            "item": [
+                {
+                    "name": "A day's waiting list",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/waiting-list?date=",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "waiting-list"
+                            ],
+                            "query": [
+                                {
+                                    "key": "date",
+                                    "value": "",
+                                    "description": "`YYYY-MM-DD`; defaults to the clinic's current day.",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "Patients asking for a day that is already full, first to join first.\nThey hold no slot. When one opens, call the first patient and book\nthem with `POST /bookings` carrying `waiting_list_entry_id` — that\ntakes them off the list and sends \"booked from the waiting list\"\n(`waiting_list_slot_booked`) instead of the usual confirmation. Any\nbooking for a patient on that day's list also takes them off it.\n\nWhen the day's last working period ends, whoever is still on the list\nis told no slot opened (`waiting_list_no_slot_opened`).\n\n`enabled` is the clinic's switch, set by a super admin; while it is\nfalse nobody can be added. Phones are **unmasked**."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Take a patient off the waiting list",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/waiting-list/{entry}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "waiting-list",
+                                "{entry}"
+                            ]
+                        },
+                        "description": "Without booking them, and without a message."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
             "name": "Messaging",
             "description": "WhatsApp template previews and log-driver sends",
             "item": [

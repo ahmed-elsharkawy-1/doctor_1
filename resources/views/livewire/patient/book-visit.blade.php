@@ -322,7 +322,8 @@
                                 <button type="button" wire:key="day-{{ $day['date']->toDateString() }}"
                                         @class(['day', 'is-full' => $full, 'is-off' => ! $day['is_open']])
                                         aria-pressed="{{ $date === $day['date']->toDateString() ? 'true' : 'false' }}"
-                                        @disabled(! $day['is_open'] || $full)
+                                        {{-- A full day opens only to offer its waiting list. --}}
+                                        @disabled(! $day['is_open'] || ($full && ! $waitingListOpen))
                                         wire:click="selectDay('{{ $day['date']->toDateString() }}')">
                                     <span class="day-name">{{ $day['day']->label() }}</span>
                                     <span class="day-num">{{ $day['date']->format('j') }}</span>
@@ -348,12 +349,41 @@
                     </div>
 
                     <div>
-                        <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px">
-                            <span class="label">{{ __('booking.self_booking.slot') }}</span>
-                            <span class="hint">{{ __('booking.self_booking.taken_note') }}</span>
-                        </div>
+                        {{-- A full day has no times to pick, so no heading for them. --}}
+                        @if ($waitingOffer === null)
+                            <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px">
+                                <span class="label">{{ __('booking.self_booking.slot') }}</span>
+                                <span class="hint">{{ __('booking.self_booking.taken_note') }}</span>
+                            </div>
+                        @endif
 
-                        @if ($availability === null || ! $availability->isOpen || $availability->availableCount() === 0)
+                        @if ($waitingOffer !== null)
+                            {{-- Full, and the clinic keeps a waiting list. --}}
+                            @php
+                                $isToday = $date === $clinic->currentDay()->toDateString();
+                            @endphp
+                            <div class="wl-full">
+                                <div class="wl-full-head">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M10 16l4-4M14 16l-4-4"/></svg>
+                                    <span>{{ $isToday ? __('waiting_list.patient.today_full') : __('waiting_list.patient.day_full') }}</span>
+                                </div>
+
+                                @if ($waitingOffer['entry'] !== null)
+                                    <p class="wl-full-text">{{ __('waiting_list.patient.already_on') }}</p>
+                                    <button type="button" class="btn btn-primary" wire:click="showWaitingEntry({{ $waitingOffer['entry']->id }})">
+                                        {{ __('waiting_list.patient.view_place') }}
+                                    </button>
+                                @elseif ($waitingOffer['left_too_often'])
+                                    <p class="wl-full-text">{{ __('waiting_list.patient.left_too_often') }}</p>
+                                @elseif ($waitingOffer['full'])
+                                    <p class="wl-full-text">{{ __('waiting_list.patient.list_full') }}</p>
+                                @else
+                                    <button type="button" class="btn btn-primary" wire:click="openWaitingSheet">
+                                        {{ __('waiting_list.patient.join') }}
+                                    </button>
+                                @endif
+                            </div>
+                        @elseif ($availability === null || ! $availability->isOpen || $availability->availableCount() === 0)
                             <div class="note note-plain">
                                 {{ $availability?->closedReason?->label() ?? __('booking.self_booking.no_slots_day') }}
                             </div>
@@ -410,6 +440,60 @@
                             @endif
                         @endif
                     </div>
+                @endif
+
+                {{-- On the waiting list ---------------------------------- --}}
+                @if ($stage === 'waitlisted' && $waitingEntry !== null)
+                    <div class="wl-joined">
+                        <div class="wl-clock">
+                            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                        </div>
+                        <h1 class="h1">{{ __('waiting_list.patient.joined_title') }}</h1>
+                        {{-- Said up front: the biggest risk of a waiting list
+                             is a patient who turns up thinking they are booked. --}}
+                        <span class="wl-chip">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                            {{ __('waiting_list.patient.not_confirmed') }}
+                        </span>
+                    </div>
+
+                    {{-- No place number: nothing is accepted yet, and a "3"
+                         reads as a promise the clinic has not made. --}}
+                    <div class="wl-facts">
+                        <div class="wl-fact">
+                            <span class="wl-fact-icon">
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                            </span>
+                            <div>
+                                <div class="hint">{{ __('waiting_list.patient.day') }}</div>
+                                <b>{{ $longDate($waitingEntry->visit_date) }}</b>
+                            </div>
+                        </div>
+                        <div class="wl-fact">
+                            <span class="wl-fact-icon">
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
+                            </span>
+                            <div>
+                                <div class="hint">{{ __('waiting_list.patient.call_on') }}</div>
+                                <b class="ltr">{{ \App\Support\PhoneNumber::tryParse((string) $waitingEntry->patient?->phone, $clinic->country_code)?->national() ?? $waitingEntry->patient?->phone }}</b>
+                            </div>
+                        </div>
+                        @if ($waitingEntry->visitType)
+                            <div class="wl-fact">
+                                <span class="wl-fact-icon">
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
+                                </span>
+                                <div>
+                                    <div class="hint">{{ __('waiting_list.patient.visit_type') }}</div>
+                                    <b>{{ $waitingEntry->visitType->name }}</b>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+
+                    <button type="button" class="wl-leave" wire:click="leaveWaitingList" wire:loading.attr="disabled" wire:target="leaveWaitingList">
+                        {{ __('waiting_list.patient.leave') }}
+                    </button>
                 @endif
 
                 {{-- Done ------------------------------------------------- --}}
@@ -541,6 +625,11 @@
                     </a>
                 @endif
 
+            @elseif ($stage === 'waitlisted')
+                <a class="btn btn-primary" href="{{ url('/'.$clinic->slug) }}">
+                    {{ __('waiting_list.patient.finish') }}
+                </a>
+
             @elseif ($stage === 'appointment')
                 @if ($startTime !== null && $visitType !== null)
                     {{-- The last look before committing. Laid out as labelled
@@ -582,10 +671,14 @@
                     </div>
                 @endif
 
-                <button type="button" class="btn btn-primary" wire:click="confirm" wire:loading.attr="disabled" wire:target="confirm" @disabled($startTime === null)>
-                    <span class="btn-spin" wire:loading wire:target="confirm" aria-hidden="true"></span>
-                    {{ __('booking.self_booking.confirm') }}
-                </button>
+                {{-- On a full day the action is in the page — joining the
+                     list — and a greyed-out confirm would only compete with it. --}}
+                @if ($waitingOffer === null)
+                    <button type="button" class="btn btn-primary" wire:click="confirm" wire:loading.attr="disabled" wire:target="confirm" @disabled($startTime === null)>
+                        <span class="btn-spin" wire:loading wire:target="confirm" aria-hidden="true"></span>
+                        {{ __('booking.self_booking.confirm') }}
+                    </button>
+                @endif
 
                 {{-- Same action as «تعديل» on the card above, deliberately: this
                      is the only screen where going back means changing who the
@@ -613,4 +706,44 @@
             @endif
         </div>
     </div>
+
+    {{-- How the waiting list works, before anything is written. --}}
+    @if ($stage === 'appointment' && $showWaitingSheet && $waitingOffer !== null && $waitingOffer['entry'] === null && ! $waitingOffer['full'] && ! $waitingOffer['left_too_often'])
+        <div class="sheet-backdrop" wire:click="closeWaitingSheet"></div>
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="wl-sheet-title">
+            <span class="sheet-grip" aria-hidden="true"></span>
+            <h2 class="sheet-title" id="wl-sheet-title">{{ __('waiting_list.patient.sheet_title') }}</h2>
+
+            <ol class="wl-steps">
+                <li>
+                    <span class="wl-step-icon" data-n="1">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </span>
+                    {{ __('waiting_list.patient.step_join') }}
+                </li>
+                <li>
+                    <span class="wl-step-icon" data-n="2">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/></svg>
+                    </span>
+                    {{ __('waiting_list.patient.step_slot') }}
+                </li>
+                <li>
+                    <span class="wl-step-icon" data-n="3">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
+                    </span>
+                    {{ __('waiting_list.patient.step_call') }}
+                </li>
+            </ol>
+
+            <div class="sheet-actions">
+                <button type="button" class="btn btn-primary" wire:click="joinWaitingList" wire:loading.attr="disabled" wire:target="joinWaitingList">
+                    <span class="btn-spin" wire:loading wire:target="joinWaitingList" aria-hidden="true"></span>
+                    {{ __('waiting_list.patient.confirm') }}
+                </button>
+                <button type="button" class="btn btn-outline" wire:click="closeWaitingSheet">
+                    {{ __('waiting_list.patient.back') }}
+                </button>
+            </div>
+        </div>
+    @endif
 </div>

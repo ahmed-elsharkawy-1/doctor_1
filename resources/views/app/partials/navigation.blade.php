@@ -27,6 +27,18 @@
         ['route' => 'app.settings',     'label' => __('app.nav.settings'),  'ability' => 'settings.manage'],
     ];
 
+    // Only for a clinic that keeps a waiting list, with today's and later
+    // patients counted the way the call list's entry is.
+    if ($clinic?->offersWaitingList()) {
+        $waiting = app(\App\Services\V1\WaitingList\WaitingListService::class)->upcomingCount($clinic);
+
+        array_splice($links, 2, 0, [[
+            'route' => 'app.waiting-list',
+            'label' => __('waiting_list.app.nav').($waiting > 0 ? ' ('.$waiting.')' : ''),
+            'ability' => 'bookings.manage',
+        ]]);
+    }
+
     if ($awaitingRebooking > 0) {
         array_splice($links, 5, 0, [[
             'route' => 'app.rebooking',

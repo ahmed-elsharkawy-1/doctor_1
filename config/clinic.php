@@ -490,6 +490,27 @@ return [
     ],
 
     /*
+    | The waiting list for a full day.
+    |
+    | Per clinic, a super admin switches it on and may set how many patients a
+    | day's list holds; `max_per_day` is the default for a clinic that does not.
+    | A patient on the list holds no slot: if one opens the secretary calls and
+    | books it. When the day's last period ends, whoever is still on the list
+    | is told no slot opened — unless the close is more than
+    | `notify_within_hours` late (the scheduler was down), when a message
+    | about a day long gone would only confuse.
+    */
+    'waiting_list' => [
+        'max_per_day' => (int) env('CLINIC_WAITING_LIST_MAX_PER_DAY', 10),
+        'notify_within_hours' => 6,
+        // A patient who has left a day's list this many times cannot join it
+        // again — joining and leaving over and over only churns the list and
+        // the "joined" WhatsApp. Leaving counts; being removed by the clinic
+        // does not.
+        'max_leaves_per_day' => 2,
+    ],
+
+    /*
     | API surface.
     */
     'api' => [

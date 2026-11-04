@@ -114,6 +114,10 @@
         <div class="flash flash-ok">{{ __('app.booking.replacing') }}</div>
     @endif
 
+    @if ($waitingListEntry !== null)
+        <div class="flash flash-ok">{{ __('waiting_list.app.booking_from_list', ['name' => $waitingListPatient]) }}</div>
+    @endif
+
     {{-- Patient --}}
     <div class="card section">
         <h2>{{ __('app.booking.patient') }}</h2>
@@ -234,7 +238,7 @@
                     <button type="button" class="chip day-chip"
                             wire:key="day-{{ $day['date']->toDateString() }}"
                             aria-pressed="{{ $date === $day['date']->toDateString() ? 'true' : 'false' }}"
-                            @disabled(! $day['is_open'])
+                            @disabled(! $day['is_open'] || ($waitingListEntry !== null && $date !== $day['date']->toDateString()))
                             wire:click="selectDay('{{ $day['date']->toDateString() }}')">
                         {{ $day['day']->label() }}
                         <small>{{ $day['date']->format('m/d') }}</small>

@@ -11,6 +11,7 @@ class OutboundMessage extends Model
         'clinic_id',
         'patient_id',
         'booking_id',
+        'waiting_list_entry_id',
         'template_key',
         'type',
         'rendered_body',
@@ -52,5 +53,11 @@ class OutboundMessage extends Model
     public function booking(): BelongsTo
     {
         return $this->belongsTo(Booking::class);
+    }
+
+    /** @return BelongsTo<WaitingListEntry, $this> */
+    public function waitingListEntry(): BelongsTo
+    {
+        return $this->belongsTo(WaitingListEntry::class);
     }
 }

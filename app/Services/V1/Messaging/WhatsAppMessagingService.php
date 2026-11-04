@@ -13,6 +13,7 @@ use App\Models\Clinic;
 use App\Models\MessageTemplate;
 use App\Models\OutboundMessage;
 use App\Models\Patient;
+use App\Models\WaitingListEntry;
 use App\Support\PhoneNumber;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -48,6 +49,24 @@ class WhatsAppMessagingService
      * either.
      */
     public const DAILY_REMINDER_KEY = 'appointment_reminder_today';
+
+    /** Sent when a patient joins a full day's waiting list, or is added to it. */
+    public const WAITING_LIST_JOINED_KEY = 'waiting_list_joined';
+
+    /** Sent when the day ends and the patient is still on its list. */
+    public const WAITING_LIST_NO_SLOT_KEY = 'waiting_list_no_slot_opened';
+
+    /**
+     * Sent instead of the confirmation when the secretary books a patient
+     * from the waiting list — the written record of the call.
+     */
+    public const WAITING_LIST_SLOT_BOOKED_KEY = 'waiting_list_slot_booked';
+
+    /**
+     * Operational news written by a super admin in the panel and sent to the
+     * patients they pick. Not a broadcast: the clinic app never offers it.
+     */
+    public const ANNOUNCEMENT_KEY = 'clinic_announcement';
 
     /** Quick-reply button payloads on the approved reminder template. */
     public const REPLY_CONFIRM = 'confirm_attendance';
@@ -250,6 +269,118 @@ class WhatsAppMessagingService
     public function sendDailyReminder(Clinic $clinic, Booking $booking): ?OutboundMessage
     {
         return $this->sendForBookingUsing($clinic, $booking, self::DAILY_REMINDER_KEY);
+    }
+
+    /**
+     * Booked from the waiting list. Same guarantees as the confirmation,
+     * which it replaces.
+     */
+    public function sendWaitingListSlotBooked(Clinic $clinic, Booking $booking): ?OutboundMessage
+    {
+        return $this->sendForBookingUsing($clinic, $booking, self::WAITING_LIST_SLOT_BOOKED_KEY);
+    }
+
+    /**
+     * The patient is on the list — and told plainly that it is not a booking.
+     * Silent when there is nobody to reach, like every per-booking message:
+     * joining must never fail because a message could not go out.
+     */
+    public function sendWaitingListJoined(Clinic $clinic, WaitingListEntry $entry): ?OutboundMessage
+    {
+        return $this->sendForWaitingListUsing($clinic, $entry, self::WAITING_LIST_JOINED_KEY);
+    }
+
+    /** The day ended with no slot for them, with a button to book another. */
+    public function sendWaitingListNoSlot(Clinic $clinic, WaitingListEntry $entry): ?OutboundMessage
+    {
+        return $this->sendForWaitingListUsing($clinic, $entry, self::WAITING_LIST_NO_SLOT_KEY);
+    }
+
+    private function sendForWaitingListUsing(Clinic $clinic, WaitingListEntry $entry, string $templateKey): ?OutboundMessage
+    {
+        $patient = $entry->patient;
+
+        if (! $clinic->sendsWhatsApp() || $patient === null || $patient->whatsapp_opt_in_at === null) {
+            return null;
+        }
+
+        try {
+            $template = $this->template($templateKey);
+        } catch (ApiException) {
+            return null;
+        }
+
+        $payload = $this->payloads->forWaitingList($template, $entry, $clinic);
+
+        $message = OutboundMessage::create([
+            'clinic_id' => $clinic->id,
+            'patient_id' => $patient->id,
+            'waiting_list_entry_id' => $entry->id,
+            'template_key' => $template->key,
+            'type' => 'template',
+            'rendered_body' => $this->render($template, $payload->body),
+            'variables' => $payload->body,
+            'button_suffix' => $payload->buttonSuffix,
+            'status' => 'queued',
+        ]);
+
+        SendWhatsAppMessage::dispatch($message->id);
+
+        return $message;
+    }
+
+    /**
+     * The clinic announcement, one message per patient.
+     *
+     * Refused whole while the clinic's WhatsApp is off or the template is not
+     * active — an operator pressing send should hear why nothing went, not
+     * read "0 sent". Patients who never agreed to WhatsApp are skipped.
+     *
+     * @param  Collection<int, Patient>  $patients
+     * @return array{sent_count: int, skipped_count: int, message_ids: list<int>}
+     */
+    public function sendAnnouncement(Clinic $clinic, Collection $patients, string $text): array
+    {
+        if (! $clinic->sendsWhatsApp()) {
+            throw ApiException::make(
+                ApiErrorCode::WHATSAPP_DISABLED,
+                __('messages.whatsapp_disabled'),
+                http: 409,
+            );
+        }
+
+        $template = $this->template(self::ANNOUNCEMENT_KEY);
+        $messages = [];
+        $skipped = 0;
+
+        foreach ($patients as $patient) {
+            if ($patient->whatsapp_opt_in_at === null) {
+                $skipped++;
+
+                continue;
+            }
+
+            $payload = $this->payloads->forAnnouncement($clinic, $patient, $text);
+
+            $message = OutboundMessage::create([
+                'clinic_id' => $clinic->id,
+                'patient_id' => $patient->id,
+                'template_key' => $template->key,
+                'type' => 'template',
+                'rendered_body' => $this->render($template, $payload->body),
+                'variables' => $payload->body,
+                'status' => 'queued',
+            ]);
+
+            SendWhatsAppMessage::dispatch($message->id);
+            $messages[] = $message->id;
+        }
+
+        return [
+            'sent_count' => count($messages),
+            'skipped_count' => $skipped,
+            'message_ids' => $messages,
+        ];
     }
 
     /**
