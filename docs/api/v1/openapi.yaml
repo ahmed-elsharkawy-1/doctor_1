@@ -994,6 +994,36 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
 
+  /bookings/{booking}/confirm-attendance:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+    post:
+      tags: [Status]
+      summary: "Confirm attendance by phone"
+      description: |
+        For a patient who never answered the WhatsApp reminder: the secretary
+        called them, they said they are coming, and she records it here.
+
+        Stores `patient_response: confirmed` with
+        `patient_response_source: clinic`, and `patient_response.display`
+        says the confirmation was taken by phone. The booking stays `booked`
+        and the patient is sent nothing. Shown on the card as the
+        `confirm_attendance` action.
+
+        Calling it on a booking that is already confirmed (by the patient on
+        WhatsApp, or earlier by the clinic) changes nothing and returns the
+        card as it is. A Cancel the patient taps on WhatsApp afterwards still
+        cancels the booking.
+      operationId: confirmAttendance
+      responses:
+        "200": { $ref: "#/components/responses/BookingCardResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`BOOKING_NOT_CONFIRMABLE` — the booking is no longer `booked`. `details.status` is its status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
   /queue/search:
     get:
       tags: [Status]
@@ -2291,10 +2321,22 @@ components:
             The patient's answer to the visit-day reminder — `confirmed` or
             `cancelled`. Null until she replies. A confirmation leaves
             `status` at `booked`; a cancellation moves it to `cancelled`.
+            A confirmation the secretary recorded after a phone call is also
+            `confirmed`, with `display` saying so ("أكدت الحضور بالتليفون");
+            `patient_response_source` tells the two apart.
         patient_responded_at:
           type: [string, "null"]
           format: date-time
-          description: When the patient answered the reminder.
+          description: When the patient answered the reminder, or when the clinic recorded the answer.
+        patient_response_source:
+          oneOf:
+            - allOf: [{ $ref: "#/components/schemas/Display" }]
+            - type: "null"
+          description: |
+            Where the answer came from: `whatsapp` (the patient tapped a
+            reminder button) or `clinic` (recorded by hand with
+            `POST /bookings/{id}/confirm-attendance`). Null while
+            `patient_response` is null.
         reminder_status:
           allOf: [{ $ref: "#/components/schemas/Display" }]
           description: |
@@ -2362,10 +2404,12 @@ components:
             available_actions:
               type: array
               description: |
-                Separate card actions such as `call`, `whatsapp`, `edit`,
-                `no_show`, and `cancel`. The main transition button uses
-                `next_status`. `no_show` appears only for `booked` and
-                `arrived`; `cancel` also appears for `with_doctor`.
+                Separate card actions such as `call`, `confirm_attendance`,
+                `whatsapp`, `edit`, `no_show`, and `cancel`. The main
+                transition button uses `next_status`. `confirm_attendance`
+                appears only for `booked` cards not yet confirmed; `no_show`
+                only for `booked` and `arrived`; `cancel` also appears for
+                `with_doctor`.
               items: { type: string }
             arrived_at: { type: [string, "null"], example: "09:05" }
             contacted_at: { type: [string, "null"], format: date-time }

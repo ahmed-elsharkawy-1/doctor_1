@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\V1\Patients\SearchPatientsController;
 use App\Http\Controllers\Api\V1\Patients\ShowPatientController;
 use App\Http\Controllers\Api\V1\Patients\UpdateOnlineBookingController;
 use App\Http\Controllers\Api\V1\Queue\CancelBookingController;
+use App\Http\Controllers\Api\V1\Queue\ConfirmAttendanceController;
 use App\Http\Controllers\Api\V1\Queue\DelayOptionsController;
 use App\Http\Controllers\Api\V1\Queue\EmergencyController;
 use App\Http\Controllers\Api\V1\Queue\MarkContactedController;
@@ -181,6 +182,9 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
             Route::post('cancel', CancelBookingController::class)->name('api.v1.bookings.cancel');
             // "تم الاتصال" on the call list.
             Route::post('contacted', MarkContactedController::class)->name('api.v1.bookings.contacted');
+            // The patient confirmed by phone, not on WhatsApp.
+            Route::post('confirm-attendance', ConfirmAttendanceController::class)
+                ->name('api.v1.bookings.confirm-attendance');
         });
 
         // Postpone today: cancels the selected bookings, freeing their slots,

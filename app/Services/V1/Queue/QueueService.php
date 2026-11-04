@@ -4,6 +4,7 @@ namespace App\Services\V1\Queue;
 
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
+use App\Enums\PatientResponse;
 use App\Models\Booking;
 use App\Models\Clinic;
 use Illuminate\Support\Carbon;
@@ -42,6 +43,11 @@ class QueueService
         if ($booking->status === BookingStatus::BOOKED) {
             // The card shows the phone and a call button before she arrives.
             $actions[] = 'call';
+        }
+
+        if ($booking->status === BookingStatus::BOOKED && $booking->patient_response !== PatientResponse::CONFIRMED) {
+            // After that call: the patient said they are coming.
+            $actions[] = 'confirm_attendance';
         }
 
         if (! $booking->status->isTerminal() && $booking->patient?->whatsapp_opt_in_at !== null) {

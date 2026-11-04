@@ -9,6 +9,7 @@ use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Enums\PatientLocation;
 use App\Enums\PatientResponse;
+use App\Enums\PatientResponseSource;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
 use Database\Factories\BookingFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,6 +40,8 @@ class Booking extends Model
         'cancel_reason',
         'patient_response',
         'patient_responded_at',
+        'patient_response_source',
+        'patient_response_by',
         'booking_kind',
         'patient_location',
         'source',
@@ -104,6 +107,7 @@ class Booking extends Model
             'cancel_reason' => CancelReason::class,
             'patient_response' => PatientResponse::class,
             'patient_responded_at' => 'datetime',
+            'patient_response_source' => PatientResponseSource::class,
             'booking_kind' => BookingKind::class,
             'patient_location' => PatientLocation::class,
             'source' => BookingSource::class,
@@ -195,6 +199,31 @@ class Booking extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * The staff account that recorded the patient's answer by hand. Null for
+     * an answer the patient gave on WhatsApp.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function patientResponseBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'patient_response_by');
+    }
+
+    /**
+     * The answer as the clinic reads it. A confirmation the secretary took by
+     * phone says so, so it is never mistaken for the patient's own reply.
+     */
+    public function patientResponseLabel(): ?string
+    {
+        if ($this->patient_response === PatientResponse::CONFIRMED
+            && $this->patient_response_source === PatientResponseSource::CLINIC) {
+            return __('booking.patient_response.confirmed_by_clinic');
+        }
+
+        return $this->patient_response?->label();
     }
 
     /*

@@ -230,6 +230,7 @@ APIs:
 | `POST` | `/postpone` | Cancel selected/all pending bookings for rebooking |
 | `GET` | `/rebooking-list` | Patients awaiting a new appointment |
 | `POST` | `/bookings/{booking}/contacted` | Mark patient as contacted |
+| `POST` | `/bookings/{booking}/confirm-attendance` | Confirm attendance by phone (no WhatsApp answer) |
 
 Important details:
 
@@ -342,6 +343,7 @@ Common design-facing cases:
 | Invalid status change | `INVALID_STATUS_TRANSITION` |
 | Booking cannot be edited | `BOOKING_NOT_EDITABLE` |
 | Booking cannot be cancelled | `BOOKING_NOT_CANCELLABLE` |
+| Booking cannot be confirmed (no longer booked) | `BOOKING_NOT_CONFIRMABLE` |
 | Nothing to postpone | `NOTHING_TO_POSTPONE` |
 | Patient not found | `PATIENT_NOT_FOUND` |
 

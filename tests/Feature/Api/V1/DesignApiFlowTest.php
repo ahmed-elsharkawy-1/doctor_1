@@ -96,7 +96,7 @@ class DesignApiFlowTest extends TestCase
         $card = $this->calendarCard($booking['id']);
 
         $this->assertSame('arrived', $card['next_status']['value']);
-        $this->assertSame(['call', 'whatsapp', 'edit', 'no_show', 'cancel'], $card['available_actions']);
+        $this->assertSame(['call', 'confirm_attendance', 'whatsapp', 'edit', 'no_show', 'cancel'], $card['available_actions']);
         $this->assertArrayNotHasKey('queue_position', $card);
 
         // day_cancelled is the only broadcast template Meta has approved, and
