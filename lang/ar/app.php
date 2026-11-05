@@ -261,6 +261,8 @@ return [
         'cancel_prompt' => 'سبب الإلغاء؟',
         'dismiss' => 'رجوع',
         'call' => 'اتصال',
+        // After a call: the patient said they are coming.
+        'confirm_attendance' => 'أكد الحضور',
         'copy_link' => 'نسخ رابط المتابعة',
         'link_copied' => 'تم نسخ الرابط',
     ],

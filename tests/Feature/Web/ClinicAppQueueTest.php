@@ -6,6 +6,7 @@ use App\Enums\BookingSource;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Enums\PatientResponse;
+use App\Enums\PatientResponseSource;
 use App\Enums\UserRole;
 use App\Livewire\App\Queue;
 use App\Models\Booking;
@@ -413,5 +414,88 @@ class ClinicAppQueueTest extends TestCase
             ->dispatch('reminder-responded', name: 'سارة', response: 'cancelled')
             ->assertSee(__('app.queue.reminder_cancelled', ['name' => 'سارة']))
             ->assertSet('failed', false);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Confirming attendance after a call
+    |--------------------------------------------------------------------------
+    */
+
+    public function test_a_patient_who_did_not_answer_can_be_confirmed_by_phone(): void
+    {
+        $booking = $this->booking();
+
+        Livewire::actingAs($this->secretary)
+            ->test(Queue::class)
+            ->assertSee(__('app.actions.confirm_attendance'))
+            ->call('confirmAttendance', $booking->id)
+            ->assertSet('failed', false)
+            ->assertSetStrict('notice', __('booking.attendance_confirmed'))
+            ->assertSee(__('booking.patient_response.confirmed_by_clinic'))
+            ->assertDontSee(__('app.actions.confirm_attendance'));
+
+        $booking->refresh();
+
+        $this->assertSame(BookingStatus::BOOKED, $booking->status);
+        $this->assertSame(PatientResponse::CONFIRMED, $booking->patient_response);
+        $this->assertSame(PatientResponseSource::CLINIC, $booking->patient_response_source);
+        $this->assertSame($this->secretary->id, $booking->patient_response_by);
+        $this->assertSame(0, OutboundMessage::count());
+    }
+
+    public function test_the_button_is_not_offered_once_the_patient_confirmed_on_whatsapp(): void
+    {
+        $booking = $this->booking();
+        $booking->update([
+            'patient_response' => PatientResponse::CONFIRMED,
+            'patient_response_source' => PatientResponseSource::WHATSAPP,
+        ]);
+
+        Livewire::actingAs($this->secretary)
+            ->test(Queue::class)
+            ->assertSee(PatientResponse::CONFIRMED->label())
+            ->assertDontSee(__('app.actions.confirm_attendance'));
+    }
+
+    public function test_the_button_is_not_offered_once_the_patient_arrived(): void
+    {
+        $booking = $this->booking();
+        $booking->update(['status' => BookingStatus::ARRIVED]);
+
+        Livewire::actingAs($this->secretary)
+            ->test(Queue::class)
+            ->assertDontSee(__('app.actions.confirm_attendance'));
+    }
+
+    public function test_confirming_a_visit_no_longer_booked_is_reported_not_thrown(): void
+    {
+        $booking = $this->booking();
+        $booking->update(['status' => BookingStatus::ARRIVED]);
+
+        Livewire::actingAs($this->secretary)
+            ->test(Queue::class)
+            ->call('confirmAttendance', $booking->id)
+            ->assertOk()
+            ->assertSet('failed', true)
+            ->assertSetStrict('notice', __('booking.not_confirmable', [
+                'status' => BookingStatus::ARRIVED->label(),
+            ]));
+
+        $this->assertNull($booking->fresh()->patient_response);
+    }
+
+    public function test_another_clinics_booking_cannot_be_confirmed(): void
+    {
+        $other = $this->otherClinic();
+        $theirs = Booking::factory()->forClinic($other)
+            ->at(Carbon::parse('2026-09-03 09:00', $other->timezone))->create();
+
+        Livewire::actingAs($this->secretary)
+            ->test(Queue::class)
+            ->call('confirmAttendance', $theirs->id)
+            ->assertSet('failed', true);
+
+        $this->assertNull($theirs->fresh()->patient_response);
     }
 }

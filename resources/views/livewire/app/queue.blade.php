@@ -320,6 +320,13 @@
                                 </a>
                             @endif
 
+                            @if (in_array('confirm_attendance', $actions[$booking->id] ?? [], true))
+                                <button type="button" class="btn btn-sm"
+                                        wire:click="confirmAttendance({{ $booking->id }})">
+                                    {{ __('app.actions.confirm_attendance') }}
+                                </button>
+                            @endif
+
                             @if (! $booking->status->isTerminal())
                                 <button type="button" class="btn btn-sm"
                                         onclick="navigator.clipboard.writeText('{{ $booking->trackingUrl() }}');

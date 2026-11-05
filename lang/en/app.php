@@ -261,6 +261,8 @@ return [
         'cancel_prompt' => 'Reason for cancelling?',
         'dismiss' => 'Back',
         'call' => 'Call',
+        // After a call: the patient said they are coming.
+        'confirm_attendance' => 'Confirm attendance',
         'copy_link' => 'Copy tracking link',
         'link_copied' => 'Link copied',
     ],

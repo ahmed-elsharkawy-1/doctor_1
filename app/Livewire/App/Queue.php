@@ -7,6 +7,7 @@ use App\Enums\CancelReason;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Services\V1\Booking\BookingService;
+use App\Services\V1\Queue\AttendanceConfirmationService;
 use App\Services\V1\Queue\BookingStatusService;
 use App\Services\V1\Queue\QueuePosition;
 use App\Services\V1\Queue\QueueSearchService;
@@ -54,10 +55,17 @@ class Queue extends ClinicComponent
     {
         $bookings = $this->bookings();
 
+        $queue = app(QueueService::class);
+
         return view('livewire.app.queue', [
             'bookings' => $bookings,
+            // The same list the API puts on each card, so a button shows here
+            // exactly when the app offers it.
+            'actions' => $bookings->mapWithKeys(fn (Booking $booking): array => [
+                $booking->id => $queue->availableActions($booking),
+            ])->all(),
             'counts' => $this->counts($bookings),
-            'cancelReasons' => app(QueueService::class)->selectableCancelReasons(),
+            'cancelReasons' => $queue->selectableCancelReasons(),
             'isToday' => $this->isToday(),
             'matches' => $this->matches(),
             'searching' => $this->searchTerm() !== null,
@@ -121,6 +129,20 @@ class Queue extends ClinicComponent
                 CancelReason::from($reason),
             );
         }, __('booking.cancelled_ok'));
+    }
+
+    /**
+     * "أكد الحضور": she called a patient who never answered the WhatsApp
+     * reminder, and they said they are coming. The API's confirm-attendance,
+     * under the same ability.
+     */
+    public function confirmAttendance(int $bookingId): void
+    {
+        $this->requireAbility('queue.manage');
+
+        $this->run(function () use ($bookingId): void {
+            app(AttendanceConfirmationService::class)->confirm($this->find($bookingId), auth()->user());
+        }, __('booking.attendance_confirmed'));
     }
 
     private function move(int $bookingId, BookingStatus $target): void
