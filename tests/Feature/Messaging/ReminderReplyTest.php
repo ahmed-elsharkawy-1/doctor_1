@@ -5,6 +5,7 @@ namespace Tests\Feature\Messaging;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Enums\PatientResponse;
+use App\Enums\PatientResponseSource;
 use App\Events\ReminderResponseReceived;
 use App\Jobs\SendWhatsAppMessage;
 use App\Models\Booking;
@@ -137,6 +138,8 @@ class ReminderReplyTest extends TestCase
         $this->assertSame(BookingStatus::BOOKED, $booking->status);
         $this->assertSame(PatientResponse::CONFIRMED, $booking->patient_response);
         $this->assertNotNull($booking->patient_responded_at);
+        $this->assertSame(PatientResponseSource::WHATSAPP, $booking->patient_response_source);
+        $this->assertNull($booking->patient_response_by);
         $this->assertNull($booking->cancel_reason);
 
         // The follow-up is free text, inside the session, and carries the link.
@@ -323,6 +326,26 @@ class ReminderReplyTest extends TestCase
 
         $this->assertSame(BookingStatus::CANCELLED, $booking->status);
         $this->assertSame(PatientResponse::CANCELLED, $booking->patient_response);
+    }
+
+    /** The patient's own Cancel replaces a confirmation the clinic took by phone. */
+    public function test_cancel_on_whatsapp_replaces_a_confirmation_taken_by_phone(): void
+    {
+        $this->booking->update([
+            'patient_response' => PatientResponse::CONFIRMED,
+            'patient_responded_at' => now(),
+            'patient_response_source' => PatientResponseSource::CLINIC,
+            'patient_response_by' => $this->secretary->id,
+        ]);
+
+        $this->reply($this->button('cancel_booking', 'إلغاء الحجز'))->assertOk();
+
+        $booking = $this->booking->fresh();
+
+        $this->assertSame(BookingStatus::CANCELLED, $booking->status);
+        $this->assertSame(PatientResponse::CANCELLED, $booking->patient_response);
+        $this->assertSame(PatientResponseSource::WHATSAPP, $booking->patient_response_source);
+        $this->assertNull($booking->patient_response_by);
     }
 
     /** A double tap, or Meta redelivering the callback, is one answer, not two. */

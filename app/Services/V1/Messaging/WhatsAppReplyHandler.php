@@ -5,6 +5,7 @@ namespace App\Services\V1\Messaging;
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Enums\PatientResponse;
+use App\Enums\PatientResponseSource;
 use App\Events\ReminderResponseReceived;
 use App\Models\Booking;
 use App\Models\OutboundMessage;
@@ -104,9 +105,13 @@ class WhatsAppReplyHandler
             $this->statuses->cancel($booking, CancelReason::PATIENT_CANCELLED);
         }
 
+        // A Cancel tap after the clinic confirmed by phone replaces that
+        // answer, so who recorded the earlier one is cleared with it.
         $booking->update([
             'patient_response' => $response,
             'patient_responded_at' => $this->now($booking),
+            'patient_response_source' => PatientResponseSource::WHATSAPP,
+            'patient_response_by' => null,
         ]);
 
         $booking->refresh()->loadMissing(['patient', 'clinic']);

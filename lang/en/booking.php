@@ -15,6 +15,8 @@ return [
     'nothing_to_postpone' => 'There are no bookings to postpone on that day',
     'rebooking_list_loaded' => 'Rebooking list loaded',
     'marked_contacted' => 'Marked as contacted',
+    'attendance_confirmed' => 'Attendance confirmed',
+    'not_confirmable' => 'A booking with status ":status" cannot be confirmed',
     'not_awaiting_rebooking' => 'That booking is not on the rebooking list',
     'days_loaded' => 'Available days loaded',
     'calendar_loaded' => 'Booking calendar loaded',
@@ -57,6 +59,13 @@ return [
     'patient_response' => [
         'confirmed' => 'Confirmed by patient',
         'cancelled' => 'Cancelled by patient',
+        'confirmed_by_clinic' => 'Confirmed by phone',
+    ],
+
+    // Where the answer came from.
+    'patient_response_source' => [
+        'whatsapp' => 'WhatsApp',
+        'clinic' => 'Clinic',
     ],
 
     'kind' => [

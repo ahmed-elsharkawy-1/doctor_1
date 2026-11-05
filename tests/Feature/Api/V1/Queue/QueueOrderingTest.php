@@ -302,7 +302,7 @@ class QueueOrderingTest extends TestCase
         $card = collect($this->calendar()['bookings']['2026-08-08'])->firstWhere('id', $booking->id);
 
         $this->assertSame('arrived', $card['next_status']['value']);
-        $this->assertSame(['call', 'whatsapp', 'edit', 'no_show', 'cancel'], $card['available_actions']);
+        $this->assertSame(['call', 'confirm_attendance', 'whatsapp', 'edit', 'no_show', 'cancel'], $card['available_actions']);
         $this->assertArrayNotHasKey('queue_position', $card);
     }
 

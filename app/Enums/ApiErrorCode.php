@@ -38,6 +38,8 @@ enum ApiErrorCode: string
     case INVALID_STATUS_TRANSITION = 'INVALID_STATUS_TRANSITION';
     case BOOKING_NOT_CANCELLABLE = 'BOOKING_NOT_CANCELLABLE';
     case NOTHING_TO_POSTPONE = 'NOTHING_TO_POSTPONE';
+    // Confirming attendance by hand on a booking that is no longer `booked`.
+    case BOOKING_NOT_CONFIRMABLE = 'BOOKING_NOT_CONFIRMABLE';
 
     // Emergency delay. `details.reason` says why a booking cannot start one:
     // `not_today` or `not_waiting`.

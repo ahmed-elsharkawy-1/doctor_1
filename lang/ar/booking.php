@@ -15,6 +15,8 @@ return [
     'nothing_to_postpone' => 'لا توجد حجوزات قابلة للتأجيل في هذا اليوم',
     'rebooking_list_loaded' => 'تم تحميل قائمة إعادة الحجز',
     'marked_contacted' => 'تم تسجيل الاتصال',
+    'attendance_confirmed' => 'تم تأكيد الحضور',
+    'not_confirmable' => 'لا يمكن تأكيد حضور حجز حالته ":status"',
     'not_awaiting_rebooking' => 'هذا الحجز ليس ضمن قائمة إعادة الحجز',
     'days_loaded' => 'تم تحميل الأيام المتاحة',
     'calendar_loaded' => 'تم تحميل تقويم الحجوزات',
@@ -57,6 +59,14 @@ return [
     'patient_response' => [
         'confirmed' => 'أكدت الحضور',
         'cancelled' => 'ألغت من واتساب',
+        // السكرتيرة كلمتها في التليفون وأكدت بنفسها.
+        'confirmed_by_clinic' => 'أكدت الحضور بالتليفون',
+    ],
+
+    // الرد جه منين: المريضة ضغطت زرار في واتساب، ولا العيادة سجلته بعد مكالمة.
+    'patient_response_source' => [
+        'whatsapp' => 'واتساب',
+        'clinic' => 'العيادة',
     ],
 
     'kind' => [

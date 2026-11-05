@@ -656,12 +656,14 @@ live in one place:
 | Action | Endpoint | Label |
 |---|---|---|
 | `call` | `tel:` link | (phone icon) |
+| `confirm_attendance` | `POST /bookings/{id}/confirm-attendance` | أكد الحضور |
 | `whatsapp` | `POST /bookings/{id}/message` | واتساب |
 | `edit` | `PUT /bookings/{id}` | تعديل |
 | `no_show` | `POST /bookings/{id}/status` `{"to":"no_show"}` | لم تحضر |
 | `cancel` | `POST /bookings/{id}/cancel` `{"reason":"patient_cancelled"}` | إلغاء |
 
-`no_show` appears only for `booked` and `arrived`. `cancel` appears for
+`confirm_attendance` appears only for `booked` cards whose patient has not
+confirmed yet. `no_show` appears only for `booked` and `arrived`. `cancel` appears for
 `booked`, `arrived`, and `with_doctor`; it disappears once the booking is
 `done`, `cancelled`, or `no_show`.
 
@@ -686,6 +688,25 @@ booked/arrived --no_show--> no_show
 `POST /bookings/{id}/status` takes required `to`. `POST /bookings/{id}/cancel` takes `reason: patient_cancelled` only. `emergency` and `incomplete` are system-set and rejected with `VALIDATION_FAILED`. A booking can be cancelled until it is completed.
 
 Cancelling **frees the slot immediately**, whatever the reason.
+
+### `POST /bookings/{id}/confirm-attendance`
+
+For a patient who never answered the WhatsApp reminder. The secretary calls
+them, they say they are coming, and she taps "أكد الحضور". No body. Returns the
+updated booking card.
+
+- `patient_response.value` becomes `confirmed`, the same value a WhatsApp
+  Confirm stores, and `patient_response.display` reads "أكدت الحضور بالتليفون".
+- `patient_response_source` is `clinic` (it is `whatsapp` for a button tap).
+- The booking stays `booked`, and the patient is sent nothing.
+- Already confirmed (on WhatsApp, or by the clinic earlier): nothing changes,
+  and the card comes back as it is.
+- A Cancel the patient taps on WhatsApp later still cancels the booking.
+
+| Code | HTTP | When |
+|---|---|---|
+| `BOOKING_NOT_CONFIRMABLE` | 409 | The booking is no longer `booked` (arrived, done, cancelled, no-show). `details.status` |
+| `BOOKING_NOT_FOUND` | 404 | |
 
 ### `GET /queue/search?q=&limit=`
 
@@ -1059,6 +1080,7 @@ listing the valid values.
 | `INVALID_PHONE_NUMBER` | 422 |
 | `INVALID_STATUS_TRANSITION` | 409 |
 | `BOOKING_NOT_CANCELLABLE` | 400 |
+| `BOOKING_NOT_CONFIRMABLE` | 409 |
 | `NOTHING_TO_POSTPONE` | 400 |
 | `PATIENT_NOT_FOUND` | 404 |
 | `UNKNOWN_REPORT_PERIOD` | 422 |

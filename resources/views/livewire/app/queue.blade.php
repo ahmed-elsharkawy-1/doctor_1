@@ -260,7 +260,7 @@
                             @if ($booking->patient_response !== null)
                                 <div style="margin-top:0.3rem">
                                     <span class="pill {{ $booking->patient_response->value === 'cancelled' ? 'pill-warn' : 'pill-new' }}">
-                                        {{ $booking->patient_response->label() }}
+                                        {{ $booking->patientResponseLabel() }}
                                     </span>
                                 </div>
                             @endif
