@@ -134,7 +134,11 @@ class PatientBookingFlowTest extends TestCase
             'template_key' => 'booking_confirmed',
         ]);
 
-        $this->assertSame(1, OutboundMessage::count());
+        // The confirmation, then the visit guidelines it announces.
+        $this->assertSame(
+            ['booking_confirmed', 'visit_guidelines'],
+            OutboundMessage::orderBy('id')->pluck('template_key')->all(),
+        );
     }
 
     public function test_with_whatsapp_off_no_confirmation_is_queued(): void

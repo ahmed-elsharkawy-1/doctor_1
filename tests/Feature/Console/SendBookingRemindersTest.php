@@ -100,11 +100,10 @@ class SendBookingRemindersTest extends TestCase
         $this->assertSame('queued', $upcoming->status);
         $this->assertSame('template', $upcoming->type);
 
-        // The approved template's five values, in its order.
-        $this->assertCount(5, $upcoming->variables);
-        $this->assertSame('03:00 '.__('schedule.pm'), $upcoming->variables[2]);
+        // The turn alert carries the patient's name and nothing else.
+        $this->assertSame([$booking->patient->name], $upcoming->variables);
 
-        // Develop's own reminder carried the tracking link on its button.
+        // The tracking link rides on its button, not in the body.
         $this->assertSame('booking/'.$booking->tracking_token, $upcoming->button_suffix);
         $this->assertStringNotContainsString('booking/'.$booking->tracking_token, $upcoming->rendered_body);
         Queue::assertPushed(SendWhatsAppMessage::class);

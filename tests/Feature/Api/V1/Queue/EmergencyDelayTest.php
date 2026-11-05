@@ -366,7 +366,7 @@ class EmergencyDelayTest extends TestCase
         $this->assertSame(0, OutboundMessage::count());
     }
 
-    /** In the approved template's order: patient, date, new time, doctor, clinic phone. */
+    /** In the approved template's order: patient, new time, old time, clinic phone. */
     public function test_once_switched_on_each_moved_patient_is_told_their_new_time(): void
     {
         MessageTemplate::where('key', WhatsAppMessagingService::DELAYED_KEY)->update(['is_active' => true]);
@@ -383,17 +383,19 @@ class EmergencyDelayTest extends TestCase
 
         $first = OutboundMessage::where('booking_id', $from->id)->firstOrFail();
         $this->assertSame(WhatsAppMessagingService::DELAYED_KEY, $first->template_key);
-        $this->assertCount(5, $first->variables);
-        $this->assertSame($from->patient->name, $first->variables[0]);
-        $this->assertSame('8 أغسطس 2026', $first->variables[1]);
-        $this->assertSame('10:00 '.__('schedule.pm'), $first->variables[2]);
-        $this->assertStringContainsString($this->clinic->doctor->name, 'د. '.$first->variables[3]);
-        $this->assertSame('+201012345678', $first->variables[4]);
+        $this->assertSame([
+            $from->patient->name,
+            '10:00 '.__('schedule.pm'),
+            '09:00 '.__('schedule.pm'),
+            '+201012345678',
+        ], $first->variables);
         $this->assertStringContainsString('booking/'.$from->tracking_token, (string) $first->button_suffix);
 
-        // Its own new time, not the first patient's.
+        // Its own times, not the first patient's: it moved less, because the
+        // gap before it absorbed part of the delay.
         $second = OutboundMessage::where('booking_id', $afterGap->id)->firstOrFail();
-        $this->assertSame('10:20 '.__('schedule.pm'), $second->variables[2]);
+        $this->assertSame('10:20 '.__('schedule.pm'), $second->variables[1]);
+        $this->assertSame('09:30 '.__('schedule.pm'), $second->variables[2]);
     }
 
     public function test_with_whatsapp_off_the_times_still_move(): void

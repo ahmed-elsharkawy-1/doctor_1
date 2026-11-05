@@ -27,6 +27,19 @@ class WhatsAppMessagingService
     /** The template sent to a patient when their booking is taken. */
     public const CONFIRMATION_KEY = 'booking_confirmed';
 
+    /**
+     * Sent right after the confirmation: arrive early, cancel early, expect
+     * emergencies. Carries a quick-reply Cancel, answered like the reminder's.
+     */
+    public const VISIT_GUIDELINES_KEY = 'visit_guidelines';
+
+    /**
+     * How long the visit guidelines wait behind the confirmation. Two messages
+     * queued together are not promised to arrive in order, and the
+     * confirmation says the guidelines are "the next message".
+     */
+    public const VISIT_GUIDELINES_DELAY_SECONDS = 10;
+
     /** Sent once the visit is finished, inviting a review. */
     public const VISIT_COMPLETED_KEY = 'visit_completed';
 
@@ -39,7 +52,11 @@ class WhatsAppMessagingService
     /** Sent to each patient an emergency delay moved, with their new time. */
     public const DELAYED_KEY = 'appointment_delayed';
 
-    /** Sent shortly before the appointment, by clinic:send-reminders. */
+    /**
+     * The turn-approaching alert, sent shortly before the appointment by
+     * clinic:send-reminders. The key is the pre-visit reminder's, which it
+     * replaced, so a booking already reminded is not alerted again.
+     */
     public const REMINDER_KEY = 'appointment_reminder';
 
     /**
@@ -68,7 +85,7 @@ class WhatsAppMessagingService
      */
     public const ANNOUNCEMENT_KEY = 'clinic_announcement';
 
-    /** Quick-reply button payloads on the approved reminder template. */
+    /** Quick-reply button payloads on the reminder and the visit guidelines. */
     public const REPLY_CONFIRM = 'confirm_attendance';
 
     public const REPLY_CANCEL = 'cancel_booking';
@@ -229,7 +246,8 @@ class WhatsAppMessagingService
 
     /**
      * The confirmation a patient gets when their booking is taken, carrying
-     * the link to their tracking page.
+     * the link to their tracking page — followed a moment later by the visit
+     * guidelines, which the confirmation announces.
      *
      * Returns null when there is nothing to send — no patient, no opt-in, or
      * the clinic has not been given the template yet. A booking must never
@@ -237,7 +255,32 @@ class WhatsAppMessagingService
      */
     public function sendConfirmation(Clinic $clinic, Booking $booking): ?OutboundMessage
     {
-        return $this->sendForBookingUsing($clinic, $booking, self::CONFIRMATION_KEY);
+        $confirmation = $this->sendForBookingUsing($clinic, $booking, self::CONFIRMATION_KEY);
+
+        if ($confirmation !== null) {
+            $this->sendVisitGuidelines($clinic, $booking);
+        }
+
+        return $confirmation;
+    }
+
+    /**
+     * The guidelines, only ever behind a confirmation that went out. Not for
+     * an emergency booking: it has no time to arrive ahead of, and its patient
+     * is usually already at the clinic.
+     */
+    private function sendVisitGuidelines(Clinic $clinic, Booking $booking): ?OutboundMessage
+    {
+        if ($booking->start_at === null) {
+            return null;
+        }
+
+        return $this->sendForBookingUsing(
+            $clinic,
+            $booking,
+            self::VISIT_GUIDELINES_KEY,
+            delaySeconds: self::VISIT_GUIDELINES_DELAY_SECONDS,
+        );
     }
 
     /**
@@ -251,10 +294,10 @@ class WhatsAppMessagingService
     }
 
     /**
-     * The reminder sent shortly before the appointment — develop's own send,
-     * unchanged, with its tracking button. Same guarantees as the rest of the
-     * per-booking messages; deciding which bookings are due, and that none
-     * gets two, is the command's job.
+     * The turn-approaching alert, sent shortly before the appointment with the
+     * tracking button. Same guarantees as the rest of the per-booking
+     * messages; deciding which bookings are due, and that none gets two, is
+     * the command's job.
      */
     public function sendReminder(Clinic $clinic, Booking $booking): ?OutboundMessage
     {
@@ -320,7 +363,8 @@ class WhatsAppMessagingService
             'type' => 'template',
             'rendered_body' => $this->render($template, $payload->body),
             'variables' => $payload->body,
-            'button_suffix' => $payload->buttonSuffix,
+            'button_suffix' => $payload->buttonSuffix(),
+            'button_suffixes' => $payload->extraButtons(),
             'status' => 'queued',
         ]);
 
@@ -465,9 +509,10 @@ class WhatsAppMessagingService
      * template is switched off.
      *
      * @param  Collection<int, Booking>  $bookings
+     * @param  array<int, int>  $minutesByBooking  how far each booking moved, by id — the message shows the old time beside the new
      * @return array{sent_count: int, skipped_count: int, message_ids: list<int>, skipped: list<array<string, mixed>>, whatsapp_enabled: bool}
      */
-    public function sendDelayed(Clinic $clinic, Collection $bookings): array
+    public function sendDelayed(Clinic $clinic, Collection $bookings, array $minutesByBooking): array
     {
         $sending = $clinic->sendsWhatsApp();
         $template = MessageTemplate::query()
@@ -497,7 +542,13 @@ class WhatsAppMessagingService
                 continue;
             }
 
-            $message = $this->queue($clinic, $booking, $patient, $template);
+            $message = $this->queue(
+                $clinic,
+                $booking,
+                $patient,
+                $template,
+                $this->payloads->forDelay($booking, $clinic, (int) ($minutesByBooking[$booking->id] ?? 0)),
+            );
 
             SendWhatsAppMessage::dispatch($message->id);
             $messages[] = $message->id;
@@ -512,8 +563,12 @@ class WhatsAppMessagingService
         ];
     }
 
-    private function sendForBookingUsing(Clinic $clinic, Booking $booking, string $templateKey): ?OutboundMessage
-    {
+    private function sendForBookingUsing(
+        Clinic $clinic,
+        Booking $booking,
+        string $templateKey,
+        int $delaySeconds = 0,
+    ): ?OutboundMessage {
         // Off: nothing queued, and so nothing that could later read as sent.
         if (! $clinic->sendsWhatsApp()) {
             return null;
@@ -533,7 +588,9 @@ class WhatsAppMessagingService
 
         $message = $this->queue($clinic, $booking, $patient, $template);
 
-        SendWhatsAppMessage::dispatch($message->id);
+        $delaySeconds > 0
+            ? SendWhatsAppMessage::dispatch($message->id)->delay(now()->addSeconds($delaySeconds))
+            : SendWhatsAppMessage::dispatch($message->id);
 
         return $message;
     }
@@ -552,8 +609,9 @@ class WhatsAppMessagingService
         Booking $booking,
         Patient $patient,
         MessageTemplate $template,
+        ?TemplatePayload $payload = null,
     ): OutboundMessage {
-        $payload = $this->payloads->for($template, $booking, $clinic);
+        $payload ??= $this->payloads->for($template, $booking, $clinic);
 
         return OutboundMessage::create([
             'clinic_id' => $clinic->id,
@@ -563,7 +621,8 @@ class WhatsAppMessagingService
             'type' => 'template',
             'rendered_body' => $this->render($template, $payload->body),
             'variables' => $payload->body,
-            'button_suffix' => $payload->buttonSuffix,
+            'button_suffix' => $payload->buttonSuffix(),
+            'button_suffixes' => $payload->extraButtons(),
             'status' => 'queued',
         ]);
     }

@@ -36,21 +36,41 @@ class MessageTemplateSeeder extends Seeder
     {
         return [
             /*
+            | Submitted 2026-11-05 (ID 2168195491242678), in review.
             | {{1}} patient · {{2}} date · {{3}} time · {{4}} doctor
-            | {{5}} address · {{6}} arrival lead
-            | Button: https://elayadah.com/{{1}} <- booking/<token>
+            | {{5}} address
+            | Button: تابع دورك وتفاصيل حجزك
+            |   https://elayadah.com/{{1}} <- booking/<token>
             */
             WhatsAppMessagingService::CONFIRMATION_KEY => [
                 'category' => 'utility',
                 'is_broadcast' => false,
-                'provider_template_name' => 'appointment_booking_confirmation_v3',
+                'provider_template_name' => 'appointment_booking_confirmation_v4',
                 'language_code' => 'ar',
-                'body_ar' => "مرحبًا {{1}} \n\nتم تأكيد حجز موعدك بنجاح ✅\n\n"
-                    ."📅 *التاريخ:* {{2}}\n⏰ *الموعد:* {{3}}\n\n"
-                    ."👨‍⚕️ *الطبيب:* {{4}}\n\n📌 *العنوان:* {{5}}\n\n"
-                    ."🕐 *يرجى الحضور قبل الموعد بـ:* {{6}}\n\n"
-                    ."نتمنى لك الشفاء والعافية\n\n"
-                    .'يمكنك متابعة تفاصيل الحجز أو الاطلاع على التحديثات من خلال الرابط:',
+                'body_ar' => "👋 أهلاً {{1}}،\nتم تأكيد حجزك بنجاح ✅\n\n"
+                    ."📅 التاريخ: {{2}}\n⏰ الموعد: {{3}}\n👨‍⚕️ الطبيب: {{4}}\n📌 العنوان: {{5}}\n\n"
+                    ."⏳ الموعد ممكن يتأخر لو فيه حالة طارئة، وهنبلغك بأي تغيير.\n\n"
+                    .'📋 تعليمات الزيارة هتوصلك في الرسالة الجاية.',
+                'is_active' => true,
+            ],
+
+            /*
+            | Sent a few seconds after the confirmation, never on its own.
+            | Submitted 2026-11-05 (ID 4629394283996329), in review.
+            | {{1}} arrival lead, a bare number ("30") · {{2}} tracking link
+            | Button: quick reply الغاء الحجز — answered by WhatsAppReplyHandler
+            */
+            WhatsAppMessagingService::VISIT_GUIDELINES_KEY => [
+                'category' => 'utility',
+                'is_broadcast' => false,
+                'provider_template_name' => 'visit_guidelines',
+                'language_code' => 'ar',
+                'body_ar' => "📋 تعليمات الزيارة:\n\n"
+                    ."🕐 احضر قبل موعدك بـ {{1}} دقيقة. لو اتأخرت، هتدخل بعد الحالات المحجوزة الموجودة.\n\n"
+                    ."📞 مش هتقدر تيجي؟ ألغِ الحجز بأسرع وقت علشان نقدر ندي الميعاد لمريض محتاجه. الغياب بدون إلغاء يوقف الحجز من التطبيق.\n\n"
+                    ."🚑 الحالات الطارئة ليها الأولوية، فممكن عدد اللي قبلك يزيد.\n\n"
+                    ."🔗 تابع دورك أول بأول من هنا: {{2}}\n\n"
+                    .'شكرًا لتعاونك 🙏',
                 'is_active' => true,
             ],
 
@@ -74,81 +94,79 @@ class MessageTemplateSeeder extends Seeder
             ],
 
             /*
+            | Submitted 2026-11-05 (ID 1143286641896246), in review.
             | {{1}} patient
-            | Button: https://elayadah.com/{{1}} <- review/<token>
+            | Buttons, in this order:
+            |   0 قيّم تجربتك      https://elayadah.com/{{1}} <- review/<token>
+            |   1 احجز ميعاد جديد  https://elayadah.com/{{1}} <- <slug>/book
             */
             WhatsAppMessagingService::VISIT_COMPLETED_KEY => [
                 'category' => 'utility',
                 'is_broadcast' => false,
-                'provider_template_name' => 'appointment_rating_v3',
+                'provider_template_name' => 'appointment_rating_v4',
                 'language_code' => 'ar',
-                'body_ar' => "*قيّم تجربتك*\n\nأهلًا {{1}}،\n\n"
-                    ."حابين نعرف رأيك في تجربة الحجز الأخيرة مع العيادة.\n\n"
-                    ."هل كان نظام الحجز الجديد سهل وساعدك توفّر وقتك؟\n\n"
-                    ."رأيك يهمنا ويساعدنا نحسّن الخدمة.\n\n"
-                    .'حجزك أسهل، وقتك أثمن.',
+                'body_ar' => "👋 أهلاً {{1}}،\nشكرًا لزيارتك النهارده 🙏\n\n"
+                    ."رأيك في تجربة الحجز والانتظار بيفرق معانا، والتقييم مش هياخد غير دقيقة.\n\n"
+                    .'ولحجز ميعاد جديد في أي وقت، الزرار متاح تحت 👇',
                 'is_active' => true,
             ],
 
             /*
-            | Develop's reminder, sent by clinic:send-reminders an hour before
-            | the visit. Nothing about this key, its provider template or its
-            | wording changed. Its provider_template_name was read back from
-            | the Graph API on 2026-10-24; confirm it is still approved at
-            | Meta before scheduling the command, the way current_templates.md
-            | does.
-            | {{1}} patient · {{2}} date · {{3}} time · {{4}} doctor
-            | {{5}} address. "30 دقيقة" is fixed text in the approved template.
-            | Button: https://elayadah.com/{{1}} <- booking/<token>
+            | The turn-approaching alert, sent by clinic:send-reminders
+            | the clinic's position × slot length before the visit. It
+            | replaced the pre-visit reminder and kept its key.
+            | Submitted 2026-11-05 (ID 1172295225303188), in review.
+            | {{1}} patient
+            | Button: تابع دورك وتفاصيل حجزك
+            |   https://elayadah.com/{{1}} <- booking/<token>
             */
             WhatsAppMessagingService::REMINDER_KEY => [
                 'category' => 'utility',
                 'is_broadcast' => false,
-                'provider_template_name' => 'appointment_reminder',
+                'provider_template_name' => 'appointment_reminder_v2',
                 'language_code' => 'ar',
-                'body_ar' => "مرحبًا {{1}} 👋\n\nتذكير بموعدك النهارده ⏰\n\n"
-                    ."📅 {{2}}\n⏰ الساعة: {{3}}\n👨‍⚕️ {{4}}\n📌 {{5}}\n\n"
-                    .'يرجى الحضور قبل الموعد بـ 30 دقيقة 🙏',
+                'body_ar' => "👋 أهلاً {{1}}،\nدورك قرّب! ⏰\n\n"
+                    ."يُرجى التوجه للعيادة دلوقتي.\n\n"
+                    .'🕐 في حالة عدم التواجد وقت الدور، الدخول هيكون بعد الحالات المحجوزة الموجودة.',
                 'is_active' => true,
             ],
 
             /*
-            | The visit-day reminder, sent by clinic:send-daily-reminders at
-            | the clinic's configured reminder time. Two quick-reply buttons
-            | and no URL — the booking link follows only after Confirm.
-            | Submitted to Meta 2026-10-24 (ID 1886523002487229).
+            | The confirm-or-cancel reminder, sent by
+            | clinic:send-daily-reminders at the clinic's configured reminder
+            | time. Two quick-reply buttons and no URL — the booking link
+            | follows only after Confirm.
+            | Submitted 2026-11-05 (ID 1035505822923857), in review.
             | {{1}} patient · {{2}} date · {{3}} time · {{4}} doctor
-            | {{5}} address
             | Buttons: تأكيد الحضور / إلغاء الحجز
             */
             WhatsAppMessagingService::DAILY_REMINDER_KEY => [
                 'category' => 'utility',
                 'is_broadcast' => false,
-                'provider_template_name' => 'appointment_reminder_today',
+                'provider_template_name' => 'appointment_reminder_today_v2',
                 'language_code' => 'ar',
-                'body_ar' => "مرحبًا {{1}} 👋\n\nنذكّرك بموعد حجزك اليوم ✅\n\n"
-                    ."📅 التاريخ: {{2}}\n⏰ الموعد: {{3}}\n👨‍⚕️ الطبيب: {{4}}\n📌 العنوان: {{5}}\n\n"
-                    ."🕐 يرجى الحضور قبل الموعد بـ 30 دقيقة\n\n"
-                    ."من فضلك أكّد حضورك أو ألغِ الحجز من الأزرار بالأسفل.\n"
-                    .'نتمنى لك الشفاء والعافية',
+                'body_ar' => "👋 أهلاً {{1}}،\nيُرجى تأكيد حضورك لموعدك ⏰\n\n"
+                    ."📅 التاريخ: {{2}}\n⏰ الموعد: {{3}}\n👨‍⚕️ الطبيب: {{4}}\n\n"
+                    .'ولو الظروف اتغيرت، الإلغاء بدري بيدي الفرصة لمريض تاني محتاج الميعاد.',
                 'is_active' => true,
             ],
 
             /*
-            | {{1}} patient · {{2}} doctor · {{3}} date · {{4}} clinic phone
-            | No button.
+            | Sent from the broadcast screen; sending it cancels the day.
+            | Submitted 2026-11-05 (ID 1428443785558956), in review.
+            | {{1}} patient · {{2}} date · {{3}} time · {{4}} clinic phone
+            | Button: احجز ميعاد جديد  https://elayadah.com/{{1}} <- <slug>/book
             */
-            'day_cancelled' => [
+            WhatsAppMessagingService::CANCELS_THE_DAY_KEY => [
                 'category' => 'utility',
                 'is_broadcast' => true,
-                'provider_template_name' => 'booking_cancellation',
+                'provider_template_name' => 'booking_cancellation_v2',
                 'language_code' => 'ar',
-                'body_ar' => "*اعتذار عن إلغاء ميعادك*\n\nأهلاً *{{1}}*\n\n"
-                    .'نأسف نبلغك إنه بسبب ظرف طارئ، اضطرينا نلغي مواعيد اليوم، '
-                    ."وده يشمل ميعادك مع الدكتور *{{2}}* يوم *{{3}}*.\n\n"
-                    ."نعتذر بشدة عن أي إزعاج، وهيتم التواصل معاك في أقرب وقت لتنسيق ميعاد آخر يناسبك.\n\n"
-                    ."ولأي استفسار، إحنا موجودين على *{{4}}*.\n\nشكراً لتفهمك\n\n"
-                    .'*حجزك أسهل، وقتك أثمن*',
+                'body_ar' => "👋 أهلاً {{1}}،\nنعتذر، اتلغى موعدك بسبب ظرف طارئ ⚠️\n\n"
+                    ."📅 الموعد الملغي: {{2}} الساعة {{3}}\n\n"
+                    ."اختيار ميعاد جديد متاح بسهولة من الزرار تحت 👇\n\n"
+                    ."📞 لأي استفسار، العيادة متاحة على: {{4}}\n\n"
+                    .'شكرًا لتفهمك 🙏',
                 'is_active' => true,
             ],
 
@@ -244,20 +262,20 @@ class MessageTemplateSeeder extends Seeder
 
             /*
             | Sent by the emergency delay, one per moved patient with their own
-            | new time — so never a broadcast. Approved at Meta without a delay
-            | amount; read back from the Graph API on 2026-10-24.
-            | {{1}} patient · {{2}} date · {{3}} new time · {{4}} doctor
-            | {{5}} clinic phone
-            | Button: https://elayadah.com/{{1}} <- booking/<token>
+            | times — so never a broadcast.
+            | Submitted 2026-11-05 (ID 29134038209560264), in review.
+            | {{1}} patient · {{2}} new time · {{3}} old time · {{4}} clinic phone
+            | Button: تابع دورك وتفاصيل حجزك
+            |   https://elayadah.com/{{1}} <- booking/<token>
             */
             WhatsAppMessagingService::DELAYED_KEY => [
                 'category' => 'utility',
                 'is_broadcast' => false,
-                'provider_template_name' => 'appointment_delayed',
+                'provider_template_name' => 'appointment_delayed_v2',
                 'language_code' => 'ar',
-                'body_ar' => "مرحبًا {{1}} 👋\n\nنعتذر، تم تأجيل موعدك بسبب حالة طارئة ⚠️\n\n"
-                    ."📅 {{2}}\n⏰ الموعد الجديد: {{3}}\n👨‍⚕️ {{4}}\n\n"
-                    ."📞 للاستفسار تواصل مع العيادة على:\n{{5}}\n\n"
+                'body_ar' => "👋 أهلاً {{1}}،\nنعتذر، اتأجل موعدك بسبب حالة طارئة ⚠️\n\n"
+                    ."⏰ الموعد الجديد: {{2}} بدل {{3}}\n\n"
+                    ."📞 لو فيه أي استفسار، العيادة متاحة على: {{4}}\n\n"
                     .'نشكرك على تفهمك 🙏',
                 'is_active' => true,
             ],

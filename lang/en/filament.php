@@ -61,6 +61,7 @@ return [
         'last_day' => 'Last 24 hours',
         'types' => [
             'booking_confirmed' => 'Booking confirmation',
+            'visit_guidelines' => 'Visit guidelines',
             'visit_completed' => 'Rating request',
             'appointment_reminder' => 'Pre-visit reminder',
             'appointment_reminder_today' => 'Morning reminder',

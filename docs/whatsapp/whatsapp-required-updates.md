@@ -16,7 +16,7 @@ change. Plan for a day between approval and the new templates going live.
 |---|---|---|
 | 1 | ~~Re-categorise 2 templates to **UTILITY**~~ ✅ done — see below | confirmations are being dropped |
 | 2 | Create an **AUTHENTICATION** template | patient self-booking cannot launch |
-| 3 | Submit 3 rewritten templates | cancelling one booking notifies nobody |
+| 3 | ~~Submit 3 rewritten templates~~ superseded: 7 rewritten templates submitted 2026-11-05, in review — see below | cancelling one booking still notifies nobody |
 | 4 | Register the webhook, send the app secret | we cannot see delivery failures |
 | 5 | Re-verify the phone number | verification has **expired** |
 | 6 | Meta Business Verification | sender shows as a bare number |
@@ -37,6 +37,12 @@ already categorised UTILITY, with the verification template alongside.
 > templates were approved alongside: `appointment_delayed` (emergency delay,
 > 5 params) and `appointment_reminder` (before the visit — slot length × queue
 > position — 5 params, "30 دقيقة" fixed in the text). The record of the problem is kept below.
+>
+> **Since superseded (2026-11-05).** All four were rewritten from the Nov 2,
+> 2026 template spec and resubmitted as UTILITY. They're in review as
+> `appointment_booking_confirmation_v4`, `appointment_rating_v4`,
+> `appointment_delayed_v2` and `appointment_reminder_v2`. Current names and
+> shapes are in [current_templates.md](current_templates.md).
 
 Meta caps how many marketing messages one person receives and **withholds the
 excess silently** — the API returns success with a valid message ID, and the
@@ -97,6 +103,19 @@ one per booking attempt, capped on our side at 3 per number per hour.
 ---
 
 ## 3. Three rewritten templates
+
+> **Superseded (2026-11-05).** Instead of the three below, seven templates were
+> rewritten from the Nov 2, 2026 spec and submitted as UTILITY. They're in
+> review: confirmation, visit guidelines (new), both reminders, delay,
+> cancellation and rating. Text, values and buttons are in
+> [current_templates.md](current_templates.md).
+>
+> Two points below still stand:
+> - **Cancelling a single booking still notifies nobody.** The new
+>   `booking_cancellation_v2` still says *بسبب ظرف طارئ* (an emergency) and
+>   still goes out only for a whole-day cancel.
+> - **The rating language is fixed.** `appointment_rating_v4` is registered as
+>   `ar`.
 
 Full text and parameter tables: **[proposed_templates.md](proposed_templates.md)**
 

@@ -129,8 +129,9 @@ class BookingConfirmationMessageTest extends TestCase
     }
 
     /**
-     * The six parameters the approved template declares, in its order:
-     * patient, date, time, doctor, address, arrival lead.
+     * The five parameters the approved template declares, in its order:
+     * patient, date, time, doctor, address. The arrival lead is in the visit
+     * guidelines that follow.
      */
     public function test_the_confirmation_fills_every_approved_parameter(): void
     {
@@ -142,15 +143,14 @@ class BookingConfirmationMessageTest extends TestCase
         $this->book();
 
         $booking = Booking::latest('id')->first();
-        $variables = OutboundMessage::latest('id')->first()->variables;
+        $variables = OutboundMessage::where('template_key', 'booking_confirmed')->latest('id')->first()->variables;
 
-        $this->assertCount(6, $variables);
+        $this->assertCount(5, $variables);
         $this->assertSame('سارة أحمد', $variables[0]);
         $this->assertSame($booking->visit_date->locale('ar')->isoFormat('D MMMM YYYY'), $variables[1]);
         $this->assertStringContainsString($booking->start_at->format('h:i'), $variables[2]);
         $this->assertSame($this->clinic->doctor->name, $variables[3]);
         $this->assertSame('12 شارع مصدق، الدقي', $variables[4]);
-        $this->assertSame('15 دقيقة', $variables[5]);
 
         // Meta rejects a parameter that is empty or carries a newline.
         foreach ($variables as $value) {

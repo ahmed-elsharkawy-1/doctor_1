@@ -3,6 +3,7 @@
 namespace Tests\Feature\Messaging;
 
 use App\Enums\DayOfWeek;
+use App\Jobs\SendWhatsAppMessage;
 use App\Models\Booking;
 use App\Models\MessageTemplate;
 use App\Models\OutboundMessage;
@@ -106,12 +107,14 @@ class CloudApiMessageSenderTest extends TestCase
             default => $messaging->sendForBooking($this->clinic, $booking->id, $templateKey),
         };
 
-        return OutboundMessage::latest('id')->firstOrFail();
+        // By key, not just the newest row: the confirmation is followed by
+        // the visit guidelines.
+        return OutboundMessage::where('template_key', $templateKey)->latest('id')->firstOrFail();
     }
 
     /*
     |--------------------------------------------------------------------------
-    | The confirmation — 6 body params and a URL button
+    | The confirmation — 5 body params and a URL button
     |--------------------------------------------------------------------------
     */
 
@@ -130,15 +133,16 @@ class CloudApiMessageSenderTest extends TestCase
             // International, digits only — no leading plus.
             $this->assertSame('201012345601', $body['to']);
             $this->assertSame('template', $body['type']);
-            $this->assertSame('appointment_booking_confirmation_v3', $body['template']['name']);
+            $this->assertSame('appointment_booking_confirmation_v4', $body['template']['name']);
             $this->assertSame('ar', $body['template']['language']['code']);
 
             [$bodyComponent, $buttonComponent] = $body['template']['components'];
 
             $this->assertSame('body', $bodyComponent['type']);
-            $this->assertCount(6, $bodyComponent['parameters']);
+            // No arrival lead: it moved to the visit guidelines.
+            $this->assertCount(5, $bodyComponent['parameters']);
             $this->assertSame('سارة أحمد', $bodyComponent['parameters'][0]['text']);
-            $this->assertSame('15 دقيقة', $bodyComponent['parameters'][5]['text']);
+            $this->assertSame('12 شارع مصدق، الدقي', $bodyComponent['parameters'][4]['text']);
 
             $this->assertSame('button', $buttonComponent['type']);
             $this->assertSame('url', $buttonComponent['sub_type']);
@@ -158,11 +162,79 @@ class CloudApiMessageSenderTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
-    | The rating — 1 body param and a URL button
+    | The visit guidelines — 2 body params, a quick reply and no URL button
     |--------------------------------------------------------------------------
     */
 
-    public function test_the_rating_is_posted_with_the_patient_name_and_a_button(): void
+    public function test_the_visit_guidelines_follow_the_confirmation_in_the_approved_shape(): void
+    {
+        Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'wamid.GUIDE']]])]);
+
+        $this->queueMessage(WhatsAppMessagingService::CONFIRMATION_KEY);
+        $booking = Booking::latest('id')->firstOrFail();
+
+        $this->assertSame(
+            [WhatsAppMessagingService::CONFIRMATION_KEY, WhatsAppMessagingService::VISIT_GUIDELINES_KEY],
+            OutboundMessage::where('booking_id', $booking->id)->orderBy('id')->pluck('template_key')->all(),
+        );
+
+        $guidelines = OutboundMessage::where('template_key', WhatsAppMessagingService::VISIT_GUIDELINES_KEY)->sole();
+
+        app(CloudApiMessageSender::class)->send($guidelines);
+
+        Http::assertSent(function ($request) use ($booking) {
+            $template = $request->data()['template'];
+
+            $this->assertSame('visit_guidelines', $template['name']);
+            $this->assertSame('ar', $template['language']['code']);
+
+            // The Cancel quick reply takes no parameter, so the body is all.
+            $this->assertCount(1, $template['components']);
+            $this->assertSame('body', $template['components'][0]['type']);
+
+            $parameters = array_column($template['components'][0]['parameters'], 'text');
+
+            // A bare number: the template prints "دقيقة" itself.
+            $this->assertSame(['15', $booking->trackingUrl()], $parameters);
+
+            return true;
+        });
+
+        $this->assertStringContainsString('احضر قبل موعدك بـ 15 دقيقة.', $guidelines->rendered_body);
+    }
+
+    public function test_the_visit_guidelines_wait_a_moment_behind_the_confirmation(): void
+    {
+        $this->queueMessage(WhatsAppMessagingService::CONFIRMATION_KEY);
+
+        $guidelines = OutboundMessage::where('template_key', WhatsAppMessagingService::VISIT_GUIDELINES_KEY)->sole();
+
+        Queue::assertPushed(
+            SendWhatsAppMessage::class,
+            fn (SendWhatsAppMessage $job): bool => $job->messageId === $guidelines->id && $job->delay !== null,
+        );
+    }
+
+    public function test_an_emergency_booking_gets_no_visit_guidelines(): void
+    {
+        $booking = $this->booking();
+        $booking->update(['start_at' => null, 'end_at' => null]);
+
+        app(WhatsAppMessagingService::class)->sendConfirmation($this->clinic, $booking->fresh());
+
+        $this->assertSame(
+            [WhatsAppMessagingService::CONFIRMATION_KEY],
+            OutboundMessage::pluck('template_key')->all(),
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | The rating — 1 body param and two URL buttons
+    |--------------------------------------------------------------------------
+    */
+
+    public function test_the_rating_is_posted_with_the_patient_name_and_two_buttons(): void
     {
         Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'wamid.RATE']]])]);
 
@@ -173,31 +245,37 @@ class CloudApiMessageSenderTest extends TestCase
         Http::assertSent(function ($request) {
             $template = $request->data()['template'];
 
-            $this->assertSame('appointment_rating_v3', $template['name']);
+            $this->assertSame('appointment_rating_v4', $template['name']);
             $this->assertSame('ar', $template['language']['code']);
 
-            [$bodyComponent, $buttonComponent] = $template['components'];
+            [$bodyComponent, $rate, $book] = $template['components'];
 
             $this->assertSame('body', $bodyComponent['type']);
             $this->assertSame([['type' => 'text', 'text' => 'سارة أحمد']], $bodyComponent['parameters']);
 
-            $this->assertSame('button', $buttonComponent['type']);
-            $this->assertStringStartsWith('review/', $buttonComponent['parameters'][0]['text']);
+            // Rate first, then book — each on its own button index.
+            $this->assertSame(['button', 'url', '0'], [$rate['type'], $rate['sub_type'], $rate['index']]);
+            $this->assertStringStartsWith('review/', $rate['parameters'][0]['text']);
+
+            $this->assertSame(['button', 'url', '1'], [$book['type'], $book['sub_type'], $book['index']]);
+            $this->assertSame($this->clinic->slug.'/book', $book['parameters'][0]['text']);
 
             return true;
         });
 
-        $this->assertStringContainsString('أهلًا سارة أحمد،', $message->rendered_body);
+        // The first button stays where it always was, for the messages page.
+        $this->assertStringStartsWith('review/', $message->button_suffix);
+        $this->assertStringContainsString('أهلاً سارة أحمد،', $message->rendered_body);
     }
 
     /*
     |--------------------------------------------------------------------------
-    | The reminders — the hourly one has the link button, the day's has
-    | Confirm/Cancel instead
+    | The reminders — the turn alert has the link button, the confirm-or-
+    | cancel one has Confirm/Cancel instead
     |--------------------------------------------------------------------------
     */
 
-    public function test_the_hourly_reminder_is_posted_in_develops_shape(): void
+    public function test_the_turn_alert_carries_only_the_name_and_the_link(): void
     {
         Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'wamid.REMIND']]])]);
 
@@ -206,17 +284,14 @@ class CloudApiMessageSenderTest extends TestCase
         Http::assertSent(function ($request) {
             $template = $request->data()['template'];
 
-            $this->assertSame('appointment_reminder', $template['name']);
+            $this->assertSame('appointment_reminder_v2', $template['name']);
             $this->assertSame('ar', $template['language']['code']);
 
             [$bodyComponent, $buttonComponent] = $template['components'];
 
             $this->assertSame('body', $bodyComponent['type']);
-            $this->assertCount(5, $bodyComponent['parameters']);
-            $this->assertSame('سارة أحمد', $bodyComponent['parameters'][0]['text']);
-            $this->assertSame('12 شارع مصدق، الدقي', $bodyComponent['parameters'][4]['text']);
+            $this->assertSame([['type' => 'text', 'text' => 'سارة أحمد']], $bodyComponent['parameters']);
 
-            // Develop's tracking button, unchanged.
             $this->assertSame('button', $buttonComponent['type']);
             $this->assertSame('url', $buttonComponent['sub_type']);
             $this->assertStringStartsWith('booking/', $buttonComponent['parameters'][0]['text']);
@@ -234,7 +309,7 @@ class CloudApiMessageSenderTest extends TestCase
         Http::assertSent(function ($request) {
             $template = $request->data()['template'];
 
-            $this->assertSame('appointment_reminder_today', $template['name']);
+            $this->assertSame('appointment_reminder_today_v2', $template['name']);
             $this->assertSame('ar', $template['language']['code']);
 
             // No link and no URL button: the only actions are Confirm/Cancel.
@@ -243,9 +318,11 @@ class CloudApiMessageSenderTest extends TestCase
 
             $parameters = $template['components'][0]['parameters'];
 
-            $this->assertCount(5, $parameters);
+            // Patient, date, time, doctor — no address.
+            $this->assertCount(4, $parameters);
             $this->assertSame('سارة أحمد', $parameters[0]['text']);
-            $this->assertSame('12 شارع مصدق، الدقي', $parameters[4]['text']);
+            $this->assertSame('3 سبتمبر 2026', $parameters[1]['text']);
+            $this->assertSame('06:30 مساءً', $parameters[2]['text']);
 
             return true;
         });
@@ -273,17 +350,13 @@ class CloudApiMessageSenderTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
-    | The cancellation — 4 body params, no button
+    | The cancellation — 4 body params and a button to rebook
     |--------------------------------------------------------------------------
     */
 
-    public function test_the_cancellation_is_posted_with_four_params_and_no_button(): void
+    public function test_the_cancellation_is_posted_with_four_params_and_a_rebooking_button(): void
     {
         Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'wamid.CANCEL']]])]);
-
-        // Fixed rather than from the factory, and with the stray trailing
-        // space one of Faker's ar_EG names really has: the sender trims it.
-        $this->clinic->doctor->update(['name' => 'د. محمد ']);
 
         $message = $this->queueMessage('day_cancelled');
 
@@ -292,17 +365,21 @@ class CloudApiMessageSenderTest extends TestCase
         Http::assertSent(function ($request) {
             $template = $request->data()['template'];
 
-            $this->assertSame('booking_cancellation', $template['name']);
+            $this->assertSame('booking_cancellation_v2', $template['name']);
             $this->assertSame('ar', $template['language']['code']);
-            $this->assertCount(1, $template['components']);
 
-            $parameters = $template['components'][0]['parameters'];
+            [$bodyComponent, $buttonComponent] = $template['components'];
 
-            $this->assertCount(4, $parameters);
-            $this->assertSame('سارة أحمد', $parameters[0]['text']);
-            // Bare: the template prints "مع الدكتور" itself.
-            $this->assertSame('محمد', $parameters[1]['text']);
-            $this->assertSame('+201012223344', $parameters[3]['text']);
+            // Patient, the cancelled date and time, the clinic's phone.
+            $this->assertSame(
+                ['سارة أحمد', '3 سبتمبر 2026', '06:30 مساءً', '+201012223344'],
+                array_column($bodyComponent['parameters'], 'text'),
+            );
+
+            $this->assertSame('button', $buttonComponent['type']);
+            $this->assertSame('url', $buttonComponent['sub_type']);
+            $this->assertSame('0', $buttonComponent['index']);
+            $this->assertSame($this->clinic->slug.'/book', $buttonComponent['parameters'][0]['text']);
 
             return true;
         });
@@ -339,26 +416,6 @@ class CloudApiMessageSenderTest extends TestCase
     | How the values read on a phone
     |--------------------------------------------------------------------------
     */
-
-    /**
-     * booking_cancellation prints "مع الدكتور {{2}}" itself. A name stored with
-     * the honorific already in it produced "الدكتور د. سارة النجار".
-     */
-    public function test_the_cancellation_never_repeats_the_doctors_honorific(): void
-    {
-        Http::fake([self::ENDPOINT => Http::response(['messages' => [['id' => 'x']]])]);
-
-        $this->clinic->doctor->update(['name' => 'د. سارة النجار']);
-
-        $message = $this->queueMessage('day_cancelled');
-
-        $this->assertSame('سارة النجار', $message->variables[1]);
-
-        // And a clinic that stored the name without one reads the same.
-        $this->clinic->doctor->update(['name' => 'سارة النجار']);
-
-        $this->assertSame('سارة النجار', $this->queueMessage('day_cancelled')->variables[1]);
-    }
 
     /**
      * The confirmation prints the name under its own label and expects the

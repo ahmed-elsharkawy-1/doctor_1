@@ -21,7 +21,9 @@ Nothing here requires rewriting or resubmitting an existing template.
 
 > **✅ Done (October 2026).** Approved as UTILITY copies:
 > `appointment_booking_confirmation_v3` and `appointment_rating_v3` (details in
-> [whatsapp-required-updates.md](whatsapp-required-updates.md)).
+> [whatsapp-required-updates.md](whatsapp-required-updates.md)). Both have
+> since been rewritten as `_v4` (UTILITY, in review since 2026-11-05). See
+> [current_templates.md](current_templates.md).
 
 Change the category of these two to **UTILITY**:
 

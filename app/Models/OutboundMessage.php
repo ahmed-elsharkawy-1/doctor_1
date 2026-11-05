@@ -17,6 +17,7 @@ class OutboundMessage extends Model
         'rendered_body',
         'variables',
         'button_suffix',
+        'button_suffixes',
         'status',
         'attempts',
         'provider_message_id',
@@ -30,6 +31,7 @@ class OutboundMessage extends Model
     {
         return [
             'variables' => 'array',
+            'button_suffixes' => 'array',
             'attempts' => 'integer',
             'sent_at' => 'datetime',
             'delivered_at' => 'datetime',

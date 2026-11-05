@@ -384,8 +384,8 @@ class WaitingListTest extends TestCase
 
         $this->assertSame(WaitingListStatus::BOOKED, $entry->fresh()->status);
         $this->assertSame(
-            [WhatsAppMessagingService::CONFIRMATION_KEY],
-            OutboundMessage::query()->where('booking_id', $booking->id)->pluck('template_key')->all(),
+            [WhatsAppMessagingService::CONFIRMATION_KEY, WhatsAppMessagingService::VISIT_GUIDELINES_KEY],
+            OutboundMessage::query()->where('booking_id', $booking->id)->orderBy('id')->pluck('template_key')->all(),
         );
     }
 
@@ -538,8 +538,8 @@ class WaitingListTest extends TestCase
 
         $this->assertSame(WaitingListStatus::LEFT, $entry->fresh()->status);
         $this->assertSame(
-            [WhatsAppMessagingService::CONFIRMATION_KEY],
-            OutboundMessage::query()->where('booking_id', $booking->id)->pluck('template_key')->all(),
+            [WhatsAppMessagingService::CONFIRMATION_KEY, WhatsAppMessagingService::VISIT_GUIDELINES_KEY],
+            OutboundMessage::query()->where('booking_id', $booking->id)->orderBy('id')->pluck('template_key')->all(),
         );
     }
 

@@ -15,11 +15,13 @@ use Illuminate\Support\Carbon;
 use Throwable;
 
 /**
- * Handles a patient tapping Confirm or Cancel on the visit-day reminder.
+ * Handles a patient tapping a quick-reply button: Confirm or Cancel on the
+ * visit-day reminder, or Cancel on the visit guidelines sent after the
+ * confirmation.
  *
- * Only that reminder carries buttons; the one sent shortly before the
- * appointment has a tracking link instead, so a reply can only belong to the
- * visit-day message and is looked up among those.
+ * Only those two messages carry quick replies — the turn-approaching alert has
+ * a tracking link instead — so a reply can only belong to one of them and is
+ * looked up among those.
  *
  * Meta sends these as `button` messages (or `interactive.button_reply`), and
  * only two things are trusted: that the callback was signed — the controller
@@ -218,7 +220,10 @@ class WhatsAppReplyHandler
     private function reminderQuery()
     {
         return OutboundMessage::query()
-            ->where('template_key', WhatsAppMessagingService::DAILY_REMINDER_KEY)
+            ->whereIn('template_key', [
+                WhatsAppMessagingService::DAILY_REMINDER_KEY,
+                WhatsAppMessagingService::VISIT_GUIDELINES_KEY,
+            ])
             ->whereNotNull('booking_id')
             ->with(['patient', 'booking.clinic', 'booking.patient']);
     }

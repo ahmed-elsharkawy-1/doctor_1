@@ -61,6 +61,7 @@ return [
         'last_day' => 'آخر ٢٤ ساعة',
         'types' => [
             'booking_confirmed' => 'تأكيد الحجز',
+            'visit_guidelines' => 'تعليمات الزيارة',
             'visit_completed' => 'طلب التقييم',
             'appointment_reminder' => 'التذكير قبل الموعد',
             'appointment_reminder_today' => 'تذكير الصبح',
