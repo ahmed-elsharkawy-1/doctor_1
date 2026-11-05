@@ -26,6 +26,8 @@ return [
     'wrong_day' => 'A patient on the waiting list can only be booked on the day they are waiting for (:date)',
     'loaded' => 'Waiting list loaded',
     'removed_ok' => 'Removed from the waiting list',
+    'added_ok' => 'Added to the waiting list',
+    'already_on' => 'The patient is already on that day’s waiting list',
 
     'patient' => [
         'today_full' => 'Today is full',

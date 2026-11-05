@@ -624,7 +624,7 @@ class WaitingListTest extends TestCase
     |--------------------------------------------------------------------------
     */
 
-    public function test_the_secretary_lists_and_removes_but_cannot_add(): void
+    public function test_the_secretary_lists_and_removes(): void
     {
         $this->join($this->patient());
 
@@ -636,13 +636,6 @@ class WaitingListTest extends TestCase
             ->assertJsonPath('data.count', 1)
             ->assertJsonPath('data.items.0.patient.name', 'فاطمة عبد الرحمن');
 
-        // Patients join themselves, on the public page.
-        $this->postJson('/api/v1/waiting-list', [
-            'date' => self::DAY,
-            'patient_name' => 'مريض بالتليفون',
-            'phone' => '01077778888',
-        ])->assertStatus(405);
-
         $id = WaitingListEntry::query()->sole()->id;
 
         $this->deleteJson('/api/v1/waiting-list/'.$id)->assertOk();
@@ -651,6 +644,115 @@ class WaitingListTest extends TestCase
             ->assertJsonPath('error.code', ApiErrorCode::WAITING_LIST_ENTRY_NOT_FOUND->value);
 
         $this->assertSame(WaitingListStatus::REMOVED, WaitingListEntry::query()->sole()->status);
+    }
+
+    public function test_the_secretary_adds_a_patient_who_phoned_in(): void
+    {
+        $this->join($this->patient('+201011112222', 'أول المنتظرين'));
+
+        Sanctum::actingAs($this->secretary);
+
+        $this->postJson('/api/v1/waiting-list', [
+            'date' => self::DAY,
+            'patient_name' => 'مريض بالتليفون',
+            'phone' => '01077778888',
+            'visit_type_id' => $this->visitType->id,
+        ])
+            ->assertCreated()
+            ->assertJsonPath('message', __('waiting_list.added_ok', [], 'ar'))
+            ->assertJsonPath('data.position', 2)
+            ->assertJsonPath('data.patient.name', 'مريض بالتليفون')
+            ->assertJsonPath('data.visit_type.id', $this->visitType->id)
+            ->assertJsonPath('data.source.value', BookingSource::CLINIC->value);
+
+        $entry = WaitingListEntry::query()->whereHas('patient', fn ($q) => $q->where('phone', '+201077778888'))->sole();
+
+        $this->assertSame(BookingSource::CLINIC, $entry->source);
+        $this->assertSame($this->secretary->id, $entry->created_by);
+        $this->assertSame(WaitingListStatus::WAITING, $entry->status);
+
+        // Told they are on the list, as when they join online.
+        $this->assertSame(1, OutboundMessage::query()
+            ->where('waiting_list_entry_id', $entry->id)
+            ->where('template_key', WhatsAppMessagingService::WAITING_LIST_JOINED_KEY)
+            ->count());
+    }
+
+    public function test_adding_a_known_patient_twice_hands_back_their_place(): void
+    {
+        $patient = $this->patient();
+
+        Sanctum::actingAs($this->secretary);
+
+        $body = ['date' => self::DAY, 'patient_id' => $patient->id];
+
+        $first = $this->postJson('/api/v1/waiting-list', $body)->assertCreated()->json('data.id');
+
+        $this->postJson('/api/v1/waiting-list', $body)
+            ->assertOk()
+            ->assertJsonPath('data.id', $first)
+            ->assertJsonPath('data.position', 1);
+
+        $this->assertSame(1, WaitingListEntry::query()->count());
+        $this->assertSame(1, OutboundMessage::query()
+            ->where('template_key', WhatsAppMessagingService::WAITING_LIST_JOINED_KEY)->count());
+    }
+
+    public function test_adding_follows_the_lists_rules(): void
+    {
+        Sanctum::actingAs($this->secretary);
+
+        // Already booked that day: the patient who holds the only slot.
+        $this->postJson('/api/v1/waiting-list', [
+            'date' => self::DAY,
+            'patient_id' => Booking::query()->sole()->patient_id,
+        ])
+            ->assertStatus(409)
+            ->assertJsonPath('error.code', ApiErrorCode::WAITING_LIST_ALREADY_BOOKED->value);
+
+        $this->clinic->update(['waiting_list_max_per_day' => 1]);
+        $this->join($this->patient('+201011112222'));
+
+        $this->postJson('/api/v1/waiting-list', ['date' => self::DAY, 'patient_id' => $this->patient()->id])
+            ->assertStatus(409)
+            ->assertJsonPath('error.code', ApiErrorCode::WAITING_LIST_FULL->value);
+
+        $this->clinic->update(['waiting_list_enabled' => false]);
+
+        $this->postJson('/api/v1/waiting-list', ['date' => self::DAY, 'patient_name' => 'جديد', 'phone' => '01066665555'])
+            ->assertForbidden()
+            ->assertJsonPath('error.code', ApiErrorCode::WAITING_LIST_DISABLED->value);
+
+        $this->assertSame(1, WaitingListEntry::query()->count());
+    }
+
+    public function test_adding_needs_a_patient_and_a_day(): void
+    {
+        Sanctum::actingAs($this->secretary);
+
+        $this->postJson('/api/v1/waiting-list', [])
+            ->assertUnprocessable();
+
+        $this->postJson('/api/v1/waiting-list', ['date' => self::DAY, 'patient_id' => 999_999])
+            ->assertNotFound()
+            ->assertJsonPath('error.code', ApiErrorCode::PATIENT_NOT_FOUND->value);
+
+        $this->assertSame(0, WaitingListEntry::query()->count());
+    }
+
+    public function test_another_clinics_patient_cannot_be_added(): void
+    {
+        $other = $this->otherClinic();
+        $stranger = app(PatientService::class)->findOrCreate(
+            $other, 'غريب', app(PatientService::class)->parsePhone($other, '01044443333'),
+        );
+
+        Sanctum::actingAs($this->secretary);
+
+        $this->postJson('/api/v1/waiting-list', ['date' => self::DAY, 'patient_id' => $stranger->id])
+            ->assertNotFound();
+
+        $this->assertSame(0, WaitingListEntry::query()->count());
     }
 
     public function test_another_clinics_entry_is_not_found(): void

@@ -17,6 +17,7 @@ use App\Models\WaitingListEntry;
 use App\Services\V1\Booking\ClinicDayLock;
 use App\Services\V1\Booking\SlotAvailabilityService;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
+use App\Services\V1\Patients\PatientService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -29,9 +30,10 @@ use Illuminate\Support\Collection;
  * instead of the usual confirmation. When the day's last period ends, whoever
  * is still on it is told no slot opened (closeEndedDays).
  *
- * Only patients join, on the public page (PatientBookingService). The clinic
- * web app and the mobile API read the list, book from it and remove from it,
- * but never add to it.
+ * Patients join on the public page (PatientBookingService). The secretary
+ * can also put a patient on it from the mobile API (addByClinic) — someone
+ * who phoned in for a full day. Both go through join(), so the cap, the lock
+ * and the "you are on the list" message are the same either way.
  */
 class WaitingListService
 {
@@ -39,6 +41,7 @@ class WaitingListService
         private readonly ClinicDayLock $lock,
         private readonly SlotAvailabilityService $slots,
         private readonly WhatsAppMessagingService $messaging,
+        private readonly PatientService $patients,
     ) {}
 
     /*
@@ -289,6 +292,39 @@ class WaitingListService
         return $entry->load(['patient', 'visitType']);
     }
 
+    /**
+     * The secretary puts a patient on a day's list — someone who called for
+     * a day that is full.
+     *
+     * The patient is an existing one (`$patientId`) or found or created by
+     * phone, as a booking does. Every rule of join() applies; the entry is
+     * marked as added by the clinic and records who added it.
+     */
+    public function addByClinic(
+        Clinic $clinic,
+        User $actor,
+        string $date,
+        ?int $patientId = null,
+        ?string $name = null,
+        ?string $phone = null,
+        ?int $visitTypeId = null,
+    ): WaitingListEntry {
+        $this->assertEnabled($clinic);
+
+        $patient = $patientId !== null
+            ? $this->patients->findById($clinic, $patientId)
+            : $this->patients->findOrCreate($clinic, trim((string) $name), $this->patients->parsePhone($clinic, (string) $phone));
+
+        return $this->join(
+            $clinic,
+            $patient,
+            $visitTypeId === null ? null : $this->activeVisitType($clinic, $visitTypeId),
+            $date,
+            BookingSource::CLINIC,
+            $actor,
+        );
+    }
+
     /** The patient took themselves off. */
     public function leave(WaitingListEntry $entry): void
     {
@@ -488,6 +524,28 @@ class WaitingListService
         }
 
         return ['closed' => $closed, 'messaged' => $messaged];
+    }
+
+    private function activeVisitType(Clinic $clinic, int $visitTypeId): VisitType
+    {
+        $visitType = $clinic->visitTypes()->whereKey($visitTypeId)->first();
+
+        if ($visitType === null) {
+            throw ApiException::make(
+                ApiErrorCode::VISIT_TYPE_NOT_FOUND,
+                __('settings.visit_type.not_found'),
+                http: 404,
+            );
+        }
+
+        if (! $visitType->is_active) {
+            throw ApiException::make(
+                ApiErrorCode::VISIT_TYPE_INACTIVE,
+                __('booking.visit_type_inactive'),
+            );
+        }
+
+        return $visitType;
     }
 
     private function assertEnabled(Clinic $clinic): void
