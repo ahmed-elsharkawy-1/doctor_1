@@ -13,8 +13,8 @@ use Livewire\Attributes\Url;
 /**
  * A day's waiting list: who asked for a full day, in the order they asked.
  *
- * Patients join it themselves, on the public booking page — the clinic never
- * adds anyone. When a slot opens the secretary calls the first patient and
+ * Patients join it themselves, on the public booking page, or the secretary
+ * adds one from the mobile app (POST /waiting-list). When a slot opens the secretary calls the first patient and
  * books them from here: the booking carries the entry, which is what takes
  * them off the list and sends "booked from the waiting list". Every rule is
  * WaitingListService's.
