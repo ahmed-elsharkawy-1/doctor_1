@@ -265,4 +265,25 @@ return [
             'bookings' => 'All bookings',
         ],
     ],
+
+    // The ZADX SMS account, which carries the patients' verification codes.
+    'sms_balance' => [
+        'heading' => 'SMS balance',
+        'remaining' => 'Messages left',
+        'of_quota' => 'of :quota messages',
+        'plan' => 'Plan',
+        'no_plan' => 'No active plan',
+        'expires' => 'Expires on',
+        'days_left' => ':days days left',
+        'expires_today' => 'Expires today',
+        'expired' => 'Expired',
+        'no_expiry' => 'No expiry date',
+        'unavailable' => 'The balance could not be read from ZADX. Trying again in a minute.',
+        'alert' => [
+            'no_plan' => 'There is no active SMS plan at ZADX, so patients will not get verification codes. Renew the plan.',
+            'empty' => 'The SMS balance has run out, so patients will not get verification codes. Top it up.',
+            'low' => 'The SMS balance is running low: :remaining of :quota messages left.',
+            'expiring' => 'The SMS plan expires on :date (:days days left). Renew it before it stops.',
+        ],
+    ],
 ];

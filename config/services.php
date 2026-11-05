@@ -81,6 +81,15 @@ return [
         'sender_id' => env('ZADX_SENDER_ID'),
 
         'timeout' => (int) env('ZADX_TIMEOUT', 15),
+
+        // The SMS balance alert in the admin panel. It warns at or below
+        // `low_credits` messages left, and `expiry_days` before the plan
+        // runs out. The balance is re-read every `cache_minutes`.
+        'balance' => [
+            'low_credits' => (int) env('ZADX_LOW_BALANCE_ALERT', 100),
+            'expiry_days' => (int) env('ZADX_EXPIRY_ALERT_DAYS', 7),
+            'cache_minutes' => (int) env('ZADX_BALANCE_CACHE_MINUTES', 10),
+        ],
     ],
 
 ];
