@@ -28,7 +28,7 @@ class CloudApiMessageSender implements MessageSender
                 $this->recipient($message),
                 $this->template($message),
                 $message->variables ?? [],
-                $message->button_suffix,
+                $message->button_suffixes ?: $message->button_suffix,
             );
 
         $message->update([
@@ -65,8 +65,9 @@ class CloudApiMessageSender implements MessageSender
      * One template message to one number; Meta's message id back.
      *
      * @param  array<int, mixed>  $variables
+     * @param  list<string>|string|null  $buttonSuffix  one path, or one per URL button in button order
      */
-    private function post(string $to, MessageTemplate $template, array $variables, ?string $buttonSuffix): ?string
+    private function post(string $to, MessageTemplate $template, array $variables, array|string|null $buttonSuffix): ?string
     {
         return $this->postPayload([
             'messaging_product' => 'whatsapp',
@@ -159,18 +160,17 @@ class CloudApiMessageSender implements MessageSender
     }
 
     /**
-     * Body parameters and the dynamic URL button, in the shape Meta expects.
+     * Body parameters and the dynamic URL buttons, in the shape Meta expects.
      *
-     * A template with neither — which none of the three approved ones is —
-     * would send no components at all, so the array is filtered rather than
-     * assumed non-empty.
+     * A template with neither would send no components at all, so the array
+     * is built up rather than assumed non-empty. Quick-reply buttons take no
+     * parameter and so get no component.
      *
+     * @param  array<int, mixed>  $variables
+     * @param  list<string>|string|null  $buttonSuffix
      * @return list<array<string, mixed>>
      */
-    /**
-     * @param  array<int, mixed>  $variables
-     */
-    private function components(array $variables, ?string $buttonSuffix): array
+    private function components(array $variables, array|string|null $buttonSuffix): array
     {
         $components = [];
 
@@ -184,14 +184,19 @@ class CloudApiMessageSender implements MessageSender
             ];
         }
 
-        if (($buttonSuffix ?? '') !== '') {
+        // Each path goes to the button at its own position: the rating
+        // message's second button is index 1, not a second index 0.
+        foreach (array_values((array) $buttonSuffix) as $index => $suffix) {
+            if ((string) $suffix === '') {
+                continue;
+            }
+
             $components[] = [
                 'type' => 'button',
                 'sub_type' => 'url',
-                // The templates each carry exactly one button.
-                'index' => '0',
+                'index' => (string) $index,
                 'parameters' => [
-                    ['type' => 'text', 'text' => (string) $buttonSuffix],
+                    ['type' => 'text', 'text' => (string) $suffix],
                 ],
             ];
         }

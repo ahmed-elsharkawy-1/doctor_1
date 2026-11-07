@@ -100,8 +100,8 @@ class SendDailyRemindersTest extends TestCase
         $this->assertSame('queued', $reminder->status);
         $this->assertSame('template', $reminder->type);
 
-        // The approved template's five values, in its order.
-        $this->assertCount(5, $reminder->variables);
+        // The approved template's four values, in its order — no address.
+        $this->assertCount(4, $reminder->variables);
         $this->assertSame('03:00 '.__('schedule.pm'), $reminder->variables[2]);
         // No link in the first message — the buttons are the only action.
         $this->assertNull($reminder->button_suffix);

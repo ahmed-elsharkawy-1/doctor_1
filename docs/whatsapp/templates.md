@@ -1,5 +1,10 @@
 # WhatsApp message templates — ready to submit
 
+> **Superseded.** Kept for history only. Don't submit anything from this
+> file. The templates the app sends, with their current text, values and
+> buttons, are in [current_templates.md](current_templates.md). They're the
+> Nov 2, 2026 spec, submitted 2026-11-05.
+
 Submit these five to Meta exactly as written. The code already expects these
 names, so nothing needs changing once they are approved.
 

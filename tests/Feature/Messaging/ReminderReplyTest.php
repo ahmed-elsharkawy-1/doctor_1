@@ -174,6 +174,54 @@ class ReminderReplyTest extends TestCase
         Event::assertDispatched(ReminderResponseReceived::class);
     }
 
+    /**
+     * The visit guidelines carry the same Cancel, spelled "الغاء الحجز" as
+     * approved — no hamza — and a tap on it is answered the same way.
+     */
+    public function test_cancel_on_the_visit_guidelines_cancels_the_booking(): void
+    {
+        $this->reminder->delete();
+
+        OutboundMessage::create([
+            'clinic_id' => $this->clinic->id,
+            'patient_id' => $this->booking->patient_id,
+            'booking_id' => $this->booking->id,
+            'template_key' => WhatsAppMessagingService::VISIT_GUIDELINES_KEY,
+            'type' => 'template',
+            'rendered_body' => 'guidelines',
+            'status' => 'sent',
+            'provider_message_id' => 'wamid.GUIDELINES',
+        ]);
+
+        $this->reply($this->button('الغاء الحجز', 'الغاء الحجز', context: 'wamid.GUIDELINES'))->assertOk();
+
+        $booking = $this->booking->fresh();
+
+        $this->assertSame(BookingStatus::CANCELLED, $booking->status);
+        $this->assertSame(CancelReason::PATIENT_CANCELLED, $booking->cancel_reason);
+        $this->assertSame(PatientResponse::CANCELLED, $booking->patient_response);
+        $this->assertStringContainsString('تم إلغاء حجزك', $this->sender->texts[0]['body']);
+    }
+
+    /** A tap quoting some other message of ours — the confirmation — is not an answer. */
+    public function test_a_reply_quoting_a_message_without_buttons_is_ignored(): void
+    {
+        OutboundMessage::create([
+            'clinic_id' => $this->clinic->id,
+            'patient_id' => $this->booking->patient_id,
+            'booking_id' => $this->booking->id,
+            'template_key' => WhatsAppMessagingService::CONFIRMATION_KEY,
+            'type' => 'template',
+            'rendered_body' => 'confirmation',
+            'status' => 'sent',
+            'provider_message_id' => 'wamid.CONFIRMATION',
+        ]);
+
+        $this->reply($this->button('cancel_booking', 'إلغاء الحجز', context: 'wamid.CONFIRMATION'))->assertOk();
+
+        $this->assertSame(BookingStatus::BOOKED, $this->booking->fresh()->status);
+    }
+
     public function test_the_arabic_button_text_is_enough_without_a_known_payload(): void
     {
         $this->reply($this->button('some-new-payload', 'تأكيد الحضور'))->assertOk();

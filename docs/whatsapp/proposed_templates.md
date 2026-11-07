@@ -1,5 +1,10 @@
 # Proposed templates — one voice
 
+> **Superseded.** Kept for history only. Don't submit anything from this
+> file. The templates the app sends, with their current text, values and
+> buttons, are in [current_templates.md](current_templates.md). They're the
+> Nov 2, 2026 spec, submitted 2026-11-05.
+
 The three live templates were written separately and read that way: one opens
 with the patient's name, one opens with nothing at all, and the third is in
 heavy Egyptian colloquial. None says who sent it, so a patient's first sight of

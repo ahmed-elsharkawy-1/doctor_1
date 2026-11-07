@@ -114,7 +114,7 @@ class DelayService
         // Outside the lock, as a booking's own confirmation is: a queued
         // message must never outlive a rolled-back move.
         SlotsChanged::dispatch($clinic, $day->toDateString());
-        $messaging = $this->messaging->sendDelayed($clinic, $bookings);
+        $messaging = $this->messaging->sendDelayed($clinic, $bookings, $moved);
 
         Cache::put($replayKey, ['minutes' => $moved, 'messaging' => $messaging], $this->replaySeconds());
 
