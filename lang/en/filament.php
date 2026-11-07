@@ -146,7 +146,7 @@ return [
         'tracking_delay_threshold_minutes_hint' => 'The delay notice shows only when the shown delay is more than this. Leave empty for the default.',
         'slot_step_minutes_auto' => 'Automatic — follows each visit type',
         'reminder_time' => 'WhatsApp reminder time',
-        'reminder_time_hint' => 'On the visit day, the time the WhatsApp reminder goes out to every patient booked that day.',
+        'reminder_time_hint' => 'On the visit day, the time the WhatsApp reminder goes out to every patient booked that day. On a day the clinic opens early it goes out earlier: at least :hours hours before the first period, but not before :earliest.',
         'daily_reminder_enabled' => 'Morning reminder (Confirm / Cancel)',
         'daily_reminder_enabled_hint' => 'The visit-day reminder at the reminder time, with Confirm and Cancel buttons. Only while WhatsApp is on for this clinic.',
         'daily_reminder_min_hours' => 'Morning reminder: booked at least (hours)',

@@ -38,7 +38,7 @@
         <div class="field">
             <label for="reminder">{{ __('app.settings.reminder_time') }}</label>
             <input id="reminder" type="time" wire:model="reminderTime">
-            <small class="muted">{{ __('app.settings.reminder_time_hint') }}</small>
+            <small class="muted">{{ __('app.settings.reminder_time_hint', ['hours' => config('clinic.defaults.daily_reminder_lead_hours'), 'earliest' => config('clinic.defaults.daily_reminder_earliest')]) }}</small>
             @error('reminderTime') <div class="err">{{ $message }}</div> @enderror
         </div>
 

@@ -172,6 +172,39 @@ class Clinic extends Model
     }
 
     /**
+     * When the morning reminder goes out on this day, in the clinic's time.
+     *
+     * The clinic's reminder time, unless the day opens too soon after it:
+     * then early enough to leave `daily_reminder_lead_hours` before the first
+     * period — never before `daily_reminder_earliest`, and never later than
+     * the clinic's own time. A closed day keeps the clinic's time; nobody is
+     * booked on it anyway.
+     */
+    public function dailyReminderAt(Carbon $day): Carbon
+    {
+        $date = $day->toDateString();
+        $set = Carbon::parse($date.' '.$this->reminderTime(), $this->timezone);
+
+        $schedule = $this->scheduleFor(DayOfWeek::fromDate($day));
+        $first = $schedule?->is_open ? $schedule->periods->first() : null;
+
+        if ($first === null) {
+            return $set;
+        }
+
+        [$opens] = $first->boundsOn(Carbon::parse($date, $this->timezone), $this->timezone);
+        $lead = $opens->copy()->subHours(max(0, (int) config('clinic.defaults.daily_reminder_lead_hours', 6)));
+
+        if ($lead->gte($set)) {
+            return $set;
+        }
+
+        $earliest = Carbon::parse($date.' '.config('clinic.defaults.daily_reminder_earliest', '08:00'), $this->timezone);
+
+        return $lead->max($earliest->min($set));
+    }
+
+    /**
      * Whether the morning reminder, with its Confirm/Cancel buttons, goes to
      * this clinic's patients. A super admin's switch, off until turned on,
      * and only ever on while the clinic sends WhatsApp at all.

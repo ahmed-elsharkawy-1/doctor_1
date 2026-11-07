@@ -62,6 +62,12 @@ return [
         // gets no morning reminder: its confirmation has only just gone out.
         // At 11:00 with 12, a booking made after 23:00 the night before.
         'daily_reminder_min_hours' => 12,
+        // On a day the clinic opens early, the morning reminder goes out
+        // earlier than `reminder_time`: at least this many hours before the
+        // day's first period opens, but never before `daily_reminder_earliest`.
+        // Thursday opening at 14:00 with a 13:00 reminder time: sent at 08:00.
+        'daily_reminder_lead_hours' => (int) env('CLINIC_DAILY_REMINDER_LEAD_HOURS', 6),
+        'daily_reminder_earliest' => env('CLINIC_DAILY_REMINDER_EARLIEST', '08:00'),
         // How many slot lengths before the visit the pre-visit reminder goes
         // out: position × the booking's own duration. At 3 with 30-minute
         // visits that is 90 minutes ahead. Editable by the clinic in

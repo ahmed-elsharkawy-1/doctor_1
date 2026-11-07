@@ -3,6 +3,7 @@
 namespace Tests\Feature\Console;
 
 use App\Enums\BookingKind;
+use App\Enums\DayOfWeek;
 use App\Jobs\SendWhatsAppMessage;
 use App\Models\Booking;
 use App\Models\ClinicHoliday;
@@ -391,5 +392,122 @@ class SendDailyRemindersTest extends TestCase
         );
         $this->assertSame(WhatsAppMessagingService::REMINDER_KEY, $booking->reminder->template_key);
         $this->assertSame(WhatsAppMessagingService::DAILY_REMINDER_KEY, $booking->dailyReminder->template_key);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | A day that opens early
+    |--------------------------------------------------------------------------
+    |
+    | The test day is a Thursday. Dr Seham's opens at 14:00 against a 13:00
+    | reminder time, which with a two-hour cancel cutoff reminded nobody
+    | booked before 15:00.
+    */
+
+    private function opensAt(string $start, string $end): void
+    {
+        $schedule = $this->clinic->scheduleFor(DayOfWeek::THURSDAY);
+        $schedule->update(['is_open' => true]);
+        $schedule->periods()->delete();
+        $schedule->periods()->create(['start_time' => $start, 'end_time' => $end]);
+    }
+
+    public function test_an_early_day_is_reminded_six_hours_before_it_opens(): void
+    {
+        $this->clinic->update(['reminder_time' => '13:00', 'whatsapp_cancel_cutoff_minutes' => 120]);
+        $this->opensAt('14:00', '16:00');
+        $first = $this->bookingAt('14:00');
+
+        $this->at('07:59');
+        $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
+        $this->assertCount(0, $this->dailyReminders());
+
+        $this->at('08:00');
+        $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
+
+        $this->assertSame([$first->id], $this->dailyReminders()->pluck('booking_id')->all());
+    }
+
+    public function test_the_lead_moves_an_ordinary_day_earlier_too(): void
+    {
+        // 17:00 opening, 13:00 set: only four hours, so 11:00.
+        $this->clinic->update(['reminder_time' => '13:00']);
+        $this->opensAt('17:00', '23:59');
+        $this->bookingAt('17:00');
+
+        $this->at('10:59');
+        $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
+        $this->assertCount(0, $this->dailyReminders());
+
+        $this->at('11:00');
+        $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
+        $this->assertCount(1, $this->dailyReminders());
+    }
+
+    public function test_a_day_opening_late_enough_keeps_the_clinics_time(): void
+    {
+        $this->clinic->update(['reminder_time' => '13:00']);
+        $this->opensAt('20:00', '23:59');
+        $this->bookingAt('20:00');
+
+        $this->at('12:59');
+        $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
+        $this->assertCount(0, $this->dailyReminders());
+
+        $this->at('13:00');
+        $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
+        $this->assertCount(1, $this->dailyReminders());
+    }
+
+    public function test_never_before_the_earliest_hour(): void
+    {
+        // 10:00 opening less six hours is 04:00: held back to 08:00.
+        $this->opensAt('10:00', '14:00');
+        $this->bookingAt('10:30');
+
+        $this->at('07:59');
+        $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
+        $this->assertCount(0, $this->dailyReminders());
+
+        $this->at('08:00');
+        $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
+        $this->assertCount(1, $this->dailyReminders());
+    }
+
+    public function test_the_twelve_hours_count_from_the_earlier_time(): void
+    {
+        // Sent at 08:00, so a booking had to be made by 20:00 the night before.
+        $this->clinic->update(['reminder_time' => '13:00', 'daily_reminder_min_hours' => 12]);
+        $this->opensAt('14:00', '16:00');
+        $inTime = $this->bookingMadeAt('2026-09-02 20:00', '14:30');
+        $this->bookingMadeAt('2026-09-02 20:01', '15:00');
+
+        $this->at('08:00');
+        $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
+
+        $this->assertSame([$inTime->id], $this->dailyReminders()->pluck('booking_id')->all());
+    }
+
+    public function test_the_lead_and_earliest_hour_are_platform_settings(): void
+    {
+        config([
+            'clinic.defaults.daily_reminder_lead_hours' => 3,
+            'clinic.defaults.daily_reminder_earliest' => '09:00',
+        ]);
+        $this->clinic->update(['reminder_time' => '13:00']);
+        $this->opensAt('14:00', '16:00');
+
+        $day = Carbon::parse(self::DAY, 'Africa/Cairo');
+
+        $this->assertSame('11:00', $this->clinic->fresh()->dailyReminderAt($day)->format('H:i'));
+    }
+
+    public function test_a_closed_day_keeps_the_clinics_time(): void
+    {
+        $this->clinic->update(['reminder_time' => '13:00']);
+
+        $day = Carbon::parse(self::DAY, 'Africa/Cairo');
+
+        $this->assertSame('13:00', $this->clinic->fresh()->dailyReminderAt($day)->format('H:i'));
     }
 }

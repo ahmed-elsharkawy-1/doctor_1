@@ -11,7 +11,8 @@ use App\Services\V1\Messaging\WhatsAppMessagingService;
 use Illuminate\Support\Carbon;
 
 /**
- * Sends the day's one reminder at each clinic's own reminder time.
+ * Sends the day's one reminder at each clinic's own reminder time — or
+ * earlier, on a day the clinic opens early (Clinic::dailyReminderAt).
  *
  * A booking is reminded at most once: any row already queued for it under the
  * visit-day template, whatever became of it, rules it out. So a run that
@@ -50,7 +51,8 @@ class SendDailyRemindersCommand extends ClinicReminderCommand
     {
         $now = Carbon::now($clinic->timezone);
         $today = $now->toDateString();
-        $reminderAt = Carbon::parse($today.' '.$clinic->reminderTime(), $clinic->timezone);
+        // Earlier than the clinic's time on a day it opens early.
+        $reminderAt = $clinic->dailyReminderAt(Carbon::parse($today, $clinic->timezone));
 
         // Not yet the clinic's reminder time. The command runs every minute,
         // so this is the ordinary case for almost the whole day.

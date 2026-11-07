@@ -151,7 +151,7 @@ return [
         'arrival_lead' => 'Arrival lead time (minutes)',
         'arrival_lead_hint' => 'Subtracted from the appointment time on the patient page.',
         'reminder_time' => 'WhatsApp reminder time',
-        'reminder_time_hint' => 'On the visit day, the time the WhatsApp reminder goes out to every patient booked that day.',
+        'reminder_time_hint' => 'On the visit day, the time the WhatsApp reminder goes out to every patient booked that day. On a day the clinic opens early it goes out earlier: at least :hours hours before the first period, but not before :earliest.',
         'daily_reminder_min_hours' => 'Morning reminder: booked at least (hours before)',
         'daily_reminder_min_hours_hint' => 'A booking made fewer hours than this before the reminder time gets no morning reminder. At 11:00 with 12, a booking made after 23:00 the night before.',
         'reminder_position' => 'Slots before the visit',

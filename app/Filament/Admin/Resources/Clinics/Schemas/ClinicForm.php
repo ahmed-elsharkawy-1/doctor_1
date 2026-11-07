@@ -306,7 +306,7 @@ class ClinicForm
                         ->label(__('filament.clinic.reminder_time'))
                         ->seconds(false)
                         ->default($defaults['reminder_time'])
-                        ->helperText(__('filament.clinic.reminder_time_hint')),
+                        ->helperText(__('filament.clinic.reminder_time_hint', ['hours' => config('clinic.defaults.daily_reminder_lead_hours'), 'earliest' => config('clinic.defaults.daily_reminder_earliest')])),
 
                     // Each reminder has its own switch, off for every clinic
                     // until somebody decides it gets it. Here only, so a
