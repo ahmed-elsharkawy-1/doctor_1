@@ -32,6 +32,20 @@ rollback copy.
   dropped something needs its own plan.
 - The checkout stays on the new commit. That is fine: the next deploy pulls
   whatever `main` points at.
+- **WhatsApp template names live in the database**, not in the image: every
+  deploy runs `MessageTemplateSeeder`, and the rollback above does not. If the
+  release changed template names (November 2026: `_v2`/`_v4` and
+  `visit_guidelines`), the older code would send its own values to the new
+  templates and Meta would refuse every message. Put the older names back with
+  the older image's own seeder, right after the `up`:
+
+  ```bash
+  docker compose -f compose.prod.yml exec -T app php artisan db:seed --class=MessageTemplateSeeder --force
+  ```
+
+  It runs the seeder baked into the rollback image, so it restores exactly the
+  names that code expects. A template the older seeder does not know (such as
+  `visit_guidelines`) stays in the table but is never sent by the older code.
 
 ## Build cache
 
