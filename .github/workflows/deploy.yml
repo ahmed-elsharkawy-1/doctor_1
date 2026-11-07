@@ -231,6 +231,10 @@ jobs:
             docker compose -f compose.prod.yml exec -T app php artisan db:seed --class=MessageTemplateSeeder --force < /dev/null
             docker compose -f compose.prod.yml exec -T app php artisan optimize:clear < /dev/null
             docker compose -f compose.prod.yml exec -T app php artisan filament:optimize < /dev/null
+            # The scheduler was just recreated, so whatever it was running is
+            # gone — but the locks those runs took are not, and would stop
+            # their jobs until they lapse (see routes/console.php).
+            docker compose -f compose.prod.yml exec -T app php artisan schedule:clear-cache < /dev/null
 
             # Every build leaves cache behind (8.8 GB by November 2026) and
             # nothing else clears it. Capped by size, not age: we build several

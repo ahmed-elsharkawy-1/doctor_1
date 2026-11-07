@@ -3,13 +3,22 @@
 use Illuminate\Support\Facades\Schedule;
 
 /*
+| Every job below takes a lock so two runs never overlap. A run killed before
+| it lets go — a deploy restarting the scheduler mid-run — would otherwise
+| keep that lock, and so stop the job, for the default 24 hours: on
+| 7 November 2026 it held back Dr Seham's morning reminder. Each lock now
+| lapses after a few minutes, longer than any honest run takes, and every
+| deploy clears them (deploy.yml, `schedule:clear-cache`).
+*/
+
+/*
 | Runs hourly rather than once at midnight: each clinic is closed out when its
 | own local day has rolled over, so clinics in different timezones stay correct
 | without a schedule entry each. The command is idempotent.
 */
 Schedule::command('clinic:close-day')
     ->hourly()
-    ->withoutOverlapping()
+    ->withoutOverlapping(30)
     ->runInBackground();
 
 /*
@@ -20,7 +29,7 @@ Schedule::command('clinic:close-day')
 */
 Schedule::command('clinic:release-lapsed-holds')
     ->everyMinute()
-    ->withoutOverlapping()
+    ->withoutOverlapping(10)
     ->runInBackground();
 
 /*
@@ -32,12 +41,12 @@ Schedule::command('clinic:release-lapsed-holds')
 */
 Schedule::command('clinic:send-reminders')
     ->everyMinute()
-    ->withoutOverlapping()
+    ->withoutOverlapping(10)
     ->runInBackground();
 
 Schedule::command('clinic:send-daily-reminders')
     ->everyMinute()
-    ->withoutOverlapping()
+    ->withoutOverlapping(10)
     ->runInBackground();
 
 /*
@@ -51,7 +60,7 @@ Schedule::command('clinic:send-reports')
     ->when(fn (): bool => (bool) config('clinic.reports.morning_whatsapp'))
     ->dailyAt(config('clinic.reports.send_at'))
     ->timezone(config('clinic.reports.timezone'))
-    ->withoutOverlapping()
+    ->withoutOverlapping(30)
     ->runInBackground();
 
 /*
@@ -61,5 +70,5 @@ Schedule::command('clinic:send-reports')
 */
 Schedule::command('clinic:close-waiting-lists')
     ->everyFiveMinutes()
-    ->withoutOverlapping()
+    ->withoutOverlapping(10)
     ->runInBackground();
