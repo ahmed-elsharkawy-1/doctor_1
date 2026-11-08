@@ -299,30 +299,63 @@ class WaitingListService
      * The patient is an existing one (`$patientId`) or found or created by
      * phone, as a booking does. Every rule of join() applies; the entry is
      * marked as added by the clinic and records who added it.
+     *
+     * One more, as on the public page: the day must really be full for that
+     * visit type. With a free slot the secretary books them instead; a list
+     * entry there would only end in "no slot opened" on a day that had one.
+     * Checked before a new patient is created, so a refusal leaves nothing.
      */
     public function addByClinic(
         Clinic $clinic,
         User $actor,
         string $date,
+        int $visitTypeId,
         ?int $patientId = null,
         ?string $name = null,
         ?string $phone = null,
-        ?int $visitTypeId = null,
     ): WaitingListEntry {
         $this->assertEnabled($clinic);
+
+        $visitType = $this->activeVisitType($clinic, $visitTypeId);
+        $this->assertDayIsFull($clinic, $visitType, $date);
 
         $patient = $patientId !== null
             ? $this->patients->findById($clinic, $patientId)
             : $this->patients->findOrCreate($clinic, trim((string) $name), $this->patients->parsePhone($clinic, (string) $phone));
 
-        return $this->join(
-            $clinic,
-            $patient,
-            $visitTypeId === null ? null : $this->activeVisitType($clinic, $visitTypeId),
-            $date,
-            BookingSource::CLINIC,
-            $actor,
-        );
+        try {
+            return $this->join($clinic, $patient, $visitType, $date, BookingSource::CLINIC, $actor);
+        } catch (ApiException $e) {
+            // join() words this one to the patient, who is the one leaving.
+            if ($e->errorCode === ApiErrorCode::WAITING_LIST_LEFT_TOO_OFTEN) {
+                throw ApiException::make(
+                    ApiErrorCode::WAITING_LIST_LEFT_TOO_OFTEN,
+                    __('waiting_list.left_too_often_staff'),
+                    details: $e->details,
+                    http: 409,
+                );
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Refuses a day that still has a free slot for this visit type. A day that
+     * is closed or outside the window is left to join(), which refuses it as
+     * closed.
+     */
+    private function assertDayIsFull(Clinic $clinic, VisitType $visitType, string $date): void
+    {
+        $day = Carbon::parse($date, $clinic->timezone)->startOfDay();
+
+        if ($this->slots->for($clinic, $day, $visitType)->hasAvailableSlot()) {
+            throw ApiException::make(
+                ApiErrorCode::WAITING_LIST_DAY_NOT_FULL,
+                __('waiting_list.day_not_full_staff', ['type' => $visitType->name]),
+                http: 409,
+            );
+        }
     }
 
     /** The patient took themselves off. */

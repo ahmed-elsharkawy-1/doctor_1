@@ -24,16 +24,15 @@ class StoreWaitingListEntryController extends V1Controller
     public function __invoke(StoreWaitingListEntryRequest $request): JsonResponse
     {
         $patientId = $request->validated('patient_id');
-        $visitTypeId = $request->validated('visit_type_id');
 
         $entry = $this->waitingList->addByClinic(
             $this->clinic($request),
             $request->user(),
             (string) $request->validated('date'),
+            visitTypeId: (int) $request->validated('visit_type_id'),
             patientId: $patientId === null ? null : (int) $patientId,
             name: $request->validated('patient_name'),
             phone: $request->validated('phone'),
-            visitTypeId: $visitTypeId === null ? null : (int) $visitTypeId,
         );
 
         return ApiResponse::success(

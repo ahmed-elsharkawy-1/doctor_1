@@ -1382,10 +1382,10 @@
                                 "waiting-list"
                             ]
                         },
-                        "description": "For a patient who phoned in for a day that is full. The patient is\n`patient_id`, or `patient_name` and `phone` — found by phone if the\nclinic knows them, created if not, as `POST /bookings` does.\n\nThe same rules as joining online: the clinic's switch is on, the day\nis open, inside the booking window and not over, the list is below\n`max_per_day`, and the patient has no booking that day. The patient is\nsent \"you are on the waiting list\" (`waiting_list_joined`). The entry's\n`source` is `clinic`.\n\nAlready on that day's list: their place comes back with **200** and\nnothing is sent again.",
+                        "description": "For a patient who phoned in for a day that is full. The patient is\n`patient_id`, or `patient_name` and `phone` — found by phone if the\nclinic knows them, created if not, as `POST /bookings` does.\n\nThe same rules as joining online: the clinic's switch is on, the day\nis open, inside the booking window and not over, the list is below\n`max_per_day`, and the patient has no booking that day. And, as on the\npublic page, the day must be **full for that visit type**: with a free\nslot it is refused (`WAITING_LIST_DAY_NOT_FULL`) — book them instead.\nThe patient is\nsent \"you are on the waiting list\" (`waiting_list_joined`). The entry's\n`source` is `clinic`.\n\nAlready on that day's list: their place comes back with **200** and\nnothing is sent again.",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"date\": \"\"\n}\n",
+                            "raw": "{\n    \"date\": \"\",\n    \"visit_type_id\": 1\n}\n",
                             "options": {
                                 "raw": {
                                     "language": "json"

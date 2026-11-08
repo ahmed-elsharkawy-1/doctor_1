@@ -47,6 +47,51 @@
         @endforeach
     </div>
 
+    @if ($canAdd && ! $adding)
+        <div style="margin:0 0 0.85rem">
+            <button type="button" class="btn btn-sm btn-primary" wire:click="startAdding">
+                {{ __('waiting_list.app.add') }}
+            </button>
+        </div>
+    @endif
+
+    @if ($adding)
+        {{-- A patient who phoned in. Only for a full day: the service refuses
+             one with a free slot for that visit type, and says so here. --}}
+        <form class="card" style="padding:1rem;margin:0 0 0.85rem;display:grid;gap:0.6rem" wire:submit="add">
+            <strong>{{ __('waiting_list.app.add_title') }}</strong>
+            <small class="muted">{{ __('waiting_list.app.add_hint') }}</small>
+
+            <label>
+                {{ __('waiting_list.app.add_name') }}
+                <input type="text" wire:model="addName" maxlength="255" required>
+                @error('addName') <small class="flash-err">{{ $message }}</small> @enderror
+            </label>
+
+            <label>
+                {{ __('waiting_list.app.add_phone') }}
+                <input type="tel" dir="ltr" wire:model="addPhone" maxlength="32" required>
+                @error('addPhone') <small class="flash-err">{{ $message }}</small> @enderror
+            </label>
+
+            <label>
+                {{ __('waiting_list.app.add_visit_type') }}
+                <select wire:model="addVisitTypeId" required>
+                    <option value="">—</option>
+                    @foreach ($visitTypes as $type)
+                        <option value="{{ $type->id }}">{{ $type->name }}</option>
+                    @endforeach
+                </select>
+                @error('addVisitTypeId') <small class="flash-err">{{ $message }}</small> @enderror
+            </label>
+
+            <div style="display:flex;gap:0.4rem">
+                <button type="submit" class="btn btn-sm btn-primary">{{ __('waiting_list.app.add_submit') }}</button>
+                <button type="button" class="btn btn-sm" wire:click="cancelAdding">{{ __('app.actions.dismiss') }}</button>
+            </div>
+        </form>
+    @endif
+
     @if ($entries->isEmpty())
         <div class="card empty">{{ __('waiting_list.app.empty') }}</div>
     @else

@@ -684,7 +684,7 @@ class WaitingListTest extends TestCase
 
         Sanctum::actingAs($this->secretary);
 
-        $body = ['date' => self::DAY, 'patient_id' => $patient->id];
+        $body = ['date' => self::DAY, 'patient_id' => $patient->id, 'visit_type_id' => $this->visitType->id];
 
         $first = $this->postJson('/api/v1/waiting-list', $body)->assertCreated()->json('data.id');
 
@@ -706,6 +706,7 @@ class WaitingListTest extends TestCase
         $this->postJson('/api/v1/waiting-list', [
             'date' => self::DAY,
             'patient_id' => Booking::query()->sole()->patient_id,
+            'visit_type_id' => $this->visitType->id,
         ])
             ->assertStatus(409)
             ->assertJsonPath('error.code', ApiErrorCode::WAITING_LIST_ALREADY_BOOKED->value);
@@ -713,13 +714,13 @@ class WaitingListTest extends TestCase
         $this->clinic->update(['waiting_list_max_per_day' => 1]);
         $this->join($this->patient('+201011112222'));
 
-        $this->postJson('/api/v1/waiting-list', ['date' => self::DAY, 'patient_id' => $this->patient()->id])
+        $this->postJson('/api/v1/waiting-list', ['date' => self::DAY, 'patient_id' => $this->patient()->id, 'visit_type_id' => $this->visitType->id])
             ->assertStatus(409)
             ->assertJsonPath('error.code', ApiErrorCode::WAITING_LIST_FULL->value);
 
         $this->clinic->update(['waiting_list_enabled' => false]);
 
-        $this->postJson('/api/v1/waiting-list', ['date' => self::DAY, 'patient_name' => 'جديد', 'phone' => '01066665555'])
+        $this->postJson('/api/v1/waiting-list', ['date' => self::DAY, 'patient_name' => 'جديد', 'phone' => '01066665555', 'visit_type_id' => $this->visitType->id])
             ->assertForbidden()
             ->assertJsonPath('error.code', ApiErrorCode::WAITING_LIST_DISABLED->value);
 
@@ -733,7 +734,7 @@ class WaitingListTest extends TestCase
         $this->postJson('/api/v1/waiting-list', [])
             ->assertUnprocessable();
 
-        $this->postJson('/api/v1/waiting-list', ['date' => self::DAY, 'patient_id' => 999_999])
+        $this->postJson('/api/v1/waiting-list', ['date' => self::DAY, 'patient_id' => 999_999, 'visit_type_id' => $this->visitType->id])
             ->assertNotFound()
             ->assertJsonPath('error.code', ApiErrorCode::PATIENT_NOT_FOUND->value);
 
@@ -749,7 +750,7 @@ class WaitingListTest extends TestCase
 
         Sanctum::actingAs($this->secretary);
 
-        $this->postJson('/api/v1/waiting-list', ['date' => self::DAY, 'patient_id' => $stranger->id])
+        $this->postJson('/api/v1/waiting-list', ['date' => self::DAY, 'patient_id' => $stranger->id, 'visit_type_id' => $this->visitType->id])
             ->assertNotFound();
 
         $this->assertSame(0, WaitingListEntry::query()->count());
@@ -786,5 +787,55 @@ class WaitingListTest extends TestCase
         );
 
         $this->assertFalse($availability->hasAvailableSlot());
+    }
+
+    public function test_adding_needs_the_day_to_be_full_for_that_visit_type(): void
+    {
+        $next = $this->openTheNextDay();
+        $patients = Patient::query()->count();
+
+        Sanctum::actingAs($this->secretary);
+
+        $this->postJson('/api/v1/waiting-list', [
+            'date' => $next,
+            'patient_name' => 'مريض بالتليفون',
+            'phone' => '01077776666',
+            'visit_type_id' => $this->visitType->id,
+        ])
+            ->assertStatus(409)
+            ->assertJsonPath('error.code', ApiErrorCode::WAITING_LIST_DAY_NOT_FULL->value)
+            ->assertJsonPath('message', __('waiting_list.day_not_full_staff', ['type' => $this->visitType->name], 'ar'));
+
+        // Refused before anyone was created.
+        $this->assertSame(0, WaitingListEntry::query()->count());
+        $this->assertSame($patients, Patient::query()->count());
+    }
+
+    public function test_adding_needs_a_visit_type(): void
+    {
+        Sanctum::actingAs($this->secretary);
+
+        $this->postJson('/api/v1/waiting-list', ['date' => self::DAY, 'patient_name' => 'جديد', 'phone' => '01066665555'])
+            ->assertUnprocessable()
+            ->assertJsonStructure(['error' => ['fields' => ['visit_type_id']]]);
+
+        $this->assertSame(0, WaitingListEntry::query()->count());
+    }
+
+    public function test_a_patient_who_left_too_often_is_refused_in_the_secretarys_words(): void
+    {
+        $patient = $this->patient('+201011112222');
+        $service = app(WaitingListService::class);
+
+        foreach ([1, 2] as $time) {
+            $service->leave($this->join($patient));
+        }
+
+        Sanctum::actingAs($this->secretary);
+
+        $this->postJson('/api/v1/waiting-list', ['date' => self::DAY, 'patient_id' => $patient->id, 'visit_type_id' => $this->visitType->id])
+            ->assertStatus(409)
+            ->assertJsonPath('error.code', ApiErrorCode::WAITING_LIST_LEFT_TOO_OFTEN->value)
+            ->assertJsonPath('message', __('waiting_list.left_too_often_staff', [], 'ar'));
     }
 }

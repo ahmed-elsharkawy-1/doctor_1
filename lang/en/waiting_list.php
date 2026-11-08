@@ -28,6 +28,8 @@ return [
     'removed_ok' => 'Removed from the waiting list',
     'added_ok' => 'Added to the waiting list',
     'already_on' => 'The patient is already on that day’s waiting list',
+    'day_not_full_staff' => 'That day still has free :type slots. Book the patient instead of adding them to the waiting list',
+    'left_too_often_staff' => 'This patient has left that day’s waiting list too many times to be added again',
 
     'patient' => [
         'today_full' => 'Today is full',
@@ -63,6 +65,13 @@ return [
         'book' => 'Book them',
         'remove' => 'Remove',
         'remove_confirm' => 'Remove :name from the waiting list?',
+        'add' => 'Add a patient who phoned in',
+        'add_title' => 'Add to the waiting list',
+        'add_hint' => 'For this day only, and only if it is full for that visit type. They get a WhatsApp saying they are on the list.',
+        'add_name' => 'Name',
+        'add_phone' => 'Mobile number',
+        'add_visit_type' => 'Visit type',
+        'add_submit' => 'Add to the list',
         'booking_from_list' => 'Booking :name from the waiting list. They will be told the time was booked from the list instead of the usual confirmation.',
     ],
 ];

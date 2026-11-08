@@ -1359,7 +1359,10 @@ paths:
 
         The same rules as joining online: the clinic's switch is on, the day
         is open, inside the booking window and not over, the list is below
-        `max_per_day`, and the patient has no booking that day. The patient is
+        `max_per_day`, and the patient has no booking that day. And, as on the
+        public page, the day must be **full for that visit type**: with a free
+        slot it is refused (`WAITING_LIST_DAY_NOT_FULL`) — book them instead.
+        The patient is
         sent "you are on the waiting list" (`waiting_list_joined`). The entry's
         `source` is `clinic`.
 
@@ -1372,13 +1375,13 @@ paths:
           application/json:
             schema:
               type: object
-              required: [date]
+              required: [date, visit_type_id]
               properties:
                 date: { type: string, format: date, description: "`YYYY-MM-DD` — the day they want." }
                 patient_id: { type: integer, description: "An existing patient. Or send `patient_name` and `phone`." }
                 patient_name: { type: string, maxLength: 255, description: "Required without `patient_id`." }
                 phone: { type: string, maxLength: 32, description: "Required without `patient_id`." }
-                visit_type_id: { type: integer, description: "Optional. Must be an active visit type." }
+                visit_type_id: { type: integer, description: "Required: whether the day is full depends on it. Must be an active visit type." }
             example:
               date: "2026-09-03"
               patient_name: "فاطمة عبد الرحمن"
@@ -1423,7 +1426,8 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "409":
           description: |
-            `WAITING_LIST_CLOSED`, `WAITING_LIST_FULL`,
+            `WAITING_LIST_DAY_NOT_FULL` (that visit type still has a free slot
+            that day), `WAITING_LIST_CLOSED`, `WAITING_LIST_FULL`,
             `WAITING_LIST_ALREADY_BOOKED` or `WAITING_LIST_LEFT_TOO_OFTEN`.
           content:
             application/json:

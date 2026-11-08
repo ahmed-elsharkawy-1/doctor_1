@@ -7,6 +7,7 @@ use App\Enums\DayOfWeek;
 use App\Enums\WaitingListStatus;
 use App\Livewire\App\NewBooking;
 use App\Livewire\App\WaitingList;
+use App\Models\Booking;
 use App\Models\OutboundMessage;
 use App\Models\Patient;
 use App\Models\VisitType;
@@ -69,17 +70,13 @@ class ClinicAppWaitingListTest extends TestCase
         );
     }
 
-    public function test_the_secretary_sees_who_joined_and_removes_them_but_cannot_add(): void
+    public function test_the_secretary_sees_who_joined_and_removes_them(): void
     {
         $entry = $this->onTheList();
 
         $page = Livewire::actingAs($this->secretary)->test(WaitingList::class)
             ->assertSee('منى السيد')
-            ->assertSee(route('app.bookings.new', ['waiting_list' => $entry->id]))
-            // Patients join themselves, on the public page.
-            ->assertDontSeeHtml('wire:submit="add"');
-
-        $this->assertFalse(method_exists($page->instance(), 'add'));
+            ->assertSee(route('app.bookings.new', ['waiting_list' => $entry->id]));
 
         $page->call('remove', $entry->id)->assertSee(__('waiting_list.app.empty'));
 
@@ -162,5 +159,103 @@ class ClinicAppWaitingListTest extends TestCase
 
         Livewire::actingAs($this->secretary)->test(WaitingList::class)
             ->assertSee(__('waiting_list.app.disabled'));
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Adding a patient who phoned in
+    |--------------------------------------------------------------------------
+    */
+
+    /** One slot, already taken: the day is full for the visit type. */
+    private function fillTheDay(): void
+    {
+        $schedule = $this->clinic->scheduleFor(DayOfWeek::THURSDAY);
+        $schedule->periods()->delete();
+        $schedule->periods()->create([
+            'start_time' => '09:00',
+            'end_time' => Carbon::parse('09:00')->addMinutes($this->visitType->duration_minutes)->format('H:i'),
+        ]);
+
+        Booking::factory()
+            ->forClinic($this->clinic)
+            ->at(Carbon::parse(self::DAY.' 09:00', 'Africa/Cairo'))
+            ->create(['visit_type_id' => $this->visitType->id, 'duration_minutes' => $this->visitType->duration_minutes]);
+    }
+
+    public function test_the_secretary_adds_a_patient_who_phoned_in_for_a_full_day(): void
+    {
+        $this->fillTheDay();
+
+        Livewire::actingAs($this->secretary)->test(WaitingList::class)
+            ->assertSee(__('waiting_list.app.add'))
+            ->call('startAdding')
+            ->assertSeeHtml('wire:submit="add"')
+            ->set('addName', 'مريض بالتليفون')
+            ->set('addPhone', '01077778888')
+            ->set('addVisitTypeId', $this->visitType->id)
+            ->call('add')
+            ->assertSet('failed', false)
+            ->assertSetStrict('notice', __('waiting_list.added_ok'))
+            ->assertSet('adding', false)
+            ->assertSee('مريض بالتليفون')
+            ->assertSee(__('waiting_list.source.clinic'));
+
+        $entry = WaitingListEntry::query()->sole();
+
+        $this->assertSame(BookingSource::CLINIC, $entry->source);
+        $this->assertSame($this->secretary->id, $entry->created_by);
+        $this->assertSame($this->visitType->id, $entry->visit_type_id);
+        $this->assertSame(1, OutboundMessage::query()
+            ->where('waiting_list_entry_id', $entry->id)
+            ->where('template_key', WhatsAppMessagingService::WAITING_LIST_JOINED_KEY)
+            ->count());
+    }
+
+    public function test_a_day_with_a_free_slot_is_refused_and_creates_nobody(): void
+    {
+        $patients = Patient::query()->count();
+
+        Livewire::actingAs($this->secretary)->test(WaitingList::class)
+            ->call('startAdding')
+            ->set('addName', 'مريض بالتليفون')
+            ->set('addPhone', '01077778888')
+            ->set('addVisitTypeId', $this->visitType->id)
+            ->call('add')
+            ->assertSet('failed', true)
+            ->assertSetStrict('notice', __('waiting_list.day_not_full_staff', ['type' => $this->visitType->name]))
+            ->assertSet('adding', true);
+
+        $this->assertSame(0, WaitingListEntry::query()->count());
+        $this->assertSame($patients, Patient::query()->count());
+    }
+
+    public function test_the_form_needs_a_name_a_phone_and_a_visit_type(): void
+    {
+        $this->fillTheDay();
+
+        Livewire::actingAs($this->secretary)->test(WaitingList::class)
+            ->call('startAdding')
+            ->call('add')
+            ->assertHasErrors(['addName', 'addPhone', 'addVisitTypeId']);
+
+        $this->assertSame(0, WaitingListEntry::query()->count());
+    }
+
+    public function test_no_add_button_once_the_list_is_at_its_cap(): void
+    {
+        $this->clinic->update(['waiting_list_max_per_day' => 1]);
+        $this->onTheList();
+
+        Livewire::actingAs($this->secretary)->test(WaitingList::class)
+            ->assertDontSee(__('waiting_list.app.add'));
+    }
+
+    public function test_no_add_button_while_the_list_is_switched_off(): void
+    {
+        $this->clinic->update(['waiting_list_enabled' => false]);
+
+        Livewire::actingAs($this->secretary)->test(WaitingList::class)
+            ->assertDontSee(__('waiting_list.app.add'));
     }
 }
