@@ -31,8 +31,8 @@ use Illuminate\Support\Collection;
  * is still on it is told no slot opened (closeEndedDays).
  *
  * Patients join on the public page (PatientBookingService). The secretary
- * can also put a patient on it from the mobile API (addByClinic) — someone
- * who phoned in for a full day. Both go through join(), so the cap, the lock
+ * can also put a patient on it, from /app or the mobile API (addByClinic) —
+ * someone who phoned in for a full day, today or within the week. Both go through join(), so the cap, the lock
  * and the "you are on the list" message are the same either way.
  */
 class WaitingListService
@@ -191,6 +191,34 @@ class WaitingListService
         return $end !== null && Carbon::now($clinic->timezone)->lt($end);
     }
 
+    /**
+     * The last day the secretary may add to: today and the days after it,
+     * `clinic.waiting_list.clinic_add_days` in all.
+     */
+    public function lastClinicAddDay(Clinic $clinic): Carbon
+    {
+        return $this->slots->today($clinic)
+            ->addDays(max(1, (int) config('clinic.waiting_list.clinic_add_days')) - 1);
+    }
+
+    /**
+     * Whether the secretary may add to this day's list at all: joinable, and
+     * no further ahead than the week. Not whether it is full — that depends
+     * on the visit type, and is asked when she adds.
+     */
+    public function canClinicAddOn(Clinic $clinic, string $date): bool
+    {
+        return $this->isWithinClinicAddWindow($clinic, $date) && $this->isJoinable($clinic, $date);
+    }
+
+    private function isWithinClinicAddWindow(Clinic $clinic, string $date): bool
+    {
+        $day = Carbon::parse($date, $clinic->timezone)->toDateString();
+
+        return $day >= $this->slots->today($clinic)->toDateString()
+            && $day <= $this->lastClinicAddDay($clinic)->toDateString();
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Joining and leaving
@@ -304,6 +332,9 @@ class WaitingListService
      * visit type. With a free slot the secretary books them instead; a list
      * entry there would only end in "no slot opened" on a day that had one.
      * Checked before a new patient is created, so a refusal leaves nothing.
+     *
+     * And the day must be today or within the week after it — however far
+     * the clinic's booking window reaches.
      */
     public function addByClinic(
         Clinic $clinic,
@@ -315,6 +346,7 @@ class WaitingListService
         ?string $phone = null,
     ): WaitingListEntry {
         $this->assertEnabled($clinic);
+        $this->assertWithinClinicAddWindow($clinic, $date);
 
         $visitType = $this->activeVisitType($clinic, $visitTypeId);
         $this->assertDayIsFull($clinic, $visitType, $date);
@@ -338,6 +370,22 @@ class WaitingListService
 
             throw $e;
         }
+    }
+
+    private function assertWithinClinicAddWindow(Clinic $clinic, string $date): void
+    {
+        if ($this->isWithinClinicAddWindow($clinic, $date)) {
+            return;
+        }
+
+        $last = $this->lastClinicAddDay($clinic)->toDateString();
+
+        throw ApiException::make(
+            ApiErrorCode::WAITING_LIST_OUTSIDE_ADD_WINDOW,
+            __('waiting_list.outside_add_window', ['last' => $last]),
+            details: ['last_date' => $last],
+            http: 422,
+        );
     }
 
     /**

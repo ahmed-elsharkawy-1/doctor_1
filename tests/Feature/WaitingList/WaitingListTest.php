@@ -18,6 +18,7 @@ use App\Models\VisitType;
 use App\Models\WaitingListEntry;
 use App\Services\Messaging\OtpSender;
 use App\Services\V1\Booking\BookingService;
+use App\Services\V1\Booking\PatientBookingService;
 use App\Services\V1\Booking\SlotAvailabilityService;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
 use App\Services\V1\Patients\PatientService;
@@ -162,6 +163,53 @@ class WaitingListTest extends TestCase
         $this->verified()
             ->assertViewHas('stage', 'appointment')
             ->assertSee(__('waiting_list.patient.join'));
+    }
+
+    /**
+     * Today is full but not over, and its list is open: that is where the
+     * page opens — not on tomorrow, past the list kept for today — with
+     * tomorrow one tap away.
+     */
+    public function test_a_full_today_with_its_list_open_is_where_the_page_lands(): void
+    {
+        $next = $this->openTheNextDay();
+        $this->clinic->refresh()->load('schedules.periods');
+
+        $service = app(PatientBookingService::class);
+        $this->assertSame(self::DAY, $service->firstBookableDate($this->clinic, $this->visitType));
+
+        Livewire::test(BookVisit::class, ['slug' => $this->clinic->slug])
+            ->call('start')
+            ->set('name', 'فاطمة عبد الرحمن')
+            ->set('phone', self::PHONE)
+            ->call('sendCode')
+            ->set('code', $this->sender->lastCode())
+            ->call('verifyCode')
+            ->assertViewHas('stage', 'appointment')
+            ->assertSet('date', self::DAY)
+            ->assertSee(__('waiting_list.patient.join'))
+            ->assertViewHas('nextFreeDay', fn (?array $day): bool => $day !== null && $day['date']->toDateString() === $next);
+    }
+
+    public function test_a_full_today_with_nothing_to_wait_for_is_still_skipped(): void
+    {
+        $next = $this->openTheNextDay();
+        $this->clinic->refresh()->load('schedules.periods');
+        $service = app(PatientBookingService::class);
+
+        // The list is at its cap.
+        $this->clinic->update(['waiting_list_max_per_day' => 1]);
+        $this->join($this->patient('+201011112222'));
+        $this->assertSame($next, $service->firstBookableDate($this->clinic, $this->visitType));
+
+        // No list at all.
+        $this->clinic->update(['waiting_list_max_per_day' => null, 'waiting_list_enabled' => false]);
+        $this->assertSame($next, $service->firstBookableDate($this->clinic, $this->visitType));
+
+        // The day is over.
+        $this->clinic->update(['waiting_list_enabled' => true]);
+        Carbon::setTestNow(Carbon::parse(self::DAY.' 11:00:00', 'Africa/Cairo'));
+        $this->assertSame($next, $service->firstBookableDate($this->clinic, $this->visitType));
     }
 
     public function test_a_patient_joins_and_is_shown_no_place_number(): void
@@ -809,6 +857,52 @@ class WaitingListTest extends TestCase
         // Refused before anyone was created.
         $this->assertSame(0, WaitingListEntry::query()->count());
         $this->assertSame($patients, Patient::query()->count());
+    }
+
+    /**
+     * Today and the six days after it, however far the booking window
+     * reaches: a week later is refused before anyone is created.
+     */
+    public function test_adding_is_for_today_or_the_week_ahead_only(): void
+    {
+        $this->clinic->update(['booking_window_days' => 14]);
+
+        $weekLater = Carbon::parse(self::DAY)->addDays(7)->toDateString();
+        $lastDay = Carbon::parse(self::DAY)->addDays(6)->toDateString();
+        $patients = Patient::query()->count();
+
+        Sanctum::actingAs($this->secretary);
+
+        // Open, inside the booking window, and not over — but past the week.
+        $this->getJson('/api/v1/waiting-list?date='.$weekLater)
+            ->assertOk()
+            ->assertJsonPath('data.can_add', false);
+
+        $this->postJson('/api/v1/waiting-list', [
+            'date' => $weekLater,
+            'patient_name' => 'مريض بالتليفون',
+            'phone' => '01077776666',
+            'visit_type_id' => $this->visitType->id,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('error.code', ApiErrorCode::WAITING_LIST_OUTSIDE_ADD_WINDOW->value)
+            ->assertJsonPath('error.details.last_date', $lastDay);
+
+        // Nor a day already gone.
+        $this->postJson('/api/v1/waiting-list', [
+            'date' => Carbon::parse(self::DAY)->subDay()->toDateString(),
+            'patient_name' => 'مريض بالتليفون',
+            'phone' => '01077776666',
+            'visit_type_id' => $this->visitType->id,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('error.code', ApiErrorCode::WAITING_LIST_OUTSIDE_ADD_WINDOW->value);
+
+        $this->assertSame(0, WaitingListEntry::query()->count());
+        $this->assertSame($patients, Patient::query()->count());
+
+        // Today is still fine.
+        $this->getJson('/api/v1/waiting-list?date='.self::DAY)->assertJsonPath('data.can_add', true);
     }
 
     public function test_adding_needs_a_visit_type(): void

@@ -30,6 +30,7 @@ return [
     'already_on' => 'The patient is already on that day’s waiting list',
     'day_not_full_staff' => 'That day still has free :type slots. Book the patient instead of adding them to the waiting list',
     'left_too_often_staff' => 'This patient has left that day’s waiting list too many times to be added again',
+    'outside_add_window' => 'Patients can be added to the waiting list from today to :last only',
 
     'patient' => [
         'today_full' => 'Today is full',
@@ -53,6 +54,7 @@ return [
         'leave' => 'Leave the list',
         'left' => 'You have left the waiting list',
         'finish' => 'Done',
+        'next_free_day' => 'Or book the nearest free day: :day :date',
     ],
 
     'app' => [
@@ -68,6 +70,7 @@ return [
         'add' => 'Add a patient who phoned in',
         'add_title' => 'Add to the waiting list',
         'add_hint' => 'For this day only, and only if it is full for that visit type. They get a WhatsApp saying they are on the list.',
+        'outside_add_window' => 'Adding to the waiting list is open from today to :last only.',
         'add_name' => 'Name',
         'add_phone' => 'Mobile number',
         'add_visit_type' => 'Visit type',

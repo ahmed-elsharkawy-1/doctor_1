@@ -514,6 +514,10 @@ return [
         // the "joined" WhatsApp. Leaving counts; being removed by the clinic
         // does not.
         'max_leaves_per_day' => 2,
+        // How far ahead the secretary may put a patient who phoned in: today
+        // and the days after it, this many in all — a week. Whatever the
+        // clinic's booking window, a list is for the days close at hand.
+        'clinic_add_days' => 7,
     ],
 
     /*

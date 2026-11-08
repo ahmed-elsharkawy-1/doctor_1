@@ -20,7 +20,7 @@ final class WaitingListResult extends ServiceResult
         private readonly Clinic $clinic,
         private readonly string $date,
         private readonly Collection $entries,
-        private readonly bool $joinable,
+        private readonly bool $clinicCanAdd,
     ) {}
 
     public function toArray(): array
@@ -30,10 +30,10 @@ final class WaitingListResult extends ServiceResult
             'date' => Wire::date($this->date),
             'max_per_day' => $this->clinic->waitingListMaxPerDay(),
             'count' => $this->entries->count(),
-            // Whether anyone can still be added to this day: open, inside the
-            // window, not over, and not at the cap.
+            // Whether the secretary can still add to this day: open, not over,
+            // today or within the week, and not at the cap.
             'can_add' => $this->clinic->offersWaitingList()
-                && $this->joinable
+                && $this->clinicCanAdd
                 && $this->entries->count() < $this->clinic->waitingListMaxPerDay(),
             'items' => $this->entries
                 ->values()

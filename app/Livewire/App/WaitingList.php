@@ -57,13 +57,15 @@ class WaitingList extends ClinicComponent
         return view('livewire.app.waiting-list', [
             'enabled' => $clinic->offersWaitingList(),
             'entries' => $entries,
-            // As the API's `can_add`: switched on, the day still open, and
-            // below the cap. Whether it is full is asked when she submits.
+            // As the API's `can_add`: switched on, the day still open, within
+            // the week, and below the cap. Whether it is full is asked when
+            // she submits.
             'canAdd' => $clinic->offersWaitingList()
-                && $service->isJoinable($clinic, $this->date)
+                && $service->canClinicAddOn($clinic, $this->date)
                 && $entries->count() < $clinic->waitingListMaxPerDay(),
             'visitTypes' => $clinic->visitTypes()->active()->orderBy('id')->get(),
             'max' => $clinic->waitingListMaxPerDay(),
+            'lastAddDay' => $service->lastClinicAddDay($clinic),
             'days' => app(BookingDaysService::class)->window($clinic),
         ])->title(__('waiting_list.app.title'));
     }

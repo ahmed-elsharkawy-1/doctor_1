@@ -183,6 +183,12 @@ class BookVisit extends Component
         // has a free slot anywhere else would mean querying the day twice.
         $this->openFirstFreeGroup($slotGroups);
 
+        // Only for a selected day with nothing free: what the waiting list
+        // offers there, if anything.
+        $waitingOffer = $stage === 'appointment' && $availability !== null && ! $availability->hasAvailableSlot()
+            ? $this->service()->waitingListOffer($clinic, $this->date)
+            : null;
+
         return view('livewire.patient.book-visit', [
             'clinic' => $clinic,
             'doctor' => $clinic->doctor,
@@ -205,11 +211,11 @@ class BookVisit extends Component
                     ->startAt($clinic, $this->date, (string) $this->startTime)
                     ->toDateString() !== $this->date,
             'upcoming' => $stage === 'upcoming' ? $this->upcoming() : null,
-            // Only for a selected day with nothing free: what the waiting
-            // list offers there, if anything.
-            'waitingOffer' => $stage === 'appointment' && $availability !== null && ! $availability->hasAvailableSlot()
-                ? $this->service()->waitingListOffer($clinic, $this->date)
-                : null,
+            'waitingOffer' => $waitingOffer,
+            // The other way out of a full day: the next one with room.
+            'nextFreeDay' => $waitingOffer === null
+                ? null
+                : $this->service()->nextFreeDay($this->days($clinic), $this->date),
             // Whether a full day may be tapped at all. Without a list there
             // is nothing to do on one, so it stays shut.
             'waitingListOpen' => $clinic->offersWaitingList(),

@@ -53,6 +53,11 @@
                 {{ __('waiting_list.app.add') }}
             </button>
         </div>
+    @elseif ($enabled && $date > $lastAddDay->toDateString())
+        {{-- Past the week: say why there is no add button, rather than none. --}}
+        <p class="muted" style="margin:0 0 0.85rem">
+            {{ __('waiting_list.app.outside_add_window', ['last' => $lastAddDay->format('m/d')]) }}
+        </p>
     @endif
 
     @if ($adding)

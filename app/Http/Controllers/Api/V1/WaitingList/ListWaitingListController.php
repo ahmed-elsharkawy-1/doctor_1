@@ -26,7 +26,7 @@ class ListWaitingListController extends V1Controller
                 $clinic,
                 $date,
                 $this->waitingList->forDay($clinic, $date),
-                $this->waitingList->isJoinable($clinic, $date),
+                $this->waitingList->canClinicAddOn($clinic, $date),
             ))->toArray(),
             __('waiting_list.loaded'),
         );

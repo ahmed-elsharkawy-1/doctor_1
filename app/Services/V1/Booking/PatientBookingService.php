@@ -358,12 +358,19 @@ class PatientBookingService
     }
 
     /**
-     * The first day in the window with something free, or today if none has.
+     * The first day in the window the patient can do something on: a free
+     * slot to book, or a full day whose waiting list they can still join.
+     * Today if there is none.
      *
      * Landing on today regardless meant a patient whose clinic was already
      * booked out arrived on a dead day — selected, empty, and with no hint
      * that the next day was fine. The strip is there to be scanned, not
      * corrected.
+     *
+     * A full day with its list open is not dead, though: skipping it took a
+     * patient who rang for today straight to tomorrow, past the list kept for
+     * exactly them. The page offers the next day with room beside the list.
+     * A day already over, or whose list is at its cap, is still skipped.
      *
      * @param  list<array<string, mixed>>|null  $days  an overview already built
      *                                                 for this clinic and visit
@@ -373,12 +380,43 @@ class PatientBookingService
     public function firstBookableDate(Clinic $clinic, ?VisitType $visitType = null, ?array $days = null): string
     {
         foreach ($days ?? $this->overview($clinic, $visitType) as $day) {
-            if (($day['available_count'] ?? 0) > 0) {
-                return $day['date']->toDateString();
+            if (! $day['is_open']) {
+                continue;
+            }
+
+            $date = $day['date']->toDateString();
+
+            if (($day['available_count'] ?? 0) > 0 || $this->canWaitOn($clinic, $date)) {
+                return $date;
             }
         }
 
         return $clinic->currentDay()->toDateString();
+    }
+
+    /**
+     * The first day after `$date` in the window with a free slot — offered on
+     * a full day, beside its waiting list.
+     *
+     * @param  list<array<string, mixed>>  $days  the overview the page shows
+     */
+    public function nextFreeDay(array $days, string $date): ?array
+    {
+        foreach ($days as $day) {
+            if ($day['date']->toDateString() > $date && ($day['available_count'] ?? 0) > 0) {
+                return $day;
+            }
+        }
+
+        return null;
+    }
+
+    /** A full day a patient could still wait on: list on, day not over, room left. */
+    private function canWaitOn(Clinic $clinic, string $date): bool
+    {
+        return $clinic->offersWaitingList()
+            && $this->waitingList->isJoinable($clinic, $date)
+            && ! $this->waitingList->isFull($clinic, $date);
     }
 
     /**
