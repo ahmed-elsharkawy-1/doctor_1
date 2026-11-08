@@ -1325,9 +1325,9 @@ paths:
         is told no slot opened (`waiting_list_no_slot_opened`).
 
         Patients join the list themselves, on the clinic's public booking
-        page; the clinic cannot add anyone. `enabled` is the clinic's switch,
-        set by a super admin; while it is false nobody can join. Phones are
-        **unmasked**.
+        page, or the secretary adds one with `POST /waiting-list`. `enabled`
+        is the clinic's switch, set by a super admin; while it is false nobody
+        can join. Phones are **unmasked**.
       operationId: waitingList
       parameters:
         - name: date
@@ -1349,6 +1349,90 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
+    post:
+      tags: [Waiting list]
+      summary: Add a patient to the waiting list
+      description: |
+        For a patient who phoned in for a day that is full. The patient is
+        `patient_id`, or `patient_name` and `phone` — found by phone if the
+        clinic knows them, created if not, as `POST /bookings` does.
+
+        The same rules as joining online: the clinic's switch is on, the day
+        is open, inside the booking window and not over, the list is below
+        `max_per_day`, and the patient has no booking that day. The patient is
+        sent "you are on the waiting list" (`waiting_list_joined`). The entry's
+        `source` is `clinic`.
+
+        Already on that day's list: their place comes back with **200** and
+        nothing is sent again.
+      operationId: addWaitingListEntry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date]
+              properties:
+                date: { type: string, format: date, description: "`YYYY-MM-DD` — the day they want." }
+                patient_id: { type: integer, description: "An existing patient. Or send `patient_name` and `phone`." }
+                patient_name: { type: string, maxLength: 255, description: "Required without `patient_id`." }
+                phone: { type: string, maxLength: 32, description: "Required without `patient_id`." }
+                visit_type_id: { type: integer, description: "Optional. Must be an active visit type." }
+            example:
+              date: "2026-09-03"
+              patient_name: "فاطمة عبد الرحمن"
+              phone: "01012225521"
+              visit_type_id: 1
+      responses:
+        "201":
+          description: Added
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/WaitingListEntry" }
+        "200":
+          description: Already on that day's list — their place, unchanged
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/WaitingListEntry" }
+        "400":
+          description: "`VISIT_TYPE_INACTIVE`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`WAITING_LIST_DISABLED`, or the user may not manage bookings"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`PATIENT_NOT_FOUND` or `VISIT_TYPE_NOT_FOUND`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: |
+            `WAITING_LIST_CLOSED`, `WAITING_LIST_FULL`,
+            `WAITING_LIST_ALREADY_BOOKED` or `WAITING_LIST_LEFT_TOO_OFTEN`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "Validation failed, or `INVALID_PHONE_NUMBER`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
 
   /waiting-list/{entry}:
     delete:
