@@ -382,6 +382,18 @@
                                         {{ __('waiting_list.patient.join') }}
                                     </button>
                                 @endif
+
+                                {{-- The page may have opened here rather than on
+                                     the next free day, so that day is one tap away. --}}
+                                @if ($nextFreeDay !== null)
+                                    <button type="button" class="btn btn-outline" style="margin-top: 8px"
+                                            wire:click="selectDay('{{ $nextFreeDay['date']->toDateString() }}')">
+                                        {{ __('waiting_list.patient.next_free_day', [
+                                            'day' => $nextFreeDay['day']->label(),
+                                            'date' => $nextFreeDay['date']->format('j/n'),
+                                        ]) }}
+                                    </button>
+                                @endif
                             </div>
                         @elseif ($availability === null || ! $availability->isOpen || $availability->availableCount() === 0)
                             <div class="note note-plain">

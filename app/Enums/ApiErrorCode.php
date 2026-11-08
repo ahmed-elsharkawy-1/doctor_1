@@ -89,6 +89,8 @@ enum ApiErrorCode: string
     case WAITING_LIST_WRONG_DAY = 'WAITING_LIST_WRONG_DAY';
     // Left that day's list too many times to join it again.
     case WAITING_LIST_LEFT_TOO_OFTEN = 'WAITING_LIST_LEFT_TOO_OFTEN';
+    // The secretary adding past the week ahead (clinic.waiting_list.clinic_add_days).
+    case WAITING_LIST_OUTSIDE_ADD_WINDOW = 'WAITING_LIST_OUTSIDE_ADD_WINDOW';
 
     // A review whose rating needs an explanation, sent without one.
     case REVIEW_COMMENT_REQUIRED = 'REVIEW_COMMENT_REQUIRED';

@@ -1362,6 +1362,10 @@ paths:
         `max_per_day`, and the patient has no booking that day. And, as on the
         public page, the day must be **full for that visit type**: with a free
         slot it is refused (`WAITING_LIST_DAY_NOT_FULL`) — book them instead.
+        The day must also be **today or within the week** (7 days, today
+        included), however far the booking window reaches: past that it is
+        refused with 422 `WAITING_LIST_OUTSIDE_ADD_WINDOW`, whose
+        `details.last_date` is the last day that can be added to.
         The patient is
         sent "you are on the waiting list" (`waiting_list_joined`). The entry's
         `source` is `clinic`.
@@ -1433,7 +1437,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "422":
-          description: "Validation failed, or `INVALID_PHONE_NUMBER`"
+          description: "Validation failed, `INVALID_PHONE_NUMBER`, or `WAITING_LIST_OUTSIDE_ADD_WINDOW` (past the week ahead)"
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2607,7 +2611,7 @@ components:
         count: { type: integer }
         can_add:
           type: boolean
-          description: Enabled, the day is open, not over, inside the window, and below the cap.
+          description: Enabled, the day is open, not over, today or within the week ahead, and below the cap.
         items:
           type: array
           items: { $ref: "#/components/schemas/WaitingListEntry" }
