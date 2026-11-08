@@ -102,7 +102,7 @@ class SendDailyRemindersTest extends TestCase
 
         // The approved template's four values, in its order — no address.
         $this->assertCount(4, $reminder->variables);
-        $this->assertSame('03:00 '.__('schedule.pm'), $reminder->variables[2]);
+        $this->assertSame('3:00 '.__('schedule.pm'), $reminder->variables[2]);
         // No link in the first message — the buttons are the only action.
         $this->assertNull($reminder->button_suffix);
         $this->assertStringNotContainsString('booking/'.$booking->tracking_token, $reminder->rendered_body);

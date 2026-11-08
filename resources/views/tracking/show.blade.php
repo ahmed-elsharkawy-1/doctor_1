@@ -32,12 +32,20 @@
         && $status === BookingStatus::BOOKED
         && $booking->start_at !== null
         && ($isWaiting || $isFirstInLine);
-    // Past the booked time and still not here: "come before" would ask for
-    // the impossible, so the notice says come now. The booked time is the
-    // clinic's wall clock, so it is read in the clinic's timezone.
-    $arrivalLate = $arrival && now()->gt(
-        \Illuminate\Support\Carbon::parse($booking->start_at->format('Y-m-d H:i:s'), $clinic->timezone)
-    );
+    // The booked time is the clinic's wall clock, so it is read in the
+    // clinic's timezone. The notice asks them to be there the clinic's
+    // arrival minutes earlier — the same "30 minutes before" the visit
+    // guidelines WhatsApp gives, as one time rather than a sum to work out.
+    $bookedAt = $arrival
+        ? \Illuminate\Support\Carbon::parse($booking->start_at->format('Y-m-d H:i:s'), $clinic->timezone)
+        : null;
+    $arrivalLead = max(0, (int) $clinic->patient_arrival_lead_minutes);
+    $arriveBy = $bookedAt?->copy()->subMinutes($arrivalLead);
+    // Past the booked time and still not here: "come by" would ask for the
+    // impossible, so the notice says their time has passed, come now.
+    $arrivalLate = $arrival && now()->gt($bookedAt);
+    // Past the arrive-by time but not the booked one: come now, for it.
+    $arrivalNow = $arrival && ! $arrivalLate && now()->gte($arriveBy);
     $isOff = $status->isTerminal() && ! $isDone;
 
     // How far the patient has come, as a fraction of today's queue. The arc
@@ -413,11 +421,27 @@
                 <div class="late-head">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
                     <p>
-                        {{ __($arrivalLate ? 'booking.tracking.arrive_late_title' : 'booking.tracking.arrive_title') }}
-                        <span class="arrive-time">{{ $clock($booking->start_at) }}{{ $booking->startsAfterMidnight() ? ' · '.__('schedule.after_midnight') : '' }}</span>
+                        @if ($arrivalLate || $arrivalNow)
+                            {{ __($arrivalLate ? 'booking.tracking.arrive_late_title' : 'booking.tracking.arrive_now_title') }}
+                            <span class="arrive-time">{{ $clock($booking->start_at) }}{{ $booking->startsAfterMidnight() ? ' · '.__('schedule.after_midnight') : '' }}</span>
+                        @else
+                            {{ __('booking.tracking.arrive_title') }}
+                            {{-- Wall-clock times: the arrive-by minute read the way
+                                 the booked one is. Past midnight only if it is too. --}}
+                            <span class="arrive-time">{{ $clock($booking->start_at->copy()->subMinutes($arrivalLead)) }}{{ $booking->start_at->copy()->subMinutes($arrivalLead)->toDateString() !== $booking->visit_date->toDateString() ? ' · '.__('schedule.after_midnight') : '' }}</span>
+                        @endif
                     </p>
                 </div>
-                <p class="arrive-note">{{ __($arrivalLate ? 'booking.tracking.arrive_late_note' : 'booking.tracking.delay_note') }}</p>
+                <p class="arrive-note">
+                    @if ($arrivalLate || $arrivalNow)
+                        {{ __('booking.tracking.arrive_late_note') }}
+                    @else
+                        {{ __('booking.tracking.arrive_by_note', [
+                            'time' => $clock($booking->start_at),
+                            'lead' => __('messages.minutes', ['count' => $arrivalLead]),
+                        ]) }}
+                    @endif
+                </p>
             </div>
         @endif
 

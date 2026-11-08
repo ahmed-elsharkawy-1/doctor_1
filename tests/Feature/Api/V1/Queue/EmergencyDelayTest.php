@@ -201,7 +201,7 @@ class EmergencyDelayTest extends TestCase
             ->assertStatus(400)
             ->assertJsonPath('error.code', 'DELAY_PAST_END_OF_DAY')
             ->assertJsonPath('error.details.booking_id', $last->id)
-            ->assertJsonPath('message', __('booking.delay.past_end_of_day', ['time' => '06:00']));
+            ->assertJsonPath('message', __('booking.delay.past_end_of_day', ['time' => '6:00']));
 
         $this->assertSame('2026-08-09 04:40', $this->startOf($from));
         $this->assertSame('2026-08-09 05:00', $this->startOf($last));
@@ -386,7 +386,7 @@ class EmergencyDelayTest extends TestCase
         $this->assertSame([
             $from->patient->name,
             '10:00 '.__('schedule.pm'),
-            '09:00 '.__('schedule.pm'),
+            '9:00 '.__('schedule.pm'),
             '+201012345678',
         ], $first->variables);
         $this->assertStringContainsString('booking/'.$from->tracking_token, (string) $first->button_suffix);
@@ -395,7 +395,7 @@ class EmergencyDelayTest extends TestCase
         // gap before it absorbed part of the delay.
         $second = OutboundMessage::where('booking_id', $afterGap->id)->firstOrFail();
         $this->assertSame('10:20 '.__('schedule.pm'), $second->variables[1]);
-        $this->assertSame('09:30 '.__('schedule.pm'), $second->variables[2]);
+        $this->assertSame('9:30 '.__('schedule.pm'), $second->variables[2]);
     }
 
     public function test_with_whatsapp_off_the_times_still_move(): void

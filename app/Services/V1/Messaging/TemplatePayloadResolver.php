@@ -332,7 +332,7 @@ class TemplatePayloadResolver
             default => __('schedule.pm'),
         };
 
-        return $this->clean($at->format('h:i').' '.$meridiem, '—');
+        return $this->clean($at->format('g:i').' '.$meridiem, '—');
     }
 
     /**

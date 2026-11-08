@@ -176,7 +176,7 @@ class DelayService
             if ($end->greaterThan($limit)) {
                 throw ApiException::make(
                     ApiErrorCode::DELAY_PAST_END_OF_DAY,
-                    __('booking.delay.past_end_of_day', ['time' => $limit->format('h:i')]),
+                    __('booking.delay.past_end_of_day', ['time' => $limit->format('g:i')]),
                     details: ['booking_id' => $booking->id, 'ends_at' => $end->format('Y-m-d H:i')],
                 );
             }

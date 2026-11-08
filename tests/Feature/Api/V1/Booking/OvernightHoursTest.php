@@ -398,7 +398,7 @@ class OvernightHoursTest extends TestCase
         $body = $this->confirmation($this->afterMidnight());
 
         $this->assertSame(Carbon::parse('2026-08-10')->locale('ar')->isoFormat('D MMMM YYYY'), $body[1]);
-        $this->assertSame('01:00 بعد منتصف الليل', $body[2]);
+        $this->assertSame('1:00 بعد منتصف الليل', $body[2]);
         $this->assertStringNotContainsString('فجر', implode(' ', $body));
     }
 
@@ -409,7 +409,7 @@ class OvernightHoursTest extends TestCase
         $body = $this->confirmation(Booking::sole());
 
         $this->assertSame(Carbon::parse('2026-08-10')->locale('ar')->isoFormat('D MMMM YYYY'), $body[1]);
-        $this->assertSame('09:00 مساءً', $body[2]);
+        $this->assertSame('9:00 مساءً', $body[2]);
     }
 
     public function test_the_tracking_page_shows_monday_and_after_midnight(): void

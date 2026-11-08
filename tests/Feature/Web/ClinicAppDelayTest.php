@@ -159,7 +159,7 @@ class ClinicAppDelayTest extends TestCase
             ->call('pickMinutes', 60)
             ->call('delay')
             ->assertSet('failed', true)
-            ->assertSet('notice', __('booking.delay.past_end_of_day', ['time' => '06:00']))
+            ->assertSet('notice', __('booking.delay.past_end_of_day', ['time' => '6:00']))
             ->assertSet('result', null);
 
         $this->assertSame('2026-08-09 04:40', $this->startOf($from));

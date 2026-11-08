@@ -148,7 +148,7 @@ class BookingConfirmationMessageTest extends TestCase
         $this->assertCount(5, $variables);
         $this->assertSame('سارة أحمد', $variables[0]);
         $this->assertSame($booking->visit_date->locale('ar')->isoFormat('D MMMM YYYY'), $variables[1]);
-        $this->assertStringContainsString($booking->start_at->format('h:i'), $variables[2]);
+        $this->assertStringContainsString($booking->start_at->format('g:i'), $variables[2]);
         $this->assertSame($this->clinic->doctor->name, $variables[3]);
         $this->assertSame('12 شارع مصدق، الدقي', $variables[4]);
 

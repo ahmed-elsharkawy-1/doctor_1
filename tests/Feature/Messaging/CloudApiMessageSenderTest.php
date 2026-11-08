@@ -322,7 +322,7 @@ class CloudApiMessageSenderTest extends TestCase
             $this->assertCount(4, $parameters);
             $this->assertSame('سارة أحمد', $parameters[0]['text']);
             $this->assertSame('3 سبتمبر 2026', $parameters[1]['text']);
-            $this->assertSame('06:30 مساءً', $parameters[2]['text']);
+            $this->assertSame('6:30 مساءً', $parameters[2]['text']);
 
             return true;
         });
@@ -372,7 +372,7 @@ class CloudApiMessageSenderTest extends TestCase
 
             // Patient, the cancelled date and time, the clinic's phone.
             $this->assertSame(
-                ['سارة أحمد', '3 سبتمبر 2026', '06:30 مساءً', '+201012223344'],
+                ['سارة أحمد', '3 سبتمبر 2026', '6:30 مساءً', '+201012223344'],
                 array_column($bodyComponent['parameters'], 'text'),
             );
 

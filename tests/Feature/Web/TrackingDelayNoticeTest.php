@@ -99,11 +99,11 @@ class TrackingDelayNoticeTest extends TestCase
     public function test_the_threshold_is_exclusive(): void
     {
         // 45 − 30 = 15: not more than 15, so no delay — the arrival notice
-        // instead, and the boxes stay hidden.
+        // instead (at the booked minute: come now), and the boxes stay hidden.
         $this->get($this->lateBy(45)->trackingUrl())
             ->assertOk()
             ->assertDontSee(__('booking.tracking.delay_title'))
-            ->assertSee(__('booking.tracking.arrive_title'))
+            ->assertSee(__('booking.tracking.arrive_now_title'))
             ->assertDontSee(__('booking.tracking.expected_at'))
             ->assertDontSee(__('booking.tracking.your_status'));
     }
@@ -118,16 +118,22 @@ class TrackingDelayNoticeTest extends TestCase
     | before your appointment" with the time they booked.
     */
 
-    public function test_on_time_the_notice_asks_the_patient_to_come_before_the_booked_time(): void
+    public function test_on_time_the_notice_gives_the_time_to_arrive_by(): void
     {
-        $this->now('08:00');
-        $this->booking('08:00');
+        // Booked 08:30, the clinic asks for 30 minutes early: come by 08:00 —
+        // one time, matching the visit guidelines' "30 minutes before".
+        $this->now('07:40');
+        $this->booking('07:00');
         $mine = $this->booking('08:30');
 
         $this->get($mine->trackingUrl())
             ->assertOk()
-            ->assertSeeInOrder([__('booking.tracking.arrive_title'), '8:30 '.__('booking.tracking.am')])
-            ->assertSee(__('booking.tracking.delay_note'))
+            ->assertSeeInOrder([__('booking.tracking.arrive_title'), '8:00 '.__('booking.tracking.am')])
+            ->assertSee(__('booking.tracking.arrive_by_note', [
+                'time' => '8:30 '.__('booking.tracking.am'),
+                'lead' => __('messages.minutes', ['count' => 30]),
+            ]))
+            ->assertDontSee(__('booking.tracking.arrive_now_title'))
             ->assertDontSee(__('booking.tracking.delay_title'))
             ->assertDontSee(__('booking.tracking.expected_at'))
             ->assertDontSee(__('booking.tracking.your_status'));
@@ -139,7 +145,7 @@ class TrackingDelayNoticeTest extends TestCase
         // 40 − 30 = 10, under the threshold; the estimate is 09:40.
         $this->get($this->lateBy(40)->trackingUrl())
             ->assertOk()
-            ->assertSeeInOrder([__('booking.tracking.arrive_title'), '9:00 '.__('booking.tracking.am')])
+            ->assertSeeInOrder([__('booking.tracking.arrive_now_title'), '9:00 '.__('booking.tracking.am')])
             ->assertDontSee('9:40 '.__('booking.tracking.am'));
     }
 
@@ -198,16 +204,42 @@ class TrackingDelayNoticeTest extends TestCase
             ->assertDontSee(__('booking.tracking.arrive_title'));
     }
 
-    /** At the booked minute itself they are not late yet. */
-    public function test_at_the_booked_time_the_notice_still_says_come_before(): void
+    /** At the booked minute itself they are not late yet: come now. */
+    public function test_at_the_booked_time_the_notice_says_come_now_not_late(): void
     {
         $this->now('08:30');
         $mine = $this->booking('08:30');
 
         $this->get($mine->trackingUrl())
             ->assertOk()
-            ->assertSee(__('booking.tracking.arrive_title'))
+            ->assertSeeInOrder([__('booking.tracking.arrive_now_title'), '8:30 '.__('booking.tracking.am')])
+            ->assertSee(__('booking.tracking.arrive_late_note'))
             ->assertDontSee(__('booking.tracking.arrive_late_title'));
+    }
+
+    /** Past the arrive-by time, before the booked one: come now, for 08:30. */
+    public function test_between_the_arrive_by_and_the_booked_time_it_says_come_now(): void
+    {
+        $this->now('08:10');
+        $mine = $this->booking('08:30');
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSeeInOrder([__('booking.tracking.arrive_now_title'), '8:30 '.__('booking.tracking.am')])
+            ->assertDontSee(__('booking.tracking.arrive_title').' ')
+            ->assertDontSee(__('booking.tracking.arrive_late_title'));
+    }
+
+    /** A clinic that asks for no early arrival: come by the booked time. */
+    public function test_with_no_arrival_minutes_the_arrive_by_time_is_the_booked_one(): void
+    {
+        $this->clinic->update(['patient_arrival_lead_minutes' => 0]);
+        $this->now('07:00');
+        $mine = $this->booking('08:30');
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSeeInOrder([__('booking.tracking.arrive_title'), '8:30 '.__('booking.tracking.am')]);
     }
 
     public function test_a_delay_worth_announcing_replaces_the_arrival_notice(): void
@@ -221,7 +253,7 @@ class TrackingDelayNoticeTest extends TestCase
     /** Nobody ahead yet: the same notice, in place of the first-in-line note. */
     public function test_the_first_in_line_gets_the_notice_too(): void
     {
-        $this->now('08:00');
+        $this->now('07:00');
         $mine = $this->booking('08:30');
 
         $this->get($mine->trackingUrl())
