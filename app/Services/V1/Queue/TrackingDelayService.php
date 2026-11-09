@@ -15,6 +15,11 @@ use Illuminate\Support\Carbon;
  * does not change on every refresh. It shows only when that is still more than
  * the clinic's threshold — a small slip is not worth alarming anyone over.
  *
+ * The reduction is a safety margin that gets a patient on the road in time,
+ * so a patient already in the clinic is shown the estimate without it. And the
+ * time shown is never in the past: near the front of the line the reduction
+ * can reach back beyond the present.
+ *
  * Only while someone is still ahead. With nobody ahead the estimate is just
  * "now", so any lateness would be the patient's own, not the clinic's.
  */
@@ -40,10 +45,17 @@ class TrackingDelayService
         $gap = (int) floor($bookedAt->diffInMinutes($position->expectedAt, absolute: false));
 
         $step = max(1, (int) config('clinic.tracking.delay.round_to'));
-        $minutes = (int) (round(($gap - $clinic->trackingDelayReductionMinutes()) / $step) * $step);
+        $reduction = $booking->status === BookingStatus::ARRIVED ? 0 : $clinic->trackingDelayReductionMinutes();
+        $minutes = (int) (round(($gap - $reduction) / $step) * $step);
 
         if ($minutes <= $clinic->trackingDelayThresholdMinutes()) {
             return null;
+        }
+
+        $now = Carbon::now($clinic->timezone);
+
+        if ($bookedAt->copy()->addMinutes($minutes)->lt($now)) {
+            $minutes = (int) (ceil($bookedAt->diffInMinutes($now) / $step) * $step);
         }
 
         $expectedAt = $booking->start_at->copy()->addMinutes($minutes);

@@ -379,10 +379,13 @@
                     </div>
                 </div>
 
+                {{-- "Come before your expected time" is for those still to come. --}}
+                @if ($status === BookingStatus::BOOKED)
                 <p class="late-note">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.4 17a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
                     <span>{{ __('booking.tracking.delay_note') }}</span>
                 </p>
+                @endif
 
                 <script>
                     // Keep the sentence with its delay, and the alert, each on one
@@ -395,6 +398,7 @@
                             { box: notice.querySelector('.late-head'), text: notice.querySelector('.late-head p'), max: 15, min: 11 },
                             { box: notice.querySelector('.late-note'), text: notice.querySelector('.late-note span'), max: 13, min: 10.5 },
                         ];
+                        lines = lines.filter(function (line) { return line.box; });
                         function fit(line) {
                             var size = line.max;
                             line.box.style.fontSize = size + 'px';

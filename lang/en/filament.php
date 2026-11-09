@@ -142,7 +142,7 @@ return [
         'tracking_estimate_enabled' => 'Show the expected time to patients',
         'tracking_estimate_enabled_hint' => "The delay and arrival notices on the patient's tracking page, and the expected time in the secretary's queue search. Works only while the platform setting is on too.",
         'tracking_delay_reduction_minutes' => 'Delay reduction (minutes)',
-        'tracking_delay_reduction_minutes_hint' => "Taken off the estimated lateness before the patient's tracking page shows it. Leave empty for the default.",
+        'tracking_delay_reduction_minutes_hint' => "Taken off the estimated lateness before the patient's tracking page shows it. Not applied to patients already in the clinic. Leave empty for the default.",
         'tracking_delay_threshold_minutes' => 'Delay notice threshold (minutes)',
         'tracking_delay_threshold_minutes_hint' => 'The delay notice shows only when the shown delay is more than this. Leave empty for the default.',
         'slot_step_minutes_auto' => 'Automatic — follows each visit type',

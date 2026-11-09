@@ -85,6 +85,75 @@ class TrackingDelayNoticeTest extends TestCase
             ->assertSee(__('booking.tracking.delay_note'));
     }
 
+    public function test_a_patient_in_the_clinic_sees_the_estimate_without_the_margin(): void
+    {
+        $this->now('10:00');
+        $this->booking('08:00');
+        $this->booking('08:20');
+        $this->booking('08:40');
+        $mine = $this->booking('10:00', 20, ['status' => BookingStatus::ARRIVED, 'arrived_at' => now()]);
+
+        // Gap 60, nothing taken off: expected 11:00.
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(DelayLabel::for(60))
+            ->assertSeeInOrder([__('booking.tracking.delay_expected'), '11:00 '.__('booking.tracking.am')]);
+    }
+
+    public function test_a_patient_in_the_clinic_is_not_told_to_come_early(): void
+    {
+        $this->now('10:00');
+        $this->booking('08:00', 60);
+        $mine = $this->booking('10:00', 20, ['status' => BookingStatus::ARRIVED, 'arrived_at' => now()]);
+
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(__('booking.tracking.delay_title'))
+            ->assertDontSee(__('booking.tracking.delay_note'));
+    }
+
+    public function test_the_clinics_own_margin_applies_only_to_those_still_to_come(): void
+    {
+        $this->clinic->update(['tracking_delay_reduction_minutes' => 15]);
+        $this->now('10:00');
+        $this->booking('08:00', 60);
+        $coming = $this->booking('10:00');
+        $here = $this->booking('10:00', 20, ['status' => BookingStatus::ARRIVED, 'arrived_at' => now()]);
+
+        // One visit of 60 ahead of the first; the other has that and the first.
+        $this->get($coming->trackingUrl())
+            ->assertSeeInOrder([__('booking.tracking.delay_expected'), '10:45 '.__('booking.tracking.am')]);
+        $this->get($here->trackingUrl())
+            ->assertSeeInOrder([__('booking.tracking.delay_expected'), '11:20 '.__('booking.tracking.am')]);
+    }
+
+    public function test_the_time_shown_is_never_in_the_past(): void
+    {
+        $this->now('12:00');
+        $this->booking('08:00');
+        $mine = $this->booking('11:20');
+
+        // Estimate 12:20, gap 60 − 30 = 30: 11:50 has gone, so it says 12:00.
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(DelayLabel::for(40))
+            ->assertSeeInOrder([__('booking.tracking.delay_expected'), '12:00 '.__('booking.tracking.pm')])
+            ->assertSee(__('booking.tracking.delay_note'));
+    }
+
+    public function test_a_past_time_moves_up_to_the_next_five_minutes(): void
+    {
+        $this->now('12:03');
+        $this->booking('08:00');
+        $mine = $this->booking('11:20');
+
+        // Estimate 12:23, gap 63 − 30 = 33, rounded 35: 11:55 has gone.
+        $this->get($mine->trackingUrl())
+            ->assertOk()
+            ->assertSee(DelayLabel::for(45))
+            ->assertSeeInOrder([__('booking.tracking.delay_expected'), '12:05 '.__('booking.tracking.pm')]);
+    }
+
     public function test_while_the_notice_shows_the_two_lower_boxes_are_hidden(): void
     {
         $mine = $this->lateBy(60);
