@@ -231,8 +231,7 @@ class Clinic extends Model
     }
 
     /**
-     * How many slot lengths before the visit the pre-visit reminder goes out.
-     * The lead is this × the booking's own duration.
+     * The turn alert goes out when this many patients or fewer are still ahead.
      */
     public function reminderPosition(): int
     {

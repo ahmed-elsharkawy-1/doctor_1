@@ -68,10 +68,8 @@ return [
         // Thursday opening at 14:00 with a 13:00 reminder time: sent at 08:00.
         'daily_reminder_lead_hours' => (int) env('CLINIC_DAILY_REMINDER_LEAD_HOURS', 6),
         'daily_reminder_earliest' => env('CLINIC_DAILY_REMINDER_EARLIEST', '08:00'),
-        // How many slot lengths before the visit the pre-visit reminder goes
-        // out: position × the booking's own duration. At 3 with 30-minute
-        // visits that is 90 minutes ahead. Editable by the clinic in
-        // Settings → Timing.
+        // The turn alert goes out when this many patients or fewer are still
+        // ahead. Editable by the clinic in Settings → Timing.
         'reminder_position' => (int) env('CLINIC_REMINDER_POSITION', 3),
         // Inside this many minutes of the visit, the reminder's Cancel button
         // is refused and the patient is told to call. Gives the clinic time
