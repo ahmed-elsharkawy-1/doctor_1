@@ -371,8 +371,8 @@ class SendDailyRemindersTest extends TestCase
             WhatsAppMessagingService::REMINDER_KEY,
         )->get());
 
-        // Position 1 of a 20-minute visit: one slot before it.
-        $this->at('14:40');
+        // Nobody ahead and the doctor not started: 15 minutes before the visit.
+        $this->at('14:45');
         $this->artisan('clinic:send-reminders')->assertSuccessful();
         $this->artisan('clinic:send-daily-reminders')->assertSuccessful();
 

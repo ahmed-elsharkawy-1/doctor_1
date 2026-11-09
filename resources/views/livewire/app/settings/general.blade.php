@@ -52,7 +52,7 @@
         <div class="field">
             <label for="reminder-position">{{ __('app.settings.reminder_position') }}</label>
             <input id="reminder-position" type="number" min="1" max="50" wire:model="reminderPosition">
-            <small class="muted">{{ __('app.settings.reminder_position_hint') }}</small>
+            <small class="muted">{{ __('app.settings.reminder_position_hint', ['minutes' => config('clinic.turn_alert.first_patients_lead_minutes')]) }}</small>
             @error('reminderPosition') <div class="err">{{ $message }}</div> @enderror
         </div>
 

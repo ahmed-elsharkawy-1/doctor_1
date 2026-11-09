@@ -79,7 +79,7 @@ class TemplatePayloadResolver
             /*
             | The turn-approaching alert: the patient's name and nothing else.
             | The live count, date and address are on the tracking page. When
-            | it goes out is separate: the clinic's position × slot length,
+            | it goes out is separate: by the live count of patients ahead,
             | see SendBookingRemindersCommand.
             */
             WhatsAppMessagingService::REMINDER_KEY => new TemplatePayload(

@@ -575,9 +575,9 @@ paths:
                   minimum: 1
                   maximum: 50
                   description: |
-                    How many slot lengths before the visit the pre-visit
-                    reminder goes out: this × the booking's own duration.
-                    Defaults to `3`.
+                    The turn alert goes out when this many patients or fewer
+                    are still ahead, once the doctor has started or 15 minutes
+                    before the patient's booked time. Defaults to `3`.
                   example: 3
                 whatsapp_cancel_cutoff_minutes:
                   type: integer
@@ -2103,8 +2103,9 @@ components:
           maximum: 50
           example: 3
           description: |
-            How many slot lengths before the visit the pre-visit reminder goes
-            out: this × the booking's own duration. Defaults to `3`.
+            The turn alert goes out when this many patients or fewer are still
+            ahead, once the doctor has started or 15 minutes before the
+            patient's booked time. Defaults to `3`.
         whatsapp_cancel_cutoff_minutes:
           type: integer
           enum: [0, 30, 60, 90, 120, 180, 240]

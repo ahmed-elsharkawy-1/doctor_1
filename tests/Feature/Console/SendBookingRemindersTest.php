@@ -16,8 +16,9 @@ use Tests\Concerns\InteractsWithClinic;
 use Tests\TestCase;
 
 /**
- * The pre-visit reminder, timed by the clinic's slot position: the reminder
- * goes out `reminderPosition × the booking's own duration` before the visit.
+ * The turn alert: once per booking, when no more than the clinic's position
+ * are still ahead and either the doctor has started or the booked time is
+ * 15 minutes away.
  *
  * `clinic:send-reminders` is the command develop scheduled; the daily one at
  * the clinic's own hour is `clinic:send-daily-reminders` and has its own
@@ -42,7 +43,7 @@ class SendBookingRemindersTest extends TestCase
         $this->clinic->update([
             'address' => '12 شارع مصدق، الدقي',
             'patient_arrival_lead_minutes' => 15,
-            // One slot ahead: the simplest baseline to read the tests against.
+            // One patient ahead: the simplest baseline to read the tests against.
             'reminder_position' => 1,
             // Off on every clinic until a super admin switches it on.
             'pre_visit_reminder_enabled' => true,
@@ -71,6 +72,20 @@ class SendBookingRemindersTest extends TestCase
             ->create();
     }
 
+    private function doctorHasStarted(string $time = '09:00'): Booking
+    {
+        return Booking::factory()
+            ->forClinic($this->clinic)
+            ->at(Carbon::parse(self::DAY." {$time}", 'Africa/Cairo'), 20)
+            ->withDoctor()
+            ->create();
+    }
+
+    private function sweep(): void
+    {
+        $this->artisan('clinic:send-reminders')->assertSuccessful();
+    }
+
     /** @return Collection<int, OutboundMessage> */
     private function reminders()
     {
@@ -83,16 +98,17 @@ class SendBookingRemindersTest extends TestCase
         return $this->reminders()->pluck('booking_id')->sort()->values()->all();
     }
 
-    public function test_the_first_patient_is_reminded_one_slot_before_the_visit(): void
+    public function test_the_first_patient_waits_for_the_booked_time_when_the_doctor_has_not_started(): void
     {
         $booking = $this->bookingAt('15:00');
 
-        $this->at('14:39');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
+        // Nobody is ahead from the start of the day, and that alone is not enough.
+        $this->at('14:44');
+        $this->sweep();
         $this->assertCount(0, $this->reminders());
 
-        $this->at('14:40');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
+        $this->at('14:45');
+        $this->sweep();
 
         $upcoming = $this->reminders()->sole();
 
@@ -109,150 +125,237 @@ class SendBookingRemindersTest extends TestCase
         Queue::assertPushed(SendWhatsAppMessage::class);
     }
 
-    public function test_the_clinic_position_multiplies_the_slot_length(): void
+    public function test_the_lead_before_the_booked_time_is_configurable(): void
     {
-        $this->clinic->update(['reminder_position' => 6]);
+        config(['clinic.turn_alert.first_patients_lead_minutes' => 30]);
 
-        $this->bookingAt('15:00', 30);
+        $this->bookingAt('15:00');
 
-        // Six 30-minute slots ahead: three hours.
-        $this->at('11:59');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
+        $this->at('14:29');
+        $this->sweep();
         $this->assertCount(0, $this->reminders());
 
-        $this->at('12:00');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
+        $this->at('14:30');
+        $this->sweep();
         $this->assertCount(1, $this->reminders());
     }
 
-    public function test_every_patient_is_timed_by_her_own_visit(): void
+    public function test_once_the_doctor_has_started_a_close_patient_does_not_wait_for_the_booked_time(): void
     {
-        $this->clinic->update(['reminder_position' => 2]);
-
-        $first = $this->bookingAt('13:00', 30);
-        $second = $this->bookingAt('14:00', 30);
-        $third = $this->bookingAt('15:00', 30);
-
-        $this->at('11:59');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-        $this->assertCount(0, $this->reminders());
-
-        // Each is reminded two of its own slots ahead of its own start.
-        $this->at('12:00');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-        $this->assertSame([$first->id], $this->remindedBookingIds());
-
-        $this->at('13:00');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-        $this->assertSame([$first->id, $second->id], $this->remindedBookingIds());
-
         $this->at('14:00');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-        $this->assertSame([$first->id, $second->id, $third->id], $this->remindedBookingIds());
-    }
+        $this->doctorHasStarted('14:00');
+        $booking = $this->bookingAt('15:00');
 
-    public function test_each_booking_uses_its_own_slot_length(): void
-    {
-        $this->clinic->update(['reminder_position' => 2]);
+        $this->sweep();
 
-        $long = $this->bookingAt('09:00', 45);
-        $short = $this->bookingAt('10:00', 15);
-
-        // Two 45-minute slots: 90 minutes ahead.
-        $this->at('07:29');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-        $this->assertCount(0, $this->reminders());
-
-        $this->at('07:30');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-        $this->assertSame([$long->id], $this->remindedBookingIds());
-
-        // Two 15-minute slots: only half an hour ahead.
-        $this->at('09:29');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-        $this->assertSame([$long->id], $this->remindedBookingIds());
-
-        $this->at('09:30');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-        $this->assertSame([$long->id, $short->id], $this->remindedBookingIds());
-    }
-
-    /**
-     * The reminder may fall before midnight for a visit just after it. The
-     * day that matters is the visit's, not the clock's.
-     */
-    public function test_a_lead_across_midnight_still_uses_the_visits_own_day(): void
-    {
-        $this->clinic->update(['reminder_position' => 6]);
-
-        $booking = $this->bookingAt('00:30', 30, '2026-09-04');
-
-        $this->at('21:29');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-        $this->assertCount(0, $this->reminders());
-
-        // 21:30 + 6 slots × 30 minutes = 00:30 the next day.
-        $this->at('21:30');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
         $this->assertSame([$booking->id], $this->remindedBookingIds());
     }
 
-    public function test_no_reminder_goes_out_on_the_visits_holiday(): void
+    public function test_a_doctor_who_has_finished_a_patient_has_still_started(): void
     {
-        $this->clinic->update(['reminder_position' => 6]);
+        $this->at('14:00');
+        Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse(self::DAY.' 13:00', 'Africa/Cairo'), 20)
+            ->done()
+            ->create();
+        $booking = $this->bookingAt('15:00');
 
-        ClinicHoliday::factory()->create([
-            'clinic_id' => $this->clinic->id,
-            'date' => '2026-09-04',
-        ]);
-        $this->bookingAt('00:30', 30, '2026-09-04');
+        $this->sweep();
 
-        $this->at('21:30');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
+        $this->assertSame([$booking->id], $this->remindedBookingIds());
+    }
+
+    public function test_a_start_on_another_day_does_not_count(): void
+    {
+        Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-09-02 13:00', 'Africa/Cairo'), 20)
+            ->done()
+            ->create();
+        $this->bookingAt('15:00');
+
+        $this->at('14:00');
+        $this->sweep();
 
         $this->assertCount(0, $this->reminders());
     }
 
-    public function test_a_reminder_is_sent_once(): void
+    public function test_the_alert_follows_the_line_not_the_clock(): void
+    {
+        $this->clinic->update(['reminder_position' => 2]);
+
+        $inside = $this->doctorHasStarted();
+        $first = $this->bookingAt('13:00', 30);
+        $second = $this->bookingAt('14:00', 30);
+        $third = $this->bookingAt('15:00', 30);
+        $fourth = $this->bookingAt('16:00', 30);
+
+        $this->at('12:00');
+        $this->sweep();
+        $this->assertSame([$first->id, $second->id, $third->id], $this->remindedBookingIds());
+
+        // The first goes in: one fewer ahead of the fourth, so it is now due.
+        $inside->update(['status' => 'done', 'completed_at' => now()]);
+        $first->update(['status' => 'with_doctor', 'arrived_at' => now(), 'called_in_at' => now()]);
+
+        $this->sweep();
+        $this->assertSame([$first->id, $second->id, $third->id, $fourth->id], $this->remindedBookingIds());
+    }
+
+    public function test_a_long_late_day_does_not_reach_a_patient_with_too_many_ahead(): void
+    {
+        $this->bookingAt('13:00');
+        $this->bookingAt('13:20');
+        $far = $this->bookingAt('13:40');
+
+        // Past every booked time, but two are still ahead of the last.
+        $this->at('15:00');
+        $this->sweep();
+
+        $this->assertNotContains($far->id, $this->remindedBookingIds());
+    }
+
+    public function test_a_patient_whose_booked_time_has_passed_is_still_alerted(): void
+    {
+        $booking = $this->bookingAt('13:00');
+
+        $this->at('14:30');
+        $this->sweep();
+
+        $this->assertSame([$booking->id], $this->remindedBookingIds());
+    }
+
+    public function test_those_ahead_count_whether_or_not_they_have_arrived(): void
+    {
+        $arrived = Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse(self::DAY.' 13:00', 'Africa/Cairo'), 20)
+            ->arrived()
+            ->create();
+        $onTheWay = $this->bookingAt('13:20');
+        $booking = $this->bookingAt('13:40');
+
+        $this->at('14:00');
+        $this->sweep();
+
+        $this->assertNotContains($booking->id, $this->remindedBookingIds());
+
+        // Someone ahead cancels: one left ahead, so now it is due.
+        $onTheWay->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+        $this->sweep();
+
+        $this->assertContains($booking->id, $this->remindedBookingIds());
+        $this->assertNotContains($arrived->id, $this->remindedBookingIds());
+    }
+
+    public function test_an_emergency_in_the_clinic_counts_as_ahead_and_gets_no_alert(): void
+    {
+        $emergency = Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse(self::DAY.' 13:00', 'Africa/Cairo'), 20)
+            ->arrived()
+            ->create(['booking_kind' => 'emergency']);
+        $onTheWay = Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse(self::DAY.' 13:10', 'Africa/Cairo'), 20)
+            ->create(['booking_kind' => 'emergency']);
+        $first = $this->bookingAt('13:20');
+        $second = $this->bookingAt('13:40');
+
+        $this->at('14:00');
+        $this->sweep();
+
+        // The arrived emergency is ahead of both; the one on the way is ahead
+        // of nobody and, like every emergency, is not messaged.
+        $this->assertSame([$first->id], $this->remindedBookingIds());
+        $this->assertNotContains($emergency->id, $this->remindedBookingIds());
+        $this->assertNotContains($onTheWay->id, $this->remindedBookingIds());
+        $this->assertNotContains($second->id, $this->remindedBookingIds());
+    }
+
+    public function test_a_patient_who_has_arrived_gets_no_alert(): void
+    {
+        Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse(self::DAY.' 13:00', 'Africa/Cairo'), 20)
+            ->arrived()
+            ->create();
+
+        $this->at('13:00');
+        $this->sweep();
+
+        $this->assertCount(0, $this->reminders());
+    }
+
+    public function test_a_booking_made_when_the_turn_is_already_close_is_alerted(): void
+    {
+        $this->at('14:45');
+        $this->doctorHasStarted('14:30');
+        $booking = $this->bookingAt('15:00');
+
+        $this->sweep();
+
+        $this->assertSame([$booking->id], $this->remindedBookingIds());
+    }
+
+    public function test_tomorrows_booking_is_left_alone(): void
+    {
+        $this->doctorHasStarted();
+        $this->bookingAt('15:00', 20, '2026-09-04');
+
+        $this->at('15:00');
+        $this->sweep();
+
+        $this->assertCount(0, $this->reminders());
+    }
+
+    /**
+     * After midnight the visit still belongs to the day it was booked on.
+     */
+    public function test_a_visit_after_midnight_stays_on_its_own_day(): void
+    {
+        $booking = $this->bookingAt('23:50');
+        $booking->update([
+            'start_at' => Carbon::parse('2026-09-04 00:30', 'Africa/Cairo'),
+            'end_at' => Carbon::parse('2026-09-04 00:50', 'Africa/Cairo'),
+        ]);
+
+        $this->at('00:14', '2026-09-04');
+        $this->sweep();
+        $this->assertCount(0, $this->reminders());
+
+        $this->at('00:15', '2026-09-04');
+        $this->sweep();
+        $this->assertSame([$booking->id], $this->remindedBookingIds());
+    }
+
+    public function test_no_alert_goes_out_on_a_holiday(): void
+    {
+        ClinicHoliday::factory()->create([
+            'clinic_id' => $this->clinic->id,
+            'date' => self::DAY,
+        ]);
+        $this->bookingAt('15:00');
+
+        $this->at('15:00');
+        $this->sweep();
+
+        $this->assertCount(0, $this->reminders());
+    }
+
+    public function test_an_alert_is_sent_once(): void
     {
         $this->bookingAt('15:00');
 
-        foreach (['14:35', '14:40', '14:45', '15:00'] as $time) {
+        foreach (['14:35', '15:00', '15:05', '15:30'] as $time) {
             $this->at($time);
-            $this->artisan('clinic:send-reminders')->assertSuccessful();
+            $this->sweep();
         }
 
         $this->assertCount(1, $this->reminders());
-    }
-
-    /** Its confirmation went out a moment ago and says everything it would. */
-    public function test_a_booking_made_after_its_remind_time_gets_no_reminder(): void
-    {
-        $this->at('14:45');
-        $this->bookingAt('15:00');
-
-        $this->at('14:50');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-
-        $this->assertCount(0, $this->reminders());
-    }
-
-    public function test_a_visit_that_already_started_gets_no_reminder(): void
-    {
-        $this->bookingAt('14:50');
-
-        $this->at('14:55');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
-
-        $this->assertCount(0, $this->reminders());
     }
 
     public function test_nothing_goes_to_a_patient_who_has_not_opted_in(): void
     {
         $this->bookingAt('15:00')->patient->update(['whatsapp_opt_in_at' => null]);
 
-        $this->at('14:40');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
+        $this->at('15:00');
+        $this->sweep();
 
         $this->assertCount(0, $this->reminders());
     }
@@ -262,8 +365,8 @@ class SendBookingRemindersTest extends TestCase
         $this->clinic->update(['whatsapp_enabled' => false]);
         $this->bookingAt('15:00');
 
-        $this->at('14:40');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
+        $this->at('15:00');
+        $this->sweep();
 
         $this->assertCount(0, $this->reminders());
     }
@@ -273,8 +376,8 @@ class SendBookingRemindersTest extends TestCase
         $this->clinic->update(['pre_visit_reminder_enabled' => false]);
         $this->bookingAt('15:00');
 
-        $this->at('14:40');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
+        $this->at('15:00');
+        $this->sweep();
 
         $this->assertCount(0, $this->reminders());
     }
@@ -288,8 +391,8 @@ class SendBookingRemindersTest extends TestCase
         $this->clinic->update(['daily_reminder_enabled' => false]);
         $this->bookingAt('15:00');
 
-        $this->at('14:40');
-        $this->artisan('clinic:send-reminders')->assertSuccessful();
+        $this->at('15:00');
+        $this->sweep();
 
         $this->assertCount(1, $this->reminders());
     }

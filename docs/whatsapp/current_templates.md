@@ -174,9 +174,12 @@ line. The headline is now the ask.
 
 ## 4. Turn Approaching Alert: `appointment_reminder_v2`
 
-Sent by `clinic:send-reminders`. It replaced the pre-visit reminder and kept
-its key and timing: `reminder_position × the booking's slot length` minutes
-before the **scheduled** time. Template ID `1172295225303188`.
+Sent by `clinic:send-reminders`, once per booking, on the visit day: when
+`reminder_position` patients or fewer are still ahead (the tracking page's
+count) and either the doctor has started or it is 15 minutes before the
+booked time (`clinic.turn_alert.first_patients_lead_minutes`). Only
+normal bookings not yet arrived. It replaced the pre-visit reminder and kept
+its key. Template ID `1172295225303188`.
 
 ```
 👋 أهلاً {{1}}،

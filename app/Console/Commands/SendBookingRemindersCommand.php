@@ -2,32 +2,43 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
 use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\OutboundMessage;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
+use App\Services\V1\Queue\QueuePositionService;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
- * The app's original reminder, timed by the clinic's slot position.
+ * The turn alert: the message that gets a patient moving to the clinic.
  *
- * Each clinic picks how many slots ahead the reminder goes (Settings →
- * Timing). A booking is reminded `reminderPosition × its own slot length`
- * minutes before the visit: at 6 with 30-minute visits, three hours ahead;
- * at 1, one slot ahead. The slot length is the booking's own, so a 15-minute
- * follow-up is not timed like a 45-minute procedure.
+ * A patient is alerted on the day of the visit, once, when both are true:
  *
- * A booking is reminded at most once: a message already queued for it under
- * the hourly template, whatever became of it, rules it out. So a run that
- * overlaps another, or follows a gap, never sends twice — and a gap is caught
- * up, as long as the appointment is still ahead.
+ *  - no more than the clinic's position are still ahead of them, counted
+ *    exactly as their tracking page counts (QueuePositionService);
+ *  - the doctor has started, or their booked time is a few minutes away
+ *    (clinic.turn_alert.first_patients_lead_minutes).
  *
- * A booking made inside its lead is left alone: its confirmation went out a
- * moment ago and says everything the reminder would.
+ * The clock alone cannot time this: doctors run late, and a patient told to
+ * go now would then wait an hour. The line says how close the turn really is.
+ * But the first patients of the day are close from the start, so without the
+ * second condition they would be alerted first thing in the morning; and if
+ * it were "the doctor has started" alone, they would hear only once the
+ * doctor is already seeing them. Their booked time moves them instead, a
+ * little early, so that "go now" does not arrive when they should be there.
  *
- * Only bookings still `booked`: a patient who has arrived needs no reminder,
- * and a cancelled one must not get one. A closed day has nobody to remind.
+ * A booking is alerted at most once: a message already queued for it under
+ * this template, whatever became of it, rules it out. So a run that overlaps
+ * another, or follows a gap, never sends twice — and a gap is caught up.
+ *
+ * Only normal bookings still `booked`: a patient who has arrived needs no
+ * alert, a cancelled one must not get one, and the clinic deals with an
+ * emergency directly. A booking made when the turn is already close is
+ * alerted straight away, because its confirmation does not say to go now.
+ * A closed day has nobody to alert.
  *
  * Times are stored as the clinic's wall clock, so every comparison here is
  * made in the clinic's own timezone.
@@ -36,7 +47,12 @@ class SendBookingRemindersCommand extends ClinicReminderCommand
 {
     protected $signature = 'clinic:send-reminders {--clinic= : Only this clinic id}';
 
-    protected $description = 'Send the WhatsApp reminder to patients whose visit is a few slots away';
+    protected $description = 'Send the WhatsApp turn alert to patients whose turn is getting close';
+
+    public function __construct(private readonly QueuePositionService $positions)
+    {
+        parent::__construct();
+    }
 
     protected function reminderMethod(): string
     {
@@ -50,75 +66,67 @@ class SendBookingRemindersCommand extends ClinicReminderCommand
 
     protected function due(Clinic $clinic): iterable
     {
-        // Times are stored as the clinic's wall clock.
+        $day = $clinic->currentDay()->toDateString();
+
+        if ($clinic->holidays()->whereDate('date', $day)->exists()) {
+            return [];
+        }
+
+        $queue = $this->positions->today($clinic);
+        $waiting = $this->notYetAlerted($queue);
+
+        if ($waiting->isEmpty()) {
+            return [];
+        }
+
+        // Anyone who has gone in today counts, finished or not.
+        $doctorStarted = $clinic->bookings()->onDate($day)->whereNotNull('called_in_at')->exists();
         $now = Carbon::now($clinic->timezone);
-        $slotsAhead = $clinic->reminderPosition();
 
-        // The furthest a reminder can now be due: the longest visit booked
-        // ahead times the clinic's position. Everything later costs no query.
-        $longestVisit = (int) $clinic->bookings()
-            ->where('status', BookingStatus::BOOKED)
-            ->where('start_at', '>', $now->format('Y-m-d H:i:s'))
-            ->max('duration_minutes');
-
-        if ($longestVisit < 1) {
-            return [];
-        }
-
-        $bookings = $clinic->bookings()
-            ->with('patient')
-            ->where('status', BookingStatus::BOOKED)
-            ->where('start_at', '>', $now->format('Y-m-d H:i:s'))
-            ->where('start_at', '<=', $now->copy()->addMinutes($slotsAhead * $longestVisit)->format('Y-m-d H:i:s'))
-            ->whereNotExists(fn ($query) => $query->from((new OutboundMessage)->getTable())
-                ->whereColumn('booking_id', 'bookings.id')
-                ->where('template_key', WhatsAppMessagingService::REMINDER_KEY))
-            ->get();
-
-        if ($bookings->isEmpty()) {
-            return [];
-        }
-
-        // A long lead can put the reminder before midnight for a visit just
-        // after it, so the holiday that matters is the visit's own day.
-        $holidays = $bookings
-            ->map(fn (Booking $booking): string => $booking->visit_date->toDateString())
-            ->unique()
-            ->filter(fn (string $date): bool => $clinic->holidays()->whereDate('date', $date)->exists());
-
-        return $bookings
-            ->reject(fn (Booking $booking): bool => $holidays->contains($booking->visit_date->toDateString()))
-            ->filter(fn (Booking $booking): bool => $this->isDue($clinic, $booking, $now))
+        return $waiting
+            ->filter(fn (Booking $booking): bool => $this->isDue($clinic, $queue, $booking, $doctorStarted, $now))
             ->values();
     }
 
     /**
-     * Whether this booking's reminder is due now.
+     * @param  Collection<int, Booking>  $queue
+     * @return Collection<int, Booking>
      */
-    private function isDue(Clinic $clinic, Booking $booking, Carbon $now): bool
+    private function notYetAlerted(Collection $queue): Collection
     {
-        if ($booking->status !== BookingStatus::BOOKED || $booking->start_at === null) {
+        $waiting = $queue->filter(fn (Booking $booking): bool => $booking->status === BookingStatus::BOOKED
+            && $booking->booking_kind === BookingKind::NORMAL
+            && $booking->start_at !== null);
+
+        $alerted = OutboundMessage::query()
+            ->whereIn('booking_id', $waiting->pluck('id'))
+            ->where('template_key', WhatsAppMessagingService::REMINDER_KEY)
+            ->pluck('booking_id')
+            ->all();
+
+        return $waiting->reject(fn (Booking $booking): bool => in_array($booking->id, $alerted, true));
+    }
+
+    /**
+     * Whether this booking's alert is due now.
+     *
+     * @param  Collection<int, Booking>  $queue
+     */
+    private function isDue(Clinic $clinic, Collection $queue, Booking $booking, bool $doctorStarted, Carbon $now): bool
+    {
+        $position = $this->positions->within($clinic, $queue, $booking);
+
+        if ($position === null || $position->ahead > $clinic->reminderPosition()) {
             return false;
         }
 
-        $startAt = Carbon::parse($booking->start_at->format('Y-m-d H:i:s'), $clinic->timezone);
-
-        if ($startAt->lte($now)) {
-            return false;
+        if ($doctorStarted) {
+            return true;
         }
 
-        $remindAt = $startAt->copy()->subMinutes(
-            $clinic->reminderPosition() * max(1, (int) $booking->duration_minutes),
-        );
+        $alertFrom = Carbon::parse($booking->start_at->format('Y-m-d H:i:s'), $clinic->timezone)
+            ->subMinutes((int) config('clinic.turn_alert.first_patients_lead_minutes'));
 
-        if ($now->lt($remindAt)) {
-            return false; // not due yet
-        }
-
-        // created_at is stored in the application's clock, which is not
-        // necessarily the clinic's. Compare it in the clinic's.
-        $createdAt = $booking->created_at?->copy()->setTimezone($clinic->timezone);
-
-        return $createdAt !== null && $createdAt->lte($remindAt);
+        return $now->gte($alertFrom);
     }
 }

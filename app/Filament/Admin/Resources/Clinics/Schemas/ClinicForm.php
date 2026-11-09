@@ -330,8 +330,8 @@ class ClinicForm
                         ->default(false)
                         ->helperText(__('filament.clinic.pre_visit_reminder_enabled_hint')),
 
-                    // The pre-visit reminder goes out this many slot lengths
-                    // before the visit: position × the booking's duration.
+                    // The turn alert goes out when this many patients or fewer
+                    // are still ahead (see SendBookingRemindersCommand).
                     // Editable by the clinic later from Settings → Timing.
                     TextInput::make('reminder_position')
                         ->label(__('filament.clinic.reminder_position'))
@@ -340,7 +340,7 @@ class ClinicForm
                         ->maxValue(50)
                         ->required()
                         ->default($defaults['reminder_position'])
-                        ->helperText(__('filament.clinic.reminder_position_hint')),
+                        ->helperText(__('filament.clinic.reminder_position_hint', ['minutes' => config('clinic.turn_alert.first_patients_lead_minutes')])),
 
                     // Same options as Settings → Timing, so a value set here
                     // is always one the clinic's own screen can show.

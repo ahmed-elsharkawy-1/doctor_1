@@ -295,6 +295,15 @@ return [
     ],
 
     /*
+    | The turn alert (SendBookingRemindersCommand). While the doctor has not
+    | started, the first patients of the day are alerted this long before
+    | their booked time.
+    */
+    'turn_alert' => [
+        'first_patients_lead_minutes' => (int) env('CLINIC_TURN_ALERT_LEAD_MINUTES', 15),
+    ],
+
+    /*
     | Patient booking-tracking page (SPEC v1.1 §7).
     |
     | The link goes out over WhatsApp, so the token is the whole secret and
