@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Console;
 
+use App\Enums\DayOfWeek;
 use App\Jobs\SendWhatsAppMessage;
 use App\Models\Booking;
 use App\Models\ClinicHoliday;
@@ -74,11 +75,21 @@ class SendBookingRemindersTest extends TestCase
 
     private function doctorHasStarted(string $time = '09:00'): Booking
     {
+        // Marked in at the visit's own time, not the test's clock.
         return Booking::factory()
             ->forClinic($this->clinic)
             ->at(Carbon::parse(self::DAY." {$time}", 'Africa/Cairo'), 20)
             ->withDoctor()
             ->create();
+    }
+
+    /** The visit day's one period, from this time until late. */
+    private function openFrom(string $time): void
+    {
+        $day = $this->clinic->scheduleFor(DayOfWeek::fromDate(Carbon::parse(self::DAY)));
+        $day->update(['is_open' => true]);
+        $day->periods()->delete();
+        $day->periods()->create(['start_time' => $time, 'end_time' => '23:00']);
     }
 
     private function sweep(): void
@@ -144,6 +155,36 @@ class SendBookingRemindersTest extends TestCase
     {
         $this->at('14:00');
         $this->doctorHasStarted('14:00');
+        $booking = $this->bookingAt('15:00');
+
+        $this->sweep();
+
+        $this->assertSame([$booking->id], $this->remindedBookingIds());
+    }
+
+    /**
+     * Marked in long before the day opens — in the small hours, say, while
+     * closing the night before — it says nothing about the doctor today.
+     */
+    public function test_a_visit_marked_in_long_before_opening_is_not_the_doctor_starting(): void
+    {
+        $this->openFrom('14:00');
+        Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse(self::DAY.' 14:00', 'Africa/Cairo'), 20)
+            ->create(['status' => 'done', 'arrived_at' => Carbon::parse(self::DAY.' 00:53', 'Africa/Cairo'), 'called_in_at' => Carbon::parse(self::DAY.' 00:53', 'Africa/Cairo'), 'completed_at' => Carbon::parse(self::DAY.' 00:53', 'Africa/Cairo')]);
+        $this->bookingAt('15:00');
+
+        $this->at('00:56');
+        $this->sweep();
+
+        $this->assertCount(0, $this->reminders());
+    }
+
+    public function test_a_visit_marked_in_shortly_before_opening_counts(): void
+    {
+        $this->openFrom('14:00');
+        $this->at('13:10');
+        $this->doctorHasStarted('13:10');
         $booking = $this->bookingAt('15:00');
 
         $this->sweep();

@@ -299,6 +299,9 @@ return [
     */
     'turn_alert' => [
         'first_patients_lead_minutes' => (int) env('CLINIC_TURN_ALERT_LEAD_MINUTES', 15),
+        // "The doctor has started" counts patients gone in from this long
+        // before the day's first period opens, not earlier.
+        'started_window_minutes' => 60,
     ],
 
     /*

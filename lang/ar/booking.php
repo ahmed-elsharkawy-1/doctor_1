@@ -9,6 +9,7 @@ return [
     'cancelled_ok' => 'تم إلغاء الحجز',
     'status_updated' => 'تم تحديث حالة الحجز',
     'not_cancellable' => 'لا يمكن إلغاء حجز حالته ":status"',
+    'not_today' => 'الحجز ده يوم :date، ومينفعش تتغير حالته غير في يومه. انقله لليوم الأول.',
     'invalid_transition' => 'لا يمكن نقل الحجز من ":from" إلى ":to" مباشرة',
     'postpone_candidates_loaded' => 'تم تحميل المريضات المتأثرات',
     'postponed' => 'تم تأجيل :count حجز',

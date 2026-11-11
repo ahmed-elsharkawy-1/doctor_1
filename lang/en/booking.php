@@ -9,6 +9,7 @@ return [
     'cancelled_ok' => 'Booking cancelled',
     'status_updated' => 'Booking status updated',
     'not_cancellable' => 'A booking with status ":status" cannot be cancelled',
+    'not_today' => 'This booking is for :date. Its status can only change on that day; move it to today first.',
     'invalid_transition' => 'A booking cannot move from ":from" straight to ":to"',
     'postpone_candidates_loaded' => 'Affected patients loaded',
     'postponed' => ':count bookings postponed',

@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
+use App\Enums\DayOfWeek;
 use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\OutboundMessage;
@@ -79,13 +80,34 @@ class SendBookingRemindersCommand extends ClinicReminderCommand
             return [];
         }
 
-        // Anyone who has gone in today counts, finished or not.
-        $doctorStarted = $clinic->bookings()->onDate($day)->whereNotNull('called_in_at')->exists();
+        $doctorStarted = $this->doctorStarted($clinic, $day);
         $now = Carbon::now($clinic->timezone);
 
         return $waiting
             ->filter(fn (Booking $booking): bool => $this->isDue($clinic, $queue, $booking, $doctorStarted, $now))
             ->values();
+    }
+
+    /**
+     * Whether the doctor has begun the day: someone has gone in, finished or
+     * not — counted only from shortly before the day opens. A visit marked in
+     * the small hours, long before the session, says nothing about it.
+     */
+    private function doctorStarted(Clinic $clinic, string $day): bool
+    {
+        $calls = $clinic->bookings()->onDate($day)->whereNotNull('called_in_at');
+
+        $date = Carbon::parse($day, $clinic->timezone);
+        $schedule = $clinic->scheduleFor(DayOfWeek::fromDate($date));
+        $first = $schedule?->is_open ? $schedule->periods->first() : null;
+
+        if ($first !== null) {
+            [$opens] = $first->boundsOn($date, $clinic->timezone);
+            $from = $opens->copy()->subMinutes((int) config('clinic.turn_alert.started_window_minutes'));
+            $calls->where('called_in_at', '>=', $from->format('Y-m-d H:i:s'));
+        }
+
+        return $calls->exists();
     }
 
     /**

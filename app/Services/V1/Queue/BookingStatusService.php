@@ -129,6 +129,26 @@ class BookingStatusService
      */
     private function advance(Booking $booking, BookingStatus $target, array $attributes): Booking
     {
+        // Arriving, going in and finishing happen on the visit's own day. A
+        // patient who comes on another day is moved to today first; their
+        // booking for that day is never marked. A no-show can still be
+        // recorded after the day — but never before it.
+        $today = $booking->clinic?->currentDay()->toDateString();
+        $visitDay = $booking->visit_date->toDateString();
+        $lateNoShow = $target === BookingStatus::NO_SHOW && $today !== null && $visitDay < $today;
+
+        if ($today !== null && $visitDay !== $today && ! $lateNoShow) {
+            throw ApiException::make(
+                ApiErrorCode::BOOKING_NOT_TODAY,
+                __('booking.not_today', ['date' => $booking->visit_date->toDateString()]),
+                details: [
+                    'visit_date' => $booking->visit_date->toDateString(),
+                    'today' => $today,
+                ],
+                http: 409,
+            );
+        }
+
         if (! $booking->status->canAdvanceTo($target)) {
             throw ApiException::make(
                 ApiErrorCode::INVALID_STATUS_TRANSITION,
