@@ -102,6 +102,13 @@ services:
       dockerfile: Dockerfile
       target: app
     restart: unless-stopped
+    # schedule:work starts every job in the background and never reaps the
+    # children, so as PID 1 it left one dead process per run behind. In about
+    # three days they filled the container's process limit and nothing could
+    # start any more — while the log still said "Running … DONE" (14 Nov
+    # 2026: the morning reminder never went out). A small init as PID 1
+    # reaps them.
+    init: true
     env_file:
       - ${APP_ENV_FILE:-.env}
     environment:
