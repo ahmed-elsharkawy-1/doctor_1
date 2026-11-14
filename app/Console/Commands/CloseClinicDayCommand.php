@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
+use App\Models\Booking;
 use App\Models\Clinic;
 use App\Services\V1\Booking\SlotHoldService;
 use App\Services\V1\Patients\OnlineBookingService;
@@ -92,11 +93,36 @@ class CloseClinicDayCommand extends Command
                 'updated_at' => $now,
             ]);
 
-        // Arrived, or went in, but the visit was never completed — a data-entry
-        // lapse rather than a no-show. Kept out of revenue either way.
+        // Went in to the doctor and was never marked done: the visit happened,
+        // the secretary simply did not tap "done" — usually the night's last
+        // patient. Finished at their call-in time plus the visit's length, not
+        // at the hour this runs, so visit lengths stay true. No message: the
+        // patient left hours ago.
+        $seen = $clinic->bookings()
+            ->whereDate('visit_date', '<', $today)
+            ->where('status', BookingStatus::WITH_DOCTOR)
+            ->where($started)
+            ->get(['id', 'called_in_at', 'duration_minutes']);
+
+        foreach ($seen as $booking) {
+            $finished = $booking->called_in_at === null
+                ? $now->copy()
+                : Carbon::parse($booking->called_in_at->format('Y-m-d H:i:s'), $clinic->timezone)
+                    ->addMinutes(max(0, (int) $booking->duration_minutes))
+                    ->min($now);
+
+            Booking::query()->whereKey($booking->id)->where('status', BookingStatus::WITH_DOCTOR)->update([
+                'status' => BookingStatus::DONE,
+                'completed_at' => $finished->format('Y-m-d H:i:s'),
+                'updated_at' => $now,
+            ]);
+        }
+
+        // Arrived but never went in: they may have left, or been sent away —
+        // a data-entry lapse rather than a no-show. Kept out of revenue.
         $incomplete = $clinic->bookings()
             ->whereDate('visit_date', '<', $today)
-            ->whereIn('status', [BookingStatus::ARRIVED, BookingStatus::WITH_DOCTOR])
+            ->where('status', BookingStatus::ARRIVED)
             ->where($started)
             ->update([
                 'status' => BookingStatus::CANCELLED,
@@ -107,7 +133,7 @@ class CloseClinicDayCommand extends Command
 
         app(OnlineBookingService::class)->checkPatients($clinic, $noShowPatients);
 
-        return $noShows + $incomplete;
+        return $noShows + $seen->count() + $incomplete;
     }
 
     /**

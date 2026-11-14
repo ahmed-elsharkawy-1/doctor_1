@@ -6,6 +6,7 @@ use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Models\Booking;
 use App\Models\Clinic;
+use App\Models\OutboundMessage;
 use App\Models\Specialty;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -126,21 +127,41 @@ class CloseClinicDayTest extends TestCase
     }
 
     /**
-     * She was here, so calling it a no-show would be wrong — but the visit was
-     * never completed, so it must not count as revenue either.
+     * She was here, so calling it a no-show would be wrong — but she never
+     * went in, so it must not count as revenue either.
      */
-    public function test_an_unfinished_visit_is_closed_as_incomplete(): void
+    public function test_an_arrival_who_never_went_in_is_closed_as_incomplete(): void
     {
         $arrived = $this->yesterday(BookingStatus::ARRIVED);
-        $inRoom = $this->yesterday(BookingStatus::WITH_DOCTOR);
 
         $this->artisan('clinic:close-day')->assertSuccessful();
 
-        foreach ([$arrived, $inRoom] as $booking) {
-            $booking->refresh();
-            $this->assertSame(BookingStatus::CANCELLED, $booking->status);
-            $this->assertSame(CancelReason::INCOMPLETE, $booking->cancel_reason);
-        }
+        $arrived->refresh();
+        $this->assertSame(BookingStatus::CANCELLED, $arrived->status);
+        $this->assertSame(CancelReason::INCOMPLETE, $arrived->cancel_reason);
+    }
+
+    /**
+     * Went in and was simply never marked done: the visit happened. Finished
+     * at call-in plus its length, and nobody is messaged at dawn about it.
+     */
+    public function test_a_patient_left_with_the_doctor_is_closed_as_done(): void
+    {
+        $inRoom = Booking::factory()->forClinic($this->clinic)
+            ->at(Carbon::parse('2026-08-08 23:40', 'Africa/Cairo'), 20)
+            ->create([
+                'status' => BookingStatus::WITH_DOCTOR,
+                'arrived_at' => Carbon::parse('2026-08-08 23:30', 'Africa/Cairo'),
+                'called_in_at' => Carbon::parse('2026-08-09 01:20', 'Africa/Cairo'),
+            ]);
+
+        $this->artisan('clinic:close-day')->assertSuccessful();
+
+        $inRoom->refresh();
+        $this->assertSame(BookingStatus::DONE, $inRoom->status);
+        $this->assertNull($inRoom->cancel_reason);
+        $this->assertSame('2026-08-09 01:40', $inRoom->completed_at->format('Y-m-d H:i'));
+        $this->assertSame(0, OutboundMessage::count());
     }
 
     public function test_completed_visits_are_left_alone(): void
