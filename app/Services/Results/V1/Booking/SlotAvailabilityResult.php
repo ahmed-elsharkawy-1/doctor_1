@@ -25,7 +25,12 @@ final class SlotAvailabilityResult extends ServiceResult
             'visit_type' => [
                 'id' => $availability->visitType->id,
                 'name' => $availability->visitType->name,
-                'duration_minutes' => $availability->visitType->duration_minutes,
+                // This date's length, which a clinic may have set apart
+                // from the visit type's usual one — the slots follow it.
+                'duration_minutes' => $availability->visitType->clinic->visitMinutesOn(
+                    $availability->date,
+                    $availability->visitType,
+                ),
             ],
             'available_count' => $availability->availableCount(),
             // The full list, taken slots included — the UI greys and strikes

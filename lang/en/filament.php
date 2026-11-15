@@ -178,6 +178,14 @@ return [
             'details' => 'Clinic details',
             'settings' => 'Clinic settings',
             'settings_hint' => 'Seeded from system defaults; the clinic owner can change them afterwards.',
+            'visit_length_days' => 'Days with a special visit length',
+            'visit_length_days_hint' => 'On these dates only, every visit (check-up, follow-up and the rest) takes the length set here, and the slots follow it. Every other day is unchanged, and nothing needs switching back once the date has passed.',
+        ],
+        'visit_length_day' => [
+            'date' => 'Date',
+            'minutes' => 'Visit length (minutes)',
+            'add' => 'Add a day',
+            'existing_bookings' => ':count booking(s) already on this day keep their time and length; the new length applies to new bookings only.',
         ],
     ],
 

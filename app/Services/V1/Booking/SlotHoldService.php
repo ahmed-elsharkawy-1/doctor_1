@@ -78,7 +78,7 @@ class SlotHoldService
                 'visit_type_id' => $visitType->id,
                 'visit_date' => $day->toDateString(),
                 'start_at' => $startAt,
-                'end_at' => $startAt->copy()->addMinutes($visitType->duration_minutes),
+                'end_at' => $startAt->copy()->addMinutes($clinic->visitMinutesOn($day, $visitType)),
                 'source' => $source,
                 'created_by' => $actor?->id,
                 'expires_at' => $this->expiry(),

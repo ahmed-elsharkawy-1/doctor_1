@@ -497,7 +497,13 @@ When the day yields nothing, `is_open` is `false`, `slots` is `[]`, and
 
 Rules the server applies, so the app doesn't have to:
 
-- Start times step by the clinic's `slot_step_minutes` (default 10).
+- Start times step by the clinic's `slot_step_minutes`, or by the visit's
+  length when that is not set.
+- **A clinic can give a date its own visit length** (for example 20 minutes on
+  a few busy days instead of the usual 10). On that date every visit type
+  takes that length: `visit_type.duration_minutes` here reports it, the slots
+  follow it, and a booking made for that date is saved with it. Never assume
+  a visit type's length from another day — read it from this response.
 - A visit must **finish** inside the period — 11:50 is not offered for a
   20-minute visit when the clinic closes at 12:00.
 - A slot is unavailable if it overlaps any existing booking of **any** visit

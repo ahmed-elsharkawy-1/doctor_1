@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Filament\Admin\Resources\Users\UserResource;
 use App\Models\Clinic;
 use App\Models\User;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -355,7 +356,54 @@ class ClinicForm
                         ->helperText(__('filament.clinic.whatsapp_cancel_cutoff_minutes_hint')),
                 ])
                 ->columns(2),
+
+            Section::make(__('filament.clinic.section.visit_length_days'))
+                ->description(__('filament.clinic.section.visit_length_days_hint'))
+                ->schema([
+                    Repeater::make('visitLengthDays')
+                        ->hiddenLabel()
+                        ->relationship()
+                        ->defaultItems(0)
+                        ->schema([
+                            DatePicker::make('date')
+                                ->label(__('filament.clinic.visit_length_day.date'))
+                                ->required()
+                                ->distinct()
+                                ->live()
+                                // Bookings already there keep their own times;
+                                // say so before the day is saved.
+                                // Inside the repeater `$record` is the row, so
+                                // the clinic comes from the page being edited.
+                                ->helperText(fn (?string $state, mixed $livewire): ?string => self::bookingsAlreadyOn(
+                                    method_exists($livewire, 'getRecord') ? $livewire->getRecord() : null,
+                                    $state,
+                                )),
+
+                            TextInput::make('minutes')
+                                ->label(__('filament.clinic.visit_length_day.minutes'))
+                                ->numeric()
+                                ->integer()
+                                ->minValue(5)
+                                ->maxValue(240)
+                                ->required(),
+                        ])
+                        ->columns(2)
+                        ->addActionLabel(__('filament.clinic.visit_length_day.add')),
+                ]),
         ]);
+    }
+
+    private static function bookingsAlreadyOn(mixed $clinic, ?string $date): ?string
+    {
+        if (! $clinic instanceof Clinic || blank($date)) {
+            return null;
+        }
+
+        $count = $clinic->bookings()->onDate($date)->occupyingSlot()->count();
+
+        return $count > 0
+            ? __('filament.clinic.visit_length_day.existing_bookings', ['count' => $count])
+            : null;
     }
 
     private static function owner(?Clinic $clinic): ?User

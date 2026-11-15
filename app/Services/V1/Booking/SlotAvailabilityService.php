@@ -171,7 +171,8 @@ class SlotAvailabilityService
      */
     private function candidates(Clinic $clinic, Carbon $date, ClinicSchedulePeriod $period, VisitType $visitType): array
     {
-        $duration = $visitType->duration_minutes;
+        // The clinic may have given this date its own length (Clinic::visitMinutesOn).
+        $duration = $clinic->visitMinutesOn($date, $visitType);
 
         // The grid follows the visit unless the clinic has deliberately asked
         // for rolling start times. Stepping by anything shorter than the visit

@@ -63,6 +63,7 @@ class BookingService
 
             $patient = $this->patientFor($clinic, $data, $phone);
             $now = Carbon::now($clinic->timezone);
+            $minutes = $clinic->visitMinutesOn($this->clinicDate($clinic, $data->date), $visitType);
             $startsInsideClinic = $data->bookingKind === BookingKind::EMERGENCY
                 && $data->patientLocation === PatientLocation::INSIDE_CLINIC;
 
@@ -72,10 +73,10 @@ class BookingService
                 'visit_type_id' => $visitType->id,
                 'visit_date' => $this->clinicDate($clinic, $data->date)->toDateString(),
                 'start_at' => $startAt,
-                'end_at' => $startAt?->copy()->addMinutes($visitType->duration_minutes),
+                'end_at' => $startAt?->copy()->addMinutes($minutes),
                 // Frozen at creation — a later price or duration change must
                 // not rewrite this booking (SPEC §3.3).
-                'duration_minutes' => $visitType->duration_minutes,
+                'duration_minutes' => $minutes,
                 'price' => $visitType->price,
                 'status' => $startsInsideClinic ? BookingStatus::ARRIVED : BookingStatus::BOOKED,
                 'booking_kind' => $data->bookingKind,
@@ -160,6 +161,7 @@ class BookingService
 
             $patient = $this->patientFor($clinic, $data, $phone);
             $now = Carbon::now($clinic->timezone);
+            $minutes = $clinic->visitMinutesOn($this->clinicDate($clinic, $data->date), $visitType);
             $startsInsideClinic = $booking->status === BookingStatus::BOOKED
                 && $data->bookingKind === BookingKind::EMERGENCY
                 && $data->patientLocation === PatientLocation::INSIDE_CLINIC;
@@ -171,8 +173,8 @@ class BookingService
                 'visit_type_id' => $visitType->id,
                 'visit_date' => $this->clinicDate($clinic, $data->date)->toDateString(),
                 'start_at' => $startAt,
-                'end_at' => $startAt?->copy()->addMinutes($visitType->duration_minutes),
-                'duration_minutes' => $visitType->duration_minutes,
+                'end_at' => $startAt?->copy()->addMinutes($minutes),
+                'duration_minutes' => $minutes,
                 'price' => $visitType->price,
                 'status' => $startsInsideClinic ? BookingStatus::ARRIVED : $booking->status,
                 'booking_kind' => $data->bookingKind,

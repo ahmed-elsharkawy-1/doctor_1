@@ -357,6 +357,26 @@ class Clinic extends Model
         return $this->hasMany(ClinicHoliday::class)->orderBy('date');
     }
 
+    /** @return HasMany<ClinicVisitLengthDay, $this> */
+    public function visitLengthDays(): HasMany
+    {
+        return $this->hasMany(ClinicVisitLengthDay::class)->orderBy('date');
+    }
+
+    /**
+     * How long a visit of this type takes on this clinic date: the date's own
+     * length when the clinic has set one, the visit type's otherwise. The
+     * slot grid, holds and bookings all ask here, so they always agree.
+     */
+    public function visitMinutesOn(Carbon|string $date, VisitType $visitType): int
+    {
+        $day = $date instanceof Carbon ? $date->toDateString() : Carbon::parse($date)->toDateString();
+
+        $minutes = $this->visitLengthDays()->whereDate('date', $day)->value('minutes');
+
+        return $minutes !== null ? (int) $minutes : $visitType->duration_minutes;
+    }
+
     /** @return HasMany<Patient, $this> */
     public function patients(): HasMany
     {
