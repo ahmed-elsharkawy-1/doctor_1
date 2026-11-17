@@ -8,6 +8,9 @@ use App\Services\Messaging\LogOtpSender;
 use App\Services\Messaging\MessageSender;
 use App\Services\Messaging\OtpSender;
 use App\Services\Messaging\ZadxOtpSender;
+use App\Services\Settings\SystemSettings;
+use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -40,6 +43,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Project settings saved on the admin page sit over .env. A worker
+        // boots once and lives for hours, so it re-reads before each job.
+        $settings = $this->app->make(SystemSettings::class);
+        $settings->apply();
+        Event::listen(JobProcessing::class, fn () => $settings->apply());
     }
 }

@@ -39,13 +39,13 @@ class OtpSettingsTest extends TestCase
     {
         Livewire::test(SystemSettingsPage::class)
             ->assertOk()
-            ->assertSchemaStateSet(['require_otp' => true]);
+            ->assertSchemaStateSet(['self_booking.require_otp' => true]);
     }
 
     public function test_the_admin_switches_otp_off_for_the_whole_project(): void
     {
         Livewire::test(SystemSettingsPage::class)
-            ->fillForm(['require_otp' => false])
+            ->fillForm(['self_booking.require_otp' => false])
             ->call('save')
             ->assertHasNoFormErrors();
 

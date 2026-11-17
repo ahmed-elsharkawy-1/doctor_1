@@ -3,11 +3,71 @@
 return [
     'system_settings' => [
         'title' => 'System settings',
+        'subheading' => 'Settings for every clinic. Each field shows the value in use now; saving applies a change at once, and anything left unchanged keeps following the server setting.',
         'section' => [
             'self_booking' => 'Online booking',
+            'no_show_block' => 'No-show booking block',
+            'no_show_block_hint' => 'The rule for every clinic that has the block switched on.',
+            'queue' => 'Tracking page and queue',
+            'reports' => 'Morning report',
+            'site' => 'Public website contacts',
+            'site_hint' => 'Shown on elayadah.com. An empty field shows no button.',
         ],
-        'require_otp' => 'Ask for an SMS code in every clinic',
-        'require_otp_hint' => 'Off skips the code step on every clinic\'s booking page at once — use it when the SMS service is down. On lets each clinic decide on its own page.',
+        'fields' => [
+            'self_booking' => [
+                'require_otp' => 'Ask for an SMS code in every clinic',
+                'show_price' => 'Show the visit price on the booking page',
+                'otp' => [
+                    'resend_cooldown' => 'Wait before a code can be resent (seconds)',
+                    'max_per_phone_hour' => 'Max codes per number per hour',
+                    'max_per_ip_hour' => 'Max codes per device per hour',
+                ],
+                'no_show_block' => [
+                    'threshold' => 'No-shows that block',
+                    'window_days' => 'Within how many days',
+                ],
+            ],
+            'tracking' => ['show_estimate' => 'Allow the expected time (master switch)'],
+            'turn_alert' => ['first_patients_lead_minutes' => 'Turn alert for the first patients, minutes before their time'],
+            'waiting_list' => ['max_per_day' => 'Default waiting-list limit per day'],
+            'reports' => [
+                'morning_whatsapp' => 'Send the morning report on WhatsApp',
+                'send_at' => 'Report send time',
+            ],
+            'site' => [
+                'whatsapp' => 'WhatsApp',
+                'phone' => 'Phone',
+                'email' => 'Email',
+                'social' => [
+                    'facebook' => 'Facebook link',
+                    'instagram' => 'Instagram link',
+                    'linkedin' => 'LinkedIn link',
+                ],
+                'show_login' => 'Show the clinic sign-in button',
+            ],
+        ],
+        'hints' => [
+            'self_booking' => [
+                'require_otp' => 'Off skips the code step on every clinic\'s booking page at once — use it when the SMS service is down. On lets each clinic decide on its own page.',
+                'show_price' => 'Clients see each visit type\'s price while booking.',
+                'otp' => [
+                    'resend_cooldown' => 'How long a client waits before asking for a new code.',
+                    'max_per_phone_hour' => 'Protects the SMS balance from repeated requests to one number.',
+                    'max_per_ip_hour' => 'Protects the SMS balance from one device asking for many numbers.',
+                ],
+                'no_show_block' => [
+                    'threshold' => 'A client is blocked from online booking on reaching this many.',
+                    'window_days' => 'Only no-shows within this many days count.',
+                ],
+            ],
+            'tracking' => ['show_estimate' => 'Off hides the expected time in every clinic. On lets each clinic decide on its page.'],
+            'turn_alert' => ['first_patients_lead_minutes' => 'For the first patients of the day, the alert goes this long before their booked time.'],
+            'waiting_list' => ['max_per_day' => 'For clinics without their own limit.'],
+            'reports' => [
+                'morning_whatsapp' => 'Sent to the allowed accounts of clinics with the report switched on.',
+                'send_at' => 'Cairo time.',
+            ],
+        ],
         'save' => 'Save',
         'saved' => 'Settings saved',
     ],
