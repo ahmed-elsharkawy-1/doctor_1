@@ -45,6 +45,7 @@ class Clinic extends Model
         'pre_visit_reminder_enabled',
         'whatsapp_cancel_cutoff_minutes',
         'self_booking_enabled',
+        'otp_required',
         'no_show_block_enabled',
         'waiting_list_enabled',
         'waiting_list_max_per_day',
@@ -86,6 +87,7 @@ class Clinic extends Model
         return [
             'is_active' => 'boolean',
             'self_booking_enabled' => 'boolean',
+            'otp_required' => 'boolean',
             'no_show_block_enabled' => 'boolean',
             'waiting_list_enabled' => 'boolean',
             'waiting_list_max_per_day' => 'integer',

@@ -180,6 +180,13 @@ class ClinicForm
                         ->default(false)
                         ->helperText(__('filament.clinic.self_booking_enabled_hint')),
 
+                    // This clinic only; the project switch on the system
+                    // settings page still turns it off everywhere.
+                    Toggle::make('otp_required')
+                        ->label(__('filament.clinic.otp_required'))
+                        ->default(true)
+                        ->helperText(__('filament.clinic.otp_required_hint')),
+
                     // Blocks a patient from the public page after repeated
                     // no-shows. Off until somebody decides this clinic gets
                     // it; the clinic can still block or allow anyone by hand.

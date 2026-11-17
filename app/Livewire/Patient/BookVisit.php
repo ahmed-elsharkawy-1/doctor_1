@@ -232,11 +232,11 @@ class BookVisit extends Component
             'stepNumber' => match ($stage) {
                 'details' => 1,
                 'code' => 2,
-                'appointment' => $this->service()->requiresOtp() ? 3 : 2,
+                'appointment' => $this->service()->requiresOtp($this->clinic()) ? 3 : 2,
                 default => null,
             },
-            'stepCount' => $this->service()->requiresOtp() ? 3 : 2,
-            'requiresOtp' => $this->service()->requiresOtp(),
+            'stepCount' => $this->service()->requiresOtp($this->clinic()) ? 3 : 2,
+            'requiresOtp' => $this->service()->requiresOtp($this->clinic()),
             'sendsWhatsApp' => $clinic->sendsWhatsApp(),
             'otpChannel' => $this->service()->otpChannel(),
             'holdMinutes' => (int) config('clinic.self_booking.hold_ttl_minutes'),
@@ -274,7 +274,7 @@ class BookVisit extends Component
                 2 => 'details',
                 // Never the code screen when there is no code to ask for —
                 // $step is client-editable, so this is a guard, not a branch.
-                3 => $this->service()->requiresOtp() ? 'code' : 'details',
+                3 => $this->service()->requiresOtp($this->clinic()) ? 'code' : 'details',
                 default => 'overview',
             };
         }
@@ -353,7 +353,7 @@ class BookVisit extends Component
         // the action had set it.
         $notice = function () use (&$sent): ?string {
             return match (true) {
-                ! $this->service()->requiresOtp() => null,
+                ! $this->service()->requiresOtp($this->clinic()) => null,
                 $sent => __('patient.otp.sent'),
                 default => __('patient.otp.still_valid'),
             };
@@ -365,7 +365,7 @@ class BookVisit extends Component
             // Verification switched off: the number is parsed and believed,
             // and the patient goes straight to choosing a time. Same session,
             // same guards after this point — only the proof is missing.
-            if (! $this->service()->requiresOtp()) {
+            if (! $this->service()->requiresOtp($this->clinic())) {
                 $this->service()->acceptPhoneUnverified($clinic, $this->phone);
                 $this->startPickingATime($clinic);
 

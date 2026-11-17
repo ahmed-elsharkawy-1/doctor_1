@@ -209,7 +209,7 @@ class BookingWithoutOtpTest extends TestCase
     {
         config(['clinic.self_booking.require_otp' => true]);
 
-        $this->assertTrue(app(PatientBookingService::class)->requiresOtp());
+        $this->assertTrue(app(PatientBookingService::class)->requiresOtp($this->clinic));
 
         $this->details()->assertViewHas('stage', 'code');
     }

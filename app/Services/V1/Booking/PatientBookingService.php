@@ -13,6 +13,7 @@ use App\Models\Clinic;
 use App\Models\Patient;
 use App\Models\VisitType;
 use App\Models\WaitingListEntry;
+use App\Services\Settings\SystemSettings;
 use App\Services\V1\Patients\OnlineBookingService;
 use App\Services\V1\Patients\PatientService;
 use App\Services\V1\Patients\PhoneVerificationService;
@@ -50,6 +51,7 @@ class PatientBookingService
         private readonly QrScanService $qrScans,
         private readonly OnlineBookingService $onlineBooking,
         private readonly WaitingListService $waitingList,
+        private readonly SystemSettings $settings,
     ) {}
 
     /*
@@ -332,11 +334,6 @@ class PatientBookingService
      * own idea of which step it is on.
      */
     /**
-     * Whether a patient has to prove the number before booking.
-     *
-     * See config('clinic.self_booking.require_otp') for why this can be off.
-     */
-    /**
      * What the patient should be told the code arrives by.
      *
      * Derived from the bound driver rather than written into the copy, so the
@@ -442,9 +439,15 @@ class PatientBookingService
         return $this->grouper->group($availability->slots, $periods);
     }
 
-    public function requiresOtp(): bool
+    /**
+     * Whether a patient booking with this clinic has to prove the number.
+     *
+     * The project's switch first — off is off everywhere, pulled when the SMS
+     * provider is down — then the clinic's own (SystemSettings, Clinic).
+     */
+    public function requiresOtp(Clinic $clinic): bool
     {
-        return (bool) config('clinic.self_booking.require_otp');
+        return $this->settings->requireOtp() && $clinic->otp_required;
     }
 
     /**
@@ -462,7 +465,7 @@ class PatientBookingService
     {
         $this->assertOpen($clinic);
 
-        if ($this->requiresOtp()) {
+        if ($this->requiresOtp($clinic)) {
             throw new \LogicException(
                 'Refusing to skip phone verification while it is switched on.',
             );

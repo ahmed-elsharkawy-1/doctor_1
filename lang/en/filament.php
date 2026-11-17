@@ -1,6 +1,17 @@
 <?php
 
 return [
+    'system_settings' => [
+        'title' => 'System settings',
+        'section' => [
+            'self_booking' => 'Online booking',
+        ],
+        'require_otp' => 'Ask for an SMS code in every clinic',
+        'require_otp_hint' => 'Off skips the code step on every clinic\'s booking page at once — use it when the SMS service is down. On lets each clinic decide on its own page.',
+        'save' => 'Save',
+        'saved' => 'Settings saved',
+    ],
+
     'nav' => [
         'platform' => 'Platform',
         'reports' => 'Reports',
@@ -103,6 +114,8 @@ return [
         'country_code' => 'Country',
         'booking_window_days' => 'Booking window (days)',
         'self_booking_enabled' => 'Let patients book themselves',
+        'otp_required' => 'Ask for an SMS code when booking online',
+        'otp_required_hint' => 'The code arrives by SMS before the time is picked. If the project switch on «System settings» is off, no clinic asks for a code, whatever this says.',
         'whatsapp_enabled' => 'Send WhatsApp messages to patients',
         'is_test' => 'Test clinic',
         'is_test_hint' => 'For testing only: its public page is labelled as a test clinic and kept out of search. Otherwise it behaves like any clinic.',
