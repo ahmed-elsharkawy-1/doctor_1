@@ -45,8 +45,16 @@ class AppServiceProvider extends ServiceProvider
     {
         // Project settings saved on the admin page sit over .env. A worker
         // boots once and lives for hours, so it re-reads before each job.
+        //
+        // Never while the config is being cached: every container runs
+        // `artisan optimize` as it starts, Laravel builds that cache by booting
+        // the app, and saved values would be baked in and outlive their row.
         $settings = $this->app->make(SystemSettings::class);
-        $settings->apply();
+
+        if (! $this->app->runningConsoleCommand('config:cache', 'optimize')) {
+            $settings->apply();
+        }
+
         Event::listen(JobProcessing::class, fn () => $settings->apply());
     }
 }

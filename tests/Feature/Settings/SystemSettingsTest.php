@@ -6,6 +6,7 @@ use App\Enums\BookingStatus;
 use App\Models\Booking;
 use App\Models\Patient;
 use App\Models\SystemSetting;
+use App\Providers\AppServiceProvider;
 use App\Services\Settings\SystemSettings;
 use App\Services\V1\Patients\OnlineBookingService;
 use App\Services\V1\Queue\BookingStatusService;
@@ -114,5 +115,36 @@ class SystemSettingsTest extends TestCase
         $this->settings()->set('site.email', 'hello@elayadah.test');
 
         $this->get('/')->assertOk()->assertSee('hello@elayadah.test');
+    }
+
+    /**
+     * Containers cache their config when they start (`artisan optimize`).
+     * Laravel builds that cache by booting the app, so saved values must not
+     * be applied then — or they are baked in and outlive their row.
+     */
+    public function test_saved_values_are_not_baked_into_the_cached_config(): void
+    {
+        $this->settings()->set('reports.send_at', '07:45');
+
+        $boot = function (string $command): string {
+            config(['clinic.reports.send_at' => '09:00']);
+            $_SERVER['argv'] = ['artisan', $command];
+
+            (new AppServiceProvider($this->app))->boot();
+
+            return config('clinic.reports.send_at');
+        };
+
+        $argv = $_SERVER['argv'];
+
+        try {
+            $this->assertSame('09:00', $boot('config:cache'));
+            $this->assertSame('09:00', $boot('optimize'));
+
+            // Any other command — the scheduler's per-minute run — applies it.
+            $this->assertSame('07:45', $boot('schedule:run'));
+        } finally {
+            $_SERVER['argv'] = $argv;
+        }
     }
 }
