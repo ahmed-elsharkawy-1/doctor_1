@@ -328,12 +328,6 @@ class PatientBookingService
     }
 
     /**
-     * Checks the code and, on success, remembers the number for this browser.
-     *
-     * The session is what every later step is gated on — never the component's
-     * own idea of which step it is on.
-     */
-    /**
      * What the patient should be told the code arrives by.
      *
      * Derived from the bound driver rather than written into the copy, so the
@@ -473,11 +467,17 @@ class PatientBookingService
 
         $e164 = $this->verification->normalise($clinic, $phone);
 
-        $this->verified->remember($clinic, $e164);
+        $this->verified->remember($clinic, $e164, proved: false);
 
         return $e164;
     }
 
+    /**
+     * Checks the code and, on success, remembers the number for this browser.
+     *
+     * The session is what every later step is gated on — never the component's
+     * own idea of which step it is on.
+     */
     public function verifyCode(Clinic $clinic, string $phone, string $code): string
     {
         $this->assertOpen($clinic);
@@ -490,11 +490,12 @@ class PatientBookingService
     }
 
     /**
-     * The number this browser proved it owns, or null.
+     * The number this browser proved it owns, or null. While this clinic asks
+     * for a code, a number taken on trust when OTP was off does not count.
      */
     public function verifiedPhone(Clinic $clinic): ?string
     {
-        return $this->verified->phoneFor($clinic);
+        return $this->verified->phoneFor($clinic, proofRequired: $this->requiresOtp($clinic));
     }
 
     /**

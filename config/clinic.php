@@ -402,6 +402,11 @@ return [
         | That trust has a real cost: patients are matched on phone alone, so
         | an unverified number files a visit into somebody else's medical
         | history. Turn this back on the moment a code can actually be sent.
+        |
+        | This is only the starting value. Once a super admin saves the switch
+        | on the admin panel's «إعدادات النظام» page, the saved value wins and
+        | this line is no longer read (App\Services\Settings\SystemSettings).
+        | Each clinic also has its own switch, `clinics.otp_required`.
         */
         'require_otp' => (bool) env('CLINIC_SELF_BOOKING_REQUIRE_OTP', true),
 

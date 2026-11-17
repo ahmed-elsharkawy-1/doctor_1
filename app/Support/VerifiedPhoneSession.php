@@ -20,18 +20,27 @@ final class VerifiedPhoneSession
 {
     private const PREFIX = 'self_booking.verified';
 
-    public function remember(Clinic $clinic, string $phone): void
+    /**
+     * `$proved` is false when the number was taken on trust because OTP was
+     * switched off — kept so it stops counting the moment OTP is back on.
+     */
+    public function remember(Clinic $clinic, string $phone, bool $proved = true): void
     {
         session()->put($this->key($clinic), [
             'phone' => $phone,
             'at' => Carbon::now()->toIso8601String(),
+            'proved' => $proved,
         ]);
     }
 
     /**
      * The verified number, or null when there is none or it has gone stale.
+     *
+     * With `$proofRequired`, a number taken on trust does not count: OTP was
+     * off when it was entered and is on now, so it has to be proved like any
+     * other. It is left in place, in case OTP goes off again.
      */
-    public function phoneFor(Clinic $clinic): ?string
+    public function phoneFor(Clinic $clinic, bool $proofRequired = false): ?string
     {
         $stored = session()->get($this->key($clinic));
 
@@ -42,6 +51,12 @@ final class VerifiedPhoneSession
         if ($this->hasLapsed((string) $stored['at'])) {
             $this->forget($clinic);
 
+            return null;
+        }
+
+        // Entries written before this flag existed were proved: the trust path
+        // only ran while OTP was off, and those have lapsed within minutes.
+        if ($proofRequired && ($stored['proved'] ?? true) === false) {
             return null;
         }
 

@@ -148,6 +148,51 @@ class OtpSwitchTest extends TestCase
         app(PatientBookingService::class)->acceptPhoneUnverified($this->clinic, '01012225521');
     }
 
+    /**
+     * A number taken without a code while OTP was off is not proof once it
+     * is back on: the same browser is asked for a code like everyone else,
+     * not waved through for the rest of the 20 minutes.
+     */
+    public function test_a_number_taken_without_a_code_needs_one_once_otp_is_back_on(): void
+    {
+        $this->projectSwitch(false);
+
+        $page = $this->afterPhone()->assertViewHas('stage', 'appointment');
+
+        $this->projectSwitch(true);
+
+        $page->call('$refresh')->assertViewHas('stage', 'details');
+
+        $page->set('phone', '01012225521')
+            ->call('sendCode')
+            ->assertViewHas('stage', 'code');
+
+        $this->assertCount(1, $this->sender->sent);
+    }
+
+    /** A number proved with a code keeps counting, as before. */
+    public function test_a_number_proved_with_a_code_still_counts(): void
+    {
+        $page = $this->afterPhone();
+
+        $page->set('code', $this->sender->lastCode())
+            ->call('verifyCode')
+            ->assertViewHas('stage', 'appointment');
+
+        $page->call('$refresh')->assertViewHas('stage', 'appointment');
+    }
+
+    /** Off again, the number taken on trust is still good: nothing asks for a code. */
+    public function test_a_number_taken_on_trust_still_counts_while_otp_stays_off(): void
+    {
+        $this->projectSwitch(false);
+
+        $this->afterPhone()
+            ->assertViewHas('stage', 'appointment')
+            ->call('$refresh')
+            ->assertViewHas('stage', 'appointment');
+    }
+
     public function test_a_new_clinic_asks_for_a_code_by_default(): void
     {
         $clinic = Clinic::factory()->create();
