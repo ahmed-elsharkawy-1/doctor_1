@@ -127,6 +127,7 @@ class SystemSettingsPage extends Page
                             ->seconds(false)
                             ->format('H:i')
                             ->rule('date_format:H:i')
+                            ->validationMessages(['date_format' => __('filament.system_settings.time_format')])
                             ->required(),
                     ])
                     ->columns(2),

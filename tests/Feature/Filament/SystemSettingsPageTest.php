@@ -94,4 +94,27 @@ class SystemSettingsPageTest extends TestCase
 
         $this->assertSame(0, SystemSetting::count());
     }
+
+    /** Every field has its label and hint in both languages: no raw keys on the page. */
+    public function test_every_label_and_hint_is_translated(): void
+    {
+        foreach (['ar', 'en'] as $locale) {
+            app()->setLocale($locale);
+
+            $html = Livewire::test(SystemSettingsPage::class)->html();
+
+            $this->assertStringNotContainsString('filament.system_settings', $html, "Raw key on the {$locale} page.");
+        }
+    }
+
+    /** The link error is in Arabic, like every other message on the page. */
+    public function test_a_bad_link_is_explained_in_arabic(): void
+    {
+        app()->setLocale('ar');
+
+        Livewire::test(SystemSettingsPage::class)
+            ->fillForm(['site.social.facebook' => 'facebook'])
+            ->call('save')
+            ->assertSee('رابطًا صحيحًا');
+    }
 }

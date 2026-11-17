@@ -22,6 +22,7 @@ return [
     'boolean' => 'يجب أن تكون قيمة :attribute صحيحة أو خاطئة.',
     'array' => 'يجب أن يكون :attribute قائمة.',
     'email' => 'يجب أن يكون :attribute بريدًا إلكترونيًا صحيحًا.',
+    'url' => 'يجب أن يكون :attribute رابطًا صحيحًا يبدأ بـ https://.',
     'date' => 'يجب أن يكون :attribute تاريخًا صحيحًا.',
     'date_format' => 'لا يطابق :attribute الصيغة :format.',
     'after_or_equal' => 'يجب ألا يكون :attribute قبل :date.',
