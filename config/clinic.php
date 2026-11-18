@@ -511,6 +511,34 @@ return [
     ],
 
     /*
+    | The alarm for codes that stop reaching patients.
+    |
+    | The SMS provider's own status cannot be trusted for this: on 17 November
+    | 2026 it showed "Delivered" for a whole day of codes nobody received. So
+    | the alarm watches what patients do. Within the last `window_minutes`, at
+    | least `min_codes` codes to at least `min_phones` different numbers, and
+    | not one typed: that is not patients giving up, it is codes not arriving.
+    |
+    | Codes younger than `grace_minutes` are left out, since their patient may
+    | still be reading the message. The alarm stays open, and sends nothing
+    | more, until a code is typed again. Then it closes and says so.
+    |
+    | `emails` and `whatsapp_numbers` are comma-separated lists; either may be
+    | empty. WhatsApp uses the otp_alarm_started / otp_alarm_recovered
+    | templates, so add numbers only once Meta has approved them. With
+    | neither set, the alarm is only in the log.
+    */
+    'otp_alarm' => [
+        'enabled' => (bool) env('CLINIC_OTP_ALARM_ENABLED', true),
+        'emails' => env('CLINIC_OTP_ALARM_EMAILS'),
+        'whatsapp_numbers' => env('CLINIC_OTP_ALARM_WHATSAPP_NUMBERS'),
+        'min_codes' => (int) env('CLINIC_OTP_ALARM_MIN_CODES', 5),
+        'min_phones' => (int) env('CLINIC_OTP_ALARM_MIN_PHONES', 3),
+        'window_minutes' => (int) env('CLINIC_OTP_ALARM_WINDOW_MINUTES', 60),
+        'grace_minutes' => (int) env('CLINIC_OTP_ALARM_GRACE_MINUTES', 5),
+    ],
+
+    /*
     | The waiting list for a full day.
     |
     | Per clinic, a super admin switches it on and may set how many patients a

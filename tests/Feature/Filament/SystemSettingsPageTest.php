@@ -95,6 +95,41 @@ class SystemSettingsPageTest extends TestCase
         $this->assertSame(0, SystemSetting::count());
     }
 
+    /** The alarm's addresses: a list, each one checked, saved as typed. */
+    public function test_alarm_emails_are_checked_one_by_one(): void
+    {
+        Livewire::test(SystemSettingsPage::class)
+            ->fillForm(['otp_alarm.emails' => 'ahmed@elayadah.com, saad@'])
+            ->call('save')
+            ->assertHasFormErrors(['otp_alarm.emails']);
+
+        $this->assertSame(0, SystemSetting::count());
+
+        Livewire::test(SystemSettingsPage::class)
+            ->fillForm(['otp_alarm.emails' => 'ahmed@elayadah.com, saad@elayadah.com'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('ahmed@elayadah.com, saad@elayadah.com', config('clinic.otp_alarm.emails'));
+    }
+
+    public function test_alarm_whatsapp_numbers_must_be_mobile_numbers(): void
+    {
+        Livewire::test(SystemSettingsPage::class)
+            ->fillForm(['otp_alarm.whatsapp_numbers' => '01000000003, 12345'])
+            ->call('save')
+            ->assertHasFormErrors(['otp_alarm.whatsapp_numbers']);
+
+        $this->assertSame(0, SystemSetting::count());
+
+        Livewire::test(SystemSettingsPage::class)
+            ->fillForm(['otp_alarm.whatsapp_numbers' => '01000000003، +201000000004'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('01000000003، +201000000004', config('clinic.otp_alarm.whatsapp_numbers'));
+    }
+
     /** Every field has its label and hint in both languages: no raw keys on the page. */
     public function test_every_label_and_hint_is_translated(): void
     {

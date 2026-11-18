@@ -72,3 +72,14 @@ Schedule::command('clinic:close-waiting-lists')
     ->everyFiveMinutes()
     ->withoutOverlapping(10)
     ->runInBackground();
+
+/*
+| Codes sent and nobody typing them means the SMS provider is failing
+| silently — it reported a whole day of undelivered codes as "Delivered" on
+| 17 November 2026. A few queries over the last hour of codes; it mails once
+| when it starts and once when it stops.
+*/
+Schedule::command('clinic:check-otp-delivery')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10)
+    ->runInBackground();

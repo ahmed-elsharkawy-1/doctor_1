@@ -49,6 +49,13 @@ class SystemSettings
         'site.social.instagram' => 'string',
         'site.social.linkedin' => 'string',
         'site.show_login' => 'bool',
+        'otp_alarm.enabled' => 'bool',
+        'otp_alarm.emails' => 'string',
+        'otp_alarm.whatsapp_numbers' => 'string',
+        'otp_alarm.min_codes' => 'int',
+        'otp_alarm.min_phones' => 'int',
+        'otp_alarm.window_minutes' => 'int',
+        'otp_alarm.grace_minutes' => 'int',
     ];
 
     private const CACHE_KEY = 'system_settings';

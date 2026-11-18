@@ -3,8 +3,11 @@
 namespace App\Filament\Admin\Pages;
 
 use App\Models\User;
+use App\Services\Messaging\OtpAlarmMonitor;
 use App\Services\Settings\SystemSettings;
+use App\Support\PhoneNumber;
 use BackedEnum;
+use Closure;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
@@ -15,6 +18,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use InvalidArgumentException;
 use UnitEnum;
 
 /**
@@ -99,6 +103,37 @@ class SystemSettingsPage extends Page
                         $number('self_booking.otp.resend_cooldown', 30, 600),
                         $number('self_booking.otp.max_per_phone_hour', 1, 20),
                         $number('self_booking.otp.max_per_ip_hour', 1, 100),
+                    ])
+                    ->columns(2),
+
+                Section::make(__('filament.system_settings.section.otp_alarm'))
+                    ->description(__('filament.system_settings.section.otp_alarm_hint'))
+                    ->schema([
+                        $toggle('otp_alarm.enabled'),
+                        $text('otp_alarm.emails')
+                            ->helperText(__('filament.system_settings.hints.otp_alarm.emails'))
+                            ->rule(fn () => function (string $attribute, mixed $value, Closure $fail): void {
+                                foreach (OtpAlarmMonitor::split((string) $value) as $email) {
+                                    if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+                                        $fail(__('filament.system_settings.bad_email', ['email' => $email]));
+                                    }
+                                }
+                            }),
+                        $text('otp_alarm.whatsapp_numbers')
+                            ->helperText(__('filament.system_settings.hints.otp_alarm.whatsapp_numbers'))
+                            ->rule(fn () => function (string $attribute, mixed $value, Closure $fail): void {
+                                foreach (OtpAlarmMonitor::split((string) $value) as $number) {
+                                    try {
+                                        PhoneNumber::parse($number);
+                                    } catch (InvalidArgumentException) {
+                                        $fail(__('filament.system_settings.bad_phone', ['phone' => $number]));
+                                    }
+                                }
+                            }),
+                        $number('otp_alarm.min_codes', 2, 50),
+                        $number('otp_alarm.min_phones', 1, 20),
+                        $number('otp_alarm.window_minutes', 15, 240),
+                        $number('otp_alarm.grace_minutes', 1, 15),
                     ])
                     ->columns(2),
 

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\MessageTemplate;
+use App\Services\Messaging\OtpAlarmMonitor;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
 use Illuminate\Database\Seeder;
 
@@ -277,6 +278,41 @@ class MessageTemplateSeeder extends Seeder
                     ."⏰ الموعد الجديد: {{2}} بدل {{3}}\n\n"
                     ."📞 لو فيه أي استفسار، العيادة متاحة على: {{4}}\n\n"
                     .'نشكرك على تفهمك 🙏',
+                'is_active' => true,
+            ],
+
+            /*
+            | To the platform's admins, not to patients: verification codes are
+            | not reaching patients (OtpAlarmMonitor). NOT YET SUBMITTED to
+            | Meta — see docs/whatsapp/otp-alarm-templates.md. Nothing is sent
+            | until numbers are added on the system settings page.
+            | {{1}} since ("17/11 الساعة 08:15")
+            | Button (static URL): إعدادات النظام
+            |   https://elayadah.com/admin/system-settings
+            */
+            OtpAlarmMonitor::STARTED_TEMPLATE => [
+                'category' => 'utility',
+                'is_broadcast' => false,
+                'provider_template_name' => 'otp_alarm_started',
+                'language_code' => 'ar',
+                'body_ar' => "⚠️ رسائل كود التأكيد مش بتوصل للعملاء من {{1}}.\n\n"
+                    .'راجع مزود الرسائل، أو اقفل طلب الكود من إعدادات النظام.',
+                'is_active' => true,
+            ],
+
+            /*
+            | The same admins, once a code is typed again. NOT YET SUBMITTED.
+            | {{1}} working again since
+            | Button (static URL): إعدادات النظام
+            |   https://elayadah.com/admin/system-settings
+            */
+            OtpAlarmMonitor::RECOVERED_TEMPLATE => [
+                'category' => 'utility',
+                'is_broadcast' => false,
+                'provider_template_name' => 'otp_alarm_recovered',
+                'language_code' => 'ar',
+                'body_ar' => "✅ رسائل كود التأكيد رجعت توصل للعملاء من {{1}}.\n\n"
+                    .'لو قفلت طلب الكود، رجّعه من إعدادات النظام.',
                 'is_active' => true,
             ],
         ];
