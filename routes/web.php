@@ -38,6 +38,12 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [SiteController::class, 'home'])->name('root');
 
 /*
+| The privacy policy, linked from the app stores and the site footer.
+| `privacy` is in clinic.landing.reserved so no clinic can take the path.
+*/
+Route::get('privacy', [SiteController::class, 'privacy'])->name('privacy');
+
+/*
 | The patient's booking-tracking page. Unauthenticated by design: the clinic
 | sends the link over WhatsApp and the token in it is the whole secret, so
 | the path stays short enough to read in a message.

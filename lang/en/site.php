@@ -201,5 +201,6 @@ return [
         'rights' => '© :year :brand. All rights reserved.',
         'links' => 'Links',
         'reach' => 'Reach us',
+        'privacy' => 'Privacy policy',
     ],
 ];

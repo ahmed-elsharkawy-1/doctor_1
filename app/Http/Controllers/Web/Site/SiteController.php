@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Site;
 
 use App\Http\Controllers\Controller;
 use App\Support\PhoneNumber;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\View\View;
 
@@ -33,6 +34,26 @@ class SiteController extends Controller
             'email' => config('clinic.site.email') ?: null,
             'social' => config('clinic.site.social', []),
             'screens' => config('clinic.site.screens', []),
+        ]);
+    }
+
+    /**
+     * The privacy policy, the page app stores and patients are pointed to.
+     *
+     * A bare page with no navigation, so it reads the same inside the mobile
+     * app's web view as in a browser. Arabic unless `?lang=en` asks otherwise.
+     */
+    public function privacy(Request $request): View
+    {
+        App::setLocale($request->query('lang') === 'en' ? 'en' : config('clinic.api.default_locale'));
+
+        $whatsapp = $this->dialable(config('clinic.site.whatsapp'));
+
+        return view('site.privacy', [
+            'email' => config('clinic.site.email') ?: null,
+            'phone' => $this->dialable(config('clinic.site.phone')),
+            'whatsappLink' => $whatsapp === null ? null : 'https://wa.me/'.ltrim($whatsapp->e164, '+'),
+            'whatsappNational' => $whatsapp?->national(),
         ]);
     }
 

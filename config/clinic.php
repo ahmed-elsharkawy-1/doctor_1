@@ -196,7 +196,7 @@ return [
         // Slugs the operator may not take, because a route already owns them.
         'reserved' => [
             'app', 'admin', 'docs', 'api', 'livewire', 'storage', 'up', 'login',
-            'booking', 'review', 'reports', 'handoff',
+            'booking', 'review', 'reports', 'handoff', 'privacy',
             // The path tracking links used before they were made readable.
             'b',
         ],
