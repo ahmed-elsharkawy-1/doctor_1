@@ -2,12 +2,15 @@
 
 namespace App\Livewire\App;
 
+use App\Enums\WhatsAppOptOutSource;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Models\Patient;
 use App\Services\Results\V1\Patients\OnlineBookingStatusResult;
+use App\Services\Results\V1\Patients\WhatsAppConsentResult;
 use App\Services\V1\Patients\OnlineBookingService;
 use App\Services\V1\Patients\PatientSearchService;
+use App\Services\V1\Patients\WhatsAppConsentService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 
@@ -50,7 +53,29 @@ class PatientProfile extends ClinicComponent
             // The same reading the API returns, so the two never disagree.
             'onlineBooking' => (new OnlineBookingStatusResult($patient, app(OnlineBookingService::class)))->toArray(),
             'canSwitchOnlineBooking' => auth()->user()?->hasAbility('bookings.manage') ?? false,
+            'whatsApp' => (new WhatsAppConsentResult($patient))->toArray(),
         ])->title($patient->name);
+    }
+
+    /** Stops every WhatsApp message to the patient, until turned back on here. */
+    public function stopWhatsApp(): void
+    {
+        $this->requireAbility('bookings.manage');
+
+        app(WhatsAppConsentService::class)->stop($this->patient(), WhatsAppOptOutSource::CLINIC);
+
+        $this->notice = __('patient.whatsapp.stopped_ok');
+        $this->failed = false;
+    }
+
+    public function resumeWhatsApp(): void
+    {
+        $this->requireAbility('bookings.manage');
+
+        app(WhatsAppConsentService::class)->resume($this->patient());
+
+        $this->notice = __('patient.whatsapp.resumed_ok');
+        $this->failed = false;
     }
 
     /** Lifts a block. No-shows before now stop counting. */

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
 use App\Services\Messaging\DeliveryReceipts;
+use App\Services\V1\Messaging\WhatsAppOptOutHandler;
 use App\Services\V1\Messaging\WhatsAppReplyHandler;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -26,6 +27,7 @@ class WhatsAppWebhookController extends Controller
     public function __construct(
         private readonly DeliveryReceipts $receipts,
         private readonly WhatsAppReplyHandler $replies,
+        private readonly WhatsAppOptOutHandler $optOuts,
     ) {}
 
     /**
@@ -93,6 +95,11 @@ class WhatsAppWebhookController extends Controller
                     }
 
                     try {
+                        // A «إيقاف» is answered here and goes no further.
+                        if ($this->optOuts->handle($message)) {
+                            continue;
+                        }
+
                         $this->replies->handle($message);
                     } catch (Throwable $e) {
                         // A reply we could not process is not a reason for

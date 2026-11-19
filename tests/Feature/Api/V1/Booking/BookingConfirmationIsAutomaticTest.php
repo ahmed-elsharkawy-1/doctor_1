@@ -120,6 +120,22 @@ class BookingConfirmationIsAutomaticTest extends TestCase
         $this->assertSame(1, OutboundMessage::count());
     }
 
+    /** Asked to stop: booking again is not asking for messages again. */
+    public function test_a_patient_who_stopped_messages_stays_stopped_when_booked_again(): void
+    {
+        $patient = Patient::factory()->create([
+            'clinic_id' => $this->clinic->id,
+            'phone' => '+201099500001',
+            'whatsapp_opt_in_at' => null,
+            'whatsapp_opted_out_at' => Carbon::parse('2026-09-10 12:00'),
+        ]);
+
+        $this->book(['whatsapp_opt_in' => true])->assertCreated();
+
+        $this->assertNull($patient->fresh()->whatsapp_opt_in_at);
+        $this->assertSame(0, OutboundMessage::count());
+    }
+
     public function test_a_patient_who_declined_is_still_not_messaged(): void
     {
         $this->book(['whatsapp_opt_in' => false])->assertCreated();

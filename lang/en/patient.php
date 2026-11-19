@@ -42,4 +42,23 @@ return [
             'manual' => "The clinic's decision",
         ],
     ],
+
+    'whatsapp' => [
+        'title' => 'WhatsApp messages',
+        'on' => 'Receives messages',
+        'off' => 'Messages stopped',
+        'never' => 'Has not agreed to messages',
+        'stopped_since' => 'Stopped since :date · :by',
+        'stop' => 'Stop WhatsApp messages',
+        'resume' => 'Turn WhatsApp messages on',
+        'stop_confirm' => 'Stop all WhatsApp messages to this patient? No confirmations or reminders until you turn them back on.',
+        'resume_confirm' => 'Turn WhatsApp messages on for this patient? Make sure they asked for it.',
+        'stopped_ok' => 'WhatsApp messages stopped for the patient',
+        'resumed_ok' => 'WhatsApp messages turned on for the patient',
+        'source' => [
+            'clinic' => 'by the clinic',
+            'patient' => 'by the patient, on WhatsApp',
+        ],
+        'stopped_reply' => 'WhatsApp messages to your number are stopped ✅ You will not get confirmations or reminders any more. To turn them back on, contact the clinic.',
+    ],
 ];

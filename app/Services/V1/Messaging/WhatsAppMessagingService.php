@@ -98,6 +98,9 @@ class WhatsAppMessagingService
     /** Cancel tapped inside the clinic's cutoff: refused, with the phone. */
     public const REMINDER_CANCEL_REFUSED_KEY = 'appointment_reminder_cancel_refused';
 
+    /** The free-text reply to a patient who sent «إيقاف». */
+    public const OPT_OUT_REPLY_KEY = 'whatsapp_opt_out_reply';
+
     /**
      * What staff may send. Given a clinic with WhatsApp off, only the
      * cancellation — the rest would only be refused.
@@ -458,6 +461,32 @@ class WhatsAppMessagingService
                 'phone' => $this->clinicPhone($clinic),
             ],
         ));
+    }
+
+    /**
+     * The reply to a patient who sent «إيقاف»: their messages are stopped.
+     *
+     * Free text inside the conversation the patient just opened, so no
+     * template is needed, and it is the last message they get. Sent whatever
+     * the clinic's WhatsApp switch says: it answers the patient, it does not
+     * start anything.
+     */
+    public function sendOptOutConfirmation(Patient $patient): OutboundMessage
+    {
+        $message = OutboundMessage::create([
+            'clinic_id' => $patient->clinic_id,
+            'patient_id' => $patient->id,
+            'booking_id' => null,
+            'template_key' => self::OPT_OUT_REPLY_KEY,
+            'type' => 'text',
+            'rendered_body' => __('patient.whatsapp.stopped_reply', [], 'ar'),
+            'variables' => [],
+            'status' => 'queued',
+        ]);
+
+        SendWhatsAppMessage::dispatch($message->id);
+
+        return $message;
     }
 
     private function queueText(Clinic $clinic, Booking $booking, string $key, string $body): ?OutboundMessage

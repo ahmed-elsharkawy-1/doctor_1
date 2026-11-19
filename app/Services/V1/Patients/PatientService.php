@@ -83,8 +83,10 @@ class PatientService
 
         // A patient who predates the consent field, or who declined once and
         // is now agreeing, would otherwise never be reachable. Consent is only
-        // ever granted here — revoking it is deliberate and belongs elsewhere.
-        if ($whatsappOptIn && $patient->whatsapp_opt_in_at === null) {
+        // ever granted here — revoking it is deliberate and belongs elsewhere
+        // (WhatsAppConsentService). A patient who asked to stop stays stopped:
+        // booking again is not asking for messages again.
+        if ($whatsappOptIn && $patient->whatsapp_opt_in_at === null && $patient->whatsapp_opted_out_at === null) {
             $patient->update(['whatsapp_opt_in_at' => now()]);
         }
 

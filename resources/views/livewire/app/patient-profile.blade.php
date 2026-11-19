@@ -122,6 +122,45 @@
         @endif
     </div>
 
+    {{-- Whether WhatsApp messages reach them. A stop holds through new
+         bookings until the clinic turns messages back on here. --}}
+    <div class="card online" data-whatsapp-consent>
+        <div>
+            <div style="font-size:0.85rem;color:var(--muted)">{{ __('patient.whatsapp.title') }}</div>
+            <div style="margin-top:0.3rem">
+                @if ($whatsApp['enabled'])
+                    <span class="pill">{{ __('patient.whatsapp.on') }}</span>
+                @elseif ($whatsApp['stopped'])
+                    <span class="pill pill-off">{{ __('patient.whatsapp.off') }}</span>
+                @else
+                    <span class="pill pill-off">{{ __('patient.whatsapp.never') }}</span>
+                @endif
+            </div>
+            @if ($whatsApp['stopped'])
+                <div class="meta">
+                    {{ __('patient.whatsapp.stopped_since', [
+                        'date' => $patient->whatsapp_opted_out_at->format('Y-m-d'),
+                        'by' => $whatsApp['stopped_by']['display'] ?? '',
+                    ]) }}
+                </div>
+            @endif
+        </div>
+
+        @if ($canSwitchOnlineBooking)
+            @if ($whatsApp['enabled'])
+                <button type="button" class="btn btn-sm" wire:click="stopWhatsApp"
+                        wire:confirm="{{ __('patient.whatsapp.stop_confirm') }}">
+                    {{ __('patient.whatsapp.stop') }}
+                </button>
+            @else
+                <button type="button" class="btn btn-sm btn-primary" wire:click="resumeWhatsApp"
+                        wire:confirm="{{ __('patient.whatsapp.resume_confirm') }}">
+                    {{ __('patient.whatsapp.resume') }}
+                </button>
+            @endif
+        @endif
+    </div>
+
     <div class="card" style="padding:1rem">
         <h2 style="font-size:0.85rem;color:var(--muted);margin:0 0 0.75rem">
             {{ __('app.patients.history') }}

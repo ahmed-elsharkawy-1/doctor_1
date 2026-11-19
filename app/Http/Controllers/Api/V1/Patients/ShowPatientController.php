@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Patients;
 use App\Http\Controllers\Api\V1\V1Controller;
 use App\Services\Results\V1\Patients\OnlineBookingStatusResult;
 use App\Services\Results\V1\Patients\PatientHistoryResult;
+use App\Services\Results\V1\Patients\WhatsAppConsentResult;
 use App\Services\V1\Patients\OnlineBookingService;
 use App\Services\V1\Patients\PatientSearchService;
 use App\Support\ApiResponse;
@@ -29,6 +30,7 @@ class ShowPatientController extends V1Controller
             summary: $this->patients->summary($history),
             withPrice: $this->user($request)->hasAbility('prices.view'),
             onlineBooking: new OnlineBookingStatusResult($found, $this->onlineBooking),
+            whatsApp: new WhatsAppConsentResult($found),
         );
 
         return ApiResponse::success($result->toArray(), __('patient.history_loaded'));

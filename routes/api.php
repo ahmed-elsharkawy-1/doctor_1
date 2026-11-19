@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\Messaging\SendBookingMessageController;
 use App\Http\Controllers\Api\V1\Patients\SearchPatientsController;
 use App\Http\Controllers\Api\V1\Patients\ShowPatientController;
 use App\Http\Controllers\Api\V1\Patients\UpdateOnlineBookingController;
+use App\Http\Controllers\Api\V1\Patients\UpdateWhatsAppConsentController;
 use App\Http\Controllers\Api\V1\Queue\CancelBookingController;
 use App\Http\Controllers\Api\V1\Queue\ConfirmAttendanceController;
 use App\Http\Controllers\Api\V1\Queue\DelayOptionsController;
@@ -235,6 +236,11 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
         Route::post('patients/{patient}/online-booking', UpdateOnlineBookingController::class)
             ->whereNumber('patient')
             ->name('api.v1.patients.online-booking');
+
+        // Stops, or turns back on, every WhatsApp message to the patient.
+        Route::post('patients/{patient}/whatsapp', UpdateWhatsAppConsentController::class)
+            ->whereNumber('patient')
+            ->name('api.v1.patients.whatsapp');
     });
 
     // The reports page for the app's WebView. Not under the owner-only

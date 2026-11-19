@@ -949,6 +949,34 @@ Where to show it:
 `{ "online_booking": { ... } }` in the shape above. Needs `bookings.manage`
 (doctor and secretary). `PATIENT_NOT_FOUND` (404) for another clinic's patient.
 
+### WhatsApp messages on or off
+
+`whatsapp` on `GET /patients/{id}`:
+
+```json
+"whatsapp": {
+  "enabled": false,
+  "stopped": true,
+  "stopped_at": { "value": "2026-11-19T18:40:00+02:00", "display": "..." },
+  "stopped_by": { "value": "patient", "display": "بطلب من المريض على واتساب" }
+}
+```
+
+- `enabled: false` + `stopped: true`: messages were stopped, by the clinic or
+  by the patient replying «إيقاف» on WhatsApp.
+- `enabled: false` + `stopped: false`: the patient never agreed to messages.
+- A stop holds through new bookings. Only the switch below turns it back on.
+
+#### `POST /patients/{id}/whatsapp`
+
+```json
+{ "enabled": false }
+```
+
+`false` stops every WhatsApp message to the patient, `true` turns them back on
+(only when the patient asks). Returns `{ "whatsapp": { ... } }`. Needs
+`bookings.manage`. `PATIENT_NOT_FOUND` (404) for another clinic's patient.
+
 ---
 
 ## 13. Reports

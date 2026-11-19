@@ -1772,6 +1772,58 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
 
+  /patients/{patient}/whatsapp:
+    parameters:
+      - name: patient
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Patients]
+      summary: Stop or turn on WhatsApp messages
+      description: |
+        Whether this patient gets WhatsApp messages: confirmations, reminders,
+        delays, the waiting list and announcements alike.
+
+        - `enabled: false` stops them all (`stopped_by: clinic`).
+        - `enabled: true` turns them back on. Only do this when the patient
+          asked for it.
+
+        A stop holds through new bookings: booking again does not turn
+        messages back on. A patient can also stop them by replying «إيقاف»
+        on WhatsApp (`stopped_by: patient`), which stops that number at every
+        clinic. Needs the `bookings.manage` ability (doctor and secretary).
+      operationId: updatePatientWhatsApp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          whatsapp: { $ref: "#/components/schemas/WhatsAppConsent" }
+        "404":
+          description: "`PATIENT_NOT_FOUND`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
   # ------------------------------------------------------------- Reports ----
 
   /reports/revenue:
@@ -2717,6 +2769,7 @@ components:
               type: integer
               description: Bookings the clinic made, any status.
         online_booking: { $ref: "#/components/schemas/OnlineBookingStatus" }
+        whatsapp: { $ref: "#/components/schemas/WhatsAppConsent" }
         visits:
           type: array
           description: Newest first, cancellations and no-shows included.
@@ -2767,6 +2820,22 @@ components:
         rule_enabled:
           type: boolean
           description: Whether no-shows block automatically at this clinic. A hand block applies either way.
+
+    WhatsAppConsent:
+      type: object
+      description: Whether the patient gets WhatsApp messages.
+      properties:
+        enabled: { type: boolean }
+        stopped:
+          type: boolean
+          description: "Stopped on purpose. `enabled: false` with `stopped: false` means the patient never agreed to messages."
+        stopped_at:
+          oneOf: [{ $ref: "#/components/schemas/Display" }, { type: "null" }]
+        stopped_by:
+          description: "`clinic` (from the app) or `patient` (replied «إيقاف» on WhatsApp). Null unless stopped."
+          oneOf:
+            - allOf: [{ $ref: "#/components/schemas/Display" }]
+            - type: "null"
 
     ReviewSummary:
       type: object

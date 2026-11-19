@@ -27,6 +27,15 @@ class SendWhatsAppMessage implements ShouldQueue
             return;
         }
 
+        // The patient stopped WhatsApp messages after this was queued. Only
+        // templates: the one free text sent after a stop is the reply that
+        // confirms it.
+        if ($message->type !== 'text' && $message->patient?->whatsapp_opted_out_at !== null) {
+            $message->update(['status' => 'skipped', 'error' => 'The patient stopped WhatsApp messages.']);
+
+            return;
+        }
+
         // The reminders get exactly one retry, as a product rule: a second
         // failure is final and must not become a retry loop. Other messages
         // keep the queue's retry behaviour.

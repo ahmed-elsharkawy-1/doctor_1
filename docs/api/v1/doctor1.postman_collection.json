@@ -1668,6 +1668,50 @@
                         }
                     },
                     "response": []
+                },
+                {
+                    "name": "Stop or turn on WhatsApp messages",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/patients/{patient}/whatsapp",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "patients",
+                                "{patient}",
+                                "whatsapp"
+                            ]
+                        },
+                        "description": "Whether this patient gets WhatsApp messages: confirmations, reminders,\ndelays, the waiting list and announcements alike.\n\n- `enabled: false` stops them all (`stopped_by: clinic`).\n- `enabled: true` turns them back on. Only do this when the patient\n  asked for it.\n\nA stop holds through new bookings: booking again does not turn\nmessages back on. A patient can also stop them by replying «إيقاف»\non WhatsApp (`stopped_by: patient`), which stops that number at every\nclinic. Needs the `bookings.manage` ability (doctor and secretary).",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"enabled\": false\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
                 }
             ]
         },

@@ -26,6 +26,7 @@ final class PatientHistoryResult extends ServiceResult
         private readonly array $summary,
         private readonly bool $withPrice = false,
         private readonly ?OnlineBookingStatusResult $onlineBooking = null,
+        private readonly ?WhatsAppConsentResult $whatsApp = null,
     ) {}
 
     public function toArray(): array
@@ -57,6 +58,7 @@ final class PatientHistoryResult extends ServiceResult
                 'clinic_bookings_count' => $this->summary['clinic_bookings_count'],
             ],
             'online_booking' => $this->onlineBooking?->toArray(),
+            'whatsapp' => $this->whatsApp?->toArray(),
             'visits' => $this->history
                 ->map(fn (Booking $booking) => $this->visit($booking))
                 ->values()
