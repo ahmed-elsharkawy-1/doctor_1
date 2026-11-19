@@ -967,6 +967,7 @@
                     @if ($showLogin)
                         <li><a href="{{ route('app.login') }}">{{ __('site.nav.login') }}</a></li>
                     @endif
+                    <li><a href="{{ route('privacy') }}">{{ __('site.footer.privacy') }}</a></li>
                 </ul>
             </div>
             <div>
