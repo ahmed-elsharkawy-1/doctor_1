@@ -69,6 +69,7 @@ return [
                 'WhatsApp (Meta): to deliver booking messages to your number.',
                 'Our SMS provider: to deliver verification codes.',
                 'Our hosting provider: where the database is stored.',
+                'A cloud storage provider: where we keep encrypted backup copies of the database, to restore it after a failure.',
                 'Authorities: only when the law requires it.',
             ],
         ],
@@ -87,6 +88,7 @@ return [
             'items' => [
                 'We keep patient and booking data for as long as the clinic uses the system, because it is the clinic’s appointment record.',
                 'If a clinic stops using the system and its account is deleted, its patients’ and bookings’ data is deleted with it.',
+                'Deleted data stays in our encrypted backups for up to 30 days, then is removed automatically.',
             ],
         ],
 
