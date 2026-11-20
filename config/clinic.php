@@ -230,6 +230,19 @@ return [
     ],
 
     /*
+    | The company that operates the platform, shown in the footer of every
+    | public page. Meta Business Verification checks that `name` appears on
+    | the site character for character, so keep it exactly as registered.
+    */
+    'legal' => [
+        'name' => 'Hub Works',
+        'name_ar' => 'هب ووركس للبرمجيات',
+        'brand_latin' => 'Elayadah',
+        'email' => 'saad@elayadah.com',
+        'phone' => '+20 100 160 0581',
+    ],
+
+    /*
     | The platform's own landing page, at the bare domain.
     |
     | Doctors reach the team directly — WhatsApp, phone, email. Each is
