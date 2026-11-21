@@ -82,6 +82,8 @@
 
         footer { margin-top: 20px; text-align: center; color: var(--muted); font-size: 14px; }
         footer a { color: var(--muted); }
+        .legal { margin-top: 12px; font-size: 13px; }
+        .legal p { margin: 4px 0 0; }
     </style>
 </head>
 <body>
@@ -102,6 +104,7 @@
         <h1>{{ __('privacy.title') }}</h1>
         <p class="updated">{{ __('privacy.updated') }}</p>
         <p class="intro">{{ __('privacy.intro', ['brand' => $brand]) }}</p>
+        <p class="intro">{{ __('privacy.operator', ['name' => config('clinic.legal.name'), 'name_ar' => config('clinic.legal.name_ar')]) }}</p>
 
         @foreach ($sections as $key => $section)
             <section id="{{ str_replace('_', '-', $key) }}">
@@ -138,6 +141,7 @@
     <footer>
         <a href="{{ route('root') }}">{{ __('privacy.back_home') }}</a>
         · © {{ now()->year }} {{ $brand }}
+        @include('partials.legal-footer')
     </footer>
 </div>
 </body>

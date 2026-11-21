@@ -17,6 +17,8 @@ return [
 
     'intro' => 'Thank you for using :brand. We are a booking and management system for clinics: patients book a visit, follow their turn, and receive confirmations and reminders. This policy explains what data we collect, why we collect it, who sees it, and how we protect it. By using the app or the website, you agree to it.',
 
+    'operator' => 'This website is operated by :name (:name_ar).',
+
     'sections' => [
         'collect' => [
             'title' => 'Information we collect',

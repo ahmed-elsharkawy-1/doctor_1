@@ -559,6 +559,8 @@
         @media (min-width: 860px) { footer li a { min-height: 36px; } }
         footer a:hover { color: #fff; }
         .rights { max-width: none; margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, .12); font-size: 14px; }
+        .legal { margin-top: 8px; font-size: 13px; opacity: .8; }
+        .legal p { max-width: none; margin-top: 4px; }
 
         /* ---------- Floating WhatsApp ---------- */
         .wa-float {
@@ -984,6 +986,7 @@
             </div>
         </div>
         <p class="rights">{{ __('site.footer.rights', ['year' => now()->year, 'brand' => $brand]) }}</p>
+        @include('partials.legal-footer')
     </div>
 </footer>
 
