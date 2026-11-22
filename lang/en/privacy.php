@@ -12,7 +12,7 @@ return [
     ],
 
     'title' => 'Privacy Policy',
-    'updated' => 'Last updated: 19 November 2026',
+    'updated' => 'Last updated: 22 November 2026',
     'switch_language' => 'العربية',
 
     'intro' => 'Thank you for using :brand. We are a booking and management system for clinics: patients book a visit, follow their turn, and receive confirmations and reminders. This policy explains what data we collect, why we collect it, who sees it, and how we protect it. By using the app or the website, you agree to it.',
@@ -28,6 +28,7 @@ return [
                 'Booking details: date, time, visit type and its price, status, arrival and called-in times, and any note the clinic writes on the booking.',
                 'Your replies to WhatsApp messages, such as confirming or cancelling a visit, and your consent to receive WhatsApp messages.',
                 'Your rating and comment on a visit, if you choose to leave one.',
+                'When you open your booking-tracking link: the time of its first open, to measure use of the queue link. Page refreshes are not counted again.',
                 'When you book online: the mobile number the verification code is sent to, and your device’s IP address, to prevent abuse. The code is stored encrypted and expires within minutes.',
                 'Clinic team details (doctors and secretaries): name, email, mobile number, role and language. Passwords are stored encrypted.',
                 'When you sign in: a session cookie, your IP address and browser type, to keep you signed in securely.',
@@ -51,6 +52,7 @@ return [
                 'To send confirmations, reminders, turn alerts, a link to follow your booking, and a review request.',
                 'To verify your mobile number with a code before an online booking is confirmed.',
                 'To prepare daily reports for the doctor about their clinic’s appointments.',
+                'To calculate clinic-level performance statistics from bookings, arrivals, message replies, ratings and queue-link opens.',
                 'To protect the service from fake bookings and abuse.',
             ],
         ],
@@ -60,6 +62,7 @@ return [
             'items' => [
                 'Only the clinic you booked with. Each clinic sees its own patients and nothing from any other clinic.',
                 'Inside the clinic, each person sees only what their role needs.',
+                'Platform administrators can see clinic-level statistics and positive comments with the reviewer’s name and phone number removed.',
                 'Your booking-tracking and review links are personal; do not share them.',
             ],
         ],

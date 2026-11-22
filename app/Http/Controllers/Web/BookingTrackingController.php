@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\BookingLinkOpen;
 use App\Services\V1\Queue\QueuePositionService;
 use App\Services\V1\Queue\TrackingDelayService;
 use App\Support\PhoneNumber;
@@ -25,6 +26,10 @@ class BookingTrackingController extends Controller
     {
         // Patients are not sent an Accept-Language header worth trusting.
         App::setLocale(config('clinic.api.default_locale'));
+
+        // Only the first open is kept: the page refreshes itself, and a
+        // patient checking twice is still one patient who opened it.
+        BookingLinkOpen::recordFirst($booking);
 
         $booking->load(['patient', 'clinic.doctor', 'clinic.specialty', 'visitType']);
 

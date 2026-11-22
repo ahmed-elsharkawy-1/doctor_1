@@ -736,6 +736,19 @@ return [
     ],
 
     /*
+    | The admin panel's Clinic Statistics page — the numbers the team shows a
+    | doctor as evidence. A rate on too few visits proves nothing, so below
+    | min_sample a card says "Insufficient data" instead of a value.
+    */
+    'statistics' => [
+        'min_sample' => (int) env('CLINIC_STATISTICS_MIN_SAMPLE', 20),
+        // A patient who checks in no later than this after their appointment
+        // time arrived on time. Arriving early is on time.
+        'on_time_tolerance_minutes' => (int) env('CLINIC_STATISTICS_ON_TIME_TOLERANCE', 15),
+        'top_comments' => 10,
+    ],
+
+    /*
     | Wire formats returned by the API (SPEC §6.4).
     */
     'formats' => [

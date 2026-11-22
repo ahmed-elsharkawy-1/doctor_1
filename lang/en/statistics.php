@@ -1,0 +1,131 @@
+<?php
+
+/*
+| The admin panel's Clinic Statistics page and its CSV export.
+*/
+
+return [
+    'title' => 'Clinic Statistics',
+    'subheading' => 'Performance numbers for one clinic, as evidence for doctors. Every number is this clinic\'s alone.',
+    'filters' => [
+        'clinic' => 'Clinic',
+        'from' => 'From',
+        'to' => 'To',
+        'pick_clinic' => 'Choose a clinic to see its numbers.',
+    ],
+    'export' => 'Export CSV',
+    'insufficient' => 'Insufficient data',
+    'no_data' => 'No data in this period',
+    'no_baseline' => 'No baseline available',
+    'not_supported' => 'Not supported',
+    'sample' => 'Sample: :count',
+    'min_sample_hint' => 'A value needs at least :count records; below that the card says "Insufficient data".',
+    'before' => 'Before',
+    'after' => 'After',
+    'change' => 'Change',
+    'points' => ':value pts',
+    'minutes' => ':value min',
+
+    'cards' => [
+        'no_show' => [
+            'title' => 'No-Show Rate',
+            'activated_on' => 'No-Show suite active since :date (first reminder sent)',
+            'not_activated' => 'No-Show suite not active yet: no reminder has been sent',
+            'overall' => 'No-show rate',
+            'recovered_revenue' => 'Recovered revenue',
+            'recovered_hint' => '(before − after) × :visits visits × :fee average fee',
+        ],
+        'outside_hours' => [
+            'title' => 'Outside-Hours & Holiday Bookings',
+            'of_all' => 'of all bookings',
+            'split' => ':outside outside working hours · :holidays on holidays',
+        ],
+        'rebooked_slots' => [
+            'title' => 'Re-booked Cancelled Slots',
+            'fill_rate' => 'fill rate',
+            'split' => ':refilled of :cancelled cancelled slots were filled by another patient',
+            'time' => 'Time to refill: average :avg · median :median',
+        ],
+        'waiting_time' => [
+            'title' => 'Average Waiting Time',
+            'average' => 'Average',
+            'median' => 'Median',
+            'excluded' => ':count visits without a check-in or start time left out',
+        ],
+        'link_opens' => [
+            'title' => 'Queue Link Open Rate',
+            'split' => ':opened bookings opened their queue link',
+            'since' => 'Recorded since :date',
+            'not_tracked' => 'Link opens are recorded from this release on',
+        ],
+        'on_time' => [
+            'title' => 'On-Time Arrival Rate',
+            'split' => ':count checked in no later than :minutes min after their time',
+        ],
+        'whatsapp' => [
+            'title' => 'WhatsApp Response Rate',
+            'split' => 'Confirmed :confirmed (:confirmed_percent) · Cancelled :cancelled (:cancelled_percent)',
+            'hint' => 'Visit-day reminders delivered. Patients cannot reschedule by WhatsApp yet.',
+            'reschedule_unavailable' => 'Reschedule responses: not supported yet',
+        ],
+        'satisfaction' => [
+            'title' => 'Satisfaction Score',
+            'positive' => 'satisfied or very satisfied',
+            'total' => ':count ratings',
+        ],
+    ],
+
+    'comments' => [
+        'title' => 'Top Comments',
+        'empty' => 'No positive comments in this period.',
+        'hint' => 'Latest comments from satisfied patients. Names and phone numbers are removed.',
+    ],
+
+    'csv' => [
+        'clinic' => 'Clinic',
+        'from' => 'From',
+        'to' => 'To',
+        'metric' => 'Metric',
+        'measure' => 'Measure',
+        'value' => 'Value',
+        'sample' => 'Sample size',
+    ],
+
+    'measures' => [
+        'activation_date' => 'Activation date',
+        'overall_rate' => 'Overall (%)',
+        'before_rate' => 'Before (%)',
+        'after_rate' => 'After (%)',
+        'change_points' => 'Change (percentage points)',
+        'avg_visit_fee' => 'Average visit fee',
+        'recovered_revenue' => 'Recovered revenue',
+        'count' => 'Count',
+        'outside_hours' => 'Outside working hours',
+        'on_holidays' => 'On holidays',
+        'percent' => 'Percent of total (%)',
+        'cancelled' => 'Cancelled',
+        'refilled' => 'Refilled',
+        'fill_rate' => 'Fill rate (%)',
+        'avg_minutes_to_refill' => 'Average minutes to refill',
+        'median_minutes_to_refill' => 'Median minutes to refill',
+        'excluded' => 'Excluded (missing times)',
+        'avg_minutes' => 'Average minutes',
+        'median_minutes' => 'Median minutes',
+        'opened' => 'Opened',
+        'on_time' => 'On time',
+        'tolerance_minutes' => 'Tolerance (minutes)',
+        'responded' => 'Responded',
+        'confirmed' => 'Confirmed',
+        'confirmed_percent' => 'Confirmed (%)',
+        'cancelled_percent' => 'Cancelled (%)',
+        'rescheduled' => 'Rescheduled responses',
+        'positive' => 'Satisfied or very satisfied',
+        'positive_percent' => 'Satisfied or very satisfied (%)',
+        'level_very_good' => 'Very satisfied',
+        'level_very_good_percent' => 'Very satisfied (%)',
+        'level_good' => 'Satisfied',
+        'level_good_percent' => 'Satisfied (%)',
+        'level_bad' => 'Some notes',
+        'level_bad_percent' => 'Some notes (%)',
+    ],
+];

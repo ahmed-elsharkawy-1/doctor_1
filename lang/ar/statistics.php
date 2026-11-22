@@ -1,0 +1,131 @@
+<?php
+
+/*
+| صفحة إحصائيات العيادة في لوحة الإدارة وملف التصدير.
+*/
+
+return [
+    'title' => 'إحصائيات العيادة',
+    'subheading' => 'أرقام أداء عيادة واحدة، كدليل نعرضه على الأطباء. كل رقم يخص هذه العيادة وحدها.',
+    'filters' => [
+        'clinic' => 'العيادة',
+        'from' => 'من',
+        'to' => 'إلى',
+        'pick_clinic' => 'اختر عيادة لعرض أرقامها.',
+    ],
+    'export' => 'تصدير CSV',
+    'insufficient' => 'بيانات غير كافية',
+    'no_data' => 'لا توجد بيانات في هذه الفترة',
+    'no_baseline' => 'لا يوجد خط أساس',
+    'not_supported' => 'غير مدعوم',
+    'sample' => 'حجم العينة: :count',
+    'min_sample_hint' => 'يلزم :count سجلًا على الأقل لعرض القيمة، وإلا تظهر "بيانات غير كافية".',
+    'before' => 'قبل',
+    'after' => 'بعد',
+    'change' => 'التغيير',
+    'points' => ':value نقطة',
+    'minutes' => ':value دقيقة',
+
+    'cards' => [
+        'no_show' => [
+            'title' => 'نسبة عدم الحضور',
+            'activated_on' => 'باقة تقليل الغياب مفعّلة منذ :date (أول تذكير أُرسل)',
+            'not_activated' => 'باقة تقليل الغياب غير مفعّلة: لم يُرسل أي تذكير بعد',
+            'overall' => 'نسبة عدم الحضور',
+            'recovered_revenue' => 'الإيراد المُستعاد',
+            'recovered_hint' => '(قبل − بعد) × :visits زيارة × :fee متوسط سعر الكشف',
+        ],
+        'outside_hours' => [
+            'title' => 'حجوزات خارج المواعيد وفي الإجازات',
+            'of_all' => 'من كل الحجوزات',
+            'split' => ':outside خارج مواعيد العمل · :holidays في الإجازات',
+        ],
+        'rebooked_slots' => [
+            'title' => 'مواعيد ملغاة أُعيد حجزها',
+            'fill_rate' => 'نسبة الإشغال',
+            'split' => ':refilled من :cancelled موعد ملغى حجزه مريض آخر',
+            'time' => 'وقت إعادة الحجز: المتوسط :avg · الوسيط :median',
+        ],
+        'waiting_time' => [
+            'title' => 'متوسط وقت الانتظار',
+            'average' => 'المتوسط',
+            'median' => 'الوسيط',
+            'excluded' => 'استُبعدت :count زيارة بلا وقت وصول أو وقت دخول',
+        ],
+        'link_opens' => [
+            'title' => 'نسبة فتح رابط الدور',
+            'split' => ':opened حجزًا فُتح رابط الدور الخاص به',
+            'since' => 'يُسجَّل منذ :date',
+            'not_tracked' => 'يبدأ تسجيل فتح الرابط من هذا الإصدار',
+        ],
+        'on_time' => [
+            'title' => 'نسبة الوصول في الموعد',
+            'split' => ':count وصلوا قبل موعدهم أو بعده بـ :minutes دقيقة على الأكثر',
+        ],
+        'whatsapp' => [
+            'title' => 'نسبة الرد على واتساب',
+            'split' => 'تأكيد :confirmed (:confirmed_percent) · إلغاء :cancelled (:cancelled_percent)',
+            'hint' => 'تذكيرات يوم الزيارة التي وصلت. لا يمكن تغيير الموعد عبر واتساب بعد.',
+            'reschedule_unavailable' => 'ردود إعادة الجدولة: غير مدعومة بعد',
+        ],
+        'satisfaction' => [
+            'title' => 'مستوى الرضا',
+            'positive' => 'راضٍ أو راضٍ جدًا',
+            'total' => ':count تقييمًا',
+        ],
+    ],
+
+    'comments' => [
+        'title' => 'أبرز التعليقات',
+        'empty' => 'لا توجد تعليقات إيجابية في هذه الفترة.',
+        'hint' => 'أحدث تعليقات المرضى الراضين، بعد حذف الأسماء وأرقام الهواتف.',
+    ],
+
+    'csv' => [
+        'clinic' => 'العيادة',
+        'from' => 'من',
+        'to' => 'إلى',
+        'metric' => 'المؤشر',
+        'measure' => 'القياس',
+        'value' => 'القيمة',
+        'sample' => 'حجم العينة',
+    ],
+
+    'measures' => [
+        'activation_date' => 'تاريخ التفعيل',
+        'overall_rate' => 'الإجمالي (%)',
+        'before_rate' => 'قبل (%)',
+        'after_rate' => 'بعد (%)',
+        'change_points' => 'التغيير (نقطة مئوية)',
+        'avg_visit_fee' => 'متوسط سعر الكشف',
+        'recovered_revenue' => 'الإيراد المُستعاد',
+        'count' => 'العدد',
+        'outside_hours' => 'خارج مواعيد العمل',
+        'on_holidays' => 'في الإجازات',
+        'percent' => 'النسبة من الإجمالي (%)',
+        'cancelled' => 'ملغاة',
+        'refilled' => 'أُعيد حجزها',
+        'fill_rate' => 'نسبة الإشغال (%)',
+        'avg_minutes_to_refill' => 'متوسط دقائق إعادة الحجز',
+        'median_minutes_to_refill' => 'وسيط دقائق إعادة الحجز',
+        'excluded' => 'مستبعدة (أوقات ناقصة)',
+        'avg_minutes' => 'متوسط الدقائق',
+        'median_minutes' => 'وسيط الدقائق',
+        'opened' => 'فُتح',
+        'on_time' => 'في الموعد',
+        'tolerance_minutes' => 'السماحية (دقائق)',
+        'responded' => 'ردّوا',
+        'confirmed' => 'تأكيد',
+        'confirmed_percent' => 'تأكيد (%)',
+        'cancelled_percent' => 'إلغاء (%)',
+        'rescheduled' => 'ردود إعادة الجدولة',
+        'positive' => 'راضٍ أو راضٍ جدًا',
+        'positive_percent' => 'راضٍ أو راضٍ جدًا (%)',
+        'level_very_good' => 'راضي جدًا',
+        'level_very_good_percent' => 'راضي جدًا (%)',
+        'level_good' => 'راضي',
+        'level_good_percent' => 'راضي (%)',
+        'level_bad' => 'بعض الملاحظات',
+        'level_bad_percent' => 'بعض الملاحظات (%)',
+    ],
+];
