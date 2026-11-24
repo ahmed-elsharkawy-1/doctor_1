@@ -32,10 +32,12 @@ use Illuminate\Support\Facades\DB;
  * select by visit date; outside-hours bookings by when they were made;
  * ratings by when they were submitted.
  *
- * Timestamps come in two kinds. created_at, sent_at and opened_at are UTC.
- * Every time the clinic's own day is written in — start_at, arrived_at,
+ * Timestamps come in two kinds. created_at, sent_at and opened_at are the
+ * application's clock (config app.timezone — Africa/Cairo in production, not
+ * UTC). Every time the clinic's own day is written in — start_at, arrived_at,
  * called_in_at, cancelled_at, submitted_at — is the clinic's wall time,
- * stored as is. Comparisons between the two go through wall().
+ * stored as is. The two agree for a Cairo clinic, but comparisons between
+ * them still go through wall() / appTime() so a clinic elsewhere stays right.
  *
  * A card's `state` is `ok`, `insufficient` (fewer than min_sample) or
  * `no_data` (nothing to measure at all).
@@ -102,7 +104,7 @@ class ClinicStatisticsService
 
         return $first === null
             ? null
-            : Carbon::parse($first, 'UTC')->setTimezone($clinic->timezone)->startOfDay();
+            : Carbon::parse($first, self::appTimezone())->setTimezone($clinic->timezone)->startOfDay();
     }
 
     /*
@@ -184,8 +186,11 @@ class ClinicStatisticsService
         $created = Booking::query()
             ->forClinic($this->clinic->id)
             ->whereBetween('created_at', [
-                Carbon::parse($this->from->toDateString(), $tz)->startOfDay()->utc(),
-                Carbon::parse($this->to->toDateString(), $tz)->endOfDay()->utc(),
+                // The clinic's days, written in the application's clock, which
+                // is what created_at holds. Formatted here: the query builder
+                // writes a Carbon's own wall time and ignores its zone.
+                Carbon::parse($this->from->toDateString(), $tz)->startOfDay()->setTimezone(self::appTimezone())->format('Y-m-d H:i:s'),
+                Carbon::parse($this->to->toDateString(), $tz)->endOfDay()->setTimezone(self::appTimezone())->format('Y-m-d H:i:s'),
             ])
             ->pluck('created_at');
 
@@ -204,7 +209,7 @@ class ClinicStatisticsService
         $outside = 0;
 
         foreach ($created as $createdAt) {
-            $local = Carbon::parse($createdAt, 'UTC')->setTimezone($tz);
+            $local = $this->appTime($createdAt)->setTimezone($tz);
 
             if ($holidays->has($local->toDateString())) {
                 $onHoliday++;
@@ -386,7 +391,7 @@ class ClinicStatisticsService
             'sample' => $total,
             'opened' => $opened,
             'percent' => $this->percent($opened, $total),
-            'tracked_since' => Carbon::parse($since, 'UTC')->setTimezone($this->clinic->timezone)->toDateString(),
+            'tracked_since' => Carbon::parse($since, self::appTimezone())->setTimezone($this->clinic->timezone)->toDateString(),
         ];
     }
 
@@ -591,16 +596,32 @@ class ClinicStatisticsService
     }
 
     /**
-     * A UTC timestamp as the clinic's wall time, in the same form as the
-     * clinic-time columns, so the two can be compared directly.
+     * An application-clock timestamp (created_at, sent_at) as the clinic's
+     * wall time, in the same form as the clinic-time columns, so the two can
+     * be compared directly.
      */
-    private function wall(?Carbon $utc): Carbon
+    private function wall(Carbon|string|null $at): Carbon
     {
         return Carbon::parse(
-            Carbon::parse($utc?->format('Y-m-d H:i:s'), 'UTC')
-                ->setTimezone($this->clinic->timezone)
-                ->format('Y-m-d H:i:s'),
+            $this->appTime($at)->setTimezone($this->clinic->timezone)->format('Y-m-d H:i:s'),
         );
+    }
+
+    /**
+     * The moment an application-clock value stands for. Read from its digits,
+     * never from the zone a Carbon happens to carry, so a cast value and a raw
+     * string give the same answer.
+     */
+    private function appTime(Carbon|string|null $at): Carbon
+    {
+        $digits = $at instanceof Carbon ? $at->format('Y-m-d H:i:s') : (string) $at;
+
+        return Carbon::parse($digits, self::appTimezone());
+    }
+
+    private static function appTimezone(): string
+    {
+        return (string) config('app.timezone');
     }
 
     private function minSample(): int

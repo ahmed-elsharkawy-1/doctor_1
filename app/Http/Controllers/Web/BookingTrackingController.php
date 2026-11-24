@@ -7,7 +7,9 @@ use App\Models\Booking;
 use App\Models\BookingLinkOpen;
 use App\Services\V1\Queue\QueuePositionService;
 use App\Services\V1\Queue\TrackingDelayService;
+use App\Support\LinkPreviewBot;
 use App\Support\PhoneNumber;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\View\View;
 
@@ -22,14 +24,17 @@ use Illuminate\View\View;
  */
 class BookingTrackingController extends Controller
 {
-    public function __invoke(Booking $booking, QueuePositionService $positions, TrackingDelayService $delays): View
+    public function __invoke(Request $request, Booking $booking, QueuePositionService $positions, TrackingDelayService $delays): View
     {
         // Patients are not sent an Accept-Language header worth trusting.
         App::setLocale(config('clinic.api.default_locale'));
 
         // Only the first open is kept: the page refreshes itself, and a
-        // patient checking twice is still one patient who opened it.
-        BookingLinkOpen::recordFirst($booking);
+        // patient checking twice is still one patient who opened it. Link
+        // previews and crawlers are not patients opening anything.
+        if (! LinkPreviewBot::is($request)) {
+            BookingLinkOpen::recordFirst($booking);
+        }
 
         $booking->load(['patient', 'clinic.doctor', 'clinic.specialty', 'visitType']);
 

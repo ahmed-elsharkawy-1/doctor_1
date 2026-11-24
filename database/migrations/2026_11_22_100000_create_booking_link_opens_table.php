@@ -19,7 +19,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('booking_id')->unique()->constrained()->cascadeOnDelete();
             $table->foreignId('clinic_id')->constrained()->cascadeOnDelete();
-            // UTC, like created_at.
+            // The application's clock (Africa/Cairo), like created_at.
             $table->timestamp('opened_at');
 
             $table->index(['clinic_id', 'opened_at']);
@@ -32,7 +32,7 @@ return new class extends Migration
 
         DB::table('booking_link_tracking_starts')->insert([
             'metric' => 'queue_link_open',
-            'started_at' => Carbon::now('UTC')->format('Y-m-d H:i:s'),
+            'started_at' => Carbon::now()->format('Y-m-d H:i:s'),
         ]);
     }
 

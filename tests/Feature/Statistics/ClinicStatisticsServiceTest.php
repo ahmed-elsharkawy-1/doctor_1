@@ -36,7 +36,9 @@ class ClinicStatisticsServiceTest extends TestCase
 
         $this->setUpClinic();
         config(['clinic.statistics.min_sample' => 2, 'clinic.statistics.on_time_tolerance_minutes' => 15]);
-        Carbon::setTestNow(Carbon::parse('2026-11-30 12:00:00', 'UTC'));
+        // created_at, sent_at and opened_at are the application's clock —
+        // Africa/Cairo here as in production — so the times below are Cairo.
+        Carbon::setTestNow(Carbon::parse('2026-11-30 14:00:00', 'Africa/Cairo'));
     }
 
     private function stats(?Clinic $clinic = null, string $from = '2026-11-01', string $to = '2026-11-30'): array
@@ -54,7 +56,7 @@ class ClinicStatisticsServiceTest extends TestCase
             ->create($attributes + ['price' => 200]);
     }
 
-    private function reminder(Booking $booking, string $sentAtUtc, string $status = 'delivered', string $key = WhatsAppMessagingService::DAILY_REMINDER_KEY): OutboundMessage
+    private function reminder(Booking $booking, string $sentAt, string $status = 'delivered', string $key = WhatsAppMessagingService::DAILY_REMINDER_KEY): OutboundMessage
     {
         return OutboundMessage::create([
             'clinic_id' => $booking->clinic_id,
@@ -63,7 +65,7 @@ class ClinicStatisticsServiceTest extends TestCase
             'template_key' => $key,
             'rendered_body' => 'reminder',
             'status' => $status,
-            'sent_at' => $sentAtUtc,
+            'sent_at' => $sentAt,
         ]);
     }
 
@@ -87,7 +89,7 @@ class ClinicStatisticsServiceTest extends TestCase
 
         // A failed reminder earlier does not count as activation.
         $this->reminder($first, '2026-11-01 08:00:00', 'failed');
-        $this->reminder($first, '2026-11-14 23:30:00'); // 01:30 on the 15th in Cairo
+        $this->reminder($first, '2026-11-15 01:30:00'); // just after midnight, Cairo
 
         $card = $this->stats()['cards']['no_show'];
 
@@ -176,18 +178,18 @@ class ClinicStatisticsServiceTest extends TestCase
 
     public function test_bookings_made_outside_hours_or_on_holidays_are_counted(): void
     {
-        // Sunday 2026-11-08, open 10:00–14:00 Cairo (UTC+2).
+        // Sunday 2026-11-08, open 10:00–14:00 Cairo.
         $sunday = $this->clinic->schedules()->where('day_of_week', DayOfWeek::SUNDAY)->first();
         $sunday->update(['is_open' => true]);
         ClinicSchedulePeriod::create(['clinic_schedule_id' => $sunday->id, 'start_time' => '10:00', 'end_time' => '14:00']);
         ClinicHoliday::create(['clinic_id' => $this->clinic->id, 'date' => '2026-11-15']);
 
-        $at = fn (string $utc) => $this->booking('2026-11-20 10:00')->forceFill(['created_at' => $utc])->save();
+        $at = fn (string $made) => $this->booking('2026-11-20 10:00')->forceFill(['created_at' => $made])->save();
 
-        $at('2026-11-08 10:00:00'); // 12:00 Cairo — open
-        $at('2026-11-08 18:00:00'); // 20:00 Cairo — closed
-        $at('2026-11-09 10:00:00'); // Monday, closed all day
-        $at('2026-11-15 10:00:00'); // Sunday, but a holiday
+        $at('2026-11-08 12:00:00'); // open
+        $at('2026-11-08 20:00:00'); // closed
+        $at('2026-11-09 12:00:00'); // Monday, closed all day
+        $at('2026-11-15 12:00:00'); // Sunday, but a holiday
 
         $card = $this->stats()['cards']['outside_hours'];
 
@@ -204,12 +206,12 @@ class ClinicStatisticsServiceTest extends TestCase
 
     public function test_a_cancelled_slot_counts_as_refilled_only_by_another_patient_before_its_time(): void
     {
-        // Wall times are Cairo; created_at is UTC (Cairo − 2h).
+        // All Cairo: the slot, the cancel and when the next booking was made.
         $filled = $this->booking('2026-11-20 10:00', ['status' => BookingStatus::CANCELLED, 'cancel_reason' => CancelReason::PATIENT_CANCELLED, 'cancelled_at' => '2026-11-19 09:00:00']);
-        $this->booking('2026-11-20 10:00')->forceFill(['created_at' => '2026-11-19 08:00:00'])->save(); // 10:00 Cairo, 60 min later
+        $this->booking('2026-11-20 10:00')->forceFill(['created_at' => '2026-11-19 10:00:00'])->save(); // 60 min later
 
         $samePatient = $this->booking('2026-11-21 10:00', ['status' => BookingStatus::CANCELLED, 'cancel_reason' => CancelReason::PATIENT_CANCELLED, 'cancelled_at' => '2026-11-20 09:00:00']);
-        $this->booking('2026-11-21 10:00', ['patient_id' => $samePatient->patient_id])->forceFill(['created_at' => '2026-11-20 09:00:00'])->save();
+        $this->booking('2026-11-21 10:00', ['patient_id' => $samePatient->patient_id])->forceFill(['created_at' => '2026-11-20 11:00:00'])->save();
 
         // Cancelled by the clinic's day-off: not a slot anyone could take.
         $this->booking('2026-11-22 10:00', ['status' => BookingStatus::CANCELLED, 'cancel_reason' => CancelReason::EMERGENCY, 'cancelled_at' => '2026-11-21 09:00:00']);
@@ -281,7 +283,7 @@ class ClinicStatisticsServiceTest extends TestCase
         BookingLinkOpen::create([
             'booking_id' => $opened->id,
             'clinic_id' => $opened->clinic_id,
-            'opened_at' => Carbon::parse('2026-11-30 11:00:00', 'UTC'),
+            'opened_at' => '2026-11-30 13:00:00',
         ]);
 
         $card = $this->stats()['cards']['link_opens'];
@@ -301,8 +303,8 @@ class ClinicStatisticsServiceTest extends TestCase
         $this->booking('2026-11-10 10:00', ['arrived_at' => '2026-11-10 09:40'])->forceFill($made)->save(); // early
         $this->booking('2026-11-10 11:00', ['arrived_at' => '2026-11-10 11:15'])->forceFill($made)->save(); // at the limit
         $this->booking('2026-11-10 12:00', ['arrived_at' => '2026-11-10 12:30'])->forceFill($made)->save(); // late
-        // Booked at the desk when they walked in (13:00 Cairo = 11:00 UTC).
-        $this->booking('2026-11-10 14:00', ['arrived_at' => '2026-11-10 13:00'])->forceFill(['created_at' => '2026-11-10 11:00:00'])->save();
+        // Booked at the desk when they walked in.
+        $this->booking('2026-11-10 14:00', ['arrived_at' => '2026-11-10 13:00'])->forceFill(['created_at' => '2026-11-10 13:00:00'])->save();
 
         $card = $this->stats()['cards']['on_time'];
 
@@ -323,11 +325,11 @@ class ClinicStatisticsServiceTest extends TestCase
         $silent = $this->booking('2026-11-10 13:00');
         $failed = $this->booking('2026-11-10 14:00', ['patient_response' => PatientResponse::CONFIRMED, 'patient_response_source' => PatientResponseSource::WHATSAPP]);
 
-        $this->reminder($confirmed, '2026-11-10 06:00:00', 'read');
-        $this->reminder($cancelled, '2026-11-10 06:00:00');
-        $this->reminder($byPhone, '2026-11-10 06:00:00');
-        $this->reminder($silent, '2026-11-10 06:00:00');
-        $this->reminder($failed, '2026-11-10 06:00:00', 'failed');
+        $this->reminder($confirmed, '2026-11-10 08:00:00', 'read');
+        $this->reminder($cancelled, '2026-11-10 08:00:00');
+        $this->reminder($byPhone, '2026-11-10 08:00:00');
+        $this->reminder($silent, '2026-11-10 08:00:00');
+        $this->reminder($failed, '2026-11-10 08:00:00', 'failed');
 
         $card = $this->stats()['cards']['whatsapp'];
 
@@ -406,5 +408,105 @@ class ClinicStatisticsServiceTest extends TestCase
 
         $this->assertSame('••• had a lovely visit', $comment);
         $this->assertStringNotContainsString('01012345678', $comment);
+    }
+
+    /*
+    | Times saved the way the app saves them — not typed in by hand
+    */
+
+    private function madeAt(string $cairo, string $slot, array $attributes = []): Booking
+    {
+        Carbon::setTestNow(Carbon::parse($cairo, 'Africa/Cairo'));
+
+        return $this->booking($slot, $attributes);
+    }
+
+    public function test_a_refill_an_hour_after_the_cancel_reads_as_an_hour(): void
+    {
+        $this->madeAt('2026-11-20 12:00', '2026-11-24 15:00', [
+            'status' => BookingStatus::CANCELLED,
+            'cancel_reason' => CancelReason::PATIENT_CANCELLED,
+            'cancelled_at' => '2026-11-24 10:00:00',
+        ]);
+        $this->madeAt('2026-11-24 11:00', '2026-11-24 15:00');
+        $this->madeAt('2026-11-23 09:00', '2026-11-25 15:00', [
+            'status' => BookingStatus::CANCELLED,
+            'cancel_reason' => CancelReason::PATIENT_CANCELLED,
+            'cancelled_at' => '2026-11-25 08:00:00',
+        ]);
+        $this->madeAt('2026-11-25 09:00', '2026-11-25 15:00');
+
+        $card = $this->stats()['cards']['rebooked_slots'];
+
+        $this->assertSame(2, $card['refilled']);
+        $this->assertSame(60.0, $card['avg_minutes_to_refill']);
+    }
+
+    /** Taken 90 minutes before its time: still before its time, so refilled. */
+    public function test_a_refill_shortly_before_the_slot_counts(): void
+    {
+        $this->madeAt('2026-11-20 12:00', '2026-11-24 15:00', [
+            'status' => BookingStatus::CANCELLED,
+            'cancel_reason' => CancelReason::PATIENT_CANCELLED,
+            'cancelled_at' => '2026-11-24 12:00:00',
+        ]);
+        $this->madeAt('2026-11-24 13:30', '2026-11-24 15:00');
+        $this->madeAt('2026-11-20 12:00', '2026-11-25 15:00', [
+            'status' => BookingStatus::CANCELLED,
+            'cancel_reason' => CancelReason::PATIENT_CANCELLED,
+            'cancelled_at' => '2026-11-25 12:00:00',
+        ]);
+        $this->madeAt('2026-11-25 14:30', '2026-11-25 15:00');
+
+        $this->assertSame(2, $this->stats()['cards']['rebooked_slots']['refilled']);
+    }
+
+    /** Late-evening bookings belong to the day they were made on. */
+    public function test_bookings_made_late_in_the_evening_stay_on_their_own_day(): void
+    {
+        $this->madeAt('2026-10-31 23:00', '2026-11-20 10:00'); // the day before the range
+        $this->madeAt('2026-11-30 23:00', '2026-11-20 10:00'); // the range's last evening
+        $this->madeAt('2026-11-30 22:30', '2026-11-20 10:00');
+
+        $this->assertSame(2, $this->stats()['cards']['outside_hours']['sample']);
+    }
+
+    public function test_the_first_reminder_day_is_the_clinics_own_day(): void
+    {
+        $first = $this->booking('2026-11-15 10:00', ['status' => BookingStatus::DONE]);
+        $this->reminder($first, '2026-11-14 23:30:00');
+
+        $this->assertSame('2026-11-14', $this->stats()['cards']['no_show']['activation_date']);
+    }
+
+    /*
+    | Link previews are not patients
+    */
+
+    public function test_a_link_preview_or_crawler_does_not_count_as_opening_the_link(): void
+    {
+        $booking = $this->booking('2026-11-30 18:00');
+
+        $this->withHeader('User-Agent', 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)')
+            ->get($booking->trackingUrl())->assertOk();
+        $this->withHeader('User-Agent', 'WhatsApp/2.23.20.0 A')->get($booking->trackingUrl())->assertOk();
+        $this->withHeader('User-Agent', '')->get($booking->trackingUrl())->assertOk();
+        $this->call('HEAD', $booking->trackingUrl(), [], [], [], ['HTTP_USER_AGENT' => 'Mozilla/5.0 (iPhone)']);
+
+        $this->assertSame(0, BookingLinkOpen::count());
+
+        $this->withHeader('User-Agent', 'Mozilla/5.0 (Linux; Android 14; CUBOT X30) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36')
+            ->get($booking->trackingUrl())->assertOk();
+
+        $this->assertSame(1, BookingLinkOpen::count());
+    }
+
+    public function test_an_open_is_stamped_in_the_applications_clock(): void
+    {
+        $booking = $this->booking('2026-11-30 18:00');
+
+        $this->withHeader('User-Agent', 'Mozilla/5.0 (iPhone)')->get($booking->trackingUrl())->assertOk();
+
+        $this->assertSame('2026-11-30 14:00:00', BookingLinkOpen::first()->getRawOriginal('opened_at'));
     }
 }

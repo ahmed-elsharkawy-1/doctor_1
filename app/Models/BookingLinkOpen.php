@@ -28,15 +28,23 @@ class BookingLinkOpen extends Model
     }
 
     /**
-     * Records the open unless one is already recorded. insertOrIgnore leans on
-     * the unique booking_id, so two requests racing cannot both write.
+     * Records the open unless one is already recorded. The page reloads
+     * itself every minute, so the usual case is a quick read that finds the
+     * row; insertOrIgnore leans on the unique booking_id, so two requests
+     * racing still cannot both write.
+     *
+     * opened_at is the application's clock, like created_at.
      */
     public static function recordFirst(Booking $booking): void
     {
+        if (static::query()->where('booking_id', $booking->id)->exists()) {
+            return;
+        }
+
         static::query()->insertOrIgnore([
             'booking_id' => $booking->id,
             'clinic_id' => $booking->clinic_id,
-            'opened_at' => Carbon::now('UTC'),
+            'opened_at' => Carbon::now()->format('Y-m-d H:i:s'),
         ]);
     }
 
