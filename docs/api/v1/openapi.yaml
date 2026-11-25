@@ -387,6 +387,15 @@ paths:
         must close by `06:00`. While it is open nothing else may start before
         its close: not another period on this day, and not the next day.
         Such a period comes back with `ends_next_day: true`.
+
+        **Per branch (ELA-20).** This edits the week of the branch in
+        `X-Branch-Id`. The doctor is at one branch at a time: a period that
+        overlaps one at another branch the same day is refused with
+        `SCHEDULE_BRANCH_CONFLICT` (409), naming the branch in
+        `error.details`. A gap shorter than 30 minutes between two branches is
+        saved, and listed in `short_gaps` for the app to warn about.
+        `bookings_outside_hours` counts upcoming bookings that day that the new
+        hours leave out. They are not moved.
       operationId: updateScheduleDay
       requestBody:
         required: true
@@ -419,7 +428,22 @@ paths:
                   - $ref: "#/components/schemas/SuccessEnvelope"
                   - type: object
                     properties:
-                      data: { $ref: "#/components/schemas/ScheduleDay" }
+                      data:
+                        allOf:
+                          - $ref: "#/components/schemas/ScheduleDay"
+                          - type: object
+                            properties:
+                              short_gaps:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    branch_id: { type: integer }
+                                    branch: { type: string }
+                                    minutes: { type: integer }
+                              bookings_outside_hours: { type: integer }
+        "409":
+          description: "`SCHEDULE_BRANCH_CONFLICT`: overlaps the doctor's hours at another branch."
         "400":
           description: |
             `SCHEDULE_PERIOD_INVALID` — an open day with no periods, a period
@@ -633,6 +657,16 @@ paths:
               required: [date]
               properties:
                 date: { type: string, format: date, example: "2026-08-20" }
+                end_date:
+                  type: string
+                  format: date
+                  description: The last day of a range, inclusive (ELA-20), at most 60 days. Omit for one day.
+                branch_ids:
+                  type: array
+                  items: { type: integer }
+                  description: |
+                    The branches it closes. Omit for every branch, including any
+                    added later. A team member's "every branch" is all of theirs.
                 note: { type: string, maxLength: 255, example: سفر }
                 force:
                   type: boolean
@@ -649,7 +683,7 @@ paths:
                     properties:
                       data: { $ref: "#/components/schemas/Holiday" }
         "409":
-          description: "`HOLIDAY_ALREADY_EXISTS` or `HOLIDAY_HAS_BOOKINGS`"
+          description: "`HOLIDAY_ALREADY_EXISTS` (dates in `error.details.dates`) or `HOLIDAY_HAS_BOOKINGS`"
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2480,10 +2514,14 @@ components:
 
     Holiday:
       type: object
+      description: One date. A range or several branches is one row each, sharing `group_id`; deleting one deletes the group.
       properties:
         id: { type: integer }
         date: { $ref: "#/components/schemas/Display" }
         note: { type: [string, "null"] }
+        branch_id: { type: [integer, "null"], description: Null closes every branch. }
+        branch: { type: [string, "null"] }
+        group_id: { type: [string, "null"] }
 
     BookingDay:
       type: object

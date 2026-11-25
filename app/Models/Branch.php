@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Enums\DayOfWeek;
 use App\Support\PhoneNumber;
 use Database\Factories\BranchFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * A place the doctor works from (ELA-16).
@@ -47,6 +50,41 @@ class Branch extends Model
     public function clinic(): BelongsTo
     {
         return $this->belongsTo(Clinic::class);
+    }
+
+    /**
+     * This branch's week, Saturday first (ELA-20).
+     *
+     * @return HasMany<ClinicSchedule, $this>
+     */
+    public function schedules(): HasMany
+    {
+        return $this->hasMany(ClinicSchedule::class)->orderBy('day_of_week');
+    }
+
+    public function scheduleFor(DayOfWeek $day): ?ClinicSchedule
+    {
+        return $this->schedules()->where('day_of_week', $day->value)->with('periods')->first();
+    }
+
+    /**
+     * Whether a holiday closes this branch on that date: one of its own, or
+     * one for all branches.
+     */
+    public function isClosedOn(Carbon|string $date): bool
+    {
+        $date = $date instanceof Carbon ? $date->toDateString() : Carbon::parse($date)->toDateString();
+
+        return ClinicHoliday::query()->closing($this)->whereDate('date', $date)->exists();
+    }
+
+    /**
+     * Whether any day of the week is open: a branch with none can't take a
+     * booking yet (ELA-16).
+     */
+    public function hasWorkingHours(): bool
+    {
+        return $this->schedules()->where('is_open', true)->whereHas('periods')->exists();
     }
 
     /**

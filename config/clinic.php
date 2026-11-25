@@ -86,8 +86,20 @@ return [
     | booking and the queue are per branch, since a branch added before then
     | would have no hours or bookings of its own.
     */
+    /*
+    | Holidays (ELA-20): the longest range one entry may close, in days.
+    */
+    'holidays' => [
+        'max_range_days' => (int) env('CLINIC_HOLIDAY_MAX_RANGE_DAYS', 60),
+    ],
+
     'branches' => [
         'multi_enabled' => (bool) env('CLINIC_MULTI_BRANCH', false),
+
+        // Less than this between the doctor's periods at two branches on the
+        // same day is saved with a warning: time to get from one to the
+        // other (ELA-20).
+        'min_gap_minutes' => (int) env('CLINIC_BRANCH_MIN_GAP_MINUTES', 30),
     ],
 
     'settings' => [

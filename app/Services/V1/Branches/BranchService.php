@@ -8,6 +8,7 @@ use App\Exceptions\ApiException;
 use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\User;
+use App\Services\V1\Settings\ScheduleService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -76,6 +77,10 @@ class BranchService
             'is_active' => true,
             'sort_order' => ((int) $clinic->branches()->max('sort_order')) + 1,
         ]));
+
+        // Closed every day until the doctor sets its hours: a new branch
+        // takes no booking before then (ELA-16).
+        app(ScheduleService::class)->seedClosedWeek($branch);
 
         // A team member who adds a branch works at it, or it would vanish
         // from their own list the moment it was saved.

@@ -180,12 +180,23 @@ tap.
 - Blocked by: 2.1
 
 ### Phase 3: Working hours and holidays per branch (ELA-20)
+
+As built: the settings side is per branch (screens, API, rules). **The
+booking side still reads the clinic's first branch** (`Clinic::scheduleFor`,
+`$clinic->holidays()`): with `CLINIC_MULTI_BRANCH` off a clinic has that one
+branch, so the answers are the same. Phase 4 must move every one of those
+readers (SlotAvailabilityService, PatientBookingService, BookingDaysService,
+BookingCalendarService, WaitingListService, the reminder commands,
+`Clinic::currentDay`, reports and statistics, the landing page) to the
+booking's branch **before the switch can go on**. "Two branches give two sets
+of slots" is verified there. Visit-length days stay doctor-level: ELA-20
+doesn't mention them.
 This comes before booking because slot availability reads it.
 Verified when: Sat 1–4 Gedeila and 5–10 Al-Tur'a give two separate sets of
 slots, an overlap is refused, and a holiday for one branch closes only that
 branch.
 
-#### Step 3.1: Weekly hours per branch (Size: M)
+#### Step 3.1: Weekly hours per branch (Size: M) ✅
 - Acceptance criteria:
   - The unique key becomes `(branch_id, day_of_week)`. A day with no periods
     means the branch is off that day.
@@ -201,7 +212,7 @@ branch.
 - Test seams: `SlotAvailabilityService` with two branches; a `ScheduleService` overlap test.
 - Blocked by: 2.1
 
-#### Step 3.2: Holidays for a date range and a branch scope (Size: M)
+#### Step 3.2: Holidays for a date range and a branch scope (Size: M) ✅
 - Acceptance criteria:
   - The form starts with scope: "All branches" (the default) or specific
     branches, then a date or a range. "All" is stored as `branch_id NULL`
@@ -424,9 +435,9 @@ later one is pointed at `feature/multi-branch`.
 ## Progress
 | Phase | Status |
 | --- | --- |
-| 1 Foundation and branch management | built, not yet merged |
-| 2 Team access and switching | built, not yet merged |
-| 3 Hours and holidays | pending |
+| 1 Foundation and branch management | PR #16 open |
+| 2 Team access and switching | PR #17 open |
+| 3 Hours and holidays | PR open |
 | 4 Booking | pending |
 | 5 Queue, record and TV | pending |
 | 6 Waiting list | pending |

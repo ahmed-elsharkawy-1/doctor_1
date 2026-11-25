@@ -22,6 +22,15 @@ class Holidays extends SettingsComponent
 
     public string $note = '';
 
+    /** The last day off of a range; empty for one day (ELA-20). */
+    public string $endDate = '';
+
+    /** 'all' for every branch (the default), 'some' for $branchIds. */
+    public string $scope = 'all';
+
+    /** @var list<string> */
+    public array $branchIds = [];
+
     public bool $showPast = false;
 
     /** Set when the service refused because the day already has bookings. */
@@ -30,7 +39,9 @@ class Holidays extends SettingsComponent
     public function render(): View
     {
         return view('livewire.app.settings.holidays', [
-            'holidays' => $this->list(),
+            // One entry per range or set of branches, not per row.
+            'holidays' => $this->list()->groupBy(fn (ClinicHoliday $h) => $h->group_id ?? 'h'.$h->id),
+            'branches' => auth()->user()->accessibleBranches($this->clinic()),
         ])->title(__('app.settings.holidays'));
     }
 
@@ -44,6 +55,9 @@ class Holidays extends SettingsComponent
                 $this->date,
                 $this->note === '' ? null : $this->note,
                 $force,
+                endDate: $this->endDate === '' ? null : $this->endDate,
+                branchIds: $this->scope === 'some' ? array_map('intval', $this->branchIds) : null,
+                actor: auth()->user(),
             ),
             __('app.settings.holiday_added'),
         );
@@ -53,7 +67,7 @@ class Holidays extends SettingsComponent
         $this->bookingsOnDate = $details['bookings_count'] ?? null;
 
         if (! $this->failed) {
-            $this->reset(['date', 'note', 'bookingsOnDate']);
+            $this->reset(['date', 'endDate', 'note', 'scope', 'branchIds', 'bookingsOnDate']);
         }
     }
 
@@ -72,7 +86,7 @@ class Holidays extends SettingsComponent
     public function delete(int $holidayId): void
     {
         $this->run(
-            fn () => app(HolidayService::class)->delete($this->clinic(), $holidayId),
+            fn () => app(HolidayService::class)->delete($this->clinic(), $holidayId, auth()->user()),
             __('app.settings.holiday_deleted'),
         );
     }
@@ -84,6 +98,9 @@ class Holidays extends SettingsComponent
     {
         return [
             'date' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date'],
+            'scope' => ['required', 'in:all,some'],
+            'branchIds' => ['required_if:scope,some', 'array'],
             'note' => ['nullable', 'string', 'max:255'],
         ];
     }

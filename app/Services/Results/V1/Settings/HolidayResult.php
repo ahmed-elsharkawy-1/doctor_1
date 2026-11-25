@@ -17,6 +17,12 @@ final class HolidayResult extends ServiceResult
             'id' => $this->holiday->id,
             'date' => Wire::date($this->holiday->date),
             'note' => $this->holiday->note,
+            // Null: every branch (ELA-20).
+            'branch_id' => $this->holiday->branch_id,
+            'branch' => $this->holiday->branch?->name,
+            // Shared by the other days and branches entered with this one;
+            // deleting any of them deletes them all.
+            'group_id' => $this->holiday->group_id,
         ];
     }
 

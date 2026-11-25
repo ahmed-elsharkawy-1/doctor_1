@@ -226,6 +226,9 @@
         input[type="checkbox"], input[type="radio"] { width: 1.25rem; height: 1.25rem; accent-color: var(--brand); flex: 0 0 auto; }
 
         .flash-warn { background: var(--warn-soft); color: var(--warn); }
+
+        /* Time inputs outside a .field (the working-hours rows) look like the rest. */
+        input[type="time"] { padding: 0.5rem 0.6rem; border: 1px solid var(--line); border-radius: 0.6rem; background: var(--card); color: var(--ink); font: inherit; min-height: 2.75rem; }
         .btn-danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; }
         .field small { display: block; margin-top: 0.3rem; font-size: 0.8rem; }
         .err { color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem; }

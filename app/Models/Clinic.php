@@ -439,8 +439,42 @@ class Clinic extends Model
 
     public function scheduleFor(DayOfWeek $day): ?ClinicSchedule
     {
-        return $this->schedules()->where('day_of_week', $day->value)->first();
+        // The first branch's week. Until booking is per branch (ELA-18) a
+        // clinic has that one branch only, so this is the clinic's week;
+        // per-branch code asks Branch::scheduleFor() instead.
+        return $this->schedules()
+            ->where('day_of_week', $day->value)
+            ->where('branch_id', $this->firstBranchId())
+            ->first();
     }
+
+    /**
+     * The branch every clinic was given, where its week and address have
+     * always lived.
+     */
+    public function firstBranch(): ?Branch
+    {
+        $id = $this->firstBranchId();
+
+        return $id === null ? null : Branch::query()->find($id);
+    }
+
+    /**
+     * Asked for on every slot and calendar day, and it never changes: a
+     * branch is deactivated, never deleted. Looked up once per model.
+     */
+    public function firstBranchId(): ?int
+    {
+        if ($this->firstBranchId === null) {
+            $id = $this->branches()->reorder()->min('id');
+            $this->firstBranchId = $id === null ? null : (int) $id;
+        }
+
+        return $this->firstBranchId;
+    }
+
+    /** @var int|null see firstBranchId() */
+    private ?int $firstBranchId = null;
 
     /**
      * The clinic day it is now, at midnight in the clinic's timezone.

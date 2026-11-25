@@ -18,6 +18,8 @@ class ListHolidaysController extends V1Controller
         $holidays = $this->holidayService->list(
             $this->clinic($request),
             includePast: $request->boolean('include_past'),
+            // The ones that close the branch the app is on, as in bootstrap.
+            branch: $this->branch($request),
         );
 
         return ApiResponse::success(

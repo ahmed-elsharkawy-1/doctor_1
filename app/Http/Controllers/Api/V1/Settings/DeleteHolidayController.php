@@ -14,7 +14,7 @@ class DeleteHolidayController extends V1Controller
 
     public function __invoke(Request $request, int $holiday): JsonResponse
     {
-        $this->holidayService->delete($this->clinic($request), $holiday);
+        $this->holidayService->delete($this->clinic($request), $holiday, $this->user($request));
 
         return ApiResponse::success(null, __('settings.holiday.deleted'));
     }
