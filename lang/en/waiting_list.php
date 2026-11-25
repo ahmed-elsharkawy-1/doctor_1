@@ -23,6 +23,7 @@ return [
     'not_found' => 'That patient is not on the waiting list',
     'other_patient' => 'That waiting-list place belongs to another patient',
     'left_too_often' => 'You have left this day’s waiting list more than once, so you cannot join it again. Try another day.',
+    'wrong_branch' => 'This patient is on the waiting list at :branch, so the booking must be there.',
     'wrong_day' => 'A patient on the waiting list can only be booked on the day they are waiting for (:date)',
     'loaded' => 'Waiting list loaded',
     'removed_ok' => 'Removed from the waiting list',

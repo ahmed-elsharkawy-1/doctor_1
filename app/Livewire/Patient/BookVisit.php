@@ -202,7 +202,7 @@ class BookVisit extends Component
         // Only for a selected day with nothing free: what the waiting list
         // offers there, if anything.
         $waitingOffer = $stage === 'appointment' && $availability !== null && ! $availability->hasAvailableSlot()
-            ? $this->service()->waitingListOffer($clinic, $this->date)
+            ? $this->service()->waitingListOffer($clinic, $this->date, $this->bookingBranch())
             : null;
 
         return view('livewire.patient.book-visit', [
@@ -237,7 +237,7 @@ class BookVisit extends Component
                 : $this->service()->nextFreeDay($this->days($clinic), $this->date),
             // Whether a full day may be tapped at all. Without a list there
             // is nothing to do on one, so it stays shut.
-            'waitingListOpen' => $clinic->offersWaitingList(),
+            'waitingListOpen' => $this->bookingBranch()?->offersWaitingList() ?? false,
             'waitingEntry' => $stage === 'waitlisted' ? $this->waitingEntry() : null,
             'blockedMessage' => $stage === 'blocked' ? $this->service()->blockedMessage($clinic) : null,
             'confirmed' => $stage === 'done' ? $this->confirmed() : null,
@@ -654,6 +654,7 @@ class BookVisit extends Component
                 $this->name,
                 (int) $this->visitTypeId,
                 $this->date,
+                $this->bookingBranch(),
             );
 
             $this->waitingEntryId = $entry->id;

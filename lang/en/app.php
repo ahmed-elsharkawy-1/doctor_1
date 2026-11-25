@@ -241,6 +241,8 @@ return [
         'branch_activate' => 'Activate',
         'branch_deactivate_confirm' => 'The branch disappears from the booking page and takes no new bookings. Its existing bookings carry on as usual until they are done; nothing is cancelled on its own.',
         'branch_deactivate_yes' => 'Yes, deactivate it',
+        'branch_waiting_list' => 'Waiting list at this branch',
+        'branch_waiting_list_off_yes' => 'Yes, close the list',
         'branch_saved' => 'Branch saved',
         'branch_added' => 'Branch added',
         'branch_deactivated' => 'Branch deactivated',

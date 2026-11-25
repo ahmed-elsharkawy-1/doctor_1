@@ -19,6 +19,7 @@ class WaitingListEntry extends Model
 {
     protected $fillable = [
         'clinic_id',
+        'branch_id',
         'patient_id',
         'visit_type_id',
         'visit_date',
@@ -29,6 +30,22 @@ class WaitingListEntry extends Model
         'left_at',
         'messaged_at',
     ];
+
+    protected static function booted(): void
+    {
+        // At a branch (ELA-21); the clinic's first when written without one.
+        static::creating(function (self $entry): void {
+            if ($entry->branch_id === null && $entry->clinic_id !== null) {
+                $entry->branch_id = Branch::query()->where('clinic_id', $entry->clinic_id)->min('id');
+            }
+        });
+    }
+
+    /** @return BelongsTo<Branch, $this> */
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
 
     protected function casts(): array
     {

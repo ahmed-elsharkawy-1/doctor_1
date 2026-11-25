@@ -36,8 +36,9 @@
 
     // Only for a clinic that keeps a waiting list, with today's and later
     // patients counted the way the call list's entry is.
-    if ($clinic?->offersWaitingList()) {
-        $waiting = app(\App\Services\V1\WaitingList\WaitingListService::class)->upcomingCount($clinic);
+    // The branch the header is on keeps a list (ELA-21).
+    if ($currentBranch?->offersWaitingList()) {
+        $waiting = app(\App\Services\V1\WaitingList\WaitingListService::class)->upcomingCount($clinic, $currentBranch);
 
         array_splice($links, 2, 0, [[
             'route' => 'app.waiting-list',

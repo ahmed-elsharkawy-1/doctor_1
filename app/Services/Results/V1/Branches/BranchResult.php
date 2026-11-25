@@ -30,6 +30,8 @@ final class BranchResult extends ServiceResult
             // False when it uses the clinic's main booking number.
             'own_phone' => filled($this->branch->phone),
             'is_active' => $this->branch->is_active,
+            // This branch's own list, under the clinic's switch (ELA-21).
+            'waiting_list_enabled' => (bool) $this->branch->waiting_list_enabled,
         ];
     }
 

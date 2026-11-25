@@ -35,6 +35,7 @@ class Branch extends Model
         'longitude',
         'phone',
         'is_active',
+        'waiting_list_enabled',
         'sort_order',
     ];
 
@@ -42,6 +43,7 @@ class Branch extends Model
     {
         return [
             'is_active' => 'boolean',
+            'waiting_list_enabled' => 'boolean',
             'sort_order' => 'integer',
         ];
     }
@@ -76,6 +78,15 @@ class Branch extends Model
         $date = $date instanceof Carbon ? $date->toDateString() : Carbon::parse($date)->toDateString();
 
         return ClinicHoliday::query()->closing($this)->whereDate('date', $date)->exists();
+    }
+
+    /**
+     * Whether patients can join this branch's waiting lists (ELA-21): the
+     * clinic has the list (the operator's switch), and this branch keeps one.
+     */
+    public function offersWaitingList(): bool
+    {
+        return $this->is_active && $this->waiting_list_enabled === true && $this->clinic->offersWaitingList();
     }
 
     /**

@@ -40,6 +40,7 @@ enum ApiErrorCode: string
     case BRANCH_DUPLICATE_NAME = 'BRANCH_DUPLICATE_NAME';
     case BRANCH_LAST_ACTIVE = 'BRANCH_LAST_ACTIVE';
     case BRANCH_ADDING_DISABLED = 'BRANCH_ADDING_DISABLED';
+    case BRANCH_WAITING_LIST_HAS_PATIENTS = 'BRANCH_WAITING_LIST_HAS_PATIENTS';
 
     // Queue displays (multi-branch, ELA-19)
     case DISPLAY_NOT_FOUND = 'DISPLAY_NOT_FOUND';
@@ -105,6 +106,7 @@ enum ApiErrorCode: string
     case WAITING_LIST_ALREADY_BOOKED = 'WAITING_LIST_ALREADY_BOOKED';
     case WAITING_LIST_ENTRY_NOT_FOUND = 'WAITING_LIST_ENTRY_NOT_FOUND';
     case WAITING_LIST_WRONG_DAY = 'WAITING_LIST_WRONG_DAY';
+    case WAITING_LIST_WRONG_BRANCH = 'WAITING_LIST_WRONG_BRANCH';
     // Left that day's list too many times to join it again.
     case WAITING_LIST_LEFT_TOO_OFTEN = 'WAITING_LIST_LEFT_TOO_OFTEN';
     // The secretary adding past the week ahead (clinic.waiting_list.clinic_add_days).

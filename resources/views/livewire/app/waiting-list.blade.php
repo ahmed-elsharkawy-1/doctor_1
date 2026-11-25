@@ -24,7 +24,13 @@
 
     </style>
 
-    <h1 style="font-size:1.05rem;font-weight:700;margin:0 0 12px">{{ __('waiting_list.app.title') }}</h1>
+    <h1 style="font-size:1.05rem;font-weight:700;margin:0 0 12px">
+        {{ __('waiting_list.app.title') }}
+        {{-- Whose list, when there is more than one (ELA-21). --}}
+        @if ($branch)
+            <span class="pill" style="margin-inline-start:0.4rem">🏥 {{ $branch->name }}</span>
+        @endif
+    </h1>
 
     @if ($notice !== null)
         <div class="flash {{ $failed ? 'flash-err' : 'flash-ok' }}">{{ $notice }}</div>

@@ -70,6 +70,9 @@ class Clinic extends Model
             $clinic->branches()->create([
                 'name' => BranchName::forFirstBranch($clinic->address, $clinic->city, $clinic->name),
                 'is_active' => true,
+                // The clinic's own list, which the operator's switch decides;
+                // branches added later start without one (ELA-21).
+                'waiting_list_enabled' => true,
                 'sort_order' => 0,
             ]);
         });

@@ -25,8 +25,9 @@ class ListWaitingListController extends V1Controller
             (new WaitingListResult(
                 $clinic,
                 $date,
-                $this->waitingList->forDay($clinic, $date),
-                $this->waitingList->canClinicAddOn($clinic, $date),
+                $this->waitingList->forDay($clinic, $date, $this->branch($request)),
+                $this->waitingList->canClinicAddOn($clinic, $date, $this->branch($request)),
+                $this->branch($request),
             ))->toArray(),
             __('waiting_list.loaded'),
         );

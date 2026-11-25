@@ -8,6 +8,7 @@ use App\Exceptions\ApiException;
 use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\User;
+use App\Models\WaitingListEntry;
 use App\Services\V1\Settings\ScheduleService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
@@ -145,6 +146,38 @@ class BranchService
 
             return $branch;
         });
+    }
+
+    /**
+     * The branch's own waiting list on or off (ELA-21). Off stops new joins
+     * only: everyone already waiting stays until their day ends, can still be
+     * booked, and is told "no slot opened" as usual. Nobody is removed.
+     *
+     * Turning it off with people waiting needs `$confirm`; the count comes
+     * back in the refusal for the screen to show.
+     */
+    public function setWaitingList(Branch $branch, bool $enabled, bool $confirm = false): Branch
+    {
+        if (! $enabled && $branch->waiting_list_enabled && ! $confirm) {
+            $waiting = WaitingListEntry::query()
+                ->where('branch_id', $branch->id)
+                ->waiting()
+                ->whereDate('visit_date', '>=', $branch->clinic->currentDay()->toDateString())
+                ->count();
+
+            if ($waiting > 0) {
+                throw ApiException::make(
+                    ApiErrorCode::BRANCH_WAITING_LIST_HAS_PATIENTS,
+                    trans_choice('settings.branch.waiting_list_has_patients', $waiting, ['count' => $waiting]),
+                    details: ['waiting_count' => $waiting],
+                    http: 409,
+                );
+            }
+        }
+
+        $branch->update(['waiting_list_enabled' => $enabled]);
+
+        return $branch;
     }
 
     public function activate(Branch $branch): Branch
