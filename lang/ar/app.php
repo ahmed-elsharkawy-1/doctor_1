@@ -204,6 +204,7 @@ return [
         'display_name_hint' => 'مثلًا: الصالة الرئيسية',
         'add_display' => 'إضافة شاشة',
         'display_added' => 'تمت إضافة الشاشة',
+        'display_copy' => 'نسخ لينك الشاشة',
         'display_link' => 'لينك الشاشة',
         'display_last_seen' => 'آخر ظهور :time',
         'display_never_seen' => 'لسه متفتحتش على أي شاشة',

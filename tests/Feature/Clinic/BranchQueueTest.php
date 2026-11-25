@@ -11,16 +11,19 @@ use App\Livewire\App\Queue;
 use App\Livewire\App\Settings\Displays;
 use App\Models\Booking;
 use App\Models\Branch;
+use App\Models\OutboundMessage;
 use App\Models\Patient;
 use App\Models\QueueDisplay;
 use App\Models\User;
 use App\Services\V1\Branches\ActiveBranch;
 use App\Services\V1\Branches\BranchService;
 use App\Services\V1\Displays\QueueDisplayService;
+use App\Services\V1\Messaging\WhatsAppMessagingService;
 use App\Services\V1\Patients\OnlineBookingService;
 use App\Services\V1\Queue\DelayService;
 use App\Services\V1\Queue\QueuePositionService;
 use App\Services\V1\Settings\ScheduleService;
+use Database\Seeders\MessageTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
@@ -234,5 +237,89 @@ class BranchQueueTest extends TestCase
 
         $this->assertSame($this->tura->id, QueueDisplay::query()->where('name', 'شاشة الترعة')->value('branch_id'));
         $this->assertSame($this->gedeila->id, $display->fresh()->branch_id);
+    }
+
+    public function test_postponing_a_day_cancels_only_the_branchs_own_patients(): void
+    {
+        $gedeila = $this->booking($this->gedeila, '15:00', 'أحمد');
+        $tura = $this->booking($this->tura, '17:00', 'سارة');
+        $member = User::factory()->secretary()->inClinic($this->clinic)->atBranches($this->tura)->create();
+        Sanctum::actingAs($member);
+
+        // "Everyone", and Gedeila's booking named outright: neither reaches it.
+        $this->withHeader('X-Branch-Id', (string) $this->tura->id)
+            ->postJson(route('api.v1.postpone'), ['date' => self::SATURDAY, 'booking_ids' => [$gedeila->id, $tura->id]])
+            ->assertOk()
+            ->assertJsonPath('data.postponed_count', 1);
+
+        $this->assertSame(BookingStatus::BOOKED, $gedeila->fresh()->status);
+        $this->assertSame(BookingStatus::CANCELLED, $tura->fresh()->status);
+    }
+
+    public function test_the_tv_board_refreshes_on_its_own_and_keeps_its_link_private(): void
+    {
+        $this->booking($this->gedeila, '13:20', 'عبد الرحمن سامي', BookingStatus::ARRIVED);
+        $display = app(QueueDisplayService::class)->create($this->clinic, $this->owner, $this->gedeila->id, 'الصالة');
+
+        $page = $this->get(route('tv.show', $display->token))
+            ->assertOk()
+            ->assertHeader('Referrer-Policy', 'no-referrer')
+            ->assertHeader('X-Robots-Tag', 'noindex, nofollow')
+            // A compound first name stays whole; the family name never shows.
+            ->assertSee('عبد الرحمن')
+            ->assertDontSee('سامي')
+            ->assertDontSee('fonts.googleapis.com', false);
+        $this->assertStringContainsString('no-store', $page->headers->get('Cache-Control'));
+
+        // What the page fetches every few seconds: the board alone.
+        $this->get(route('tv.show', $display->token).'?board=1')
+            ->assertOk()
+            ->assertSee('عبد الرحمن')
+            ->assertDontSee('<script', false);
+    }
+
+    public function test_a_deactivated_clinics_tv_is_gone(): void
+    {
+        $display = app(QueueDisplayService::class)->create($this->clinic, $this->owner, $this->gedeila->id, 'الصالة');
+        $this->clinic->update(['is_active' => false]);
+
+        $this->get(route('tv.show', $display->token))->assertNotFound();
+    }
+
+    public function test_tvs_have_their_own_limit_and_leave_the_reports_login_alone(): void
+    {
+        $display = app(QueueDisplayService::class)->create($this->clinic, $this->owner, $this->gedeila->id, 'الصالة');
+
+        for ($i = 0; $i < 12; $i++) {
+            $this->get(route('tv.show', $display->token))->assertOk();
+        }
+
+        // The reports login allows 6 a minute per address; before, these 12
+        // reloads had used them up.
+        $this->assertNotSame(429, $this->post(route('reports.login.store'), [])->getStatusCode());
+    }
+
+    public function test_the_turn_alert_waits_for_each_branchs_own_doctor_start(): void
+    {
+        $this->seed(MessageTemplateSeeder::class);
+        $this->clinic->update(['reminder_position' => 1, 'pre_visit_reminder_enabled' => true]);
+        \Illuminate\Support\Facades\Queue::fake();
+
+        // Gedeila's doctor has started (someone went in at 13:00); Al-Tur'a's
+        // has not, and its first patient is at 17:00, three hours off.
+        Carbon::setTestNow(Carbon::parse(self::SATURDAY.' 14:00:00', 'Africa/Cairo'));
+        $this->booking($this->gedeila, '13:00', 'x', BookingStatus::DONE)->update(['called_in_at' => self::SATURDAY.' 13:00:00']);
+        $gedeilaNext = $this->booking($this->gedeila, '14:20', 'منى');
+        $turaFirst = $this->booking($this->tura, '17:00', 'سارة');
+
+        $this->artisan('clinic:send-reminders')->assertSuccessful();
+
+        $alerted = OutboundMessage::query()
+            ->where('template_key', WhatsAppMessagingService::REMINDER_KEY)
+            ->pluck('booking_id')
+            ->all();
+
+        $this->assertContains($gedeilaNext->id, $alerted);
+        $this->assertNotContains($turaFirst->id, $alerted);
     }
 }

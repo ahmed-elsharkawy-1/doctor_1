@@ -68,7 +68,7 @@ foreach (config('clinic.tracking.legacy_paths', []) as $legacyPath) {
 */
 Route::get('tv/{token}', QueueDisplayController::class)
     ->where('token', '[A-Za-z0-9]{40}')
-    ->middleware('throttle:30,1')
+    ->middleware('throttle:tv')
     ->name('tv.show');
 
 /*

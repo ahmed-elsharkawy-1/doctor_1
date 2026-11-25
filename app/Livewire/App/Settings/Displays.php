@@ -55,7 +55,9 @@ class Displays extends SettingsComponent
     {
         $edit = $this->edits[$displayId] ?? null;
 
-        if ($edit === null || trim($edit['name']) === '') {
+        // Whatever the browser sent back, checked before it is used.
+        if (! is_array($edit) || ! is_string($edit['name'] ?? null) || trim($edit['name']) === ''
+            || ! is_numeric($edit['branch_id'] ?? null)) {
             return;
         }
 

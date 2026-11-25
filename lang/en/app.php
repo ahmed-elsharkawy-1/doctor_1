@@ -204,6 +204,7 @@ return [
         'display_name_hint' => 'e.g. Main waiting room',
         'add_display' => 'Add screen',
         'display_added' => 'Screen added',
+        'display_copy' => 'Copy screen link',
         'display_link' => 'Screen link',
         'display_last_seen' => 'Last seen :time',
         'display_never_seen' => 'Not opened on any screen yet',

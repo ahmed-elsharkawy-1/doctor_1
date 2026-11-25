@@ -95,7 +95,10 @@ class QueueDisplayService
         $withDoctor = $queue->where('status', BookingStatus::WITH_DOCTOR)->values();
         $line = $queue->reject(fn (Booking $b) => $b->status === BookingStatus::WITH_DOCTOR)->values();
 
-        $display->forceFill(['last_seen_at' => now()])->saveQuietly();
+        // "Is this TV on?" needs the minute, not every reload.
+        if ($display->last_seen_at === null || $display->last_seen_at->lt(now()->subMinute())) {
+            $display->forceFill(['last_seen_at' => now()])->saveQuietly();
+        }
 
         return [
             'display' => $display,

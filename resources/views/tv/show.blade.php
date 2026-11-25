@@ -1,93 +1,71 @@
 {{--
     A waiting-room TV (ELA-19): one branch's queue for today, read from across
     the room. Large type, high contrast, no interaction. Codes and first names
-    only.
+    only. The page loads once; the board inside it is fetched again every few
+    seconds (tv.board).
 --}}
-@php
-    $label = function ($booking) {
-        $first = explode(' ', trim((string) $booking->patient?->name))[0] ?? '';
-
-        return trim(($booking->patient?->code ? $booking->patient->code.' · ' : '').$first);
-    };
-@endphp
 <!doctype html>
 <html lang="{{ app()->getLocale() }}" dir="rtl">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
-    <meta http-equiv="refresh" content="{{ $refreshSeconds }}">
     <title>{{ $branch->name }}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800&display=swap" rel="stylesheet">
+    <meta name="referrer" content="no-referrer">
     <style>
         :root { color-scheme: dark; --bg: #0c1b2a; --card: #13283c; --ink: #f2f6fa; --muted: #9fb3c6; --accent: #3fb6a8; --now: #f5b942; }
         * { box-sizing: border-box; }
-        html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: Tajawal, system-ui, sans-serif; }
+        html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: Tajawal, 'Noto Sans Arabic', 'Segoe UI', system-ui, sans-serif; }
         body { display: grid; grid-template-rows: auto 1fr; padding: 3vh 4vw; gap: 3vh; }
         header { display: flex; justify-content: space-between; align-items: baseline; gap: 2vw; }
-        header h1 { margin: 0; font-size: clamp(28px, 4.2vw, 64px); font-weight: 800; }
-        header .sub { color: var(--muted); font-size: clamp(16px, 1.8vw, 28px); }
-        header .clock { font-size: clamp(28px, 4vw, 60px); font-weight: 700; font-variant-numeric: tabular-nums; direction: ltr; }
+        header h1 { margin: 0; font-size: clamp(28px, 6.7vmin, 64px); font-weight: 800; }
+        header .sub { color: var(--muted); font-size: clamp(16px, 2.9vmin, 28px); }
+        header .clock { font-size: clamp(28px, 6.4vmin, 60px); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
         main { display: grid; grid-template-columns: 1fr 1.3fr; gap: 3vw; min-height: 0; }
         .panel { background: var(--card); border-radius: 2vw; padding: 3vh 2.5vw; min-height: 0; overflow: hidden; }
-        .panel h2 { margin: 0 0 2vh; font-size: clamp(20px, 2.4vw, 38px); color: var(--muted); font-weight: 700; }
-        .now .name { font-size: clamp(40px, 7vw, 120px); font-weight: 800; color: var(--now); line-height: 1.1; }
-        .now .empty { font-size: clamp(24px, 3vw, 48px); color: var(--muted); }
+        .panel h2 { margin: 0 0 2vh; font-size: clamp(20px, 3.8vmin, 38px); color: var(--muted); font-weight: 700; }
+        .now .name { font-size: clamp(40px, 11.2vmin, 120px); font-weight: 800; color: var(--now); line-height: 1.1; }
+        .now .empty { font-size: clamp(24px, 4.8vmin, 48px); color: var(--muted); }
         ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.4vh; }
-        li { display: flex; gap: 1.5vw; align-items: center; font-size: clamp(24px, 3.4vw, 56px); font-weight: 700; padding: 1vh 1vw; border-radius: 1vw; background: rgba(255,255,255,.04); }
+        .code { display: inline-block; font-size: .6em; color: var(--muted); margin-inline-end: .5em; white-space: nowrap; vertical-align: middle; }
+        .now .name, li .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        li { display: flex; gap: 1.5vw; align-items: center; font-size: clamp(24px, 5.4vmin, 56px); font-weight: 700; padding: 1vh 1vw; border-radius: 1vw; background: rgba(255,255,255,.04); }
         li .n { width: 2.2em; text-align: center; color: var(--accent); }
-        .count { margin-top: 2vh; color: var(--muted); font-size: clamp(18px, 2vw, 30px); }
+        .count { margin-top: 2vh; color: var(--muted); font-size: clamp(18px, 3.2vmin, 30px); }
         .idle { grid-column: 1 / -1; display: grid; place-content: center; text-align: center; gap: 2vh; }
-        .idle .big { font-size: clamp(36px, 6vw, 96px); font-weight: 800; }
-        .idle .small { color: var(--muted); font-size: clamp(20px, 2.4vw, 40px); }
-        @media (max-aspect-ratio: 1/1) { main { grid-template-columns: 1fr; } }
+        .idle .big { font-size: clamp(36px, 9.6vmin, 96px); font-weight: 800; }
+        .idle .small { color: var(--muted); font-size: clamp(20px, 3.8vmin, 40px); }
+        @media (max-aspect-ratio: 1/1) { main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } }
     </style>
 </head>
 <body>
-    <header>
-        <div>
-            <h1>🏥 {{ $branch->name }}</h1>
-            <div class="sub">{{ $clinic->doctor?->name ?? $clinic->name }}</div>
-        </div>
-        <div class="clock">{{ \App\Support\Wire::time($now)['display'] }}</div>
-    </header>
+    <div id="board" style="display:contents">
+        @include('tv.board')
+    </div>
 
-    <main>
-        @if ($idle)
-            <div class="idle">
-                <div class="big">{{ __('displays.idle_title') }}</div>
-                @if ($days = $branch->workingDaysLabel())
-                    <div class="small">{{ __('displays.idle_days', ['days' => $days]) }}</div>
-                @endif
-            </div>
-        @else
-            <section class="panel now">
-                <h2>{{ __('displays.with_doctor') }}</h2>
-                @forelse ($with_doctor as $booking)
-                    <div class="name">{{ $label($booking) }}</div>
-                @empty
-                    <div class="empty">{{ __('displays.nobody_in') }}</div>
-                @endforelse
-            </section>
+    <script>
+        // Fetch the board again every few seconds. A failure leaves the last
+        // one up and tries again later; nothing here can leave the TV on an
+        // error page. A full reload once in a while, only after a good fetch,
+        // clears whatever a browser left open for hours accumulates.
+        (function () {
+            var every = {{ max(5, $refreshSeconds) }} * 1000;
+            var loadedAt = Date.now();
+            var url = location.pathname + '?board=1';
 
-            <section class="panel">
-                <h2>{{ __('displays.next') }}</h2>
-                @if ($next->isEmpty())
-                    <div class="now"><div class="empty">{{ __('displays.nobody_waiting') }}</div></div>
-                @else
-                    <ol>
-                        @foreach ($next as $i => $booking)
-                            <li><span class="n">{{ $i + 1 }}</span><span>{{ $label($booking) }}</span></li>
-                        @endforeach
-                    </ol>
-                    @if ($waiting > $next->count())
-                        <div class="count">{{ __('displays.more_waiting', ['count' => $waiting - $next->count()]) }}</div>
-                    @endif
-                @endif
-            </section>
-        @endif
-    </main>
+            function tick() {
+                fetch(url, { cache: 'no-store', credentials: 'omit' })
+                    .then(function (r) { if (!r.ok) { throw r.status; } return r.text(); })
+                    .then(function (html) {
+                        if (Date.now() - loadedAt > 6 * 3600 * 1000) { location.reload(); return; }
+                        document.getElementById('board').innerHTML = html;
+                    })
+                    .catch(function () {})
+                    .finally(function () { setTimeout(tick, every); });
+            }
+
+            setTimeout(tick, every);
+        })();
+    </script>
 </body>
 </html>

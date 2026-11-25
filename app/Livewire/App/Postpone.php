@@ -128,6 +128,7 @@ class Postpone extends ClinicComponent
                 $this->clinic(),
                 $this->safeDate($this->date),
                 $this->selected === [] ? null : $this->selected,
+                $this->branch(),
             );
         } catch (ApiException $e) {
             // Nothing left to postpone, most likely — the day emptied while
@@ -163,6 +164,7 @@ class Postpone extends ClinicComponent
         return app(QueueService::class)->postponeCandidates(
             $this->clinic(),
             $this->safeDate($this->date),
+            $this->branch(),
         );
     }
 

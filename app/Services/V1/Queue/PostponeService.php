@@ -7,6 +7,7 @@ use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -27,9 +28,11 @@ class PostponeService
      * @param  list<int>|null  $bookingIds  null postpones everyone still pending
      * @return Collection<int, Booking>
      */
-    public function postpone(Clinic $clinic, Carbon $date, ?array $bookingIds = null): Collection
+    public function postpone(Clinic $clinic, Carbon $date, ?array $bookingIds = null, ?Branch $branch = null): Collection
     {
-        $candidates = $this->queue->postponeCandidates($clinic, $date);
+        // One branch's day (ELA-19): "everyone" is everyone at this branch,
+        // and an id from another branch is simply not among the candidates.
+        $candidates = $this->queue->postponeCandidates($clinic, $date, $branch ?? $clinic->firstBranch());
 
         if ($bookingIds !== null) {
             $candidates = $candidates->whereIn('id', $bookingIds)->values();

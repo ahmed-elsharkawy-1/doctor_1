@@ -57,7 +57,7 @@
 
             <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
                 <button type="button" class="btn btn-sm btn-primary" wire:click="save({{ $display->id }})">{{ __('app.settings.save') }}</button>
-                <button type="button" class="btn btn-sm" onclick="navigator.clipboard.writeText('{{ $display->url() }}'); this.textContent='{{ __('app.actions.link_copied') }}'">{{ __('app.actions.copy_link') }}</button>
+                <button type="button" class="btn btn-sm" onclick="navigator.clipboard.writeText('{{ $display->url() }}'); this.textContent='{{ __('app.actions.link_copied') }}'">{{ __('app.settings.display_copy') }}</button>
                 <button type="button" class="btn btn-sm" wire:click="rotate({{ $display->id }})" wire:confirm="{{ __('app.settings.display_rotate_confirm') }}">{{ __('app.settings.display_rotate') }}</button>
                 <button type="button" class="btn btn-sm btn-danger" wire:click="remove({{ $display->id }})" wire:confirm="{{ __('app.settings.display_remove_confirm') }}">{{ __('app.settings.remove') }}</button>
             </div>
