@@ -30,8 +30,12 @@ final class AuthenticatedUserResult extends ServiceResult
                 'phone' => Wire::phone($phone),
                 'role' => Wire::enum($this->user->role, $this->user->role->label()),
                 'locale' => $this->user->locale ?? config('clinic.api.default_locale'),
+                // The doctor, as opposed to a team member (ELA-17).
+                'is_owner' => $this->user->isOwner(),
             ],
-            'abilities' => $this->user->role->abilities(),
+            // What this account can use now: the role's abilities, less any
+            // permission the doctor hasn't granted it.
+            'abilities' => $this->user->effectiveAbilities(),
             'clinic' => $clinic === null ? null : [
                 'id' => $clinic->id,
                 'name' => $clinic->name,

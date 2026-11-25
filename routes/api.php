@@ -11,6 +11,10 @@ use App\Http\Controllers\Api\V1\Booking\ReleaseSlotHoldController;
 use App\Http\Controllers\Api\V1\Booking\ShowBookingController;
 use App\Http\Controllers\Api\V1\Booking\SlotsController;
 use App\Http\Controllers\Api\V1\Booking\UpdateBookingController;
+use App\Http\Controllers\Api\V1\Branches\CreateBranchController;
+use App\Http\Controllers\Api\V1\Branches\ListBranchesController;
+use App\Http\Controllers\Api\V1\Branches\SetBranchActiveController;
+use App\Http\Controllers\Api\V1\Branches\UpdateBranchController;
 use App\Http\Controllers\Api\V1\HomeController;
 use App\Http\Controllers\Api\V1\Messaging\CreateBroadcastController;
 use App\Http\Controllers\Api\V1\Messaging\ListMessageTemplatesController;
@@ -99,23 +103,45 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
                 ->name('api.v1.visit-types.hide');
         });
 
-        Route::prefix('schedule')->group(function (): void {
-            Route::get('/', GetScheduleController::class)->name('api.v1.schedule.index');
-            Route::put('{day}', UpdateScheduleDayController::class)
-                ->whereNumber('day')
-                ->name('api.v1.schedule.update');
-        });
-
-        Route::prefix('holidays')->group(function (): void {
-            Route::get('/', ListHolidaysController::class)->name('api.v1.holidays.index');
-            Route::post('/', CreateHolidayController::class)->name('api.v1.holidays.store');
-            Route::delete('{holiday}', DeleteHolidayController::class)
-                ->whereNumber('holiday')
-                ->name('api.v1.holidays.destroy');
-        });
-
         Route::put('settings/general', UpdateGeneralSettingsController::class)
             ->name('api.v1.settings.general');
+    });
+
+    /*
+    | Branches (ELA-16). Every team member can see them; adding, editing and
+    | deactivating needs "Manage branches", which the doctor holds.
+    */
+    Route::get('branches', ListBranchesController::class)->name('api.v1.branches.index');
+
+    Route::middleware('ability:branches.manage')->prefix('branches')->group(function (): void {
+        Route::post('/', CreateBranchController::class)->name('api.v1.branches.store');
+        Route::put('{branch}', UpdateBranchController::class)
+            ->whereNumber('branch')
+            ->name('api.v1.branches.update');
+        Route::post('{branch}/deactivate', SetBranchActiveController::class)
+            ->whereNumber('branch')
+            ->name('api.v1.branches.deactivate');
+        Route::post('{branch}/activate', SetBranchActiveController::class)
+            ->whereNumber('branch')
+            ->name('api.v1.branches.activate');
+    });
+
+    /*
+    | Working hours and holidays. Every team member can read them (the booking
+    | screens show them); changing them needs "Manage schedule", which the
+    | doctor holds and can grant (ELA-17, ELA-20).
+    */
+    Route::get('schedule', GetScheduleController::class)->name('api.v1.schedule.index');
+    Route::get('holidays', ListHolidaysController::class)->name('api.v1.holidays.index');
+
+    Route::middleware('ability:schedule.manage')->group(function (): void {
+        Route::put('schedule/{day}', UpdateScheduleDayController::class)
+            ->whereNumber('day')
+            ->name('api.v1.schedule.update');
+        Route::post('holidays', CreateHolidayController::class)->name('api.v1.holidays.store');
+        Route::delete('holidays/{holiday}', DeleteHolidayController::class)
+            ->whereNumber('holiday')
+            ->name('api.v1.holidays.destroy');
     });
 
     /*

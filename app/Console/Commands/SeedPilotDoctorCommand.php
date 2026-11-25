@@ -166,6 +166,8 @@ class SeedPilotDoctorCommand extends Command
                 'name' => (string) $this->option('name'),
                 'password' => (string) $this->option('password'),
                 'role' => UserRole::CLINIC,
+                // The doctor's own login: every branch, every permission.
+                'is_owner' => true,
                 'doctor_id' => $doctor->id,
                 'phone' => (string) $this->option('account-phone'),
                 'locale' => 'ar',

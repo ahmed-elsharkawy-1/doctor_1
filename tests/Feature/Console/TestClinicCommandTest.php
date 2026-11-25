@@ -58,11 +58,14 @@ class TestClinicCommandTest extends TestCase
         $this->assertSame(TestClinic::DOCTOR_EMAIL, $doctor->email);
         $this->assertTrue(Hash::check(TestClinic::DOCTOR_PASSWORD, $doctor->password));
         $this->assertTrue($doctor->can_access_reports);
+        $this->assertTrue($doctor->isOwner());
 
         $assistant = $this->secretary->fresh();
         $this->assertSame(TestClinic::ASSISTANT_EMAIL, $assistant->email);
         $this->assertTrue(Hash::check(TestClinic::ASSISTANT_PASSWORD, $assistant->password));
         $this->assertFalse($assistant->can_access_reports);
+        $this->assertTrue($assistant->isSecretary());
+        $this->assertTrue($assistant->hasAbility('schedule.manage'));
     }
 
     public function test_it_creates_the_assistant_when_there_is_none(): void

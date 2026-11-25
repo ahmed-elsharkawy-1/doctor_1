@@ -80,6 +80,16 @@ return [
     /*
     | Owner-editable app settings with fixed option sets.
     */
+    /*
+    | Multi-branch (ELA-16 … ELA-22). Every clinic has a branch already; this
+    | switch lets a doctor add a second. It stays off until working hours,
+    | booking and the queue are per branch, since a branch added before then
+    | would have no hours or bookings of its own.
+    */
+    'branches' => [
+        'multi_enabled' => (bool) env('CLINIC_MULTI_BRANCH', false),
+    ],
+
     'settings' => [
         'patient_arrival_lead_minute_options' => [15, 20, 30, 45, 60],
         'whatsapp_cancel_cutoff_minute_options' => [0, 30, 60, 90, 120, 180, 240],

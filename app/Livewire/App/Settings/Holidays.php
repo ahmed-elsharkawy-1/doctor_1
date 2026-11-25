@@ -16,6 +16,8 @@ use Illuminate\Support\Collection;
  */
 class Holidays extends SettingsComponent
 {
+    protected string $ability = 'schedule.manage';
+
     public string $date = '';
 
     public string $note = '';

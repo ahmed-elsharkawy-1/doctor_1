@@ -25,7 +25,10 @@ class SessionTest extends TestCase
             ->assertJsonPath('data.user.id', $user->id)
             ->assertJsonPath('data.clinic.id', $clinic->id)
             ->assertJsonPath('data.clinic.patient_arrival_lead_minutes', 30)
-            ->assertJsonPath('data.abilities', $user->role->abilities())
+            // What this account can use, not every ability of its role: an
+            // assistant has no "Manage branches" until the doctor grants it.
+            ->assertJsonPath('data.abilities', $user->effectiveAbilities())
+            ->assertJsonPath('data.user.is_owner', false)
             // No token is minted on /me, only on login.
             ->assertJsonMissingPath('data.token');
     }

@@ -6,6 +6,7 @@ use App\Actions\Clinic\ProvisionClinicAction;
 use App\DTOs\V1\Settings\ScheduleDayData;
 use App\Enums\DayOfWeek;
 use App\Enums\DoctorSex;
+use App\Enums\StaffPermission;
 use App\Enums\UserRole;
 use App\Models\Clinic;
 use App\Models\Specialty;
@@ -219,6 +220,11 @@ class ClinicOnboardingService
                     'email' => Str::lower($account['email']),
                     'password' => $password,
                     'role' => UserRole::CLINIC,
+                    // The doctor's login holds everything; an assistant's
+                    // starts with the daily work plus working hours, as
+                    // assistants had before ELA-17.
+                    'is_owner' => $main,
+                    'permissions' => $main ? null : [StaffPermission::MANAGE_SCHEDULE->value],
                     // Only the doctor's own login carries a number and the
                     // link to the doctor, as on the existing clinics.
                     'phone' => $main ? $phone : null,

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\BookingStatus;
 use App\Enums\DayOfWeek;
+use App\Support\BranchName;
 use Database\Factories\ClinicFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -62,6 +63,17 @@ class Clinic extends Model
      */
     protected static function booted(): void
     {
+        // Every clinic has at least one branch (ELA-16). Kept on the model,
+        // like the slug redirect below, so no way of creating a clinic (the
+        // panel, onboarding, a seeder, a factory) can leave one without it.
+        static::created(function (self $clinic): void {
+            $clinic->branches()->create([
+                'name' => BranchName::forFirstBranch($clinic->address, $clinic->city, $clinic->name),
+                'is_active' => true,
+                'sort_order' => 0,
+            ]);
+        });
+
         static::updated(function (self $clinic): void {
             if (! $clinic->wasChanged('slug')) {
                 return;
@@ -333,6 +345,16 @@ class Clinic extends Model
     public function staff(): BelongsToMany
     {
         return $this->belongsToMany(User::class)->withTimestamps();
+    }
+
+    /**
+     * Every branch, active or not, in the doctor's order.
+     *
+     * @return HasMany<Branch, $this>
+     */
+    public function branches(): HasMany
+    {
+        return $this->hasMany(Branch::class)->orderBy('sort_order')->orderBy('id');
     }
 
     /** @return HasMany<ClinicPhoto, $this> */

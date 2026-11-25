@@ -24,6 +24,20 @@ return [
         'periods_required' => 'An open day needs at least one period',
     ],
 
+    'branch' => [
+        'list_loaded' => 'Branches loaded',
+        'created' => 'Branch added',
+        'updated' => 'Branch saved',
+        'deactivated' => 'Branch deactivated. Its existing bookings carry on as usual.',
+        'activated' => 'Branch activated',
+        'not_found' => 'This branch does not exist',
+        'duplicate_name' => 'A branch with this name already exists',
+        'last_active' => 'At least one branch must stay active',
+        'adding_disabled' => 'Adding a branch is not available yet',
+        'map_link_unreadable' => 'We could not read a location from this link. Paste the full Google Maps link, or type the latitude and longitude.',
+        'phone_invalid' => 'This phone number is not valid',
+    ],
+
     'holiday' => [
         'list_loaded' => 'Holidays loaded',
         'created' => 'Holiday added',

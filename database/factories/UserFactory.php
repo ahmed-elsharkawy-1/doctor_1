@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\StaffPermission;
 use App\Enums\UserRole;
 use App\Models\Clinic;
 use App\Models\Doctor;
@@ -27,6 +28,9 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'role' => UserRole::CLINIC,
+            // Full access, as every account had before ELA-17. secretary()
+            // is the one that isn't.
+            'is_owner' => true,
             'phone' => '+20'.$this->faker->unique()->numerify('1#########'),
             'locale' => 'ar',
             'is_active' => true,
@@ -43,13 +47,25 @@ class UserFactory extends Factory
     {
         return $this->state(fn () => [
             'role' => UserRole::CLINIC,
+            'is_owner' => true,
             'doctor_id' => $doctor?->id,
         ]);
     }
 
-    public function secretary(): static
+    /**
+     * A team member who isn't the doctor. Holds "Manage schedule", as every
+     * assistant account that existed before ELA-17 does; pass `[]` for one
+     * with only the daily work.
+     *
+     * @param  list<string>|null  $permissions
+     */
+    public function secretary(?array $permissions = null): static
     {
-        return $this->state(fn () => ['role' => UserRole::CLINIC]);
+        return $this->state(fn () => [
+            'role' => UserRole::CLINIC,
+            'is_owner' => false,
+            'permissions' => $permissions ?? [StaffPermission::MANAGE_SCHEDULE->value],
+        ]);
     }
 
     public function inactive(): static

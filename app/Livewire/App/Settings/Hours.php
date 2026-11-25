@@ -16,6 +16,8 @@ use Illuminate\Contracts\View\View;
  */
 class Hours extends SettingsComponent
 {
+    protected string $ability = 'schedule.manage';
+
     /** @var array<int, array{is_open: bool, periods: list<array{start_time: string, end_time: string}>}> */
     public array $week = [];
 

@@ -123,6 +123,8 @@ class ProvisionClinicAction
             'email' => 'clinic-'.$clinic->id.'@doctor1.local',
             'password' => $password,
             'role' => UserRole::CLINIC,
+            // The one shared login is the doctor's as much as anyone's.
+            'is_owner' => true,
             'phone' => $phone,
             'locale' => config('clinic.api.default_locale'),
             'is_active' => $clinic->is_active,

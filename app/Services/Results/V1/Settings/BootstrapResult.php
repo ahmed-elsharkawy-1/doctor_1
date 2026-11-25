@@ -38,11 +38,12 @@ final class BootstrapResult extends ServiceResult
             'visit_types' => VisitTypeResult::collection($this->visitTypes, $canSeePrices),
             'schedule' => ScheduleDayResult::collection($this->week),
             'holidays' => HolidayResult::collection($this->holidays),
-            'abilities' => $this->user->role->abilities(),
+            'abilities' => $this->user->effectiveAbilities(),
             'user' => [
                 'id' => $this->user->id,
                 'name' => $this->user->name,
                 'role' => $this->user->role->value,
+                'is_owner' => $this->user->isOwner(),
             ],
         ];
     }
