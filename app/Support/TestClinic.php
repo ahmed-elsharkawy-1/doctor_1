@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Enums\StaffPermission;
 use App\Enums\UserRole;
 use App\Models\Clinic;
 use App\Models\User;
@@ -95,6 +96,8 @@ final class TestClinic
                 'email' => self::DOCTOR_EMAIL,
                 'password' => self::DOCTOR_PASSWORD,
                 'role' => UserRole::CLINIC,
+                'is_owner' => true,
+                'permissions' => null,
                 'doctor_id' => $doctor?->id,
                 'is_active' => true,
                 'can_access_reports' => true,
@@ -108,6 +111,10 @@ final class TestClinic
                 'email' => self::ASSISTANT_EMAIL,
                 'password' => self::ASSISTANT_PASSWORD,
                 'role' => UserRole::CLINIC,
+                // An assistant as every existing one is (ELA-17): the daily
+                // work plus working hours.
+                'is_owner' => false,
+                'permissions' => [StaffPermission::MANAGE_SCHEDULE->value],
                 'doctor_id' => null,
                 'is_active' => true,
                 'can_access_reports' => false,
