@@ -45,7 +45,8 @@ class ActiveBranch
     }
 
     /**
-     * What the apps open on next time.
+     * What the apps open on next time. Called on a choice the user made (the
+     * switcher, or the app asking for a branch), never on a fallback.
      */
     public function remember(User $user, Branch $branch): void
     {

@@ -61,8 +61,10 @@ class EnsureClinicSession
                 ->withErrors(['email' => __('auth.branch_not_assigned')]);
         }
 
+        // Only resolved here, never remembered: a shared login open in two
+        // places would otherwise flip its "last used" branch on every
+        // request. The switcher remembers a choice.
         $request->session()->put(ActiveBranch::SESSION_KEY, $branch->id);
-        $branches->remember($user, $branch);
 
         $request->attributes->set('clinic', $clinic);
         $request->attributes->set('branch', $branch);

@@ -95,11 +95,27 @@ class User extends Authenticatable implements FilamentUser
         return $query->get();
     }
 
+    /**
+     * Drops assignments that give nothing: branches of clinics this account
+     * no longer belongs to, or every one once it is the doctor.
+     */
+    public function pruneBranches(): void
+    {
+        $stale = $this->isOwner()
+            ? $this->branches()->pluck('branches.id')
+            : $this->branches()->whereNotIn('branches.clinic_id', $this->clinics()->select('clinics.id'))->pluck('branches.id');
+
+        if ($stale->isNotEmpty()) {
+            $this->branches()->detach($stale->all());
+        }
+    }
+
     public function canUseBranch(Branch $branch): bool
     {
-        return $this->isOwner()
-            ? $this->belongsToClinic($branch->clinic_id)
-            : $this->branches()->whereKey($branch->id)->exists();
+        // Both: an assignment left over from a clinic the account has since
+        // left gives nothing.
+        return $this->belongsToClinic($branch->clinic_id)
+            && ($this->isOwner() || $this->branches()->whereKey($branch->id)->exists());
     }
 
     /** @return BelongsTo<Doctor, $this> */

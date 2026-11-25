@@ -30,6 +30,8 @@ class SwitchBranchController extends Controller
 
         $back = parse_url(url()->previous(), PHP_URL_PATH) ?: '/';
 
-        return redirect()->to(str_starts_with($back, '/app') ? $back : route('app.queue'));
+        $insideApp = $back === '/app' || str_starts_with($back, '/app/');
+
+        return redirect()->to($insideApp ? $back : route('app.queue'));
     }
 }

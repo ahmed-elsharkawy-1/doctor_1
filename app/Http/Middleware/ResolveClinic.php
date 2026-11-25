@@ -76,7 +76,11 @@ class ResolveClinic
             );
         }
 
-        $branches->remember($user, $branch);
+        // Remembered only when the app asked for this branch and got it: a
+        // choice the user made, not a fallback.
+        if (is_numeric($requested) && (int) $requested === $branch->id) {
+            $branches->remember($user, $branch);
+        }
 
         $request->attributes->set('clinic', $clinic);
         $request->attributes->set('branch', $branch);

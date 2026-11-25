@@ -66,8 +66,12 @@ class TeamService
             $permissions,
         ));
 
-        return DB::transaction(function () use ($member, $branchIds, $permissions): User {
-            $member->branches()->sync($branchIds);
+        return DB::transaction(function () use ($clinic, $member, $branchIds, $permissions): User {
+            // Only this clinic's branches change: an account in two clinics
+            // keeps the other's as they were.
+            $theirs = $member->branches()->where('branches.clinic_id', $clinic->id)->pluck('branches.id');
+            $member->branches()->detach($theirs->diff($branchIds)->all());
+            $member->branches()->syncWithoutDetaching($branchIds);
             $member->update(['permissions' => $permissions]);
 
             return $member->load('branches');

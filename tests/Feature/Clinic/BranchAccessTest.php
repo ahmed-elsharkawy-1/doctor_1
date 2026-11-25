@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Clinic;
 
+use App\Livewire\App\Settings\Branches;
 use App\Livewire\App\Settings\Team;
 use App\Models\Branch;
 use App\Models\User;
@@ -241,5 +242,70 @@ class BranchAccessTest extends TestCase
         );
         // The doctor needs no rows: every branch is theirs.
         $this->assertSame(0, $this->owner->branches()->count());
+    }
+
+    public function test_saving_a_member_here_leaves_their_branches_in_another_clinic(): void
+    {
+        $other = $this->otherClinic();
+        $member = User::factory()->secretary()->inClinic($this->clinic)->atBranches($this->gedeila)->create();
+        $member->clinics()->attach($other->id);
+        $member->branches()->attach($other->branches()->first()->id);
+        Sanctum::actingAs($this->owner);
+
+        $this->putJson(route('api.v1.team.update', $member), ['branch_ids' => [$this->dokki->id], 'permissions' => []])
+            ->assertOk();
+
+        $this->assertEqualsCanonicalizing(
+            [$this->dokki->id, $other->branches()->first()->id],
+            $member->branches()->pluck('branches.id')->all(),
+        );
+    }
+
+    public function test_only_a_choice_changes_the_branch_the_apps_open_on(): void
+    {
+        $this->owner->update(['last_branch_id' => $this->gedeila->id]);
+
+        // A browser pinned to another branch, and an app call that asks for
+        // nothing, don't move it: two devices on one login stay apart.
+        $this->actingAs($this->owner)->withSession([ActiveBranch::SESSION_KEY => $this->dokki->id])->get(route('app.settings'))->assertOk();
+        Sanctum::actingAs($this->owner);
+        $this->getJson(route('api.v1.bootstrap'))->assertHeader('X-Branch-Id', (string) $this->gedeila->id);
+        $this->assertSame($this->gedeila->id, $this->owner->fresh()->last_branch_id);
+
+        // Asking for one is a choice.
+        $this->withHeader('X-Branch-Id', (string) $this->dokki->id)->getJson(route('api.v1.bootstrap'));
+        $this->assertSame($this->dokki->id, $this->owner->fresh()->last_branch_id);
+    }
+
+    public function test_a_screen_left_open_after_losing_a_branch_cannot_act_on_it(): void
+    {
+        $manager = User::factory()->secretary(['branches.manage'])->inClinic($this->clinic)->atBranches($this->dokki, $this->gedeila)->create();
+        $this->gedeila->update(['is_active' => false]);
+
+        $screen = Livewire::actingAs($manager)->test(Branches::class);
+        $manager->branches()->detach($this->gedeila->id);
+
+        $screen->call('activate', $this->gedeila->id)->assertSet('failed', true);
+        $this->assertFalse($this->gedeila->fresh()->is_active);
+    }
+
+    public function test_an_assignment_to_another_clinics_branch_gives_nothing(): void
+    {
+        $foreign = $this->otherClinic()->branches()->first();
+        $member = $this->gedeilaOnly();
+        $member->branches()->attach($foreign->id);
+
+        $this->assertFalse($member->canUseBranch($foreign));
+
+        $member->pruneBranches();
+        $this->assertSame([$this->gedeila->id], $member->branches()->pluck('branches.id')->all());
+    }
+
+    public function test_the_switcher_only_returns_to_app_pages(): void
+    {
+        $this->actingAs($this->owner)
+            ->from('http://localhost/apple-pie')
+            ->post(route('app.branch.switch'), ['branch' => $this->gedeila->id])
+            ->assertRedirect(route('app.queue'));
     }
 }
