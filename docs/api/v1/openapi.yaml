@@ -181,6 +181,9 @@ paths:
                               id: { type: integer }
                               name: { type: string }
                               role: { type: string }
+                              is_owner:
+                                type: boolean
+                                description: The doctor, as opposed to a team member.
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/ClinicScope" }
 
@@ -429,6 +432,95 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /branches:
+    get:
+      tags: [Settings]
+      summary: The doctor's branches
+      description: |
+        Every branch, active or not, in the doctor's order (ELA-16). Address,
+        location and phone are what patients see: the branch's own, or the
+        clinic's where it has none. Any team member can read this.
+      operationId: listBranches
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          branches:
+                            type: array
+                            items: { $ref: "#/components/schemas/Branch" }
+                          can_add:
+                            type: boolean
+                            description: Show "Add branch". False until multi-branch is switched on, or without `branches.manage`.
+    post:
+      tags: [Settings]
+      summary: Add a branch
+      description: |
+        Needs `branches.manage`. Refused with `BRANCH_ADDING_DISABLED` (403)
+        until multi-branch is switched on, and `BRANCH_DUPLICATE_NAME` (409)
+        when the name is taken.
+      operationId: createBranch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BranchInput" }
+      responses:
+        "201": { description: Created }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /branches/{branch}:
+    put:
+      tags: [Settings]
+      summary: Edit a branch
+      description: Needs `branches.manage`. Applies to new messages and pages only.
+      operationId: updateBranch
+      parameters:
+        - { name: branch, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BranchInput" }
+      responses:
+        "200": { description: OK }
+        "404": { description: "`BRANCH_NOT_FOUND`" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /branches/{branch}/deactivate:
+    post:
+      tags: [Settings]
+      summary: Stop new bookings at a branch
+      description: |
+        Needs `branches.manage`. Existing bookings stay and run as usual;
+        nothing is cancelled. The last active branch can't be deactivated
+        (`BRANCH_LAST_ACTIVE`, 409).
+      operationId: deactivateBranch
+      parameters:
+        - { name: branch, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: OK }
+        "409": { description: "`BRANCH_LAST_ACTIVE`" }
+
+  /branches/{branch}/activate:
+    post:
+      tags: [Settings]
+      summary: Take bookings at a branch again
+      operationId: activateBranch
+      parameters:
+        - { name: branch, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: OK }
 
   /holidays:
     get:
@@ -2105,7 +2197,14 @@ components:
       type: array
       description: |
         Drives what the app shows: `bookings.manage`, `queue.manage`,
-        `patients.view`, `settings.manage`, `prices.view` and `reports.view`.
+        `patients.view`, `settings.manage`, `prices.view`, `reports.view`,
+        `schedule.manage` and `branches.manage`.
+
+        Only what this account can use now. The doctor (`user.is_owner`)
+        has all of them. A team member lacks `schedule.manage` and
+        `branches.manage` until the doctor grants them: changing working
+        hours or holidays then answers 403 (ELA-17). Reading them never
+        needs it.
       items: { type: string }
 
     LoginPayload:
@@ -2267,6 +2366,35 @@ components:
                   it closes the next morning, and every booking in it stays on
                   this day. Show "ينتهي اليوم التالي". False for `23:59`,
                   which is how a shift ending at midnight is entered.
+
+    Branch:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string, example: عيادة جديلة }
+        address: { type: [string, "null"] }
+        latitude: { type: [number, "null"] }
+        longitude: { type: [number, "null"] }
+        phone: { $ref: "#/components/schemas/Display" }
+        own_phone:
+          type: boolean
+          description: False when `phone` is the clinic's main booking number.
+        is_active: { type: boolean }
+
+    BranchInput:
+      type: object
+      required: [name, address]
+      properties:
+        name: { type: string, maxLength: 100 }
+        address: { type: string, maxLength: 255 }
+        map_link:
+          type: string
+          description: A full Google Maps link; the pin is read from it. Short `maps.app.goo.gl` links can't be read. Wins over latitude/longitude.
+        latitude: { type: number, description: "Required without `map_link`." }
+        longitude: { type: number, description: "Required without `map_link`." }
+        phone:
+          type: [string, "null"]
+          description: Empty for the clinic's main booking number.
 
     Holiday:
       type: object

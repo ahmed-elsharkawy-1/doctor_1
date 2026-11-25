@@ -19,9 +19,15 @@ abstract class SettingsComponent extends ClinicComponent
 
     public bool $failed = false;
 
+    /**
+     * What opening and saving the screen needs. Working hours and holidays
+     * override it with the grantable "Manage schedule" (ELA-17).
+     */
+    protected string $ability = 'settings.manage';
+
     public function mount(): void
     {
-        $this->requireAbility('settings.manage');
+        $this->requireAbility($this->ability);
     }
 
     /**
@@ -33,7 +39,7 @@ abstract class SettingsComponent extends ClinicComponent
      */
     protected function run(callable $action, string $success): ?array
     {
-        $this->requireAbility('settings.manage');
+        $this->requireAbility($this->ability);
 
         try {
             $action();

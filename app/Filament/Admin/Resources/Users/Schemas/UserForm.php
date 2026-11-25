@@ -2,8 +2,10 @@
 
 namespace App\Filament\Admin\Resources\Users\Schemas;
 
+use App\Enums\StaffPermission;
 use App\Enums\UserRole;
 use App\Models\User;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -106,6 +108,21 @@ class UserForm
                         ->default(false)
                         ->visible(fn ($get): bool => $get('role') === UserRole::CLINIC->value)
                         ->helperText(__('filament.user.can_access_reports_hint')),
+
+                    // ELA-17: the doctor holds everything; anyone else the
+                    // daily work plus what is ticked below.
+                    Toggle::make('is_owner')
+                        ->label(__('filament.user.is_owner'))
+                        ->default(false)
+                        ->live()
+                        ->visible(fn ($get): bool => $get('role') === UserRole::CLINIC->value)
+                        ->helperText(__('filament.user.is_owner_hint')),
+
+                    CheckboxList::make('permissions')
+                        ->label(__('filament.user.permissions'))
+                        ->options(StaffPermission::options())
+                        ->visible(fn ($get): bool => $get('role') === UserRole::CLINIC->value && ! $get('is_owner'))
+                        ->helperText(__('filament.user.permissions_hint')),
                 ])
                 ->columns(2),
         ]);

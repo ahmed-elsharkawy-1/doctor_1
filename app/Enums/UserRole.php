@@ -44,6 +44,9 @@ enum UserRole: string
                 'settings.manage',
                 'prices.view',
                 'reports.view',
+                // Gated further per account: see StaffPermission.
+                StaffPermission::MANAGE_SCHEDULE->value,
+                StaffPermission::MANAGE_BRANCHES->value,
             ],
         };
     }

@@ -23,6 +23,7 @@ use App\Livewire\App\Queue;
 use App\Livewire\App\Rebooking;
 use App\Livewire\App\Reports;
 use App\Livewire\App\Reviews;
+use App\Livewire\App\Settings\Branches;
 use App\Livewire\App\Settings\General;
 use App\Livewire\App\Settings\Holidays;
 use App\Livewire\App\Settings\Hours;
@@ -180,6 +181,7 @@ Route::prefix('app')->name('app.')->group(function (): void {
             Route::get('hours', Hours::class)->name('.hours');
             Route::get('visit-types', VisitTypes::class)->name('.visit-types');
             Route::get('holidays', Holidays::class)->name('.holidays');
+            Route::get('branches', Branches::class)->name('.branches');
         });
         Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
     });

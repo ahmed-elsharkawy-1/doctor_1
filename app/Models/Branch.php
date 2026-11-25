@@ -1,0 +1,110 @@
+<?php
+
+namespace App\Models;
+
+use App\Support\PhoneNumber;
+use Database\Factories\BranchFactory;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+/**
+ * A place the doctor works from (ELA-16).
+ *
+ * The clinic stays the tenant: patients, visit types and prices, the no-show
+ * block and the WhatsApp sender are the doctor's, across every branch. A
+ * branch has its own name, address, location and, optionally, phone.
+ *
+ * Address, location and phone fall back to the clinic's, so the branch every
+ * existing clinic was given reads exactly as the clinic did.
+ */
+class Branch extends Model
+{
+    /** @use HasFactory<BranchFactory> */
+    use HasFactory;
+
+    protected $fillable = [
+        'clinic_id',
+        'name',
+        'address',
+        'latitude',
+        'longitude',
+        'phone',
+        'is_active',
+        'sort_order',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+            'sort_order' => 'integer',
+        ];
+    }
+
+    /** @return BelongsTo<Clinic, $this> */
+    public function clinic(): BelongsTo
+    {
+        return $this->belongsTo(Clinic::class);
+    }
+
+    /**
+     * The clinic's original branch: the one every existing clinic was given,
+     * and the one whose address and pin are the clinic's own.
+     */
+    public function isFirst(): bool
+    {
+        return $this->id === (int) Branch::query()->where('clinic_id', $this->clinic_id)->min('id');
+    }
+
+    public function displayAddress(): ?string
+    {
+        return filled($this->address) ? $this->address : $this->clinic->address;
+    }
+
+    /**
+     * The `lat,lng` pair, or null when neither the branch nor the clinic has
+     * a pin. Both halves come from the same row, never one from each.
+     */
+    public function coordinates(): ?string
+    {
+        if ($this->latitude !== null && $this->longitude !== null) {
+            return $this->latitude.','.$this->longitude;
+        }
+
+        if (filled($this->address)) {
+            return null;
+        }
+
+        $clinic = $this->clinic;
+
+        return $clinic->latitude !== null && $clinic->longitude !== null
+            ? $clinic->latitude.','.$clinic->longitude
+            : null;
+    }
+
+    /**
+     * The number patients call about this branch: its own, else the doctor's
+     * main booking number (ELA-16).
+     */
+    public function contactPhone(): ?PhoneNumber
+    {
+        $clinic = $this->clinic;
+        $raw = filled($this->phone) ? $this->phone : $clinic->phone;
+
+        return $raw === null ? null : PhoneNumber::tryParse($raw, $clinic->country_code);
+    }
+
+    /** @param Builder<self> $query */
+    public function scopeActive(Builder $query): void
+    {
+        $query->where('is_active', true);
+    }
+
+    /** @param Builder<self> $query */
+    public function scopeOrdered(Builder $query): void
+    {
+        $query->orderBy('sort_order')->orderBy('id');
+    }
+}

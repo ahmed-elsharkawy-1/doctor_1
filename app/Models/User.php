@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\StaffPermission;
 use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
@@ -24,6 +25,8 @@ class User extends Authenticatable implements FilamentUser
         'email',
         'password',
         'role',
+        'is_owner',
+        'permissions',
         'phone',
         'doctor_id',
         'locale',
@@ -42,6 +45,8 @@ class User extends Authenticatable implements FilamentUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'role' => UserRole::class,
+            'is_owner' => 'boolean',
+            'permissions' => 'array',
             'is_active' => 'boolean',
             'can_access_reports' => 'boolean',
         ];
@@ -80,19 +85,58 @@ class User extends Authenticatable implements FilamentUser
         return $this->role === UserRole::SUPER_ADMIN;
     }
 
+    /**
+     * The doctor: every ability, at every branch (ELA-17).
+     */
     public function isOwner(): bool
     {
-        return $this->role === UserRole::CLINIC;
+        return $this->role === UserRole::CLINIC && $this->is_owner;
     }
 
+    /**
+     * A team member who is not the doctor. Does the daily work, plus whatever
+     * extra the doctor granted (StaffPermission).
+     */
     public function isSecretary(): bool
     {
-        return $this->role === UserRole::CLINIC;
+        return $this->role === UserRole::CLINIC && ! $this->is_owner;
     }
 
+    public function hasPermission(StaffPermission $permission): bool
+    {
+        return $this->isOwner()
+            || in_array($permission->value, $this->permissions ?? [], true);
+    }
+
+    /**
+     * Whether the account may use this ability now.
+     *
+     * The role says which abilities exist for it at all. On top of that, an
+     * ability that is also a StaffPermission is the doctor's unless granted.
+     */
     public function hasAbility(string $ability): bool
     {
-        return $this->is_active && $this->role->can($ability);
+        if (! $this->is_active || ! $this->role->can($ability)) {
+            return false;
+        }
+
+        $permission = StaffPermission::tryFrom($ability);
+
+        return $permission === null || $this->hasPermission($permission);
+    }
+
+    /**
+     * Every ability this account can use right now, for clients that hide
+     * what the account can't do.
+     *
+     * @return list<string>
+     */
+    public function effectiveAbilities(): array
+    {
+        return array_values(array_filter(
+            $this->role->abilities(),
+            fn (string $ability): bool => $this->hasAbility($ability),
+        ));
     }
 
     public function belongsToClinic(int $clinicId): bool
