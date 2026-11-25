@@ -430,6 +430,182 @@
                     "response": []
                 },
                 {
+                    "name": "The doctor's branches",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/branches",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "branches"
+                            ]
+                        },
+                        "description": "Every branch, active or not, in the doctor's order (ELA-16). Address,\nlocation and phone are what patients see: the branch's own, or the\nclinic's where it has none. Any team member can read this."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Add a branch",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/branches",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "branches"
+                            ]
+                        },
+                        "description": "Needs `branches.manage`. Refused with `BRANCH_ADDING_DISABLED` (403)\nuntil multi-branch is switched on, and `BRANCH_DUPLICATE_NAME` (409)\nwhen the name is taken.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"\",\n    \"address\": \"\"\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Edit a branch",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/branches/{branch}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "branches",
+                                "{branch}"
+                            ]
+                        },
+                        "description": "Needs `branches.manage`. Applies to new messages and pages only.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"\",\n    \"address\": \"\"\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Stop new bookings at a branch",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/branches/{branch}/deactivate",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "branches",
+                                "{branch}",
+                                "deactivate"
+                            ]
+                        },
+                        "description": "Needs `branches.manage`. Existing bookings stay and run as usual;\nnothing is cancelled. The last active branch can't be deactivated\n(`BRANCH_LAST_ACTIVE`, 409)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Take bookings at a branch again",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/branches/{branch}/activate",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "branches",
+                                "{branch}",
+                                "activate"
+                            ]
+                        },
+                        "description": "Take bookings at a branch again"
+                    },
+                    "response": []
+                },
+                {
                     "name": "One-off closures",
                     "request": {
                         "method": "GET",
