@@ -63,6 +63,10 @@
         <div class="who">
             <b>{{ $clinic?->name }}</b>
             <small>{{ $user->name }}</small>
+            {{-- One branch of several: nothing to switch, but say which. --}}
+            @if ($myBranches->count() === 1 && $clinic !== null && $clinic->branches()->count() > 1)
+                <small class="branch-here">🏥 {{ $currentBranch?->name }}</small>
+            @endif
         </div>
 
         @if ($myBranches->count() > 1 && $currentBranch !== null)

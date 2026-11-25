@@ -308,4 +308,16 @@ class BranchAccessTest extends TestCase
             ->post(route('app.branch.switch'), ['branch' => $this->gedeila->id])
             ->assertRedirect(route('app.queue'));
     }
+
+    public function test_someone_with_one_branch_of_several_is_told_which(): void
+    {
+        $this->actingAs($this->gedeilaOnly())->get(route('app.settings'))
+            ->assertSee('class="branch-here"', false)
+            ->assertSee('عيادة جديلة');
+
+        // A clinic with one branch shows nothing about branches.
+        $this->gedeila->delete();
+        $this->actingAs($this->secretary)->get(route('app.settings'))
+            ->assertDontSee('class="branch-here"', false);
+    }
 }

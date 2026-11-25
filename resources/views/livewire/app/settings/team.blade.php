@@ -10,7 +10,10 @@
     @foreach ($team as $member)
         <div class="card" style="padding:0.9rem 1rem;margin-bottom:0.5rem" wire:key="m-{{ $member->id }}">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap">
-                <strong>{{ $member->name }}</strong>
+                <span style="min-width:0">
+                    <strong>{{ $member->name }}</strong>
+                    <small class="muted" dir="ltr" style="display:block;text-align:start;overflow-wrap:anywhere">{{ $member->email }}</small>
+                </span>
                 @if ($member->isOwner())
                     <span class="pill">{{ __('app.settings.team_doctor') }}</span>
                 @endif
