@@ -181,6 +181,10 @@
                                  the visit type's price today. --}}
                             · {{ $booking->duration_minutes }} {{ __('app.patients.minutes') }}
                         </span>
+                        {{-- Where it was, once there is more than one place (ELA-19). --}}
+                        @if ($showBranches && $booking->branch)
+                            <span class="pill" style="margin-inline-start:0.35rem">🏥 {{ $booking->branch->name }}</span>
+                        @endif
                     </span>
 
                     <span style="display:flex;gap:0.5rem;align-items:center">

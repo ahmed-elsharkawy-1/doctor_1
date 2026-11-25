@@ -9,6 +9,7 @@
         'app.settings.holidays'    => [__('app.settings.holidays'), 'schedule.manage'],
         'app.settings.branches'    => [__('app.settings.branches'), 'branches.manage'],
         'app.settings.team'        => [__('app.settings.team'), 'team.manage'],
+        'app.settings.displays'    => [__('app.settings.displays'), 'branches.manage'],
     ];
     $user = auth()->user();
 

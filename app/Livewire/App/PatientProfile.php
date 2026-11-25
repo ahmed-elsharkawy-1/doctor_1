@@ -48,6 +48,7 @@ class PatientProfile extends ClinicComponent
         return view('livewire.app.patient-profile', [
             'patient' => $patient,
             'history' => $history,
+            'showBranches' => $this->clinic()->branches()->count() > 1,
             'summary' => app(PatientSearchService::class)->summary($history),
             'canSeePrices' => auth()->user()?->hasAbility('prices.view') ?? false,
             // The same reading the API returns, so the two never disagree.

@@ -62,6 +62,6 @@ class Rebooking extends ClinicComponent
     {
         $this->requireAbility('queue.manage');
 
-        return app(QueueService::class)->awaitingRebooking($this->clinic());
+        return app(QueueService::class)->awaitingRebooking($this->clinic(), $this->branch());
     }
 }

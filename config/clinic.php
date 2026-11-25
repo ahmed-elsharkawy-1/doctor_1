@@ -93,6 +93,17 @@ return [
         'max_range_days' => (int) env('CLINIC_HOLIDAY_MAX_RANGE_DAYS', 60),
     ],
 
+    /*
+    | Waiting-room TVs (ELA-19): how many patients after the one with the
+    | doctor the board lists, how often it reloads, and how long before and
+    | after the branch's hours it stays up.
+    */
+    'displays' => [
+        'next_count' => (int) env('CLINIC_DISPLAY_NEXT_COUNT', 6),
+        'refresh_seconds' => (int) env('CLINIC_DISPLAY_REFRESH_SECONDS', 15),
+        'margin_minutes' => (int) env('CLINIC_DISPLAY_MARGIN_MINUTES', 60),
+    ],
+
     'branches' => [
         'multi_enabled' => (bool) env('CLINIC_MULTI_BRANCH', false),
 
@@ -218,7 +229,7 @@ return [
         // Slugs the operator may not take, because a route already owns them.
         'reserved' => [
             'app', 'admin', 'docs', 'api', 'livewire', 'storage', 'up', 'login',
-            'booking', 'review', 'reports', 'handoff', 'privacy',
+            'booking', 'review', 'reports', 'handoff', 'privacy', 'tv',
             // The path tracking links used before they were made readable.
             'b',
         ],

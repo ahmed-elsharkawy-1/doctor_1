@@ -6,6 +6,7 @@ use App\Enums\BookingStatus;
 use App\Enums\CancelReason;
 use App\Enums\PatientResponse;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -75,9 +76,14 @@ class QueueService
      *
      * @return Collection<int, Booking>
      */
-    public function awaitingRebooking(Clinic $clinic): Collection
+    /**
+     * @param  Branch|null  $branch  the call list of one branch (ELA-19); the
+     *                               whole clinic's when not given
+     */
+    public function awaitingRebooking(Clinic $clinic, ?Branch $branch = null): Collection
     {
         $bookings = $clinic->bookings()
+            ->when($branch !== null, fn ($query) => $query->where('branch_id', $branch->id))
             ->with(['patient', 'visitType', 'reminders'])
             ->awaitingRebooking()
             ->get();
@@ -85,9 +91,12 @@ class QueueService
         return $this->sortBookings($bookings);
     }
 
-    public function awaitingRebookingCount(Clinic $clinic): int
+    public function awaitingRebookingCount(Clinic $clinic, ?Branch $branch = null): int
     {
-        return $clinic->bookings()->awaitingRebooking()->count();
+        return $clinic->bookings()
+            ->when($branch !== null, fn ($query) => $query->where('branch_id', $branch->id))
+            ->awaitingRebooking()
+            ->count();
     }
 
     /**
@@ -95,9 +104,10 @@ class QueueService
      *
      * @return Collection<int, Booking>
      */
-    public function postponeCandidates(Clinic $clinic, Carbon $date): Collection
+    public function postponeCandidates(Clinic $clinic, Carbon $date, ?Branch $branch = null): Collection
     {
         $bookings = $clinic->bookings()
+            ->when($branch !== null, fn ($query) => $query->where('branch_id', $branch->id))
             ->with(['patient', 'visitType', 'reminders'])
             ->onDate($date->toDateString())
             ->pending()

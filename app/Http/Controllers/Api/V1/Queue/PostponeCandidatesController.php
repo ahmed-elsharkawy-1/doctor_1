@@ -30,7 +30,7 @@ class PostponeCandidatesController extends V1Controller
             ? Carbon::parse($request->query('date'), $clinic->timezone)->startOfDay()
             : $this->slots->today($clinic);
 
-        $candidates = $this->queue->postponeCandidates($clinic, $date);
+        $candidates = $this->queue->postponeCandidates($clinic, $date, $this->branch($request));
 
         return ApiResponse::success(
             (new RebookingListResult($candidates))->toArray(),

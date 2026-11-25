@@ -4,6 +4,7 @@ namespace App\Services\V1\Queue;
 
 use App\Enums\BookingStatus;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Services\V1\Patients\PatientSearchService;
 use Illuminate\Database\Eloquent\Builder;
@@ -29,11 +30,13 @@ class QueueSearchService
      *
      * @return array{queue: Collection<int, Booking>, matches: Collection<int, array{booking: Booking, position: QueuePosition}>}
      */
-    public function search(Clinic $clinic, string $term, int $limit): array
+    public function search(Clinic $clinic, string $term, int $limit, ?Branch $branch = null): array
     {
         $term = trim($term);
+        $branch ??= $clinic->firstBranch();
 
         $ids = $clinic->bookings()
+            ->where('branch_id', $branch->id)
             ->onDate($clinic->currentDay()->toDateString())
             ->whereIn('status', BookingStatus::inQueue())
             ->whereHas('patient', fn (Builder $query) => $query->where(
@@ -43,7 +46,7 @@ class QueueSearchService
 
         // Read after the match, and once: every position below comes from
         // this one copy of the day, so no two rows can disagree.
-        $queue = $this->positions->today($clinic);
+        $queue = $this->positions->today($clinic, $branch);
 
         $matches = $queue
             ->whereIn('id', $ids)

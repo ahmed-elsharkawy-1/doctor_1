@@ -36,7 +36,7 @@ class BookingTrackingController extends Controller
             BookingLinkOpen::recordFirst($booking);
         }
 
-        $booking->load(['patient', 'clinic.doctor', 'clinic.specialty', 'visitType']);
+        $booking->load(['patient', 'clinic.doctor', 'clinic.specialty', 'visitType', 'branch']);
 
         $clinic = $booking->clinic;
         // Parsed against the clinic's own country, not the platform
@@ -64,7 +64,11 @@ class BookingTrackingController extends Controller
             'doctor' => $clinic->doctor,
             'phone' => $phone,
             'whatsappLink' => $whatsappLink,
-            'mapLink' => $clinic->mapLink(),
+            // The booked branch's place (ELA-19): the clinic's own for its
+            // first branch.
+            'mapLink' => $booking->branch?->mapLink() ?? $clinic->mapLink(),
+            // Named only when the doctor has more than one place to be.
+            'branch' => $clinic->branches()->count() > 1 ? $booking->branch : null,
             'bookAgainLink' => $clinic->bookAgainUrl(),
             'position' => $position,
             'delay' => $delays->for($booking, $position),

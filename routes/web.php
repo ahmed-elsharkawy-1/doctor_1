@@ -6,6 +6,7 @@ use App\Http\Controllers\Web\Auth\LoginController;
 use App\Http\Controllers\Web\BookingReviewController;
 use App\Http\Controllers\Web\BookingTrackingController;
 use App\Http\Controllers\Web\DoctorLandingController;
+use App\Http\Controllers\Web\QueueDisplayController;
 use App\Http\Controllers\Web\Reports\AppLinkController;
 use App\Http\Controllers\Web\Reports\LoginController as ReportsLoginController;
 use App\Http\Controllers\Web\Reports\ReportController;
@@ -25,6 +26,7 @@ use App\Livewire\App\Rebooking;
 use App\Livewire\App\Reports;
 use App\Livewire\App\Reviews;
 use App\Livewire\App\Settings\Branches;
+use App\Livewire\App\Settings\Displays;
 use App\Livewire\App\Settings\General;
 use App\Livewire\App\Settings\Holidays;
 use App\Livewire\App\Settings\Hours;
@@ -59,6 +61,15 @@ Route::get(config('clinic.tracking.path').'/{booking:tracking_token}', BookingTr
 foreach (config('clinic.tracking.legacy_paths', []) as $legacyPath) {
     Route::get($legacyPath.'/{booking:tracking_token}', BookingTrackingController::class);
 }
+
+/*
+| A waiting-room TV (ELA-19): one branch's queue for today. Like a tracking
+| link, the token is the whole of its access.
+*/
+Route::get('tv/{token}', QueueDisplayController::class)
+    ->where('token', '[A-Za-z0-9]{40}')
+    ->middleware('throttle:tv')
+    ->name('tv.show');
 
 /*
 | The patient's review page, opened from the visit-completed message. Same
@@ -185,6 +196,7 @@ Route::prefix('app')->name('app.')->group(function (): void {
             Route::get('holidays', Holidays::class)->name('.holidays');
             Route::get('branches', Branches::class)->name('.branches');
             Route::get('team', Team::class)->name('.team');
+            Route::get('displays', Displays::class)->name('.displays');
         });
         // The header's branch switcher (ELA-17).
         Route::post('branch', SwitchBranchController::class)->name('branch.switch');

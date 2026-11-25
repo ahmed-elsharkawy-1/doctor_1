@@ -19,7 +19,7 @@ class RebookingListController extends V1Controller
 
     public function __invoke(Request $request): JsonResponse
     {
-        $bookings = $this->queue->awaitingRebooking($this->clinic($request));
+        $bookings = $this->queue->awaitingRebooking($this->clinic($request), $this->branch($request));
 
         return ApiResponse::success(
             (new RebookingListResult($bookings))->toArray(),

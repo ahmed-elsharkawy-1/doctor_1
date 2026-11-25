@@ -41,6 +41,9 @@ enum ApiErrorCode: string
     case BRANCH_LAST_ACTIVE = 'BRANCH_LAST_ACTIVE';
     case BRANCH_ADDING_DISABLED = 'BRANCH_ADDING_DISABLED';
 
+    // Queue displays (multi-branch, ELA-19)
+    case DISPLAY_NOT_FOUND = 'DISPLAY_NOT_FOUND';
+
     // Team (multi-branch, ELA-17)
     case TEAM_MEMBER_NOT_FOUND = 'TEAM_MEMBER_NOT_FOUND';
     case TEAM_MEMBER_IS_OWNER = 'TEAM_MEMBER_IS_OWNER';

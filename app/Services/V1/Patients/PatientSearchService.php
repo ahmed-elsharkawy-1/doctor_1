@@ -67,8 +67,10 @@ class PatientSearchService
      */
     public function history(Patient $patient): Collection
     {
+        // Every branch: one record per patient across the doctor's branches,
+        // each visit with its own (ELA-19).
         return $patient->bookings()
-            ->with('visitType')
+            ->with(['visitType', 'branch'])
             ->orderByDesc('start_at')
             ->get();
     }

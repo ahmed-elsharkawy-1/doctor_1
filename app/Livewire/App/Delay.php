@@ -154,7 +154,7 @@ class Delay extends ClinicComponent
     {
         $this->requireAbility('queue.manage');
 
-        return $this->service()->startingPoints($this->clinic());
+        return $this->service()->startingPoints($this->clinic(), $this->branch());
     }
 
     private function service(): DelayService
