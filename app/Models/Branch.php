@@ -93,23 +93,43 @@ class Branch extends Model
      */
     public function workingDaysLabel(): ?string
     {
-        $open = $this->schedules()->where('is_open', true)->whereHas('periods')->get();
+        $open = $this->schedules()->where('is_open', true)->whereHas('periods')->get()
+            ->map(fn (ClinicSchedule $day) => $day->day_of_week)
+            ->sortBy(fn (DayOfWeek $day) => $day->value)
+            ->values();
 
         if ($open->isEmpty()) {
             return null;
         }
 
-        $first = $open->first()->day_of_week;
-        $last = $open->last()->day_of_week;
+        // Consecutive days read as a range, a gap starts a new part: Sunday,
+        // Tuesday and Friday never read as "Sunday to Friday".
+        $runs = [];
 
-        if ($first === $last) {
-            return $first->label();
+        foreach ($open as $day) {
+            $last = array_key_last($runs);
+
+            if ($last !== null && end($runs[$last])->value === $day->value - 1) {
+                $runs[$last][] = $day;
+            } else {
+                $runs[] = [$day];
+            }
         }
 
-        return __('landing.days_range', [
-            'from' => $first->label(),
-            'to' => preg_replace('/^ال/u', 'لل', $last->label()),
-        ]);
+        return collect($runs)->map(function (array $run): string {
+            if (count($run) === 1) {
+                return $run[0]->label();
+            }
+
+            if (count($run) === 2) {
+                return $run[0]->label().'، '.$run[1]->label();
+            }
+
+            return __('landing.days_range', [
+                'from' => $run[0]->label(),
+                'to' => preg_replace('/^ال/u', 'لل', end($run)->label()),
+            ]);
+        })->join('، ');
     }
 
     /**

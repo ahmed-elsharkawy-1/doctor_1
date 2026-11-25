@@ -13,6 +13,7 @@ use App\Models\Patient;
 use App\Services\V1\Booking\BookingDaysService;
 use App\Services\V1\Booking\BookingService;
 use App\Services\V1\Booking\DayAvailability;
+use App\Services\V1\Booking\PatientBookingService;
 use App\Services\V1\Booking\SlotAvailabilityService;
 use App\Services\V1\Booking\SlotHoldService;
 use App\Services\V1\Patients\PatientSearchService;
@@ -181,6 +182,9 @@ class NewBooking extends ClinicComponent
         $this->patientName = (string) $original->patient?->name;
         $this->phone = (string) $original->patient?->phone;
         $this->age = (string) ($original->patient?->age ?? '');
+
+        // Rebooked where it was booked, if she can still book there (ELA-18).
+        $this->branchId = $original->branch_id ?? $this->branchId;
 
         if ($clinic->visitTypes()->active()->whereKey($original->visit_type_id)->exists()) {
             $this->visitTypeId = $original->visit_type_id;
@@ -533,6 +537,16 @@ class NewBooking extends ClinicComponent
         $this->releaseHold();
         $this->branchId = $branchId;
         $this->startTime = null;
+
+        // A day this branch is closed shows nothing to book: go to its first
+        // open one, as the patient page does.
+        $days = collect(app(BookingDaysService::class)->window($this->clinic(), branch: $this->bookingBranch()));
+        $current = $days->first(fn (array $day) => $day['date']->toDateString() === $this->date);
+
+        if ($current === null || ! $current['is_open']) {
+            $open = $days->first(fn (array $day) => $day['is_open']);
+            $this->date = $open === null ? $this->date : $open['date']->toDateString();
+        }
     }
 
     /**
@@ -542,10 +556,14 @@ class NewBooking extends ClinicComponent
      */
     private function bookableBranches(): Collection
     {
-        return auth()->user()->accessibleBranches($this->clinic())
-            ->filter(fn (Branch $branch) => $branch->is_active && $branch->hasWorkingHours())
+        // Read once per request: render, the chip and every write ask.
+        return $this->bookable ??= auth()->user()->accessibleBranches($this->clinic())
+            ->whereIn('id', app(PatientBookingService::class)->branches($this->clinic())->pluck('id'))
             ->values();
     }
+
+    /** @var Collection<int, Branch>|null see bookableBranches() */
+    private ?Collection $bookable = null;
 
     /**
      * The picked branch if she still may book there, else the one she is on.

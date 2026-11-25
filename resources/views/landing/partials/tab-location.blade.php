@@ -12,7 +12,7 @@
                     @if ($days = $branch->workingDaysLabel())
                         <p class="lede">{{ $days }}</p>
                     @endif
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:12px">
                         @if ($map = $branch->mapLink())
                             <a class="btn btn-ghost" href="{{ $map }}" target="_blank" rel="noopener">
                                 @include('landing.partials.icon', ['name' => 'pin'])

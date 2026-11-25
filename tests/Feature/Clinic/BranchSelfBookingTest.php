@@ -8,6 +8,7 @@ use App\Enums\DayOfWeek;
 use App\Livewire\Patient\BookVisit;
 use App\Models\Booking;
 use App\Models\Branch;
+use App\Services\V1\Booking\PatientBookingService;
 use App\Services\V1\Branches\BranchService;
 use App\Services\V1\Settings\ScheduleService;
 use Database\Seeders\MessageTemplateSeeder;
@@ -74,7 +75,8 @@ class BranchSelfBookingTest extends TestCase
     {
         Livewire::test(BookVisit::class, ['slug' => 'dr-sara'])
             ->assertDontSeeHtml('branch-card')
-            ->assertSet('branchId', $this->dokki->id);
+            // Nothing to keep in the URL either.
+            ->assertSet('branchId', null);
     }
 
     public function test_branch_cards_list_every_branch_a_patient_can_book_at(): void
@@ -108,6 +110,56 @@ class BranchSelfBookingTest extends TestCase
         Livewire::withQueryParams(['b' => $foreign->id])
             ->test(BookVisit::class, ['slug' => 'dr-sara'])
             ->assertSet('branchId', $this->dokki->id);
+    }
+
+    public function test_the_upcoming_screen_and_a_closed_day_name_the_branch(): void
+    {
+        $gedeila = $this->gedeila();
+
+        $screen = Livewire::withQueryParams(['b' => $gedeila->id])
+            ->test(BookVisit::class, ['slug' => 'dr-sara'])
+            ->call('start')
+            ->set('name', 'فاطمة')
+            ->set('phone', '01012225521')
+            ->call('sendCode')
+            ->call('selectDay', '2026-12-04')
+            ->assertSee(__('booking.closed_reason.branch_weekly_closed'))
+            ->call('selectDay', self::SATURDAY)
+            ->call('selectSlot', '17:00')
+            ->call('confirm');
+
+        Livewire::withQueryParams(['b' => $gedeila->id])
+            ->test(BookVisit::class, ['slug' => 'dr-sara'])
+            ->assertViewHas('stage', 'upcoming')
+            ->assertSee('🏥 عيادة جديلة');
+    }
+
+    public function test_the_page_will_not_book_at_a_branch_that_stopped_taking_bookings(): void
+    {
+        $gedeila = $this->gedeila();
+        $service = app(PatientBookingService::class);
+        app(BranchService::class)->deactivate($gedeila);
+
+        // Gone from the choice, and a page that still had it falls back.
+        $this->assertFalse($service->branches($this->clinic)->contains('id', $gedeila->id));
+        $this->assertSame($this->dokki->id, $service->branchFor($this->clinic, $gedeila->id)->id);
+    }
+
+    public function test_a_branch_open_on_some_days_is_labelled_with_those_days(): void
+    {
+        $gedeila = $this->gedeila();
+        foreach ([DayOfWeek::MONDAY, DayOfWeek::THURSDAY, DayOfWeek::FRIDAY] as $day) {
+            app(ScheduleService::class)->updateDay($gedeila, ScheduleDayData::fromArray($day, [
+                'is_open' => true, 'periods' => [['start_time' => '17:00', 'end_time' => '20:00']],
+            ]));
+        }
+
+        // Saturday, Monday, Thursday and Friday: a gap after Saturday and
+        // after Monday, so never "Saturday to Friday".
+        $this->assertSame(
+            implode('، ', [DayOfWeek::SATURDAY->label(), DayOfWeek::MONDAY->label(), DayOfWeek::THURSDAY->label(), DayOfWeek::FRIDAY->label()]),
+            $gedeila->fresh()->workingDaysLabel(),
+        );
     }
 
     public function test_the_patient_books_at_the_branch_they_picked_and_is_told_where(): void

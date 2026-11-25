@@ -15,6 +15,7 @@ use App\Support\HeldSlotSession;
 use App\Support\PhoneNumber;
 use Closure;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -114,12 +115,15 @@ class BookVisit extends Component
      */
     private ?array $days = null;
 
+    /** @var Collection<int, Branch>|null see bookableBranches() */
+    private ?Collection $bookable = null;
+
     public function mount(string $slug): void
     {
         $this->slug = $slug;
 
         $clinic = $this->clinic();
-        $this->branchId = $this->service()->branchFor($clinic, $this->branchId)?->id;
+        $this->bookingBranch();
 
         // The proof of the phone is in the session and survives a reload; the
         // name is a property on this class and does not. Without this, coming
@@ -204,7 +208,7 @@ class BookVisit extends Component
         return view('livewire.patient.book-visit', [
             'clinic' => $clinic,
             // Branch cards only when there is a choice (ELA-18).
-            'branches' => $this->service()->branches($clinic),
+            'branches' => $this->bookableBranches(),
             'branch' => $this->bookingBranch(),
             'doctor' => $clinic->doctor,
             'stage' => $stage,
@@ -498,7 +502,7 @@ class BookVisit extends Component
      */
     public function selectBranch(int $branchId): void
     {
-        $branch = $this->service()->branches($this->clinic())->firstWhere('id', $branchId);
+        $branch = $this->bookableBranches()->firstWhere('id', $branchId);
 
         if ($branch === null) {
             return;
@@ -511,7 +515,13 @@ class BookVisit extends Component
         $this->startTime = null;
         $this->releaseHold();
         $this->clearNotice();
-        $this->date = $this->service()->firstBookableDate($this->clinic(), $this->selectedVisitType(), branch: $branch);
+        // Built once here and kept for the render that follows.
+        $this->date = $this->service()->firstBookableDate(
+            $this->clinic(),
+            $this->selectedVisitType(),
+            $this->days($this->clinic()),
+            $branch,
+        );
     }
 
     public function selectDay(string $date): void
@@ -737,10 +747,24 @@ class BookVisit extends Component
      */
     private function bookingBranch(): ?Branch
     {
-        $branch = $this->service()->branchFor($this->clinic(), $this->branchId);
-        $this->branchId = $branch?->id;
+        $branch = $this->service()->branchFor($this->clinic(), $this->branchId, $this->bookableBranches());
+
+        // Kept in the URL (`?b=`) only when there is a choice to keep: a
+        // one-branch clinic's links stay as they were.
+        $this->branchId = $this->bookableBranches()->count() > 1 ? $branch?->id : null;
 
         return $branch;
+    }
+
+    /**
+     * The branches a patient can book at, read once per request: every
+     * step asks, and each asking was a query.
+     *
+     * @return Collection<int, Branch>
+     */
+    private function bookableBranches(): Collection
+    {
+        return $this->bookable ??= $this->service()->branches($this->clinic());
     }
 
     private function service(): PatientBookingService

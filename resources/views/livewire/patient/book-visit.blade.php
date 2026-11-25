@@ -79,7 +79,7 @@
                                 <button type="button" class="branch-card" wire:key="b-{{ $choice->id }}"
                                         aria-pressed="{{ $choice->id === $branch->id ? 'true' : 'false' }}"
                                         wire:click="selectBranch({{ $choice->id }})">
-                                    <strong>🏥 {{ $choice->name }}</strong>
+                                    <strong>@if ($choice->id === $branch->id)✓ @endif🏥 {{ $choice->name }}</strong>
                                     @if ($choice->displayAddress())
                                         <span>{{ $choice->displayAddress() }}</span>
                                     @endif
@@ -90,7 +90,7 @@
                             @endforeach
                         </div>
                         @if ($map = $branch->mapLink())
-                            <a class="hint" href="{{ $map }}" target="_blank" rel="noopener">📍 {{ __('booking.self_booking.branch_map') }}</a>
+                            <a class="hint" href="{{ $map }}" target="_blank" rel="noopener">📍 {{ __('booking.self_booking.branch_map', ['branch' => $branch->name]) }}</a>
                         @endif
                     @elseif (in_array($stage, ['details', 'code'], true))
                         <div class="hint">🏥 {{ $branch->name }}</div>
@@ -294,6 +294,10 @@
                                 <div class="hint">{{ __('schedule.after_midnight') }}</div>
                             @endif
                             <div class="hint">{{ $upcoming->visitType?->name }} · {{ __('booking.self_booking.minutes', ['count' => $upcoming->duration_minutes]) }}</div>
+                            {{-- Where, once there is more than one place (ELA-18). --}}
+                            @if ($branches->count() > 1 && $upcoming->branch)
+                                <div class="hint">🏥 {{ $upcoming->branch->name }}</div>
+                            @endif
                         </div>
                     </div>
 
@@ -425,7 +429,7 @@
                             </div>
                         @elseif ($availability === null || ! $availability->isOpen || $availability->availableCount() === 0)
                             <div class="note note-plain">
-                                {{ $availability?->closedReason?->label() ?? __('booking.self_booking.no_slots_day') }}
+                                {{ $availability?->closedReason?->label($branches->count() > 1) ?? __('booking.self_booking.no_slots_day') }}
                             </div>
                         @else
                             @php

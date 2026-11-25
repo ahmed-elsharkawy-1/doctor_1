@@ -495,13 +495,22 @@ class Clinic extends Model
         $today = Carbon::parse($now->toDateString(), $this->timezone);
         $yesterday = Carbon::parse($now->copy()->subDay()->toDateString(), $this->timezone);
 
-        // Last night's evening at whichever branch the doctor worked it: the
-        // hours never let two branches run past midnight the same night.
-        foreach ($this->branches()->reorder()->orderBy('id')->get() as $branch) {
-            $overnight = $branch->scheduleFor(DayOfWeek::fromDate($yesterday))?->overnightPeriod();
+        // Last night's evening at whichever active branch the doctor worked
+        // it, in one query: the hours never let two branches run past
+        // midnight the same night.
+        $lastNight = ClinicSchedule::query()
+            ->where('clinic_id', $this->id)
+            ->where('day_of_week', DayOfWeek::fromDate($yesterday)->value)
+            ->where('is_open', true)
+            ->whereHas('branch', fn (Builder $query) => $query->where('is_active', true))
+            ->with(['periods', 'branch'])
+            ->get();
+
+        foreach ($lastNight as $schedule) {
+            $overnight = $schedule->overnightPeriod();
 
             if ($overnight !== null && $now->format('H:i') < $overnight->endTime()) {
-                return $branch->isClosedOn($yesterday) ? $today : $yesterday;
+                return $schedule->branch->isClosedOn($yesterday) ? $today : $yesterday;
             }
         }
 

@@ -19,8 +19,16 @@ enum ClosedReason: string
     /** The branch was deactivated: no new bookings there (ELA-16). */
     case BRANCH_INACTIVE = 'branch_inactive';
 
-    public function label(): string
+    /**
+     * @param  bool  $atBranch  the doctor has several branches: a weekly
+     *                          closure is this branch's, not the clinic's
+     */
+    public function label(bool $atBranch = false): string
     {
+        if ($atBranch && $this === self::WEEKLY_CLOSED) {
+            return __('booking.closed_reason.branch_weekly_closed');
+        }
+
         return __('booking.closed_reason.'.$this->value);
     }
 }

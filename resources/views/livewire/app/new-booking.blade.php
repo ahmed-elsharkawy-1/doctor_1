@@ -266,7 +266,7 @@
 
             @if ($availability === null || ! $availability->isOpen)
                 <p class="muted" style="margin:0">
-                    {{ $availability?->closedReason?->label() ?? __('app.booking.closed') }}
+                    {{ $availability?->closedReason?->label($branches->count() > 1) ?? __('app.booking.closed') }}
                 </p>
             @elseif ($availability->availableCount() === 0)
                 <p class="muted" style="margin:0">{{ __('app.booking.no_slots') }}</p>

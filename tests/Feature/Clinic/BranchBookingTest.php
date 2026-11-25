@@ -13,13 +13,16 @@ use App\Exceptions\ApiException;
 use App\Livewire\App\NewBooking;
 use App\Models\Booking;
 use App\Models\Branch;
+use App\Models\MessageTemplate;
 use App\Models\SlotHold;
 use App\Models\User;
 use App\Services\V1\Booking\BookingService;
 use App\Services\V1\Booking\SlotAvailabilityService;
 use App\Services\V1\Branches\BranchService;
+use App\Services\V1\Messaging\TemplatePayloadResolver;
 use App\Services\V1\Settings\HolidayService;
 use App\Services\V1\Settings\ScheduleService;
+use Database\Seeders\MessageTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -241,5 +244,90 @@ class BranchBookingTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-12-05 01:00:00', 'Africa/Cairo'));
 
         $this->assertSame('2026-12-04', $this->clinic->fresh()->currentDay()->toDateString());
+    }
+
+    public function test_a_booking_at_a_deactivated_branch_can_still_be_edited_in_place(): void
+    {
+        $booking = $this->book($this->tura, '17:00');
+        app(BranchService::class)->deactivate($this->tura);
+        $data = fn (string $time, string $notes) => new BookingData(
+            patientId: $booking->patient_id, patientName: null, phone: null, age: null, whatsappOptIn: false,
+            visitTypeId: $booking->visit_type_id, date: self::SATURDAY, startTime: $time,
+            bookingKind: BookingKind::NORMAL, patientLocation: null, source: BookingSource::CLINIC, notes: $notes,
+        );
+
+        // Same slot, new notes: carries on as usual (ELA-16).
+        $updated = app(BookingService::class)->update($this->clinic, $booking->id, $data('17:00', 'بعد الأكل'));
+        $this->assertSame('بعد الأكل', $updated->notes);
+
+        // A new time there is a new booking there, which it no longer takes.
+        $this->expectException(ApiException::class);
+        app(BookingService::class)->update($this->clinic, $booking->id, $data('17:30', 'x'));
+    }
+
+    public function test_a_team_member_reaches_only_her_branches_bookings_by_id(): void
+    {
+        $turaBooking = $this->book($this->tura, '17:00');
+        $member = User::factory()->secretary()->inClinic($this->clinic)->atBranches($this->gedeila)->create();
+
+        Sanctum::actingAs($member);
+        $this->getJson(route('api.v1.bookings.show', $turaBooking))->assertNotFound();
+
+        Sanctum::actingAs($this->owner);
+        $this->getJson(route('api.v1.bookings.show', $turaBooking))->assertOk();
+    }
+
+    public function test_a_hold_taken_at_one_branch_does_not_book_a_time_at_another(): void
+    {
+        Sanctum::actingAs($this->owner);
+        $visitType = $this->clinic->visitTypes()->first()->id;
+
+        $token = $this->withHeader('X-Branch-Id', (string) $this->gedeila->id)
+            ->postJson(route('api.v1.slot-holds.store'), ['visit_type_id' => $visitType, 'date' => self::SATURDAY, 'start_time' => '13:00'])
+            ->json('data.token');
+
+        // 13:00 is Gedeila's: at Al-Tur'a it is outside the hours.
+        $this->withHeader('X-Branch-Id', (string) $this->tura->id)
+            ->postJson(route('api.v1.bookings.store'), [
+                'patient_name' => 'سارة', 'phone' => '01012345678', 'visit_type_id' => $visitType,
+                'date' => self::SATURDAY, 'start_time' => '13:00', 'booking_kind' => 'normal', 'hold_token' => $token,
+            ])
+            ->assertStatus(409);
+
+        $this->assertSame(0, Booking::query()->count());
+    }
+
+    public function test_switching_branch_on_the_staff_screen_moves_to_a_day_it_is_open(): void
+    {
+        Livewire::actingAs($this->owner)
+            ->test(NewBooking::class)
+            ->call('selectDay', '2026-12-01')
+            ->call('selectBranch', $this->tura->id)
+            ->assertSet('date', self::SATURDAY);
+    }
+
+    public function test_the_confirmation_gives_the_booked_branchs_address(): void
+    {
+        $this->tura->update(['address' => '5 شارع الترعة']);
+        $this->seed(MessageTemplateSeeder::class);
+        $booking = $this->book($this->tura, '17:00');
+
+        $payload = app(TemplatePayloadResolver::class)
+            ->for(MessageTemplate::query()->where('key', 'booking_confirmed')->firstOrFail(), $booking, $this->clinic);
+
+        $this->assertContains('5 شارع الترعة', $payload->body);
+    }
+
+    public function test_a_deactivated_branchs_evening_does_not_hold_back_the_clinic_day(): void
+    {
+        app(ScheduleService::class)->updateDay($this->tura, ScheduleDayData::fromArray(DayOfWeek::FRIDAY, [
+            'is_open' => true,
+            'periods' => [['start_time' => '21:00', 'end_time' => '02:00']],
+        ]));
+        app(BranchService::class)->deactivate($this->tura);
+
+        Carbon::setTestNow(Carbon::parse('2026-12-05 01:00:00', 'Africa/Cairo'));
+
+        $this->assertSame(self::SATURDAY, $this->clinic->fresh()->currentDay()->toDateString());
     }
 }

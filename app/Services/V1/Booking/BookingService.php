@@ -167,8 +167,17 @@ class BookingService
         $updated = $this->claimingTheDay($clinic, $this->clinicDate($clinic, $data->date), function () use (
             $clinic, $booking, $data, $visitType, $startAt, $phone
         ) {
-            // The booking must not collide with itself.
-            if ($data->bookingKind === BookingKind::NORMAL) {
+            // The booking must not collide with itself. An edit that keeps
+            // its slot (a typo in the notes, a phone number) asks nothing of
+            // the schedule: it already has the time, and a deactivated
+            // branch's bookings carry on as usual (ELA-16).
+            $keepsItsSlot = $booking->booking_kind === BookingKind::NORMAL
+                && $data->bookingKind === BookingKind::NORMAL
+                && $booking->visit_type_id === $visitType->id
+                && $booking->visit_date->toDateString() === $this->clinicDate($clinic, $data->date)->toDateString()
+                && $booking->start_at?->format('Y-m-d H:i') === $startAt?->format('Y-m-d H:i');
+
+            if ($data->bookingKind === BookingKind::NORMAL && ! $keepsItsSlot) {
                 // An edit stays at the booking's own branch (ELA-18).
                 $this->guard->ensureFree($clinic, $this->clinicDate($clinic, $data->date), $startAt, $visitType, $booking->id, $data->holdToken, $booking->branch);
             }
@@ -220,6 +229,16 @@ class BookingService
             ->with(['patient', 'visitType', 'doctor', 'reminders'])
             ->whereKey($bookingId)
             ->first();
+
+        // A team member reaches only the bookings of branches she works at,
+        // as the calendar and queue show her (ELA-17/18). Another branch's
+        // booking is "not found", never "forbidden". The doctor reaches all.
+        $actor = request()->user();
+
+        if ($booking !== null && $actor instanceof User && $actor->isSecretary()
+            && ! $actor->accessibleBranches($clinic)->contains('id', $booking->branch_id)) {
+            $booking = null;
+        }
 
         if ($booking === null) {
             throw ApiException::make(

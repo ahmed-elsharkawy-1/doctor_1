@@ -40,6 +40,7 @@ return [
         'weekly_closed' => 'العيادة مغلقة في هذا اليوم',
         'holiday' => 'هذا اليوم إجازة',
         'outside_window' => 'هذا اليوم خارج مدة فتح الحجز',
+        'branch_weekly_closed' => 'الفرع ده مقفول في اليوم ده',
         'branch_inactive' => 'الفرع ده مش بياخد حجوزات جديدة دلوقتي',
     ],
     'status' => [
@@ -270,7 +271,7 @@ return [
         'done_patient' => 'العميل',
         'done_code' => 'كود العميل',
         'branch_pick' => 'اختار الفرع',
-        'branch_map' => 'مكان الفرع على الخريطة',
+        'branch_map' => 'مكان :branch على الخريطة',
         'done_branch' => 'الفرع',
         'done_location' => 'الموقع',
         'done_track_title' => 'تابع دورك أولًا بأول',

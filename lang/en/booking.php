@@ -40,6 +40,7 @@ return [
         'weekly_closed' => 'The clinic is closed that day',
         'holiday' => 'That day is a holiday',
         'outside_window' => 'That day is outside the booking window',
+        'branch_weekly_closed' => 'This branch is closed that day',
         'branch_inactive' => 'This branch is not taking new bookings',
     ],
     'status' => [
@@ -255,7 +256,7 @@ return [
         'done_patient' => 'Client',
         'done_code' => 'Client code',
         'branch_pick' => 'Choose the branch',
-        'branch_map' => 'The branch on the map',
+        'branch_map' => ':branch on the map',
         'done_branch' => 'Branch',
         'done_location' => 'Location',
         'done_track_title' => 'Follow your place in the queue',

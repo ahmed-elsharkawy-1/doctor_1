@@ -197,9 +197,11 @@ class PatientBookingService
      */
     public function branches(Clinic $clinic): Collection
     {
-        return $clinic->branches()->active()->get()
-            ->filter(fn (Branch $branch) => $branch->hasWorkingHours())
-            ->values();
+        // One query, asked once per request by the page (see BookVisit).
+        return $clinic->branches()
+            ->active()
+            ->whereHas('schedules', fn ($query) => $query->where('is_open', true)->whereHas('periods'))
+            ->get();
     }
 
     /**
@@ -207,9 +209,12 @@ class PatientBookingService
      * patient can book there; otherwise the first that can be. Null only
      * when no branch takes bookings at all.
      */
-    public function branchFor(Clinic $clinic, ?int $branchId): ?Branch
+    /**
+     * @param  Collection<int, Branch>|null  $branches  this request's branches(), if already read
+     */
+    public function branchFor(Clinic $clinic, ?int $branchId, ?Collection $branches = null): ?Branch
     {
-        $branches = $this->branches($clinic);
+        $branches ??= $this->branches($clinic);
 
         return $branches->firstWhere('id', $branchId) ?? $branches->first();
     }
