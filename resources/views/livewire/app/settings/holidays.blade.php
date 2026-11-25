@@ -93,7 +93,7 @@
                  wire:key="h-{{ $first->id }}">
                 <span>
                     @if ($to !== $from)
-                        <strong>{!! __('app.settings.holiday_range', ['from' => '<bdi dir="ltr">'.e($from).'</bdi>', 'to' => '<bdi dir="ltr">'.e($to).'</bdi>']) !!}</strong>
+                        <strong>{!! __('app.settings.holiday_range', ['from' => '<bdi dir="ltr" style="white-space:nowrap">'.e($from).'</bdi>', 'to' => '<bdi dir="ltr" style="white-space:nowrap">'.e($to).'</bdi>']) !!}</strong>
                     @else
                         <strong dir="ltr">{{ $from }}</strong>
                     @endif

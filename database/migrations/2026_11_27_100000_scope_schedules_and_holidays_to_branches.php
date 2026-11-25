@@ -67,31 +67,45 @@ return new class extends Migration
 
     public function down(): void
     {
+        $firstBranches = DB::table('branches')->select(DB::raw('MIN(id)'))->groupBy('clinic_id');
+
+        // Foreign keys first: InnoDB lets each lean on the composite index
+        // added after it, then refuses to drop that index while the key
+        // exists (error 1553).
         Schema::table('clinic_holidays', function (Blueprint $table): void {
+            $table->dropForeign(['branch_id']);
             $table->dropIndex(['branch_id', 'date']);
             $table->dropIndex(['group_id']);
         });
 
-        // Branch-specific rows would break the old one-per-day key.
+        // The first branch's own holidays were the clinic's: they stay, as
+        // clinic holidays. Other branches' can't be told apart and go, and
+        // so does any second row for a date before the one-per-day key is back.
+        DB::table('clinic_holidays')->whereIn('branch_id', $firstBranches)->update(['branch_id' => null]);
         DB::table('clinic_holidays')->whereNotNull('branch_id')->delete();
+        $keep = DB::table('clinic_holidays')->select(DB::raw('MIN(id)'))->groupBy('clinic_id', DB::raw('DATE(date)'));
+        DB::table('clinic_holidays')->whereNotIn('id', DB::query()->fromSub($keep, 'keep'))->delete();
 
         Schema::table('clinic_holidays', function (Blueprint $table): void {
             $table->unique(['clinic_id', 'date']);
             $table->dropIndex(['clinic_id', 'date']);
-            $table->dropConstrainedForeignId('branch_id');
-            $table->dropColumn('group_id');
+            $table->dropColumn(['branch_id', 'group_id']);
+        });
+
+        Schema::table('clinic_schedules', function (Blueprint $table): void {
+            $table->dropForeign(['branch_id']);
         });
 
         // Only the first branch's week fits the old one-per-day key.
         DB::table('clinic_schedules')
-            ->whereNotIn('branch_id', DB::table('branches')->select(DB::raw('MIN(id)'))->groupBy('clinic_id'))
+            ->whereNotIn('branch_id', DB::query()->fromSub($firstBranches, 'first'))
             ->delete();
 
         Schema::table('clinic_schedules', function (Blueprint $table): void {
             $table->dropUnique(['branch_id', 'day_of_week']);
             $table->unique(['clinic_id', 'day_of_week']);
             $table->dropIndex(['clinic_id']);
-            $table->dropConstrainedForeignId('branch_id');
+            $table->dropColumn('branch_id');
         });
     }
 };

@@ -38,7 +38,7 @@
             </table>
         </div>
 
-        <div class="field" style="max-width:22rem">
+        <div class="field">
             <label for="hours-branch">{{ __('app.settings.hours_for_branch') }}</label>
             <select id="hours-branch" wire:model.live="branchId">
                 @foreach ($branches as $b)

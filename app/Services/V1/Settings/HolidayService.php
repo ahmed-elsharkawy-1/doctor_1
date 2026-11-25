@@ -67,37 +67,42 @@ class HolidayService
         $dates = $this->dates($date, $endDate);
         $branchIds = $this->scope($clinic, $branchIds, $actor);
 
-        $taken = $this->alreadyOff($clinic, $dates, $branchIds);
+        // Checked and written under a lock on the clinic row: a double click,
+        // or an app retrying, must not add the same day twice now that no
+        // unique key can stop it (a holiday may be one branch's).
+        return DB::transaction(function () use ($clinic, $dates, $branchIds, $note, $force): ClinicHoliday {
+            Clinic::query()->whereKey($clinic->id)->lockForUpdate()->first();
 
-        if ($taken !== []) {
-            throw ApiException::make(
-                ApiErrorCode::HOLIDAY_ALREADY_EXISTS,
-                __('settings.holiday.already_exists'),
-                details: ['dates' => $taken],
-                http: 409,
-            );
-        }
+            $taken = $this->alreadyOff($clinic, $dates, $branchIds);
 
-        // Closing days that already have patients booked is almost always a
-        // mistake. Surface it, and make the secretary confirm rather than
-        // silently orphaning them. Counted across the clinic until bookings
-        // carry their branch (ELA-18): with one branch, the same thing.
-        $bookings = $clinic->bookings()
-            ->whereDate('visit_date', '>=', $dates[0])
-            ->whereDate('visit_date', '<=', end($dates))
-            ->whereIn('status', BookingStatus::pending())
-            ->count();
+            if ($taken !== []) {
+                throw ApiException::make(
+                    ApiErrorCode::HOLIDAY_ALREADY_EXISTS,
+                    __('settings.holiday.already_exists'),
+                    details: ['dates' => $taken],
+                    http: 409,
+                );
+            }
 
-        if ($bookings > 0 && ! $force) {
-            throw ApiException::make(
-                ApiErrorCode::HOLIDAY_HAS_BOOKINGS,
-                __('settings.holiday.has_bookings', ['count' => $bookings]),
-                details: ['bookings_count' => $bookings, 'date' => $dates[0], 'end_date' => end($dates)],
-                http: 409,
-            );
-        }
+            // Closing days that already have patients booked is almost always a
+            // mistake. Surface it, and make the secretary confirm rather than
+            // silently orphaning them. Counted across the clinic until bookings
+            // carry their branch (ELA-18): with one branch, the same thing.
+            $bookings = $clinic->bookings()
+                ->whereDate('visit_date', '>=', $dates[0])
+                ->whereDate('visit_date', '<=', end($dates))
+                ->whereIn('status', BookingStatus::pending())
+                ->count();
 
-        return DB::transaction(function () use ($clinic, $dates, $branchIds, $note): ClinicHoliday {
+            if ($bookings > 0 && ! $force) {
+                throw ApiException::make(
+                    ApiErrorCode::HOLIDAY_HAS_BOOKINGS,
+                    __('settings.holiday.has_bookings', ['count' => $bookings]),
+                    details: ['bookings_count' => $bookings, 'date' => $dates[0], 'end_date' => end($dates)],
+                    http: 409,
+                );
+            }
+
             $group = count($dates) > 1 || ($branchIds !== null && count($branchIds) > 1) ? (string) Str::uuid() : null;
             $first = null;
 
@@ -132,9 +137,18 @@ class HolidayService
             );
         }
 
-        $holiday->group_id === null
-            ? $holiday->delete()
-            : $clinic->holidays()->where('group_id', $holiday->group_id)->delete();
+        if ($holiday->group_id === null) {
+            $holiday->delete();
+
+            return;
+        }
+
+        // A range already under way keeps its past days: reports and the
+        // days already lived read them (ELA-20).
+        $clinic->holidays()
+            ->where('group_id', $holiday->group_id)
+            ->whereDate('date', '>=', $this->today($clinic)->toDateString())
+            ->delete();
     }
 
     /**
@@ -184,6 +198,12 @@ class HolidayService
         }
 
         $chosen = $allowed->intersect($branchIds)->sort()->values()->all();
+
+        // Every branch picked one by one is "every branch": stored once, and
+        // it also closes a branch added later.
+        if ($chosen !== [] && count($chosen) === $clinic->branches()->count()) {
+            return null;
+        }
 
         if ($chosen === []) {
             throw ApiException::make(

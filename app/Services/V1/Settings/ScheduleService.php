@@ -11,6 +11,7 @@ use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Models\Branch;
 use App\Models\ClinicSchedule;
+use App\Support\Wire;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -158,8 +159,8 @@ class ScheduleService
                             ApiErrorCode::SCHEDULE_BRANCH_CONFLICT,
                             __('settings.schedule.branch_conflict', [
                                 'branch' => $other->name,
-                                'from' => $theirs->startTime,
-                                'to' => $theirs->endTime,
+                                'from' => Wire::time($theirs->startTime)['display'],
+                                'to' => Wire::time($theirs->endTime)['display'],
                             ]),
                             details: [
                                 'branch_id' => $other->id,

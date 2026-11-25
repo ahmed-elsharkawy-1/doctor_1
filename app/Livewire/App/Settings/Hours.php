@@ -7,6 +7,7 @@ use App\Enums\DayOfWeek;
 use App\Models\Branch;
 use App\Models\ClinicSchedule;
 use App\Services\V1\Settings\ScheduleService;
+use App\Support\Wire;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 
@@ -88,12 +89,23 @@ class Hours extends SettingsComponent
     public function saveDay(int $day): void
     {
         $dayOfWeek = DayOfWeek::from($day);
+        $branch = $this->branches()->firstWhere('id', $this->branchId);
+
+        // Taken off this branch while the screen was open: the typed hours
+        // were meant for it, so they go nowhere else.
+        if ($branch === null) {
+            $this->branchId = $this->branch()->id;
+            $this->load();
+            $this->dayMessages[$day] = ['failed' => true, 'text' => __('settings.branch.not_found'), 'warnings' => []];
+
+            return;
+        }
 
         $update = null;
 
-        $this->run(function () use ($dayOfWeek, $day, &$update): void {
+        $this->run(function () use ($dayOfWeek, $day, $branch, &$update): void {
             $update = app(ScheduleService::class)->updateDay(
-                $this->editedBranch(),
+                $branch,
                 ScheduleDayData::fromArray($dayOfWeek, [
                     'is_open' => $this->week[$day]['is_open'],
                     'periods' => $this->week[$day]['periods'],
@@ -113,7 +125,10 @@ class Hours extends SettingsComponent
 
         // Saved; these only need saying (ELA-20).
         foreach ($update->shortGaps as $gap) {
-            $this->dayMessages[$day]['warnings'][] = __('settings.schedule.short_gap', $gap);
+            $this->dayMessages[$day]['warnings'][] = __('settings.schedule.short_gap', [
+                'from' => Wire::time($gap['from'])['display'],
+                'to' => Wire::time($gap['to'])['display'],
+            ] + $gap);
         }
 
         if ($update->bookingsOutsideHours > 0) {

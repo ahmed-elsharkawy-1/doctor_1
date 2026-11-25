@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Services\V1\Branches\BranchService;
 use App\Services\V1\Settings\HolidayService;
 use App\Services\V1\Settings\ScheduleService;
+use App\Support\Wire;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -347,5 +348,78 @@ class BranchScheduleTest extends TestCase
             ->assertSet("dayMessages.{$saturday}.warnings.0", fn ($w) => str_contains($w, '10'))
             // Monday was opened but not saved: still open on screen.
             ->assertSet("week.{$monday}.is_open", true);
+    }
+
+    public function test_the_same_day_twice_is_refused_even_back_to_back(): void
+    {
+        $holidays = app(HolidayService::class);
+        $holidays->create($this->clinic, '2026-12-10', null, actor: $this->owner);
+
+        $this->expectException(ApiException::class);
+        $holidays->create($this->clinic, '2026-12-10', null, actor: $this->owner);
+    }
+
+    public function test_removing_a_range_already_under_way_keeps_its_past_days(): void
+    {
+        $first = app(HolidayService::class)->create($this->clinic, '2026-11-29', null, endDate: '2026-12-03', actor: $this->owner);
+
+        app(HolidayService::class)->delete($this->clinic, $first->id, $this->owner);
+
+        // Today is 2026-12-01: the 29th and 30th happened and stay.
+        $this->assertSame(
+            ['2026-11-29', '2026-11-30'],
+            ClinicHoliday::query()->orderBy('date')->get()->map(fn ($h) => $h->date->toDateString())->all(),
+        );
+    }
+
+    public function test_every_branch_picked_one_by_one_is_every_branch(): void
+    {
+        app(HolidayService::class)->create(
+            $this->clinic, '2026-12-10', null, branchIds: [$this->gedeila->id, $this->tura->id], actor: $this->owner,
+        );
+
+        $this->assertNull(ClinicHoliday::query()->sole()->branch_id);
+    }
+
+    public function test_the_api_lists_the_holidays_that_close_its_branch(): void
+    {
+        app(HolidayService::class)->create($this->clinic, '2026-12-10', null, branchIds: [$this->tura->id], actor: $this->owner);
+        Sanctum::actingAs($this->owner);
+
+        $this->withHeader('X-Branch-Id', (string) $this->gedeila->id)
+            ->getJson(route('api.v1.holidays.index'))
+            ->assertJsonCount(0, 'data.items');
+        $this->withHeader('X-Branch-Id', (string) $this->tura->id)
+            ->getJson(route('api.v1.holidays.index'))
+            ->assertJsonCount(1, 'data.items');
+    }
+
+    public function test_hours_typed_for_a_branch_taken_away_are_not_saved_anywhere(): void
+    {
+        $member = User::factory()->secretary()->inClinic($this->clinic)->atBranches($this->gedeila, $this->tura)->create();
+        $saturday = DayOfWeek::SATURDAY->value;
+
+        $screen = Livewire::actingAs($member)
+            ->test(Hours::class)
+            ->set('branchId', $this->tura->id)
+            ->call('toggleDay', $saturday);
+
+        $member->branches()->detach($this->tura->id);
+
+        $screen->call('saveDay', $saturday)->assertSet("dayMessages.{$saturday}.failed", true);
+
+        $this->assertFalse($this->tura->scheduleFor(DayOfWeek::SATURDAY)->is_open);
+        $this->assertFalse($this->gedeila->scheduleFor(DayOfWeek::SATURDAY)->is_open);
+    }
+
+    public function test_the_conflict_message_uses_the_apps_time_format(): void
+    {
+        $this->open($this->gedeila, DayOfWeek::SATURDAY, [['13:00', '16:00']]);
+
+        try {
+            $this->open($this->tura, DayOfWeek::SATURDAY, [['15:00', '20:00']]);
+        } catch (ApiException $e) {
+            $this->assertStringContainsString(Wire::time('13:00')['display'], $e->getMessage());
+        }
     }
 }
