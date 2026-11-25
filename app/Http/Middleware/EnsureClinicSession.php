@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Clinic;
+use App\Services\V1\Branches\ActiveBranch;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -46,7 +47,25 @@ class EnsureClinicSession
                 ->withErrors(['email' => __($this->reason($user, $clinic))]);
         }
 
+        $branches = app(ActiveBranch::class);
+        $requested = $request->session()->get(ActiveBranch::SESSION_KEY);
+        $branch = $branches->resolve($user, $clinic, is_numeric($requested) ? (int) $requested : null);
+
+        // Taken off every branch while signed in (ELA-17).
+        if ($branch === null) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('app.login')
+                ->withErrors(['email' => __('auth.branch_not_assigned')]);
+        }
+
+        $request->session()->put(ActiveBranch::SESSION_KEY, $branch->id);
+        $branches->remember($user, $branch);
+
         $request->attributes->set('clinic', $clinic);
+        $request->attributes->set('branch', $branch);
 
         app()->setLocale(
             in_array($user->locale, config('clinic.api.locales'), true)

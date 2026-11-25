@@ -140,7 +140,7 @@ Verified when: a secretary assigned only to branch B can neither see nor
 change anything at A (web and API), and the doctor switches branches in one
 tap.
 
-#### Step 2.1: Resolving the active branch (Size: M)
+#### Step 2.1: Resolving the active branch (Size: M) ✅
 - Acceptance criteria:
   - `branch_user` pivot. `User::accessibleBranches()`: all active branches for
     the owner, the assigned ones otherwise.
@@ -150,18 +150,30 @@ tap.
     allowed, the account is signed out with a clear message.
   - The resolution runs on every request, so removing an account from a
     branch takes effect immediately.
+  - As built: `App\Services\V1\Branches\ActiveBranch`. The web keeps the
+    picked branch in the session (so two browsers on one shared login don't
+    pull each other around); the API reads `X-Branch-Id` and **echoes the
+    branch it used in the response's `X-Branch-Id`**. `users.last_branch_id`
+    is what both open on. Inactive branches stay usable: their existing
+    bookings still need running.
+  - The Phase 1 branch endpoints now only show and change the account's own
+    branches; a member who adds a branch is assigned to it.
 - Verification command: `php artisan test tests/Feature/Web tests/Feature/Api --filter=Branch`
 - Files likely touched: `app/Models/User.php`, `app/Http/Middleware/{EnsureClinicSession,ResolveClinic}.php`, `app/Livewire/App/ClinicComponent.php`, `app/Enums/AuthErrorCode.php`, `app/Services/Results/V1/Auth/AuthenticatedUserResult.php` (adds branches to `/me`)
 - Test seams: middleware feature tests: allowed, not allowed, removed while signed in.
 - Blocked by: 1.2
 
-#### Step 2.2: The switcher and Settings → Team (Size: M)
+#### Step 2.2: The switcher and Settings → Team (Size: M) ✅
 - Acceptance criteria:
   - A branch switcher in the header, only when more than one branch is
     accessible. Switching saves `last_branch_id` and resets the screen's day
     and filters.
-  - Settings → Team (doctor only): every member, with their branches (at
-    least one) and extra permissions.
+  - Settings → Team (doctor only, `team.manage`, never grantable): every
+    member, with their branches (at least one) and extra permissions. Web
+    screen plus `GET /team` and `PUT /team/{member}`. Accounts are still
+    created by the operator, whose Filament form now also sets branches.
+  - **Not done:** "Doctor sees an 'All branches' view where relevant (e.g.
+    stats)" lands with the screens that have one: statistics in Phase 8.
 - Verification command: `php artisan test --filter='BranchSwitcher|TeamSettings'`
 - Files likely touched: `resources/views/app/partials/navigation.blade.php`, `app/Livewire/App/BranchSwitcher.php`, `app/Livewire/App/Settings/Team.php`, Team API controllers
 - Test seams: Livewire tests.
@@ -365,10 +377,14 @@ day. This step adds the branch scope, several days, and deselecting patients.
 
 ## Branches
 
-Every phase has its own branch from `develop`, and its PR goes back into
-`develop`. The names come from Linear, so each PR links to its ticket.
-After a phase merges, the next phase's branch is rebased onto `develop`
-before work on it starts.
+All of multi-branch collects on one integration branch,
+**`feature/multi-branch`**, cut from `develop`. Each phase has its own branch
+and its own PR **into `feature/multi-branch`**. When every phase has merged
+there, one PR takes `feature/multi-branch` into `develop`.
+
+A phase is built on top of the previous phase's branch while that PR is
+still open, and its PR targets that branch. Once the earlier PR merges, the
+later one is pointed at `feature/multi-branch`.
 
 | Phase | Ticket | Branch |
 | --- | --- | --- |
@@ -409,7 +425,7 @@ before work on it starts.
 | Phase | Status |
 | --- | --- |
 | 1 Foundation and branch management | built, not yet merged |
-| 2 Team access and switching | pending |
+| 2 Team access and switching | built, not yet merged |
 | 3 Hours and holidays | pending |
 | 4 Booking | pending |
 | 5 Queue, record and TV | pending |

@@ -7,6 +7,7 @@ use App\Enums\ApiErrorCode;
 use App\Exceptions\ApiException;
 use App\Models\Branch;
 use App\Models\Clinic;
+use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -20,17 +21,28 @@ use Illuminate\Support\Facades\DB;
  */
 class BranchService
 {
-    /** @return Collection<int, Branch> */
-    public function list(Clinic $clinic): Collection
+    /**
+     * The branches this account works at (ELA-16: others only see their
+     * assigned branches), in the doctor's order.
+     *
+     * @return Collection<int, Branch>
+     */
+    public function list(Clinic $clinic, User $actor): Collection
     {
-        return $clinic->branches()->get();
+        return $actor->isOwner()
+            ? $clinic->branches()->get()
+            : $clinic->branches()->whereIn('branches.id', $actor->branches()->select('branches.id'))->get();
     }
 
-    public function find(Clinic $clinic, int $branchId): Branch
+    /**
+     * A branch of this clinic that this account works at. Any other is "not
+     * found", never "forbidden": it doesn't say the branch exists.
+     */
+    public function find(Clinic $clinic, int $branchId, User $actor): Branch
     {
         $branch = $clinic->branches()->whereKey($branchId)->first();
 
-        if ($branch === null) {
+        if ($branch === null || ! $actor->canUseBranch($branch)) {
             throw ApiException::make(ApiErrorCode::BRANCH_NOT_FOUND, __('settings.branch.not_found'), http: 404);
         }
 
@@ -46,7 +58,7 @@ class BranchService
         return (bool) config('clinic.branches.multi_enabled');
     }
 
-    public function create(Clinic $clinic, BranchData $data): Branch
+    public function create(Clinic $clinic, BranchData $data, User $actor): Branch
     {
         if (! $this->canAdd()) {
             throw ApiException::make(ApiErrorCode::BRANCH_ADDING_DISABLED, __('settings.branch.adding_disabled'), http: 403);
@@ -54,7 +66,7 @@ class BranchService
 
         $this->ensureUniqueName($clinic, $data->name);
 
-        return $clinic->branches()->create([
+        $branch = $clinic->branches()->create([
             'name' => $data->name,
             'address' => $data->address,
             'latitude' => $data->latitude,
@@ -63,6 +75,14 @@ class BranchService
             'is_active' => true,
             'sort_order' => ((int) $clinic->branches()->max('sort_order')) + 1,
         ]);
+
+        // A team member who adds a branch works at it, or it would vanish
+        // from their own list the moment it was saved.
+        if (! $actor->isOwner()) {
+            $actor->branches()->syncWithoutDetaching([$branch->id]);
+        }
+
+        return $branch;
     }
 
     /**

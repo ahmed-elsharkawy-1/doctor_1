@@ -24,6 +24,14 @@ return [
         'periods_required' => 'An open day needs at least one period',
     ],
 
+    'team' => [
+        'list_loaded' => 'Team loaded',
+        'updated' => 'Team member saved',
+        'not_found' => 'This person is not on the clinic team',
+        'is_owner' => 'The doctor works at every branch with every permission; there is nothing to change here',
+        'branch_required' => 'Choose at least one branch; without one they cannot open the app',
+    ],
+
     'branch' => [
         'list_loaded' => 'Branches loaded',
         'created' => 'Branch added',

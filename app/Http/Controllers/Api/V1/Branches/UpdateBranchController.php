@@ -15,7 +15,7 @@ class UpdateBranchController extends V1Controller
 
     public function __invoke(SaveBranchRequest $request, int $branch): JsonResponse
     {
-        $found = $this->branches->find($this->clinic($request), $branch);
+        $found = $this->branches->find($this->clinic($request), $branch, $this->user($request));
 
         return ApiResponse::success(
             (new BranchResult($this->branches->update($found, $request->branchData())))->toArray(),

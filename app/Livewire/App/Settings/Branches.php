@@ -41,7 +41,7 @@ class Branches extends SettingsComponent
         $clinic = $this->clinic();
 
         return view('livewire.app.settings.branches', [
-            'branches' => $this->service()->list($clinic),
+            'branches' => $this->service()->list($clinic, auth()->user()),
             'canAdd' => $this->service()->canAdd(),
             'mainPhone' => $clinic->phone === null ? null : PhoneNumber::tryParse($clinic->phone, $clinic->country_code)?->national(),
         ])->title(__('app.settings.branches'));
@@ -57,7 +57,7 @@ class Branches extends SettingsComponent
     {
         $branch = $this->clinic()->branches()->find($branchId);
 
-        if ($branch === null) {
+        if ($branch === null || ! auth()->user()->canUseBranch($branch)) {
             return;
         }
 
@@ -88,8 +88,8 @@ class Branches extends SettingsComponent
 
         $this->run(
             fn () => $adding
-                ? $this->service()->create($clinic, $data)
-                : $this->service()->update($this->service()->find($clinic, (int) $this->editing), $data),
+                ? $this->service()->create($clinic, $data, auth()->user())
+                : $this->service()->update($this->service()->find($clinic, (int) $this->editing, auth()->user()), $data),
             __($adding ? 'app.settings.branch_added' : 'app.settings.branch_saved'),
         );
 
@@ -109,7 +109,7 @@ class Branches extends SettingsComponent
         $this->confirmingDeactivate = null;
 
         $this->run(
-            fn () => $this->service()->deactivate($this->service()->find($this->clinic(), $branchId)),
+            fn () => $this->service()->deactivate($this->service()->find($this->clinic(), $branchId, auth()->user())),
             __('app.settings.branch_deactivated'),
         );
     }
@@ -117,7 +117,7 @@ class Branches extends SettingsComponent
     public function activate(int $branchId): void
     {
         $this->run(
-            fn () => $this->service()->activate($this->service()->find($this->clinic(), $branchId)),
+            fn () => $this->service()->activate($this->service()->find($this->clinic(), $branchId, auth()->user())),
             __('app.settings.branch_activated'),
         );
     }

@@ -134,6 +134,10 @@ return [
         'back' => 'Back',
     ],
 
+    'branches' => [
+        'switch' => 'Switch branch',
+    ],
+
     'settings' => [
         'general' => 'General',
         'hours' => 'Working hours',
@@ -186,6 +190,14 @@ return [
         'holiday_force' => 'Close the day',
         'show_past' => 'Show past holidays',
         'no_holidays' => 'No holidays recorded',
+        'team' => 'Team',
+        'team_intro' => 'Each member works only at the branches you choose for them. Changes apply straight away.',
+        'team_doctor' => 'Doctor',
+        'team_doctor_all' => 'Every branch, every permission',
+        'team_branches' => 'Branches',
+        'team_permissions' => 'Extra permissions',
+        'team_daily_work' => 'Without any: bookings, the queue and the waiting list only, at their branches.',
+        'team_saved' => 'Saved',
         'branches' => 'Branches',
         'add_branch' => 'Add branch',
         'edit_branch' => 'Edit branch',

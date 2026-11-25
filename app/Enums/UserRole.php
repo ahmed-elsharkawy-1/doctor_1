@@ -47,6 +47,8 @@ enum UserRole: string
                 // Gated further per account: see StaffPermission.
                 StaffPermission::MANAGE_SCHEDULE->value,
                 StaffPermission::MANAGE_BRANCHES->value,
+                // The doctor only: see User::OWNER_ONLY_ABILITIES.
+                'team.manage',
             ],
         };
     }

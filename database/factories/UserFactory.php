@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\StaffPermission;
 use App\Enums\UserRole;
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\Doctor;
 use App\Models\User;
@@ -78,7 +79,24 @@ class UserFactory extends Factory
      */
     public function inClinic(Clinic $clinic): static
     {
-        return $this->afterCreating(fn (User $user) => $user->clinics()->syncWithoutDetaching([$clinic->id]));
+        return $this->afterCreating(function (User $user) use ($clinic): void {
+            $user->clinics()->syncWithoutDetaching([$clinic->id]);
+
+            // A team member works at the branches they are assigned to; the
+            // clinic's, as every existing assistant was given (ELA-17).
+            if (! $user->is_owner) {
+                $user->branches()->syncWithoutDetaching($clinic->branches()->pluck('id')->all());
+            }
+        });
+    }
+
+    /**
+     * Assigns a team member to exactly these branches, instead of all of the
+     * clinic's. Chain it after inClinic().
+     */
+    public function atBranches(Branch ...$branches): static
+    {
+        return $this->afterCreating(fn (User $user) => $user->branches()->sync(array_map(fn (Branch $b) => $b->id, $branches)));
     }
 
     public function unverified(): static

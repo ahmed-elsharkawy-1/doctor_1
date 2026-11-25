@@ -122,6 +122,7 @@ final class TestClinic
 
             $owner->clinics()->syncWithoutDetaching([$clinic->id]);
             $assistant->clinics()->syncWithoutDetaching([$clinic->id]);
+            $assistant->branches()->syncWithoutDetaching($clinic->branches()->pluck('id')->all());
         });
     }
 

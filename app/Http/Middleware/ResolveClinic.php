@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Enums\AuthErrorCode;
+use App\Services\V1\Branches\ActiveBranch;
 use App\Support\ApiResponse;
 use Closure;
 use Illuminate\Http\Request;
@@ -63,7 +64,22 @@ class ResolveClinic
             );
         }
 
+        $branches = app(ActiveBranch::class);
+        $requested = $request->header(ActiveBranch::HEADER);
+        $branch = $branches->resolve($user, $clinic, is_numeric($requested) ? (int) $requested : null);
+
+        if ($branch === null) {
+            return ApiResponse::error(
+                AuthErrorCode::BRANCH_NOT_ASSIGNED,
+                __('auth.branch_not_assigned'),
+                http: 403,
+            );
+        }
+
+        $branches->remember($user, $branch);
+
         $request->attributes->set('clinic', $clinic);
+        $request->attributes->set('branch', $branch);
 
         // The client's explicit Accept-Language always wins; the account's
         // stored preference only fills in when it sent none.
@@ -72,6 +88,13 @@ class ResolveClinic
             app()->setLocale($user->locale);
         }
 
-        return $next($request);
+        $response = $next($request);
+
+        // The branch this call actually acted on. It differs from the one
+        // asked for when the account was taken off that branch: the app
+        // follows the header rather than keeping a branch it can't use.
+        $response->headers->set(ActiveBranch::HEADER, (string) $branch->id);
+
+        return $response;
     }
 }
