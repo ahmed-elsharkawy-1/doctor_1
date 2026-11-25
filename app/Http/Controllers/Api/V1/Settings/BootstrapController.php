@@ -17,6 +17,7 @@ class BootstrapController extends V1Controller
         $result = $this->settingsService->bootstrap(
             $this->clinic($request),
             $this->user($request),
+            $this->branch($request),
         );
 
         return ApiResponse::success($result->toArray(), __('settings.bootstrap_loaded'));

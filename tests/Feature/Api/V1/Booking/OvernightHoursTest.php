@@ -185,9 +185,10 @@ class OvernightHoursTest extends TestCase
         $clash = __('settings.schedule.overnight_clash', ['day' => DayOfWeek::MONDAY->label(), 'time' => '03:00']);
 
         // Tuesday 00:00–03:00 is still Monday night.
+        // Said on the day's own card (dayMessages), not at the top.
         $this->saveOnHoursScreen(DayOfWeek::TUESDAY, [['start_time' => '01:00', 'end_time' => '05:00']])
             ->assertSet('failed', true)
-            ->assertSet('notice', $clash);
+            ->assertSet('dayMessages.'.DayOfWeek::TUESDAY->value.'.text', $clash);
 
         // And so is Monday's own 01:00.
         $this->saveOnHoursScreen(DayOfWeek::MONDAY, [
@@ -195,7 +196,7 @@ class OvernightHoursTest extends TestCase
             ['start_time' => '19:00', 'end_time' => '03:00'],
         ])
             ->assertSet('failed', true)
-            ->assertSet('notice', $clash);
+            ->assertSet('dayMessages.'.DayOfWeek::MONDAY->value.'.text', $clash);
 
         // A second evening on top of the first.
         $this->saveOnHoursScreen(DayOfWeek::MONDAY, [
@@ -203,7 +204,7 @@ class OvernightHoursTest extends TestCase
             ['start_time' => '22:00', 'end_time' => '23:00'],
         ])
             ->assertSet('failed', true)
-            ->assertSet('notice', __('settings.schedule.period_overlap'));
+            ->assertSet('dayMessages.'.DayOfWeek::MONDAY->value.'.text', __('settings.schedule.period_overlap'));
 
         $this->assertSame(0, $this->clinic->scheduleFor(DayOfWeek::TUESDAY)->periods()->count());
         $this->assertSame(1, $this->clinic->scheduleFor(DayOfWeek::MONDAY)->periods()->count());

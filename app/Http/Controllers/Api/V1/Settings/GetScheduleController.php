@@ -15,7 +15,7 @@ class GetScheduleController extends V1Controller
 
     public function __invoke(Request $request): JsonResponse
     {
-        $week = $this->scheduleService->week($this->clinic($request));
+        $week = $this->scheduleService->week($this->branch($request));
 
         return ApiResponse::success(
             ['days' => ScheduleDayResult::collection($week)],

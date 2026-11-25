@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -37,5 +38,18 @@ abstract class V1Controller extends BaseController
         $clinic = $request->attributes->get('clinic');
 
         return $clinic;
+    }
+
+    /**
+     * The branch the call acts on: decided by ResolveClinic from the
+     * account and its `X-Branch-Id`, never taken from the client as is
+     * (ELA-17).
+     */
+    protected function branch(Request $request): Branch
+    {
+        /** @var Branch $branch */
+        $branch = $request->attributes->get('branch');
+
+        return $branch;
     }
 }

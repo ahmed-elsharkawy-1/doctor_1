@@ -22,6 +22,9 @@ return [
         'period_overlap' => 'Two periods on the same day overlap',
         'overnight_clash' => 'The :day evening runs past midnight until :time, so no other period can start before then',
         'periods_required' => 'An open day needs at least one period',
+        'branch_conflict' => 'The doctor is at :branch from :from to :to that day. Periods at different branches cannot overlap.',
+        'short_gap' => 'Only :minutes minutes between this day and :branch (:from–:to). Make sure there is time to get there.',
+        'bookings_outside' => '{1} One upcoming booking that day is now outside the new hours. Nothing moved it; please handle it.|[2,*] :count upcoming bookings that day are now outside the new hours. Nothing moved them; please handle them.',
     ],
 
     'team' => [
@@ -47,6 +50,8 @@ return [
     ],
 
     'holiday' => [
+        'range_invalid' => 'The end date must be on or after the start, and a range can be :days days at most',
+        'branch_required' => 'Choose at least one of your branches',
         'list_loaded' => 'Holidays loaded',
         'created' => 'Holiday added',
         'deleted' => 'Holiday removed',

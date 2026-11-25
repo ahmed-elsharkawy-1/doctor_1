@@ -254,7 +254,7 @@ class ClinicOnboardingService
                     continue;
                 }
 
-                $this->schedules->updateDay($clinic, ScheduleDayData::fromArray($day, [
+                $this->schedules->updateDay($clinic->firstBranch(), ScheduleDayData::fromArray($day, [
                     'is_open' => true,
                     'periods' => array_map(fn (array $period) => [
                         'start_time' => $period[0],

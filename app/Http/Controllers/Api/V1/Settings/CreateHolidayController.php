@@ -20,6 +20,11 @@ class CreateHolidayController extends V1Controller
             $request->validated('date'),
             $request->validated('note'),
             force: $request->boolean('force'),
+            endDate: $request->validated('end_date'),
+            branchIds: $request->validated('branch_ids') === null
+                ? null
+                : array_map('intval', $request->validated('branch_ids')),
+            actor: $this->user($request),
         );
 
         return ApiResponse::created(

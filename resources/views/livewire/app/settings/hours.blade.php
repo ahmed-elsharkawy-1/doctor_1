@@ -5,6 +5,49 @@
         <div class="flash {{ $failed ? 'flash-err' : 'flash-ok' }}">{{ $notice }}</div>
     @endif
 
+    @if ($branches->count() > 1)
+        {{-- The doctor's whole week, one colour per branch (ELA-20). --}}
+        @php $palette = ['#0f766e', '#b45309', '#6d28d9', '#be123c', '#1d4ed8', '#4d7c0f']; @endphp
+        <div class="card" style="padding:0.9rem 1rem;margin-bottom:0.75rem;overflow-x:auto">
+            <strong style="display:block;margin-bottom:0.5rem">{{ __('app.settings.hours_overview') }}</strong>
+            <table style="width:100%;border-collapse:collapse;font-size:0.88rem">
+                @foreach ($days as $day)
+                    <tr style="border-top:1px solid var(--line)">
+                        <th scope="row" style="text-align:start;padding:0.35rem 0.5rem 0.35rem 0;white-space:nowrap;font-weight:600">{{ $day->label() }}</th>
+                        <td style="padding:0.35rem 0">
+                            @php
+                                // The doctor's day in time order, whichever branch.
+                                $chips = $branches->flatMap(function ($b, $i) use ($overview, $day) {
+                                    $row = $overview[$b->id]->firstWhere('day_of_week', $day);
+
+                                    return $row?->is_open
+                                        ? $row->periods->map(fn ($p) => ['p' => $p, 'b' => $b, 'i' => $i])
+                                        : collect();
+                                })->sortBy(fn ($c) => $c['p']->start_time);
+                            @endphp
+                            @forelse ($chips as $c)
+                                <span style="display:inline-block;margin:0.1rem;padding:0.15rem 0.5rem;border-radius:999px;color:#fff;background:{{ $palette[$c['i'] % count($palette)] }}">
+                                    <bdi>{{ \App\Support\Wire::time($c['p']->startTime())['display'] }} – {{ \App\Support\Wire::time($c['p']->endTime())['display'] }}</bdi> · {{ $c['b']->name }}
+                                </span>
+                            @empty
+                                <span class="muted">{{ __('app.settings.doctor_off') }}</span>
+                            @endforelse
+                        </td>
+                    </tr>
+                @endforeach
+            </table>
+        </div>
+
+        <div class="field" style="max-width:22rem">
+            <label for="hours-branch">{{ __('app.settings.hours_for_branch') }}</label>
+            <select id="hours-branch" wire:model.live="branchId">
+                @foreach ($branches as $b)
+                    <option value="{{ $b->id }}">{{ $b->name }}</option>
+                @endforeach
+            </select>
+        </div>
+    @endif
+
     @foreach ($days as $day)
         @php $state = $week[$day->value] ?? ['is_open' => false, 'periods' => []]; @endphp
 
@@ -55,6 +98,15 @@
                     wire:click="saveDay({{ $day->value }})">
                 {{ __('app.settings.save_day') }}
             </button>
+
+            @if ($message = $dayMessages[$day->value] ?? null)
+                <div class="flash {{ $message['failed'] ? 'flash-err' : 'flash-ok' }}" style="margin:0.6rem 0 0" role="status">
+                    {{ $message['text'] }}
+                </div>
+                @foreach ($message['warnings'] as $warning)
+                    <div class="flash flash-warn" style="margin:0.4rem 0 0;font-weight:500">⚠️ {{ $warning }}</div>
+                @endforeach
+            @endif
         </div>
     @endforeach
 </div>

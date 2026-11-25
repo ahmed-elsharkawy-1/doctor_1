@@ -16,9 +16,24 @@ class ClinicSchedule extends Model
 
     protected $fillable = [
         'clinic_id',
+        'branch_id',
         'day_of_week',
         'is_open',
     ];
+
+    /**
+     * A week row always belongs to a branch (ELA-20). Code written before
+     * branches (seeders, factories, provisioning) creates rows by clinic; they
+     * land on the clinic's first branch, which is where its week lives.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $schedule): void {
+            if ($schedule->branch_id === null && $schedule->clinic_id !== null) {
+                $schedule->branch_id = Branch::query()->where('clinic_id', $schedule->clinic_id)->min('id');
+            }
+        });
+    }
 
     protected function casts(): array
     {
@@ -32,6 +47,12 @@ class ClinicSchedule extends Model
     public function clinic(): BelongsTo
     {
         return $this->belongsTo(Clinic::class);
+    }
+
+    /** @return BelongsTo<Branch, $this> */
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     /** @return HasMany<ClinicSchedulePeriod, $this> */

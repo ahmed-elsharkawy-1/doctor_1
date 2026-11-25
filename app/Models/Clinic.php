@@ -439,7 +439,22 @@ class Clinic extends Model
 
     public function scheduleFor(DayOfWeek $day): ?ClinicSchedule
     {
-        return $this->schedules()->where('day_of_week', $day->value)->first();
+        // The first branch's week. Until booking is per branch (ELA-18) a
+        // clinic has that one branch only, so this is the clinic's week;
+        // per-branch code asks Branch::scheduleFor() instead.
+        return $this->schedules()
+            ->where('day_of_week', $day->value)
+            ->where('branch_id', $this->branches()->reorder()->min('id'))
+            ->first();
+    }
+
+    /**
+     * The branch every clinic was given, where its week and address have
+     * always lived.
+     */
+    public function firstBranch(): ?Branch
+    {
+        return $this->branches()->reorder()->orderBy('id')->first();
     }
 
     /**

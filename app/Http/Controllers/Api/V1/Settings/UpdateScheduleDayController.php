@@ -29,13 +29,17 @@ class UpdateScheduleDayController extends V1Controller
             );
         }
 
-        $schedule = $this->scheduleService->updateDay(
-            $this->clinic($request),
+        $update = $this->scheduleService->updateDay(
+            $this->branch($request),
             ScheduleDayData::fromArray($dayOfWeek, $request->validated()),
         );
 
         return ApiResponse::success(
-            (new ScheduleDayResult($schedule))->toArray(),
+            (new ScheduleDayResult($update->schedule))->toArray() + [
+                // Saved anyway; for the app to show (ELA-20).
+                'short_gaps' => $update->shortGaps,
+                'bookings_outside_hours' => $update->bookingsOutsideHours,
+            ],
             __('settings.schedule.updated'),
         );
     }
