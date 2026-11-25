@@ -46,6 +46,30 @@ class BranchTest extends TestCase
         $this->assertTrue($kept->branches()->whereKey($second->id)->exists());
     }
 
+    public function test_one_run_of_the_backfill_reaches_every_clinic_past_the_first_chunk(): void
+    {
+        // Copies of one clinic row: the factory's unique names run out first.
+        $row = (array) DB::table('clinics')->find(Clinic::factory()->create()->id);
+        unset($row['id']);
+        DB::table('clinics')->insert(array_map(
+            fn (int $i) => ['name' => 'عيادة '.$i, 'slug' => null] + $row,
+            range(1, 449),
+        ));
+        DB::table('branches')->delete();
+
+        (require database_path('migrations/2026_11_25_100000_create_branches_table.php'))->backfill();
+
+        $this->assertSame(0, Clinic::query()->doesntHave('branches')->count());
+        $this->assertSame(450, Branch::query()->count());
+    }
+
+    public function test_a_clinic_with_a_long_name_and_no_area_still_gets_its_branch(): void
+    {
+        $clinic = Clinic::factory()->create(['name' => str_repeat('ع', 200), 'address' => null]);
+
+        $this->assertSame(100, mb_strlen($clinic->branches()->value('name')));
+    }
+
     public function test_a_branch_without_its_own_details_reads_the_clinics(): void
     {
         $clinic = Clinic::factory()->create([

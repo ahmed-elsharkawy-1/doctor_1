@@ -23,6 +23,13 @@ class BranchNameTest extends TestCase
         ];
     }
 
+    public function test_a_long_clinic_name_is_cut_to_what_a_branch_name_holds(): void
+    {
+        $name = BranchName::forFirstBranch(null, null, str_repeat('ع', 180));
+
+        $this->assertSame(100, mb_strlen($name));
+    }
+
     #[DataProvider('addresses')]
     public function test_the_first_branch_is_named_after_the_clinics_area(?string $address, ?string $city, string $expected): void
     {

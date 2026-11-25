@@ -19,22 +19,26 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('branches', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('clinic_id')->constrained()->cascadeOnDelete();
-            $table->string('name', 100);
-            $table->string('address')->nullable();
-            $table->decimal('latitude', 10, 7)->nullable();
-            $table->decimal('longitude', 10, 7)->nullable();
-            // Stored E.164. Null means the clinic's main booking number.
-            $table->string('phone', 20)->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->unsignedSmallInteger('sort_order')->default(0);
-            $table->timestamps();
+        // A backfill that failed half way (MySQL commits the CREATE on its
+        // own) must not stop the migration from being run again.
+        if (! Schema::hasTable('branches')) {
+            Schema::create('branches', function (Blueprint $table): void {
+                $table->id();
+                $table->foreignId('clinic_id')->constrained()->cascadeOnDelete();
+                $table->string('name', 100);
+                $table->string('address')->nullable();
+                $table->decimal('latitude', 10, 7)->nullable();
+                $table->decimal('longitude', 10, 7)->nullable();
+                // Stored E.164. Null means the clinic's main booking number.
+                $table->string('phone', 20)->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->unsignedSmallInteger('sort_order')->default(0);
+                $table->timestamps();
 
-            $table->unique(['clinic_id', 'name']);
-            $table->index(['clinic_id', 'is_active', 'sort_order']);
-        });
+                $table->unique(['clinic_id', 'name']);
+                $table->index(['clinic_id', 'is_active', 'sort_order']);
+            });
+        }
 
         $this->backfill();
     }
@@ -50,9 +54,10 @@ return new class extends Migration
             ->whereNotExists(fn ($query) => $query->select(DB::raw(1))
                 ->from('branches')
                 ->whereColumn('branches.clinic_id', 'clinics.id'))
-            ->orderBy('id')
             ->select(['id', 'name', 'address', 'city'])
-            ->chunk(200, function ($clinics) use ($now): void {
+            // By id, not by page: each chunk takes its clinics out of the
+            // filter, so a page offset would skip as many as it just handled.
+            ->chunkById(200, function ($clinics) use ($now): void {
                 DB::table('branches')->insert($clinics->map(fn ($clinic): array => [
                     'clinic_id' => $clinic->id,
                     'name' => BranchName::forFirstBranch($clinic->address, $clinic->city, $clinic->name),

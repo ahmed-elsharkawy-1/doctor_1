@@ -17,6 +17,7 @@ class MapLinkTest extends TestCase
                 [31.0412345, 31.3712345],
             ],
             'map centre' => ['https://www.google.com/maps/@30.0444,31.2357,15z', [30.0444, 31.2357]],
+            'search path' => ['https://www.google.com/maps/search/30.0444,+31.2357?entry=ttu', [30.0444, 31.2357]],
             'search query' => ['https://maps.google.com/?q=30.0444,31.2357', [30.0444, 31.2357]],
             'api link, encoded comma' => ['https://www.google.com/maps/search/?api=1&query=30.0444%2C31.2357', [30.0444, 31.2357]],
             'short link carries nothing' => ['https://maps.app.goo.gl/AbCdEf123', null],
