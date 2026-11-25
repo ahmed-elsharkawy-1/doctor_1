@@ -57,6 +57,7 @@ return [
     'contact_note' => 'Replies during the opening hours listed under Services & hours.',
 
     'address' => 'Address',
+    'book_at_branch' => 'Book at this branch',
     'directions' => 'Directions',
     'open_map' => 'Open map',
 ];

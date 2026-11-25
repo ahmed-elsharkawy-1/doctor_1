@@ -88,6 +88,61 @@ class Branch extends Model
     }
 
     /**
+     * "السبت لللخميس"-style label for the days this branch is open, as the
+     * public page shows the clinic's (ELA-18). Null with no open day.
+     */
+    public function workingDaysLabel(): ?string
+    {
+        $open = $this->schedules()->where('is_open', true)->whereHas('periods')->get()
+            ->map(fn (ClinicSchedule $day) => $day->day_of_week)
+            ->sortBy(fn (DayOfWeek $day) => $day->value)
+            ->values();
+
+        if ($open->isEmpty()) {
+            return null;
+        }
+
+        // Consecutive days read as a range, a gap starts a new part: Sunday,
+        // Tuesday and Friday never read as "Sunday to Friday".
+        $runs = [];
+
+        foreach ($open as $day) {
+            $last = array_key_last($runs);
+
+            if ($last !== null && end($runs[$last])->value === $day->value - 1) {
+                $runs[$last][] = $day;
+            } else {
+                $runs[] = [$day];
+            }
+        }
+
+        return collect($runs)->map(function (array $run): string {
+            if (count($run) === 1) {
+                return $run[0]->label();
+            }
+
+            if (count($run) === 2) {
+                return $run[0]->label().'، '.$run[1]->label();
+            }
+
+            return __('landing.days_range', [
+                'from' => $run[0]->label(),
+                'to' => preg_replace('/^ال/u', 'لل', end($run)->label()),
+            ]);
+        })->join('، ');
+    }
+
+    /**
+     * A Google Maps link to the branch: its pin, else its address.
+     */
+    public function mapLink(): ?string
+    {
+        $query = $this->coordinates() ?? $this->displayAddress();
+
+        return $query === null ? null : 'https://maps.google.com/?q='.urlencode($query);
+    }
+
+    /**
      * The clinic's original branch: the one every existing clinic was given,
      * and the one whose address and pin are the clinic's own.
      */

@@ -6,6 +6,7 @@ use App\Enums\ApiErrorCode;
 use App\Enums\BookingSource;
 use App\Events\SlotsChanged;
 use App\Exceptions\ApiException;
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\SlotHold;
 use App\Models\User;
@@ -60,21 +61,24 @@ class SlotHoldService
         BookingSource $source = BookingSource::CLINIC,
         ?User $actor = null,
         ?string $token = null,
+        ?Branch $branch = null,
     ): SlotHold {
+        $branch ??= $clinic->firstBranch();
         $visitType = $this->bookableVisitType($clinic, $visitTypeId, $source);
-        $startAt = $this->slots->startAt($clinic, $date, $startTime);
+        $startAt = $this->slots->startAt($clinic, $date, $startTime, $branch);
         $day = Carbon::parse($date, $clinic->timezone)->startOfDay();
         $token ??= $this->newToken();
 
         $hold = $this->lock->claim($clinic, $day, function () use (
-            $clinic, $visitType, $startAt, $day, $source, $actor, $token
+            $clinic, $visitType, $startAt, $day, $source, $actor, $token, $branch
         ): SlotHold {
             // Asked with this holder's own token, so moving a hold back onto
             // the slot it already sits on is never refused by itself.
-            $this->guard->ensureFree($clinic, $day, $startAt, $visitType, holdToken: $token);
+            $this->guard->ensureFree($clinic, $day, $startAt, $visitType, holdToken: $token, branch: $branch);
 
             return SlotHold::updateOrCreate(['token' => $token], [
                 'clinic_id' => $clinic->id,
+                'branch_id' => $branch->id,
                 'visit_type_id' => $visitType->id,
                 'visit_date' => $day->toDateString(),
                 'start_at' => $startAt,

@@ -9,6 +9,7 @@ use App\Enums\DayOfWeek;
 use App\Enums\OnlineBookingBlockReason;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\Patient;
 use App\Models\VisitType;
@@ -110,13 +111,13 @@ class PatientBookingService
      * @param  list<Slot>  $free
      * @return list<array{start: Carbon, end: Carbon}>
      */
-    private function freeRanges(Clinic $clinic, Carbon $date, array $free): array
+    private function freeRanges(Clinic $clinic, Carbon $date, array $free, ?Branch $branch = null): array
     {
         if ($free === []) {
             return [];
         }
 
-        $schedule = $clinic->scheduleFor(DayOfWeek::fromDate($date));
+        $schedule = ($branch ?? $clinic->firstBranch())->scheduleFor(DayOfWeek::fromDate($date));
         $periods = $schedule?->periods ?? collect();
 
         // No periods on record: one range across everything that is free.
@@ -183,9 +184,39 @@ class PatientBookingService
         return $merged;
     }
 
-    public function days(Clinic $clinic): array
+    public function days(Clinic $clinic, ?Branch $branch = null): array
     {
-        return $this->dayWindow->window($clinic, $clinic->patientBookingWindowDays());
+        return $this->dayWindow->window($clinic, $clinic->patientBookingWindowDays(), $branch);
+    }
+
+    /**
+     * The branches a patient can book at (ELA-18): active, with working
+     * hours, in the doctor's order.
+     *
+     * @return Collection<int, Branch>
+     */
+    public function branches(Clinic $clinic): Collection
+    {
+        // One query, asked once per request by the page (see BookVisit).
+        return $clinic->branches()
+            ->active()
+            ->whereHas('schedules', fn ($query) => $query->where('is_open', true)->whereHas('periods'))
+            ->get();
+    }
+
+    /**
+     * The branch asked for (the page's `?b=`, or the patient's pick) if a
+     * patient can book there; otherwise the first that can be. Null only
+     * when no branch takes bookings at all.
+     */
+    /**
+     * @param  Collection<int, Branch>|null  $branches  this request's branches(), if already read
+     */
+    public function branchFor(Clinic $clinic, ?int $branchId, ?Collection $branches = null): ?Branch
+    {
+        $branches ??= $this->branches($clinic);
+
+        return $branches->firstWhere('id', $branchId) ?? $branches->first();
     }
 
     /**
@@ -248,6 +279,7 @@ class PatientBookingService
         VisitType $visitType,
         string $date,
         ?string $holdToken = null,
+        ?Branch $branch = null,
     ): ?DayAvailability {
         if (! $this->isWithinPatientWindow($clinic, $date)) {
             return null;
@@ -259,6 +291,7 @@ class PatientBookingService
             $visitType,
             null,
             $holdToken,
+            $branch,
         );
     }
 
@@ -272,7 +305,7 @@ class PatientBookingService
      *
      * @return list<array<string, mixed>>
      */
-    public function overview(Clinic $clinic, ?VisitType $visitType = null): array
+    public function overview(Clinic $clinic, ?VisitType $visitType = null, ?Branch $branch = null): array
     {
         $visitType ??= $this->defaultVisitType($clinic);
 
@@ -280,9 +313,9 @@ class PatientBookingService
             return [];
         }
 
-        return array_map(function (array $day) use ($clinic, $visitType): array {
+        return array_map(function (array $day) use ($clinic, $visitType, $branch): array {
             $availability = $day['is_open']
-                ? $this->availability($clinic, $visitType, $day['date']->toDateString())
+                ? $this->availability($clinic, $visitType, $day['date']->toDateString(), branch: $branch)
                 : null;
 
             $free = $availability === null
@@ -295,9 +328,9 @@ class PatientBookingService
             return $day + [
                 'available_count' => count($free),
                 'first_free' => $free === [] ? null : $free[0]->startAt,
-                'free_ranges' => $this->freeRanges($clinic, $day['date'], $free),
+                'free_ranges' => $this->freeRanges($clinic, $day['date'], $free, $branch),
             ];
-        }, $this->days($clinic));
+        }, $this->days($clinic, $branch));
     }
 
     /*
@@ -368,9 +401,9 @@ class PatientBookingService
      *                                                 type, to save building it
      *                                                 twice in one request
      */
-    public function firstBookableDate(Clinic $clinic, ?VisitType $visitType = null, ?array $days = null): string
+    public function firstBookableDate(Clinic $clinic, ?VisitType $visitType = null, ?array $days = null, ?Branch $branch = null): string
     {
-        foreach ($days ?? $this->overview($clinic, $visitType) as $day) {
+        foreach ($days ?? $this->overview($clinic, $visitType, $branch) as $day) {
             if (! $day['is_open']) {
                 continue;
             }
@@ -419,10 +452,10 @@ class PatientBookingService
      *
      * @return list<SlotGroup>
      */
-    public function slotGroups(Clinic $clinic, DayAvailability $availability): array
+    public function slotGroups(Clinic $clinic, DayAvailability $availability, ?Branch $branch = null): array
     {
         $date = $availability->date;
-        $schedule = $clinic->scheduleFor(DayOfWeek::fromDate($date));
+        $schedule = ($branch ?? $clinic->firstBranch())->scheduleFor(DayOfWeek::fromDate($date));
 
         $periods = [];
 
@@ -589,6 +622,7 @@ class PatientBookingService
         string $date,
         string $startTime,
         ?string $token = null,
+        ?Branch $branch = null,
     ): string {
         $this->assertOpen($clinic);
         $this->assertVerified($clinic);
@@ -603,6 +637,7 @@ class PatientBookingService
             BookingSource::PATIENT_WEB,
             null,
             $token,
+            $this->assertBookableBranch($clinic, $branch),
         )->token;
     }
 
@@ -624,8 +659,10 @@ class PatientBookingService
         string $date,
         string $startTime,
         ?string $holdToken = null,
+        ?Branch $branch = null,
     ): Booking {
         $this->assertOpen($clinic);
+        $branch = $this->assertBookableBranch($clinic, $branch);
         $phone = $this->assertVerified($clinic);
         $this->assertNotBlocked($clinic);
         $this->assertWithinPatientWindow($clinic, $date);
@@ -664,7 +701,30 @@ class PatientBookingService
             ),
             // No account behind a public page.
             actor: null,
+            branch: $branch,
         );
+    }
+
+    /**
+     * A branch the page may book at; the page's choice is asked again here
+     * because the browser could have changed it.
+     */
+    private function assertBookableBranch(Clinic $clinic, ?Branch $branch): Branch
+    {
+        $bookable = $branch === null
+            ? $this->branchFor($clinic, null)
+            : $this->branches($clinic)->firstWhere('id', $branch->id);
+
+        if ($bookable === null) {
+            throw ApiException::make(
+                ApiErrorCode::CLINIC_CLOSED_THAT_DAY,
+                ClosedReason::BRANCH_INACTIVE->label(),
+                details: ['reason' => ClosedReason::BRANCH_INACTIVE->value],
+                http: 409,
+            );
+        }
+
+        return $bookable;
     }
 
     /*

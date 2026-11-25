@@ -30,7 +30,7 @@ class BookingCalendarController extends V1Controller
             ? Carbon::parse($request->validated('to'), $clinic->timezone)
             : null;
 
-        $result = $this->calendar->range($clinic, $from, $to, $request->status());
+        $result = $this->calendar->range($clinic, $from, $to, $request->status(), $this->branch($request));
 
         return ApiResponse::success(
             (new BookingCalendarResult($result, $this->queue, $user->hasAbility('prices.view')))->toArray(),

@@ -612,6 +612,12 @@
             }
             .bar-inner { width: 100%; }
         }
+            /* Branch cards (ELA-18): one tap picks the branch. */
+        .branch-cards { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+        .branch-card { display: grid; gap: 2px; text-align: start; padding: 11px 13px; border: 1.5px solid var(--primary-100); border-radius: 14px; background: #fff; font: inherit; color: inherit; cursor: pointer; min-height: 44px; }
+        .branch-card span { font-size: 12.5px; color: #5b6472; }
+        .branch-card[aria-pressed="true"] { border: 2px solid var(--primary); background: var(--primary-50); box-shadow: 0 0 0 3px var(--primary-100); }
+        .branch-card[aria-pressed="true"] strong { color: var(--primary); }
     </style>
 
     @livewireStyles

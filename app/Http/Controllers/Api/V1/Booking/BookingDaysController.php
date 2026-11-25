@@ -15,7 +15,7 @@ class BookingDaysController extends V1Controller
 
     public function __invoke(Request $request): JsonResponse
     {
-        $days = $this->bookingDays->window($this->clinic($request));
+        $days = $this->bookingDays->window($this->clinic($request), branch: $this->branch($request));
 
         return ApiResponse::success(
             (new BookingDaysResult($days))->toArray(),

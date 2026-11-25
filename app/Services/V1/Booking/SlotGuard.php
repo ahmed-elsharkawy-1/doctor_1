@@ -4,6 +4,7 @@ namespace App\Services\V1\Booking;
 
 use App\Enums\ApiErrorCode;
 use App\Exceptions\ApiException;
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\VisitType;
 use Illuminate\Support\Carbon;
@@ -43,6 +44,7 @@ final class SlotGuard
         VisitType $visitType,
         ?int $ignoreBookingId = null,
         ?string $holdToken = null,
+        ?Branch $branch = null,
     ): void {
         $availability = $this->slots->for(
             $clinic,
@@ -50,6 +52,7 @@ final class SlotGuard
             $visitType,
             $ignoreBookingId,
             $holdToken,
+            $branch,
         );
 
         if (! $availability->isOpen) {

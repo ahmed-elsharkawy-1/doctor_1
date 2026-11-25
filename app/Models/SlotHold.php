@@ -24,6 +24,7 @@ class SlotHold extends Model
 
     protected $fillable = [
         'clinic_id',
+        'branch_id',
         'visit_type_id',
         'visit_date',
         'start_at',
@@ -33,6 +34,17 @@ class SlotHold extends Model
         'created_by',
         'expires_at',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $model): void {
+            // At a branch (ELA-18). Code written before branches, and every
+            // clinic with one, lands on the clinic's first branch.
+            if ($model->branch_id === null && $model->clinic_id !== null) {
+                $model->branch_id = Branch::query()->where('clinic_id', $model->clinic_id)->min('id');
+            }
+        });
+    }
 
     /**
      * The token is what lets its holder book the slot it is blocking, so it is
@@ -52,6 +64,12 @@ class SlotHold extends Model
             'expires_at' => 'datetime',
             'source' => BookingSource::class,
         ];
+    }
+
+    /** @return BelongsTo<Branch, $this> */
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     /** @return BelongsTo<Clinic, $this> */

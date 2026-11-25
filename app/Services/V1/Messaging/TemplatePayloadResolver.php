@@ -58,7 +58,7 @@ class TemplatePayloadResolver
                     $this->date($booking, $clinic),
                     $this->time($booking, $clinic),
                     $this->doctorName($clinic),
-                    $this->address($clinic),
+                    $this->address($clinic, $booking),
                 ],
                 buttons: [$this->suffix('tracking', $booking)],
             ),
@@ -144,7 +144,7 @@ class TemplatePayloadResolver
                     $this->date($booking, $clinic),
                     $this->time($booking, $clinic),
                     $this->doctorName($clinic),
-                    $this->address($clinic),
+                    $this->address($clinic, $booking),
                 ],
                 buttons: [$this->suffix('tracking', $booking)],
             ),
@@ -277,9 +277,13 @@ class TemplatePayloadResolver
         ) ?: $name);
     }
 
-    private function address(Clinic $clinic): string
+    /**
+     * Where to go: the booked branch's address (ELA-18), which is the
+     * clinic's own for its first branch.
+     */
+    private function address(Clinic $clinic, ?Booking $booking = null): string
     {
-        return $this->clean($clinic->address, $clinic->name);
+        return $this->clean($booking?->branch?->displayAddress() ?? $clinic->address, $clinic->name);
     }
 
     /**

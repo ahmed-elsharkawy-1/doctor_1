@@ -52,7 +52,7 @@ exception is the WhatsApp branch line, which ELA-22 wants everywhere.
 - The branch comes from the server: the account plus its last-used branch. If
   the client sends one, it is checked against `branch_user`, never trusted. This
   is the same rule as for `clinic_id` (SPEC §6.6).
-- `ClinicDayLock` locks per **branch and day**.
+- `ClinicDayLock` stays **doctor-wide** (per clinic and day), changed in Phase 4: hours never overlap across branches, and booked and held time is the doctor's at every branch, so one doctor can never be double-booked.
 - The API stays backward compatible for the mobile app. Without an
   `X-Branch-Id` header, the account's last-used branch is used.
 - Every phase adds tests with **two branches** and keeps single-branch tests
@@ -228,6 +228,20 @@ branch.
 - Blocked by: 3.1
 
 ### Phase 4: Booking with branch selection (ELA-18)
+
+As built: `bookings.branch_id` and `slot_holds.branch_id` (backfilled to the
+first branch; a creating-hook fills any row written without one). Slots come
+from the branch's hours and holidays; taken and held time stays doctor-wide.
+Staff book at the header's branch or pick another of theirs; the API uses
+`X-Branch-Id`; edits stay at the booking's branch; a deactivated branch takes
+no new booking, emergencies included. The patient page and the doctor page
+list bookable branches (active, with hours), with `?b=<id>` links.
+`Clinic::currentDay()` follows last night's evening at any branch.
+
+**Still clinic-wide, each moved by its own phase, and the reason
+`CLINIC_MULTI_BRANCH` stays off until Phase 8:** the queue, tracking and the
+Turn Approaching alert (Phase 5), the waiting list (Phase 6), the daily
+reminder and other WhatsApp (Phase 7), reports and statistics (Phase 8).
 Verified when: every new booking has a branch, the same time at two branches
 can be booked twice, and a patient picks a branch before the day.
 
@@ -411,6 +425,7 @@ later one is pointed at `feature/multi-branch`.
 ## Decision log
 | Decision | Chosen option | Why |
 | --- | --- | --- |
+| Double-booking lock | Doctor-wide, per clinic and day (Phase 4) | Hours never overlap across branches, so a per-branch lock buys nothing; the doctor is one person. |
 | What a branch is | A new `branches` table under Clinic | The tickets keep patients, prices, the no-show block and the sender at doctor level, and that is `Clinic` today. |
 | "All branches" holiday | `branch_id NULL`, also covering future branches | Matches the "All branches" default without a pivot. |
 | Holiday range | One row per date plus `group_id` | Availability keeps its per-date lookup. A range can be deleted as one. |
@@ -437,8 +452,8 @@ later one is pointed at `feature/multi-branch`.
 | --- | --- |
 | 1 Foundation and branch management | PR #16 open |
 | 2 Team access and switching | PR #17 open |
-| 3 Hours and holidays | PR open |
-| 4 Booking | pending |
+| 3 Hours and holidays | PR #18 open |
+| 4 Booking | PR open |
 | 5 Queue, record and TV | pending |
 | 6 Waiting list | pending |
 | 7 WhatsApp, delay and cancellation | pending |

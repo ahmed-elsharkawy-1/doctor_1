@@ -43,6 +43,13 @@ info:
     acted on in `X-Branch-Id`**, so follow that header. No branches left:
     403 `BRANCH_NOT_ASSIGNED`. With one branch there is nothing to pick and
     the header can be left out.
+
+    **Booking follows the branch (ELA-18).** Slots, slot holds, new bookings,
+    the day strip, the calendar and the home screen all use the branch in
+    `X-Branch-Id`: its hours and holidays, its bookings. To book at another of
+    the user's branches, send that branch's id. Editing a booking keeps it at
+    its own branch. A deactivated branch offers no slots and refuses new
+    bookings, emergencies included (`closed_reason: branch_inactive`).
   contact:
     name: Backend
     url: https://github.com/

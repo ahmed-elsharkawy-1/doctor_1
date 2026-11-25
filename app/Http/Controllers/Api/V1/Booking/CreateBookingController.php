@@ -22,6 +22,8 @@ class CreateBookingController extends V1Controller
             $this->clinic($request),
             BookingData::fromArray($request->validated()),
             $user,
+            // At the branch the app is on, one this account may use (ELA-18).
+            $this->branch($request),
         );
 
         return ApiResponse::created(

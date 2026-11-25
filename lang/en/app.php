@@ -270,6 +270,7 @@ return [
     ],
 
     'booking' => [
+        'branch' => 'Branch',
         'title' => 'New booking',
         'new' => 'New booking',
         'back_to_queue' => "Today's list",
