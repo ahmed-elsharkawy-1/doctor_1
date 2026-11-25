@@ -17,7 +17,8 @@ final class BranchName
     {
         $area = self::area($address, $city);
 
-        return $area === null ? $clinicName : self::PREFIX.$area;
+        // branches.name holds 100; a clinic's name may be longer.
+        return mb_substr($area === null ? $clinicName : self::PREFIX.$area, 0, 100);
     }
 
     /**

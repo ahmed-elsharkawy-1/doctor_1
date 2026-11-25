@@ -121,6 +121,9 @@ class UserForm
                     CheckboxList::make('permissions')
                         ->label(__('filament.user.permissions'))
                         ->options(StaffPermission::options())
+                        // What every assistant had before ELA-17, as the
+                        // migration and onboarding give it.
+                        ->default([StaffPermission::MANAGE_SCHEDULE->value])
                         ->visible(fn ($get): bool => $get('role') === UserRole::CLINIC->value && ! $get('is_owner'))
                         ->helperText(__('filament.user.permissions_hint')),
                 ])

@@ -7,6 +7,7 @@ use App\Enums\ApiErrorCode;
 use App\Exceptions\ApiException;
 use App\Models\Branch;
 use App\Models\Clinic;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -54,7 +55,7 @@ class BranchService
 
         $this->ensureUniqueName($clinic, $data->name);
 
-        return $clinic->branches()->create([
+        return $this->guardNameRace(fn () => $clinic->branches()->create([
             'name' => $data->name,
             'address' => $data->address,
             'latitude' => $data->latitude,
@@ -62,7 +63,7 @@ class BranchService
             'phone' => $data->phone,
             'is_active' => true,
             'sort_order' => ((int) $clinic->branches()->max('sort_order')) + 1,
-        ]);
+        ]));
     }
 
     /**
@@ -86,7 +87,7 @@ class BranchService
                 $place = ['address' => null, 'latitude' => null, 'longitude' => null];
             }
 
-            $branch->update(['name' => $data->name, 'phone' => $data->phone] + $place);
+            $this->guardNameRace(fn () => $branch->update(['name' => $data->name, 'phone' => $data->phone] + $place));
 
             return $branch->refresh();
         });
@@ -100,12 +101,16 @@ class BranchService
     public function deactivate(Branch $branch): Branch
     {
         return DB::transaction(function () use ($branch): Branch {
-            $others = Branch::query()
+            // Lock every branch of the clinic, this one included, so two
+            // deactivations at once queue up rather than deadlock: the second
+            // then sees the first and is refused as the last active one.
+            $branches = Branch::query()
                 ->where('clinic_id', $branch->clinic_id)
-                ->whereKeyNot($branch->id)
-                ->active()
+                ->orderBy('id')
                 ->lockForUpdate()
-                ->count();
+                ->get();
+
+            $others = $branches->where('id', '!==', $branch->id)->where('is_active', true)->count();
 
             if ($others === 0) {
                 throw ApiException::make(ApiErrorCode::BRANCH_LAST_ACTIVE, __('settings.branch.last_active'), http: 409);
@@ -122,6 +127,25 @@ class BranchService
         $branch->update(['is_active' => true]);
 
         return $branch;
+    }
+
+    /**
+     * Two saves of the same name at once both pass ensureUniqueName(); the
+     * unique index stops the second, and it gets the same answer as if it
+     * had come later.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $write
+     * @return T
+     */
+    private function guardNameRace(callable $write): mixed
+    {
+        try {
+            return $write();
+        } catch (UniqueConstraintViolationException) {
+            throw ApiException::make(ApiErrorCode::BRANCH_DUPLICATE_NAME, __('settings.branch.duplicate_name'), http: 409);
+        }
     }
 
     private function ensureUniqueName(Clinic $clinic, string $name, ?Branch $except = null): void

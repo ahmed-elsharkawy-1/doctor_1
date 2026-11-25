@@ -30,6 +30,9 @@ class SeedPilotDoctorCommandTest extends TestCase
         $this->assertTrue($user->is_active);
         $this->assertTrue($user->belongsToClinic($clinic->id));
         $this->assertSame($clinic->doctor?->id, $user->doctor_id);
+        // The doctor's own login: every branch and permission (ELA-17).
+        $this->assertTrue($user->isOwner());
+        $this->assertTrue($user->hasAbility('schedule.manage'));
 
         $this->assertSame(20, $clinic->patients()->count());
         $this->assertSame(20, $clinic->bookings()->count());
