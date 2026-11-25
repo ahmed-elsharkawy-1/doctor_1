@@ -18,7 +18,7 @@
     // the count is the mobile app's home-screen banner, in a nav entry.
     $awaitingRebooking = $clinic === null
         ? 0
-        : app(\App\Services\V1\Queue\QueueService::class)->awaitingRebookingCount($clinic);
+        : app(\App\Services\V1\Queue\QueueService::class)->awaitingRebookingCount($clinic, $currentBranch);
 
     $links = [
         ['route' => 'app.queue',        'label' => __('app.nav.queue'),     'ability' => 'queue.manage'],

@@ -5,6 +5,7 @@ namespace App\Services\V1\Queue;
 use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -51,7 +52,8 @@ class QueuePositionService
             return null;
         }
 
-        return $this->within($clinic, $this->today($clinic), $booking);
+        // The line at the booking's own branch (ELA-19).
+        return $this->within($clinic, $this->today($clinic, $booking->branch), $booking);
     }
 
     /**
@@ -61,9 +63,12 @@ class QueuePositionService
      *
      * @return Collection<int, Booking>
      */
-    public function today(Clinic $clinic): Collection
+    public function today(Clinic $clinic, ?Branch $branch = null): Collection
     {
+        // One branch's line (ELA-19): its own waiting room. The clinic's
+        // first branch when not given, the only one before branches.
         return $clinic->bookings()
+            ->where('branch_id', $branch?->id ?? $clinic->firstBranchId())
             ->with(['patient', 'visitType'])
             ->onDate($clinic->currentDay()->toDateString())
             ->whereIn('status', BookingStatus::inQueue())

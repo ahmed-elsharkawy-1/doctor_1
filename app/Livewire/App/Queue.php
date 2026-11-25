@@ -219,7 +219,10 @@ class Queue extends ClinicComponent
      */
     private function bookings(): Collection
     {
+        // This branch's day: its own waiting room (ELA-19). The header's
+        // switcher moves between branches.
         $bookings = $this->clinic()->bookings()
+            ->where('branch_id', $this->branch()->id)
             ->with(['patient', 'visitType', 'reminders'])
             ->onDate($this->date)
             ->get();
@@ -264,6 +267,7 @@ class Queue extends ClinicComponent
             $this->clinic(),
             $term,
             config('clinic.queue_search.limit'),
+            $this->branch(),
         )['matches'];
     }
 

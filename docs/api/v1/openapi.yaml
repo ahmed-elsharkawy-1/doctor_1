@@ -50,6 +50,13 @@ info:
     the user's branches, send that branch's id. Editing a booking keeps it at
     its own branch. A deactivated branch offers no slots and refuses new
     bookings, emergencies included (`closed_reason: branch_inactive`).
+
+    **So does the queue (ELA-19).** The queue search, the call list
+    (`rebooking-list`), postpone candidates and an emergency delay all work on
+    the branch in `X-Branch-Id`: each branch is its own waiting room, and a
+    delay moves only the delayed patient's branch. A patient's history keeps
+    every branch, each visit with its `branch`. A team member reaches a booking
+    by id only at her own branches; another's is 404.
   contact:
     name: Backend
     url: https://github.com/

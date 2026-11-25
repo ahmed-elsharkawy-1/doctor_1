@@ -23,7 +23,7 @@ class SearchQueueController extends V1Controller
     public function __invoke(SearchQueueRequest $request): JsonResponse
     {
         $clinic = $this->clinic($request);
-        $found = $this->search->search($clinic, $request->validated('q'), $request->limit());
+        $found = $this->search->search($clinic, $request->validated('q'), $request->limit(), $this->branch($request));
 
         return ApiResponse::success(
             (new QueueSearchResult(

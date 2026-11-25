@@ -6,6 +6,7 @@ use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
 use App\Enums\DayOfWeek;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\OutboundMessage;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
@@ -68,37 +69,46 @@ class SendBookingRemindersCommand extends ClinicReminderCommand
     protected function due(Clinic $clinic): iterable
     {
         $day = $clinic->currentDay()->toDateString();
-
-        if ($clinic->holidays()->whereDate('date', $day)->exists()) {
-            return [];
-        }
-
-        $queue = $this->positions->today($clinic);
-        $waiting = $this->notYetAlerted($queue);
-
-        if ($waiting->isEmpty()) {
-            return [];
-        }
-
-        $doctorStarted = $this->doctorStarted($clinic, $day);
         $now = Carbon::now($clinic->timezone);
+        $due = collect();
 
-        return $waiting
-            ->filter(fn (Booking $booking): bool => $this->isDue($clinic, $queue, $booking, $doctorStarted, $now))
-            ->values();
+        // Each branch is its own waiting room (ELA-19): its own line, its own
+        // holidays, its own start of the day. Inactive branches too: their
+        // existing bookings still run.
+        foreach ($clinic->branches()->get() as $branch) {
+            if ($branch->isClosedOn($day)) {
+                continue;
+            }
+
+            $queue = $this->positions->today($clinic, $branch);
+            $waiting = $this->notYetAlerted($queue);
+
+            if ($waiting->isEmpty()) {
+                continue;
+            }
+
+            $doctorStarted = $this->doctorStarted($clinic, $branch, $day);
+
+            $due = $due->concat($waiting->filter(
+                fn (Booking $booking): bool => $this->isDue($clinic, $queue, $booking, $doctorStarted, $now),
+            ));
+        }
+
+        return $due->values();
     }
 
     /**
-     * Whether the doctor has begun the day: someone has gone in, finished or
-     * not — counted only from shortly before the day opens. A visit marked in
-     * the small hours, long before the session, says nothing about it.
+     * Whether the doctor has begun the day at this branch: someone there has
+     * gone in, finished or not — counted only from shortly before the branch
+     * opens. A visit marked in the small hours, long before the session, says
+     * nothing about it.
      */
-    private function doctorStarted(Clinic $clinic, string $day): bool
+    private function doctorStarted(Clinic $clinic, Branch $branch, string $day): bool
     {
-        $calls = $clinic->bookings()->onDate($day)->whereNotNull('called_in_at');
+        $calls = $clinic->bookings()->where('branch_id', $branch->id)->onDate($day)->whereNotNull('called_in_at');
 
         $date = Carbon::parse($day, $clinic->timezone);
-        $schedule = $clinic->scheduleFor(DayOfWeek::fromDate($date));
+        $schedule = $branch->scheduleFor(DayOfWeek::fromDate($date));
         $first = $schedule?->is_open ? $schedule->periods->first() : null;
 
         if ($first !== null) {

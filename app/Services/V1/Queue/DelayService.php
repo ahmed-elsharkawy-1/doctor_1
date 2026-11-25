@@ -8,7 +8,9 @@ use App\Enums\BookingStatus;
 use App\Events\SlotsChanged;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
+use App\Services\V1\Booking\BookingService;
 use App\Services\V1\Booking\ClinicDayLock;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
 use App\Support\DelayLabel;
@@ -66,20 +68,18 @@ class DelayService
      *
      * @return Collection<int, Booking>
      */
-    public function startingPoints(Clinic $clinic): Collection
+    public function startingPoints(Clinic $clinic, ?Branch $branch = null): Collection
     {
-        return $this->movableOn($clinic, $clinic->currentDay()->toDateString())
+        return $this->movableOn($clinic, $clinic->currentDay()->toDateString(), $branch?->id ?? $clinic->firstBranchId())
             ->with(['patient', 'visitType'])
             ->get();
     }
 
     public function delay(Clinic $clinic, int $bookingId, int $minutes): DelayOutcome
     {
-        $from = $clinic->bookings()->whereKey($bookingId)->first();
-
-        if ($from === null) {
-            throw ApiException::make(ApiErrorCode::BOOKING_NOT_FOUND, __('booking.not_found'), http: 404);
-        }
+        // The same lookup every other booking action uses: a team member
+        // reaches only her branches' bookings (ELA-19).
+        $from = app(BookingService::class)->find($clinic, $bookingId);
 
         $day = $clinic->currentDay();
         $replayKey = "booking_delay_{$clinic->id}_{$from->id}_{$minutes}";
@@ -155,7 +155,9 @@ class DelayService
      */
     private function move(Clinic $clinic, Booking $from, int $minutes): array
     {
-        $later = $this->movableOn($clinic, $from->visit_date->toDateString())
+        // Only the delayed patient's own branch's day moves (ELA-19): the
+        // other waiting room is not running late.
+        $later = $this->movableOn($clinic, $from->visit_date->toDateString(), $from->branch_id)
             ->where('start_at', '>=', $from->start_at)
             ->whereKeyNot($from->id)
             ->get();
@@ -211,9 +213,10 @@ class DelayService
      *
      * @return HasMany<Booking, Clinic>
      */
-    private function movableOn(Clinic $clinic, string $date): HasMany
+    private function movableOn(Clinic $clinic, string $date, ?int $branchId): HasMany
     {
         return $clinic->bookings()
+            ->where('branch_id', $branchId)
             ->onDate($date)
             ->pending()
             ->where('booking_kind', BookingKind::NORMAL)

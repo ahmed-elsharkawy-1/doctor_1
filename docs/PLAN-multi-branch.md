@@ -274,6 +274,18 @@ can be booked twice, and a patient picks a branch before the day.
 - Blocked by: 4.1
 
 ### Phase 5: Queue, patient record and the TV display (ELA-19)
+
+As built: today's line, queue positions (tracking page, "turns before you"),
+the queue screen and search, the call list, postpone candidates and the
+emergency delay are per branch; the Turn Approaching alert works each branch's
+line, holidays and start of day. The tracking page names the branch and maps
+it. The patient record is doctor-wide with a branch tag per visit (web and
+API); no-shows already count across branches. **TV display** (decided without
+an answer to Q2, on the recommendation): a server-rendered page at
+`/tv/{token}` that reloads itself every 15 s, one branch per display, codes
+and first names only, an idle screen outside the branch's hours; an Android
+TV app opens that URL. Settings → Displays (`branches.manage`, within one's
+branches) adds, renames, moves, re-links and removes them.
 Verified when: no booking ever shows in another branch's queue, on its
 tracking page or on its TV, and the patient record tags every visit with its
 branch.
@@ -450,11 +462,11 @@ later one is pointed at `feature/multi-branch`.
 ## Progress
 | Phase | Status |
 | --- | --- |
-| 1 Foundation and branch management | PR #16 open |
-| 2 Team access and switching | PR #17 open |
-| 3 Hours and holidays | PR #18 open |
-| 4 Booking | PR open |
-| 5 Queue, record and TV | pending |
+| 1 Foundation and branch management | merged (#16) |
+| 2 Team access and switching | merged (#17) |
+| 3 Hours and holidays | merged (#18) |
+| 4 Booking | merged (#19) |
+| 5 Queue, record and TV | PR open |
 | 6 Waiting list | pending |
 | 7 WhatsApp, delay and cancellation | pending |
 | 8 Statistics and contract | pending |

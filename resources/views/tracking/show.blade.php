@@ -348,6 +348,16 @@
     {{-- Who the patient is seeing --}}
     <x-doctor-card :clinic="$clinic" :doctor="$doctor" :facts="false" slim />
 
+    {{-- Which branch this queue is (ELA-19): the count below is its own. --}}
+    @if ($branch)
+        <section class="card" style="padding:12px 16px">
+            <strong>🏥 {{ $branch->name }}</strong>
+            @if ($branch->displayAddress())
+                <div style="font-size:13px;opacity:.75;margin-top:2px">{{ $branch->displayAddress() }}</div>
+            @endif
+        </section>
+    @endif
+
     {{-- The headline: a ring that fills as the patient moves up --}}
     <section class="card stage @if ($delay || $arrival) has-delay @endif">
         {{-- The clinic is running late for this patient (TrackingDelayService):

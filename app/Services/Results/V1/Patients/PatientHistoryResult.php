@@ -87,6 +87,11 @@ final class PatientHistoryResult extends ServiceResult
                 'duration_minutes' => $booking->duration_minutes,
             ],
             'status' => Wire::enum($booking->status, $booking->status->label()),
+            // Where the visit was (ELA-19).
+            'branch' => $booking->branch === null ? null : [
+                'id' => $booking->branch->id,
+                'name' => $booking->branch->name,
+            ],
             'cancel_reason' => $booking->cancel_reason === null
                 ? null
                 : Wire::enum($booking->cancel_reason, $booking->cancel_reason->label()),

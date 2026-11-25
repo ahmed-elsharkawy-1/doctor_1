@@ -27,6 +27,10 @@ return [
         'bookings_outside' => '{1} One upcoming booking that day is now outside the new hours. Nothing moved it; please handle it.|[2,*] :count upcoming bookings that day are now outside the new hours. Nothing moved them; please handle them.',
     ],
 
+    'display' => [
+        'not_found' => 'This screen does not exist',
+    ],
+
     'team' => [
         'list_loaded' => 'Team loaded',
         'updated' => 'Team member saved',
