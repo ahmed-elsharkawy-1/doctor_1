@@ -110,7 +110,8 @@
         .appbar form { margin-inline-start: auto; }
 
         @media (min-width: 48rem) {
-            .appbar .nav { order: 0; width: auto; flex: 1; }
+            /* Wraps to a second line rather than cutting a link off. */
+            .appbar .nav { order: 0; width: auto; flex: 1; flex-wrap: wrap; overflow: visible; }
             .appbar form { margin-inline-start: 0; }
         }
 
@@ -177,8 +178,9 @@
 
         .subnav {
             display: flex;
+            /* Wraps rather than scrolls: a hidden tab is a tab nobody finds. */
+            flex-wrap: wrap;
             gap: 4px;
-            overflow-x: auto;
             margin-bottom: 14px;
             border-bottom: 1px solid var(--line);
         }
@@ -201,8 +203,11 @@
 
         .field input[type="text"],
         .field input[type="number"],
+        .field input[type="url"],
+        .field input[type="tel"],
         .field input[type="date"],
-        .field input[type="time"] {
+        .field input[type="time"],
+        .field select {
             padding: 0.55rem 0.75rem;
             border: 1px solid var(--line);
             border-radius: 0.6rem;
@@ -211,7 +216,15 @@
             font: inherit;
         }
 
-        .field input[type="text"], .field input[type="number"] { width: 100%; }
+        .field input[type="text"], .field input[type="number"],
+        .field input[type="url"], .field input[type="tel"], .field select { width: 100%; }
+        .field select { min-height: 2.75rem; }
+
+        /* Checkboxes and radios big enough to tap on a phone. */
+        input[type="checkbox"], input[type="radio"] { width: 1.25rem; height: 1.25rem; accent-color: var(--brand); flex: 0 0 auto; }
+
+        .flash-warn { background: var(--warn-soft); color: var(--warn); }
+        .btn-danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; }
         .field small { display: block; margin-top: 0.3rem; font-size: 0.8rem; }
         .err { color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem; }
 

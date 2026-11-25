@@ -11,12 +11,16 @@
         'app.settings.team'        => [__('app.settings.team'), 'team.manage'],
     ];
     $user = auth()->user();
+
+    // routeIs() can't tell on a Livewire update, which posts to Livewire's
+    // own route; the page's path can.
+    $here = trim(app('livewire')->isLivewireRequest() ? app('livewire')->originalPath() : request()->path(), '/');
 @endphp
 
 <div class="subnav">
     @foreach ($tabs as $route => [$label, $ability])
         @continue (! $user?->hasAbility($ability))
-        <a href="{{ route($route) }}" @if (request()->routeIs($route)) aria-current="page" @endif>
+        <a href="{{ route($route) }}" @if ($here === trim(parse_url(route($route), PHP_URL_PATH), '/')) aria-current="page" @endif>
             {{ $label }}
         </a>
     @endforeach

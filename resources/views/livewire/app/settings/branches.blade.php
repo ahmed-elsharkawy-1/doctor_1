@@ -74,7 +74,10 @@
                     </span>
                     <div class="muted" style="margin-top:0.25rem">{{ $branch->displayAddress() }}</div>
                     <div class="muted" dir="ltr" style="text-align:start">
-                        {{ filled($branch->phone) ? $branch->contactPhone()?->national() : __('app.settings.branch_uses_main_phone') }}
+                        {{ $branch->contactPhone()?->national() }}
+                        @unless (filled($branch->phone))
+                            <small>({{ __('app.settings.branch_uses_main_phone') }})</small>
+                        @endunless
                     </div>
                 </div>
 
@@ -97,10 +100,10 @@
             </div>
 
             @if ($confirmingDeactivate === $branch->id)
-                <div class="flash flash-err" style="margin:0.75rem 0 0">
+                <div class="flash flash-err" style="margin:0.75rem 0 0;font-weight:400">
                     {{ __('app.settings.branch_deactivate_confirm') }}
                     <div style="margin-top:0.6rem;display:flex;gap:0.4rem;flex-wrap:wrap">
-                        <button type="button" class="btn btn-sm btn-danger" wire:click="deactivate">
+                        <button type="button" class="btn btn-sm btn-danger-solid" wire:click="deactivate">
                             {{ __('app.settings.branch_deactivate_yes') }}
                         </button>
                         <button type="button" class="btn btn-sm" wire:click="$set('confirmingDeactivate', null)">
