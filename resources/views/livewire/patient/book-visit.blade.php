@@ -69,6 +69,34 @@
                     </div>
                 @endif
 
+                {{-- The branch, chosen first (ELA-18). Cards where there is a
+                     choice of days; once chosen, its name on every step. Only
+                     with more than one branch: one branch, no change. --}}
+                @if ($branches->count() > 1 && $branch !== null)
+                    @if (in_array($stage, ['overview', 'appointment'], true))
+                        <div class="branch-cards" role="group" aria-label="{{ __('booking.self_booking.branch_pick') }}">
+                            @foreach ($branches as $choice)
+                                <button type="button" class="branch-card" wire:key="b-{{ $choice->id }}"
+                                        aria-pressed="{{ $choice->id === $branch->id ? 'true' : 'false' }}"
+                                        wire:click="selectBranch({{ $choice->id }})">
+                                    <strong>🏥 {{ $choice->name }}</strong>
+                                    @if ($choice->displayAddress())
+                                        <span>{{ $choice->displayAddress() }}</span>
+                                    @endif
+                                    @if ($label = $choice->workingDaysLabel())
+                                        <span>{{ $label }}</span>
+                                    @endif
+                                </button>
+                            @endforeach
+                        </div>
+                        @if ($map = $branch->mapLink())
+                            <a class="hint" href="{{ $map }}" target="_blank" rel="noopener">📍 {{ __('booking.self_booking.branch_map') }}</a>
+                        @endif
+                    @elseif (in_array($stage, ['details', 'code'], true))
+                        <div class="hint">🏥 {{ $branch->name }}</div>
+                    @endif
+                @endif
+
                 {{-- 1 ·  The week, read-only ------------------------------- --}}
                 @if ($stage === 'overview')
                     @if ($visitTypes->isEmpty())
@@ -543,10 +571,18 @@
                             <span class="hint">{{ __('booking.self_booking.done_code') }}</span>
                             <span class="ltr" style="font-size: 13.5px; font-weight: 700">{{ $confirmed->patient?->code }}</span>
                         </div>
-                        @if ($clinic->address)
+                        @if ($branches->count() > 1 && $confirmed->branch)
+                            <div style="display: flex; justify-content: space-between; gap: 16px">
+                                <span class="hint" style="flex: 0 0 auto">{{ __('booking.self_booking.done_branch') }}</span>
+                                <span style="font-size: 13.5px; font-weight: 700; text-align: end">{{ $confirmed->branch->name }}</span>
+                            </div>
+                        @endif
+                        {{-- The booked branch's address: the clinic's own while
+                             there is one branch (ELA-18). --}}
+                        @if ($address = $confirmed->branch?->displayAddress() ?? $clinic->address)
                             <div style="display: flex; justify-content: space-between; gap: 16px">
                                 <span class="hint" style="flex: 0 0 auto">{{ __('booking.self_booking.done_location') }}</span>
-                                <span style="font-size: 13.5px; font-weight: 700; text-align: end">{{ $clinic->address }}</span>
+                                <span style="font-size: 13.5px; font-weight: 700; text-align: end">{{ $address }}</span>
                             </div>
                         @endif
                     </div>

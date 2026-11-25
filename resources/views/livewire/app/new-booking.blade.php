@@ -92,6 +92,19 @@
 
     <h1 style="font-size:1.05rem;font-weight:700;margin:0 0 12px">{{ __('app.booking.title') }}</h1>
 
+    @if ($branches->count() > 1)
+        {{-- The branch first: its days and slots follow (ELA-18). --}}
+        <div class="chips" role="group" aria-label="{{ __('app.booking.branch') }}" style="margin-bottom:0.85rem">
+            @foreach ($branches as $choice)
+                <button type="button" class="chip" wire:key="br-{{ $choice->id }}"
+                        wire:click="selectBranch({{ $choice->id }})"
+                        @if ($choice->id === $bookingBranch->id) aria-pressed="true" @endif>
+                    🏥 {{ $choice->name }}
+                </button>
+            @endforeach
+        </div>
+    @endif
+
     @if ($notice !== null)
         <div class="flash {{ $failed ? 'flash-err' : 'flash-ok' }}">
             {{ $notice }}

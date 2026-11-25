@@ -24,7 +24,8 @@ class HomeController extends V1Controller
         $clinic = $this->clinic($request);
         $user = $this->user($request);
         $today = $this->slots->today($clinic);
-        $calendar = $this->calendar->range($clinic, $today, $today);
+        $branch = $this->branch($request);
+        $calendar = $this->calendar->range($clinic, $today, $today, branch: $branch);
 
         /*
          * Today, and only today. This once read `start_at >= now` with no
@@ -38,6 +39,7 @@ class HomeController extends V1Controller
          * moment it starts needing attention.
          */
         $upcoming = $clinic->bookings()
+            ->where('branch_id', $branch->id)
             ->with(['patient', 'visitType', 'reminders'])
             ->onDate($today->toDateString())
             ->whereIn('status', BookingStatus::inQueue())

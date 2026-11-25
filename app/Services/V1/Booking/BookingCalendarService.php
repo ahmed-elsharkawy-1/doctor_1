@@ -6,7 +6,9 @@ use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
 use App\Enums\DayOfWeek;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
+use App\Models\ClinicHoliday;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -17,8 +19,11 @@ class BookingCalendarService
     /**
      * @return array{from: Carbon, to: Carbon, days: list<array<string, mixed>>, bookings: array<string, list<Booking>>}
      */
-    public function range(Clinic $clinic, ?Carbon $from = null, ?Carbon $to = null, ?BookingStatus $status = null): array
+    public function range(Clinic $clinic, ?Carbon $from = null, ?Carbon $to = null, ?BookingStatus $status = null, ?Branch $branch = null): array
     {
+        // ELA-18: one branch's days and bookings; the clinic's first branch
+        // when not given.
+        $branch ??= $clinic->firstBranch();
         $from ??= $this->slots->today($clinic);
         $to ??= $from->copy()->addDays($clinic->booking_window_days - 1);
 
@@ -26,6 +31,7 @@ class BookingCalendarService
         $to = $this->clinicDate($clinic, $to);
 
         $bookings = $clinic->bookings()
+            ->where('branch_id', $branch->id)
             ->with(['patient', 'visitType', 'reminders'])
             ->whereBetween('visit_date', [$from->toDateString(), $to->toDateString()])
             ->orderBy('visit_date')
@@ -33,7 +39,7 @@ class BookingCalendarService
             ->get();
 
         $counts = $this->countsByDay($bookings);
-        $days = $this->days($clinic, $from, $to, $counts);
+        $days = $this->days($clinic, $branch, $from, $to, $counts);
 
         $cards = $bookings
             ->when($status !== null, fn (Collection $items) => $items->where('status', $status))
@@ -96,15 +102,16 @@ class BookingCalendarService
      * @param  array<string, array<string, int>>  $counts
      * @return list<array<string, mixed>>
      */
-    private function days(Clinic $clinic, Carbon $from, Carbon $to, array $counts): array
+    private function days(Clinic $clinic, Branch $branch, Carbon $from, Carbon $to, array $counts): array
     {
-        $holidays = $clinic->holidays()
+        $holidays = ClinicHoliday::query()
+            ->closing($branch)
             ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
             ->pluck('date')
             ->map(static fn ($date) => Carbon::parse($date)->toDateString())
             ->flip();
 
-        $openDays = $clinic->schedules()
+        $openDays = $branch->schedules()
             ->where('is_open', true)
             ->pluck('day_of_week')
             ->map(static fn ($day) => $day instanceof DayOfWeek ? $day->value : (int) $day)

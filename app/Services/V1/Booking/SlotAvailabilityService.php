@@ -2,8 +2,11 @@
 
 namespace App\Services\V1\Booking;
 
+use App\Enums\ApiErrorCode;
 use App\Enums\DayOfWeek;
+use App\Exceptions\ApiException;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\ClinicSchedulePeriod;
 use App\Models\SlotHold;
@@ -30,6 +33,9 @@ class SlotAvailabilityService
      *                                  else's live holds read as taken; the
      *                                  caller's own does not, or they could
      *                                  not book the slot they are sitting on.
+     * @param  Branch|null  $branch  whose hours and holidays decide the slots
+     *                               (ELA-18); the clinic's first branch when
+     *                               not given, the only one before branches
      */
     public function for(
         Clinic $clinic,
@@ -37,23 +43,32 @@ class SlotAvailabilityService
         VisitType $visitType,
         ?int $ignoreBookingId = null,
         ?string $holdToken = null,
+        ?Branch $branch = null,
     ): DayAvailability {
         $date = $this->clinicDate($clinic, $date);
+        $branch = $this->branch($clinic, $branch);
 
         if (! $this->isWithinWindow($clinic, $date)) {
             return DayAvailability::closed($date, $visitType, ClosedReason::OUTSIDE_WINDOW);
         }
 
-        if ($this->isHoliday($clinic, $date)) {
+        if (! $branch->is_active) {
+            return DayAvailability::closed($date, $visitType, ClosedReason::BRANCH_INACTIVE);
+        }
+
+        if ($branch->isClosedOn($date)) {
             return DayAvailability::closed($date, $visitType, ClosedReason::HOLIDAY);
         }
 
-        $schedule = $clinic->scheduleFor(DayOfWeek::fromDate($date));
+        $schedule = $branch->scheduleFor(DayOfWeek::fromDate($date));
 
         if ($schedule === null || ! $schedule->is_open) {
             return DayAvailability::closed($date, $visitType, ClosedReason::WEEKLY_CLOSED);
         }
 
+        // Taken and held time is the doctor's, at every branch: one person
+        // can't see two patients at once. Hours never overlap across branches
+        // (ScheduleService), so this costs a branch nothing it could offer.
         $taken = $this->takenIntervals($clinic, $date, $ignoreBookingId)
             ->concat($this->heldIntervals($clinic, $date, $holdToken));
 
@@ -82,9 +97,9 @@ class SlotAvailabilityService
      *                        the start's own date, once a period runs past
      *                        midnight
      */
-    public function isBookable(Clinic $clinic, Carbon $date, Carbon $startAt, VisitType $visitType, ?int $ignoreBookingId = null): bool
+    public function isBookable(Clinic $clinic, Carbon $date, Carbon $startAt, VisitType $visitType, ?int $ignoreBookingId = null, ?Branch $branch = null): bool
     {
-        $availability = $this->for($clinic, $date, $visitType, $ignoreBookingId);
+        $availability = $this->for($clinic, $date, $visitType, $ignoreBookingId, branch: $branch);
 
         foreach ($availability->slots as $slot) {
             if ($slot->startAt->equalTo($startAt)) {
@@ -104,20 +119,20 @@ class SlotAvailabilityService
      * before the overnight period closes (ScheduleService refuses it), so the
      * time is never ambiguous.
      */
-    public function startAt(Clinic $clinic, string $date, string $time): Carbon
+    public function startAt(Clinic $clinic, string $date, string $time, ?Branch $branch = null): Carbon
     {
         $day = Carbon::parse($date, $clinic->timezone)->startOfDay();
         $time = substr($time, 0, 5);
 
-        $overnight = $clinic->scheduleFor(DayOfWeek::fromDate($day))?->overnightPeriod();
+        $overnight = $this->branch($clinic, $branch)->scheduleFor(DayOfWeek::fromDate($day))?->overnightPeriod();
         $startsOn = $overnight !== null && $time < $overnight->endTime() ? $day->copy()->addDay() : $day;
 
         return Carbon::parse($startsOn->toDateString().' '.$time, $clinic->timezone);
     }
 
-    public function closedReasonFor(Clinic $clinic, Carbon $date, VisitType $visitType): ?ClosedReason
+    public function closedReasonFor(Clinic $clinic, Carbon $date, VisitType $visitType, ?Branch $branch = null): ?ClosedReason
     {
-        return $this->for($clinic, $date, $visitType)->closedReason;
+        return $this->for($clinic, $date, $visitType, branch: $branch)->closedReason;
     }
 
     /**
@@ -155,9 +170,27 @@ class SlotAvailabilityService
         return $clinic->currentDay();
     }
 
-    public function isHoliday(Clinic $clinic, Carbon $date): bool
+    public function isHoliday(Clinic $clinic, Carbon $date, ?Branch $branch = null): bool
     {
-        return $clinic->holidays()->whereDate('date', $date->toDateString())->exists();
+        return $this->branch($clinic, $branch)->isClosedOn($date);
+    }
+
+    /**
+     * The branch asked about, or the clinic's first, which is where every
+     * clinic's hours lived before branches. A branch of another clinic is a
+     * caller's mistake, never a fallback.
+     */
+    private function branch(Clinic $clinic, ?Branch $branch): Branch
+    {
+        if ($branch !== null) {
+            if ($branch->clinic_id !== $clinic->id) {
+                throw ApiException::make(ApiErrorCode::BRANCH_NOT_FOUND, __('settings.branch.not_found'), http: 404);
+            }
+
+            return $branch;
+        }
+
+        return $clinic->firstBranch();
     }
 
     /**

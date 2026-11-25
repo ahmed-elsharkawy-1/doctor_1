@@ -270,6 +270,7 @@ return [
     ],
 
     'booking' => [
+        'branch' => 'الفرع',
         'title' => 'حجز جديد',
         'new' => 'حجز جديد',
         'back_to_queue' => 'قائمة اليوم',

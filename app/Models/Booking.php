@@ -28,6 +28,7 @@ class Booking extends Model
 
     protected $fillable = [
         'clinic_id',
+        'branch_id',
         'doctor_id',
         'patient_id',
         'visit_type_id',
@@ -68,6 +69,13 @@ class Booking extends Model
     protected static function booted(): void
     {
         static::creating(function (self $booking): void {
+            $model = $booking;
+            // At a branch (ELA-18). Code written before branches, and every
+            // clinic with one, lands on the clinic's first branch.
+            if ($model->branch_id === null && $model->clinic_id !== null) {
+                $model->branch_id = Branch::query()->where('clinic_id', $model->clinic_id)->min('id');
+            }
+
             $booking->tracking_token ??= Str::random(
                 config('clinic.tracking.token_bytes') * 2,
             );
@@ -119,6 +127,12 @@ class Booking extends Model
             'contacted_at' => 'datetime',
             'queue_entered_at' => 'datetime',
         ];
+    }
+
+    /** @return BelongsTo<Branch, $this> */
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     /** @return BelongsTo<Clinic, $this> */

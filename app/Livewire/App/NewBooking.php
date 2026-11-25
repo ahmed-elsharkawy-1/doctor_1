@@ -7,6 +7,7 @@ use App\Enums\BookingKind;
 use App\Enums\PatientLocation;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\Patient;
 use App\Services\V1\Booking\BookingDaysService;
@@ -80,6 +81,12 @@ class NewBooking extends ClinicComponent
 
     public bool $failed = false;
 
+    /**
+     * The branch the patient is booked at (ELA-18): the one the header is on
+     * unless she picks another of hers. Checked on every use, never trusted.
+     */
+    public ?int $branchId = null;
+
     /** Shown after a save, so the secretary can hand the link over. */
     public ?string $trackingUrl = null;
 
@@ -87,6 +94,7 @@ class NewBooking extends ClinicComponent
     {
         $clinic = $this->clinic();
 
+        $this->branchId = $this->branch()->id;
         $this->date = $clinic->currentDay()->toDateString();
         $this->visitTypeId = $clinic->visitTypes()->active()->value('id');
 
@@ -186,7 +194,9 @@ class NewBooking extends ClinicComponent
         return view('livewire.app.new-booking', [
             'visitTypes' => $this->clinic()->visitTypes()->active()->orderBy('name')->get(),
             'patients' => $this->patientResults(),
-            'days' => app(BookingDaysService::class)->window($this->clinic()),
+            'days' => app(BookingDaysService::class)->window($this->clinic(), branch: $this->bookingBranch()),
+            'branches' => $this->bookableBranches(),
+            'bookingBranch' => $this->bookingBranch(),
             'availability' => $availability,
             'locations' => PatientLocation::cases(),
         ])->title(__('app.booking.title'));
@@ -295,6 +305,7 @@ class NewBooking extends ClinicComponent
                 $this->date,
                 $startTime,
                 token: $this->holdToken(),
+                branch: $this->bookingBranch(),
             );
         } catch (ApiException $e) {
             // Taken between the page rendering and the tap. Re-rendering the
@@ -381,6 +392,7 @@ class NewBooking extends ClinicComponent
                     holdToken: $this->holdToken(),
                 ),
                 auth()->user(),
+                $this->bookingBranch(),
             );
 
             $this->afterSave($booking);
@@ -436,6 +448,12 @@ class NewBooking extends ClinicComponent
     private function afterSave(Booking $booking): void
     {
         $this->notice = __('booking.created');
+
+        // Said whenever there is more than one branch to have meant (ELA-18).
+        if ($this->clinic()->branches()->count() > 1) {
+            $this->notice .= ' · 🏥 '.$booking->branch?->name;
+        }
+
         $this->failed = false;
         $this->trackingUrl = $booking->trackingUrl();
 
@@ -498,6 +516,45 @@ class NewBooking extends ClinicComponent
             // Everyone else's holds grey a slot out; the one this screen is
             // holding must stay pickable, or she could not book it.
             holdToken: $this->holdToken(),
+            branch: $this->bookingBranch(),
         );
+    }
+
+    /**
+     * Another branch: its own days and slots, so whatever was picked for the
+     * last one goes (ELA-18).
+     */
+    public function selectBranch(int $branchId): void
+    {
+        if ($this->bookableBranches()->firstWhere('id', $branchId) === null) {
+            return;
+        }
+
+        $this->releaseHold();
+        $this->branchId = $branchId;
+        $this->startTime = null;
+    }
+
+    /**
+     * Branches she can book at: hers, active, with working hours (ELA-18).
+     *
+     * @return Collection<int, Branch>
+     */
+    private function bookableBranches(): Collection
+    {
+        return auth()->user()->accessibleBranches($this->clinic())
+            ->filter(fn (Branch $branch) => $branch->is_active && $branch->hasWorkingHours())
+            ->values();
+    }
+
+    /**
+     * The picked branch if she still may book there, else the one she is on.
+     */
+    private function bookingBranch(): Branch
+    {
+        $branch = $this->bookableBranches()->firstWhere('id', $this->branchId) ?? $this->branch();
+        $this->branchId = $branch->id;
+
+        return $branch;
     }
 }

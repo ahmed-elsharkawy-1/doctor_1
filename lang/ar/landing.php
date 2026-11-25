@@ -63,6 +63,7 @@ return [
 
     // Location
     'address' => 'العنوان',
+    'book_at_branch' => 'احجز في الفرع ده',
     'directions' => 'الاتجاهات على الخريطة',
     'open_map' => 'فتح الخريطة',
 ];

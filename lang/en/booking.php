@@ -40,6 +40,7 @@ return [
         'weekly_closed' => 'The clinic is closed that day',
         'holiday' => 'That day is a holiday',
         'outside_window' => 'That day is outside the booking window',
+        'branch_inactive' => 'This branch is not taking new bookings',
     ],
     'status' => [
         'booked' => 'Booked',
@@ -253,6 +254,9 @@ return [
         'done_sent' => 'We sent the details on WhatsApp to :patient.',
         'done_patient' => 'Client',
         'done_code' => 'Client code',
+        'branch_pick' => 'Choose the branch',
+        'branch_map' => 'The branch on the map',
+        'done_branch' => 'Branch',
         'done_location' => 'Location',
         'done_track_title' => 'Follow your place in the queue',
         'done_track_lead' => 'The tracking page shows how many people are ahead of you and when to arrive — no waiting at the clinic.',

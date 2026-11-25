@@ -1,5 +1,31 @@
 <section class="cols panel" id="panel-location" role="tabpanel" aria-labelledby="tab-location" hidden>
     <div class="stack">
+        @if ($branches->count() > 1)
+            {{-- One card per branch: where, which days, and a link that opens
+                 the booking page on that branch (ELA-18). --}}
+            @foreach ($branches as $branch)
+                <section class="card">
+                    <h2>🏥 {{ $branch->name }}</h2>
+                    @if ($branch->displayAddress())
+                        <p class="lede">{{ $branch->displayAddress() }}</p>
+                    @endif
+                    @if ($days = $branch->workingDaysLabel())
+                        <p class="lede">{{ $days }}</p>
+                    @endif
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+                        @if ($map = $branch->mapLink())
+                            <a class="btn btn-ghost" href="{{ $map }}" target="_blank" rel="noopener">
+                                @include('landing.partials.icon', ['name' => 'pin'])
+                                {{ __('landing.directions') }}
+                            </a>
+                        @endif
+                        @if ($selfBookingEnabled)
+                            <a class="btn btn-book" href="{{ route('patient.book', $clinic->slug) }}?b={{ $branch->id }}">{{ __('landing.book_at_branch') }}</a>
+                        @endif
+                    </div>
+                </section>
+            @endforeach
+        @else
         <section class="card">
             <h2>{{ __('landing.address') }}</h2>
 
@@ -19,6 +45,7 @@
                 </a>
             @endif
         </section>
+        @endif
     </div>
 
     @include('landing.partials.booking-card', [

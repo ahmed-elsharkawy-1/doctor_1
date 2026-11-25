@@ -88,6 +88,41 @@ class Branch extends Model
     }
 
     /**
+     * "السبت لللخميس"-style label for the days this branch is open, as the
+     * public page shows the clinic's (ELA-18). Null with no open day.
+     */
+    public function workingDaysLabel(): ?string
+    {
+        $open = $this->schedules()->where('is_open', true)->whereHas('periods')->get();
+
+        if ($open->isEmpty()) {
+            return null;
+        }
+
+        $first = $open->first()->day_of_week;
+        $last = $open->last()->day_of_week;
+
+        if ($first === $last) {
+            return $first->label();
+        }
+
+        return __('landing.days_range', [
+            'from' => $first->label(),
+            'to' => preg_replace('/^ال/u', 'لل', $last->label()),
+        ]);
+    }
+
+    /**
+     * A Google Maps link to the branch: its pin, else its address.
+     */
+    public function mapLink(): ?string
+    {
+        $query = $this->coordinates() ?? $this->displayAddress();
+
+        return $query === null ? null : 'https://maps.google.com/?q='.urlencode($query);
+    }
+
+    /**
      * The clinic's original branch: the one every existing clinic was given,
      * and the one whose address and pin are the clinic's own.
      */

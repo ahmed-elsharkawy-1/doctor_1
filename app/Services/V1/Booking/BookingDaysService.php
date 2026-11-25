@@ -4,7 +4,10 @@ namespace App\Services\V1\Booking;
 
 use App\Enums\BookingStatus;
 use App\Enums\DayOfWeek;
+use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
+use App\Models\ClinicHoliday;
 use Illuminate\Support\Carbon;
 
 /**
@@ -36,25 +39,29 @@ class BookingDaysService
      *                              secretary keeps room for the people who
      *                              phone her.
      */
-    public function window(Clinic $clinic, ?int $dayCount = null): array
+    public function window(Clinic $clinic, ?int $dayCount = null, ?Branch $branch = null): array
     {
+        // ELA-18: the branch's own days, holidays and bookings; the clinic's
+        // first branch when not given.
+        $branch ??= $clinic->firstBranch();
         $dayCount = max(1, $dayCount ?? $clinic->booking_window_days);
         $today = $this->slots->today($clinic);
         $days = [];
 
-        $holidays = $clinic->holidays()
+        $holidays = ClinicHoliday::query()
+            ->closing($branch)
             ->whereDate('date', '>=', $today->toDateString())
             ->pluck('date')
             ->map(static fn ($date) => Carbon::parse($date)->toDateString())
             ->flip();
 
-        $openDays = $clinic->schedules()
+        $openDays = $branch->schedules()
             ->where('is_open', true)
             ->pluck('day_of_week')
             ->map(static fn ($day) => $day instanceof DayOfWeek ? $day->value : (int) $day)
             ->flip();
 
-        $counts = $this->bookingCounts($clinic, $today, $dayCount);
+        $counts = $this->bookingCounts($branch, $today, $dayCount);
 
         for ($offset = 0; $offset < $dayCount; $offset++) {
             $date = $today->copy()->addDays($offset);
@@ -80,11 +87,12 @@ class BookingDaysService
      *
      * @return array<string, array{total: int, pending: int}>
      */
-    private function bookingCounts(Clinic $clinic, Carbon $today, int $dayCount): array
+    private function bookingCounts(Branch $branch, Carbon $today, int $dayCount): array
     {
         $lastDay = $today->copy()->addDays($dayCount - 1);
 
-        return $clinic->bookings()
+        return Booking::query()
+            ->where('branch_id', $branch->id)
             ->whereBetween('visit_date', [$today->toDateString(), $lastDay->toDateString()])
             ->occupyingSlot()
             ->get(['visit_date', 'status'])

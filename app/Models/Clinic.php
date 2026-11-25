@@ -495,12 +495,14 @@ class Clinic extends Model
         $today = Carbon::parse($now->toDateString(), $this->timezone);
         $yesterday = Carbon::parse($now->copy()->subDay()->toDateString(), $this->timezone);
 
-        $overnight = $this->scheduleFor(DayOfWeek::fromDate($yesterday))?->overnightPeriod();
+        // Last night's evening at whichever branch the doctor worked it: the
+        // hours never let two branches run past midnight the same night.
+        foreach ($this->branches()->reorder()->orderBy('id')->get() as $branch) {
+            $overnight = $branch->scheduleFor(DayOfWeek::fromDate($yesterday))?->overnightPeriod();
 
-        if ($overnight !== null && $now->format('H:i') < $overnight->endTime()) {
-            $wasHoliday = $this->holidays()->whereDate('date', $yesterday->toDateString())->exists();
-
-            return $wasHoliday ? $today : $yesterday;
+            if ($overnight !== null && $now->format('H:i') < $overnight->endTime()) {
+                return $branch->isClosedOn($yesterday) ? $today : $yesterday;
+            }
         }
 
         // Past the end of the clinic day, whatever is still waiting is over.
@@ -533,7 +535,10 @@ class Clinic extends Model
      */
     public function workingDaysLabel(): ?string
     {
+        // The first branch's week, the clinic's own before branches; the
+        // public page lists each branch's when there are more (ELA-18).
         $openDays = $this->schedules
+            ->where('branch_id', $this->firstBranchId())
             ->where('is_open', true)
             ->sortBy(fn (ClinicSchedule $day): int => $day->day_of_week->value);
 

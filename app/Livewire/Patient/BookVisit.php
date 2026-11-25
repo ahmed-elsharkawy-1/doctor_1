@@ -4,6 +4,7 @@ namespace App\Livewire\Patient;
 
 use App\Exceptions\ApiException;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\VisitType;
 use App\Models\WaitingListEntry;
@@ -15,6 +16,7 @@ use App\Support\PhoneNumber;
 use Closure;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
@@ -42,6 +44,14 @@ class BookVisit extends Component
      * stage() decides that from the session.
      */
     public int $step = 1;
+
+    /**
+     * The branch the patient is booking at (ELA-18). `?b=` on a branch's own
+     * link preselects it; checked against the bookable branches on every
+     * use, so an edited value only ever falls back to the first.
+     */
+    #[Url(as: 'b', except: null)]
+    public ?int $branchId = null;
 
     public string $name = '';
 
@@ -109,6 +119,7 @@ class BookVisit extends Component
         $this->slug = $slug;
 
         $clinic = $this->clinic();
+        $this->branchId = $this->service()->branchFor($clinic, $this->branchId)?->id;
 
         // The proof of the phone is in the session and survives a reload; the
         // name is a property on this class and does not. Without this, coming
@@ -144,6 +155,7 @@ class BookVisit extends Component
             $clinic,
             $this->selectedVisitType(),
             $this->days($clinic),
+            $this->bookingBranch(),
         );
     }
 
@@ -165,7 +177,7 @@ class BookVisit extends Component
      */
     private function days(Clinic $clinic): array
     {
-        return $this->days ??= $this->service()->overview($clinic, $this->selectedVisitType());
+        return $this->days ??= $this->service()->overview($clinic, $this->selectedVisitType(), $this->bookingBranch());
     }
 
     public function render(): View
@@ -176,7 +188,7 @@ class BookVisit extends Component
 
         $slotGroups = $availability === null
             ? []
-            : $this->service()->slotGroups($clinic, $availability);
+            : $this->service()->slotGroups($clinic, $availability, $this->bookingBranch());
 
         // Here rather than in the day and visit-type handlers: this is the one
         // place the groups are already built, and working out which stretch
@@ -191,6 +203,9 @@ class BookVisit extends Component
 
         return view('livewire.patient.book-visit', [
             'clinic' => $clinic,
+            // Branch cards only when there is a choice (ELA-18).
+            'branches' => $this->service()->branches($clinic),
+            'branch' => $this->bookingBranch(),
             'doctor' => $clinic->doctor,
             'stage' => $stage,
             // The same day list either way, counted against whichever visit
@@ -208,7 +223,7 @@ class BookVisit extends Component
                 && filled($this->date)
                 && filled($this->startTime)
                 && app(SlotAvailabilityService::class)
-                    ->startAt($clinic, $this->date, (string) $this->startTime)
+                    ->startAt($clinic, $this->date, (string) $this->startTime, $this->bookingBranch())
                     ->toDateString() !== $this->date,
             'upcoming' => $stage === 'upcoming' ? $this->upcoming() : null,
             'waitingOffer' => $waitingOffer,
@@ -477,6 +492,28 @@ class BookVisit extends Component
         $this->openGroup = $this->openGroup === $index ? null : $index;
     }
 
+    /**
+     * Another branch: its own days and times, so the day and slot picked for
+     * the last one go, and the first day with room there is picked (ELA-18).
+     */
+    public function selectBranch(int $branchId): void
+    {
+        $branch = $this->service()->branches($this->clinic())->firstWhere('id', $branchId);
+
+        if ($branch === null) {
+            return;
+        }
+
+        $this->branchId = $branch->id;
+        $this->days = null;
+        $this->showWaitingSheet = false;
+        $this->forgetOpenGroup();
+        $this->startTime = null;
+        $this->releaseHold();
+        $this->clearNotice();
+        $this->date = $this->service()->firstBookableDate($this->clinic(), $this->selectedVisitType(), branch: $branch);
+    }
+
     public function selectDay(string $date): void
     {
         $this->date = $date;
@@ -538,6 +575,7 @@ class BookVisit extends Component
                 $this->date,
                 $startTime,
                 $this->holdToken(),
+                $this->bookingBranch(),
             );
 
             $this->heldSlot()->remember($this->clinic(), $token);
@@ -565,6 +603,7 @@ class BookVisit extends Component
                 $this->date,
                 (string) $this->startTime,
                 $this->holdToken(),
+                $this->bookingBranch(),
             );
 
             $this->confirmedBookingId = $booking->id;
@@ -649,7 +688,7 @@ class BookVisit extends Component
 
         return $visitType === null
             ? null
-            : $this->service()->availability($this->clinic(), $visitType, $this->date, $this->holdToken());
+            : $this->service()->availability($this->clinic(), $visitType, $this->date, $this->holdToken(), $this->bookingBranch());
     }
 
     public function selectedVisitType(): ?VisitType
@@ -691,6 +730,18 @@ class BookVisit extends Component
     | Plumbing
     |--------------------------------------------------------------------------
     */
+
+    /**
+     * The branch picked, if a patient can still book there; else the first
+     * that can. Null only when no branch takes bookings.
+     */
+    private function bookingBranch(): ?Branch
+    {
+        $branch = $this->service()->branchFor($this->clinic(), $this->branchId);
+        $this->branchId = $branch?->id;
+
+        return $branch;
+    }
 
     private function service(): PatientBookingService
     {

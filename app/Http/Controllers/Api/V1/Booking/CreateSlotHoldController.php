@@ -34,6 +34,7 @@ class CreateSlotHoldController extends V1Controller
             BookingSource::CLINIC,
             $this->user($request),
             $request->validated('token'),
+            $this->branch($request),
         );
 
         return ApiResponse::created(

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Enums\DayOfWeek;
 use App\Http\Controllers\Controller;
 use App\Models\Clinic;
+use App\Services\V1\Booking\PatientBookingService;
 use App\Services\V1\QrPoster\QrScanService;
 use App\Support\PhoneNumber;
 use Illuminate\Http\Request;
@@ -51,7 +52,9 @@ class DoctorLandingController extends Controller
         $phone = $clinic->phone === null
             ? null
             : PhoneNumber::tryParse($clinic->phone, $clinic->country_code);
-        $openDays = $clinic->schedules->where('is_open', true);
+        // The first branch's week, the clinic's own before branches. With
+        // more than one, each branch shows its own below (ELA-18).
+        $openDays = $clinic->schedules->where('branch_id', $clinic->firstBranchId())->where('is_open', true);
 
         return view('landing.show', [
             'clinic' => $clinic,
@@ -68,6 +71,9 @@ class DoctorLandingController extends Controller
             // Switched on per clinic by the operator. When it is, booking
             // online becomes the page's primary action.
             'selfBookingEnabled' => $clinic->allowsSelfBooking(),
+            // Branches a patient can book at: listed only when there is more
+            // than one (ELA-18).
+            'branches' => app(PatientBookingService::class)->branches($clinic),
         ]);
     }
 

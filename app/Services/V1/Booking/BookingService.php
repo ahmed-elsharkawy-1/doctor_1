@@ -12,6 +12,7 @@ use App\Events\SelfBookingReceived;
 use App\Events\SlotsChanged;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\Doctor;
 use App\Models\Patient;
@@ -40,11 +41,18 @@ class BookingService
      *                            is no account behind a public page, and
      *                            `created_by` is nullable for exactly that.
      */
-    public function create(Clinic $clinic, BookingData $data, ?User $actor = null): Booking
+    /**
+     * @param  Branch|null  $branch  where the patient is booked (ELA-18): the
+     *                               caller has already checked the account may
+     *                               use it. The clinic's first branch when not
+     *                               given, the only one before branches.
+     */
+    public function create(Clinic $clinic, BookingData $data, ?User $actor = null, ?Branch $branch = null): Booking
     {
+        $branch ??= $clinic->firstBranch();
         $visitType = $this->activeVisitType($clinic, $data->visitTypeId);
         $startAt = $data->bookingKind === BookingKind::NORMAL
-            ? $this->startAt($clinic, $data->date, (string) $data->startTime)
+            ? $this->startAt($clinic, $data->date, (string) $data->startTime, $branch)
             : null;
         $doctor = $this->doctor($clinic);
 
@@ -53,12 +61,16 @@ class BookingService
         $fromWaitingList = null;
 
         $booking = $this->claimingTheDay($clinic, $this->clinicDate($clinic, $data->date), function () use (
-            $clinic, $data, $visitType, $startAt, $doctor, $actor, $phone, &$fromWaitingList
+            $clinic, $data, $visitType, $startAt, $doctor, $actor, $phone, $branch, &$fromWaitingList
         ) {
             if ($data->bookingKind === BookingKind::NORMAL) {
                 // Asked with this caller's own hold, so the slot they have
                 // been sitting on is free to them and to nobody else.
-                $this->guard->ensureFree($clinic, $this->clinicDate($clinic, $data->date), $startAt, $visitType, holdToken: $data->holdToken);
+                $this->guard->ensureFree($clinic, $this->clinicDate($clinic, $data->date), $startAt, $visitType, holdToken: $data->holdToken, branch: $branch);
+            } elseif (! $branch->is_active) {
+                // An emergency skips the slot grid, but not the rule that a
+                // deactivated branch takes no new booking (ELA-16).
+                throw ApiException::make(ApiErrorCode::CLINIC_CLOSED_THAT_DAY, ClosedReason::BRANCH_INACTIVE->label(), details: ['reason' => ClosedReason::BRANCH_INACTIVE->value], http: 409);
             }
 
             $patient = $this->patientFor($clinic, $data, $phone);
@@ -68,6 +80,7 @@ class BookingService
                 && $data->patientLocation === PatientLocation::INSIDE_CLINIC;
 
             $booking = $clinic->bookings()->create([
+                'branch_id' => $branch->id,
                 'doctor_id' => $doctor->id,
                 'patient_id' => $patient->id,
                 'visit_type_id' => $visitType->id,
@@ -142,7 +155,7 @@ class BookingService
 
         $visitType = $this->activeVisitType($clinic, $data->visitTypeId);
         $startAt = $data->bookingKind === BookingKind::NORMAL
-            ? $this->startAt($clinic, $data->date, (string) $data->startTime)
+            ? $this->startAt($clinic, $data->date, (string) $data->startTime, $booking->branch)
             : null;
         $phone = $data->phone === null ? null : $this->patients->parsePhone($clinic, $data->phone);
 
@@ -156,7 +169,8 @@ class BookingService
         ) {
             // The booking must not collide with itself.
             if ($data->bookingKind === BookingKind::NORMAL) {
-                $this->guard->ensureFree($clinic, $this->clinicDate($clinic, $data->date), $startAt, $visitType, $booking->id, $data->holdToken);
+                // An edit stays at the booking's own branch (ELA-18).
+                $this->guard->ensureFree($clinic, $this->clinicDate($clinic, $data->date), $startAt, $visitType, $booking->id, $data->holdToken, $booking->branch);
             }
 
             $patient = $this->patientFor($clinic, $data, $phone);
@@ -318,9 +332,9 @@ class BookingService
         return $doctor;
     }
 
-    private function startAt(Clinic $clinic, string $date, string $time): Carbon
+    private function startAt(Clinic $clinic, string $date, string $time, ?Branch $branch = null): Carbon
     {
-        return $this->slots->startAt($clinic, $date, $time);
+        return $this->slots->startAt($clinic, $date, $time, $branch);
     }
 
     private function clinicDate(Clinic $clinic, string $date): Carbon

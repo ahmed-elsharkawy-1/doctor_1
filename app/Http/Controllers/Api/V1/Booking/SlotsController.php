@@ -36,6 +36,8 @@ class SlotsController extends V1Controller
             $visitType,
             // Everyone else's holds read as taken; this caller's own does not.
             holdToken: $request->validated('hold_token'),
+            // The branch the app is on: its hours and holidays (ELA-18).
+            branch: $this->branch($request),
         );
 
         return ApiResponse::success(
