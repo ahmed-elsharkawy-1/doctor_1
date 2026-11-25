@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Docs\ApiReferenceController;
+use App\Http\Controllers\Web\App\SwitchBranchController;
 use App\Http\Controllers\Web\Auth\LoginController;
 use App\Http\Controllers\Web\BookingReviewController;
 use App\Http\Controllers\Web\BookingTrackingController;
@@ -27,6 +28,7 @@ use App\Livewire\App\Settings\Branches;
 use App\Livewire\App\Settings\General;
 use App\Livewire\App\Settings\Holidays;
 use App\Livewire\App\Settings\Hours;
+use App\Livewire\App\Settings\Team;
 use App\Livewire\App\Settings\VisitTypes;
 use App\Livewire\App\WaitingList;
 use App\Livewire\Patient\BookVisit;
@@ -182,7 +184,10 @@ Route::prefix('app')->name('app.')->group(function (): void {
             Route::get('visit-types', VisitTypes::class)->name('.visit-types');
             Route::get('holidays', Holidays::class)->name('.holidays');
             Route::get('branches', Branches::class)->name('.branches');
+            Route::get('team', Team::class)->name('.team');
         });
+        // The header's branch switcher (ELA-17).
+        Route::post('branch', SwitchBranchController::class)->name('branch.switch');
         Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
     });
 });

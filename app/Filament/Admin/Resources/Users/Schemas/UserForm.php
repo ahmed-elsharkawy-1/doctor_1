@@ -11,6 +11,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 
 class UserForm
@@ -74,6 +75,7 @@ class UserForm
                         ->multiple()
                         ->searchable()
                         ->preload()
+                        ->live()
                         // Super admins are platform-wide; everyone else must
                         // belong to at least one clinic.
                         ->visible(fn ($get): bool => $get('role') !== UserRole::SUPER_ADMIN->value)
@@ -117,6 +119,21 @@ class UserForm
                         ->live()
                         ->visible(fn ($get): bool => $get('role') === UserRole::CLINIC->value)
                         ->helperText(__('filament.user.is_owner_hint')),
+
+                    // ELA-17: a team member works only at these. The doctor
+                    // works at every branch and needs none.
+                    Select::make('branches')
+                        ->label(__('filament.user.branches'))
+                        ->relationship(
+                            'branches',
+                            'name',
+                            modifyQueryUsing: fn (Builder $query, $get) => $query->whereIn('clinic_id', (array) $get('clinics')),
+                        )
+                        ->multiple()
+                        ->preload()
+                        ->visible(fn ($get): bool => $get('role') === UserRole::CLINIC->value && ! $get('is_owner'))
+                        ->required(fn ($get): bool => $get('role') === UserRole::CLINIC->value && ! $get('is_owner'))
+                        ->helperText(__('filament.user.branches_hint')),
 
                     CheckboxList::make('permissions')
                         ->label(__('filament.user.permissions'))

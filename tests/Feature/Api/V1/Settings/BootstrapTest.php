@@ -116,7 +116,7 @@ class BootstrapTest extends TestCase
         $this->assertContains('bookings.manage', $secretary);
         $this->assertContains('reports.view', $secretary);
         // ELA-17: the doctor alone holds "Manage branches" until granted.
-        $this->assertSame([...$secretary, 'branches.manage'], $owner);
+        $this->assertSame([...$secretary, 'branches.manage', 'team.manage'], $owner);
     }
 
     public function test_it_requires_a_clinic(): void

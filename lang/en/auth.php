@@ -18,4 +18,5 @@ return [
     'forbidden' => 'You do not have permission to do that',
     'clinic_not_assigned' => 'This account is not linked to any clinic',
     'clinic_inactive' => 'This clinic is currently inactive',
+    'branch_not_assigned' => 'This account is no longer assigned to any branch. Ask the doctor.',
 ];

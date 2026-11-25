@@ -48,6 +48,8 @@ use App\Http\Controllers\Api\V1\Settings\ListVisitTypesController;
 use App\Http\Controllers\Api\V1\Settings\UpdateGeneralSettingsController;
 use App\Http\Controllers\Api\V1\Settings\UpdateScheduleDayController;
 use App\Http\Controllers\Api\V1\Settings\UpdateVisitTypeController;
+use App\Http\Controllers\Api\V1\Team\ListTeamController;
+use App\Http\Controllers\Api\V1\Team\UpdateTeamMemberController;
 use App\Http\Controllers\Api\V1\WaitingList\ListWaitingListController;
 use App\Http\Controllers\Api\V1\WaitingList\RemoveWaitingListEntryController;
 use App\Http\Controllers\Api\V1\WaitingList\StoreWaitingListEntryController;
@@ -124,6 +126,17 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
         Route::post('{branch}/activate', SetBranchActiveController::class)
             ->whereNumber('branch')
             ->name('api.v1.branches.activate');
+    });
+
+    /*
+    | Settings → Team (ELA-17): each member's branches and extra permissions.
+    | The doctor's alone, whatever has been granted.
+    */
+    Route::middleware('ability:team.manage')->prefix('team')->group(function (): void {
+        Route::get('/', ListTeamController::class)->name('api.v1.team.index');
+        Route::put('{member}', UpdateTeamMemberController::class)
+            ->whereNumber('member')
+            ->name('api.v1.team.update');
     });
 
     /*

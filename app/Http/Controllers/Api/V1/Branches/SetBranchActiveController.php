@@ -19,7 +19,7 @@ class SetBranchActiveController extends V1Controller
 
     public function __invoke(Request $request, int $branch): JsonResponse
     {
-        $found = $this->branches->find($this->clinic($request), $branch);
+        $found = $this->branches->find($this->clinic($request), $branch, $this->user($request));
         $activate = $request->route()?->getName() === 'api.v1.branches.activate';
 
         $result = $activate ? $this->branches->activate($found) : $this->branches->deactivate($found);

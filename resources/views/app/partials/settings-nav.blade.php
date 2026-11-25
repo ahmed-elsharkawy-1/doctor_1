@@ -8,6 +8,7 @@
         'app.settings.visit-types' => [__('app.settings.visit_types'), 'settings.manage'],
         'app.settings.holidays'    => [__('app.settings.holidays'), 'schedule.manage'],
         'app.settings.branches'    => [__('app.settings.branches'), 'branches.manage'],
+        'app.settings.team'        => [__('app.settings.team'), 'team.manage'],
     ];
     $user = auth()->user();
 

@@ -72,6 +72,14 @@
         .appbar .who { line-height: 1.3; }
         .appbar .who b { display: block; font-size: 0.95rem; }
         .appbar .who small { color: var(--muted); font-size: 0.8rem; }
+        .branch-switch { position: relative; }
+        .branch-here { display: block; color: var(--muted); font-size: 0.8rem; }
+        .branch-switch summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; list-style: none; padding: 0.35rem 0.7rem; border: 1px solid var(--line); border-radius: 999px; font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
+        .branch-switch summary::-webkit-details-marker { display: none; }
+        /* Opens toward the inside of the screen, and never wider than it. */
+        .branch-menu { position: absolute; inset-inline-end: 0; top: calc(100% + 0.3rem); z-index: 20; min-width: 12rem; max-width: calc(100vw - 2rem); background: var(--card, #fff); border: 1px solid var(--line); border-radius: 10px; padding: 0.3rem; box-shadow: 0 6px 20px rgba(0,0,0,.12); }
+        .branch-menu button { display: block; width: 100%; text-align: start; padding: 0.55rem 0.7rem; border: 0; background: none; border-radius: 8px; font: inherit; color: inherit; cursor: pointer; min-height: 44px; }
+        .branch-menu button:hover, .branch-menu button[aria-current] { background: var(--brand-soft, rgba(0,0,0,.05)); font-weight: 600; }
 
         .appbar .nav {
             order: 3;

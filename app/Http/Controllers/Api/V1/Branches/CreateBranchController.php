@@ -15,7 +15,7 @@ class CreateBranchController extends V1Controller
 
     public function __invoke(SaveBranchRequest $request): JsonResponse
     {
-        $branch = $this->branches->create($this->clinic($request), $request->branchData());
+        $branch = $this->branches->create($this->clinic($request), $request->branchData(), $this->user($request));
 
         return ApiResponse::created((new BranchResult($branch))->toArray(), __('settings.branch.created'));
     }

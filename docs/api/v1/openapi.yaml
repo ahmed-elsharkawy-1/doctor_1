@@ -32,6 +32,17 @@ info:
 
     The clinic comes from the token. **No endpoint accepts `clinic_id`.**
     Another clinic's record returns 404, never its data.
+
+    ## Branch scope
+
+    A doctor can work at several branches (ELA-17). Send the branch the user
+    picked as `X-Branch-Id: <id>` on every call; `GET /auth/me` lists the
+    ones this account works at (`branches`) and where it opens (`branch_id`).
+    The server decides: a branch the account can't use falls back to the
+    last one it used, then its first. **Every response carries the branch it
+    acted on in `X-Branch-Id`**, so follow that header. No branches left:
+    403 `BRANCH_NOT_ASSIGNED`. With one branch there is nothing to pick and
+    the header can be left out.
   contact:
     name: Backend
     url: https://github.com/
@@ -521,6 +532,62 @@ paths:
         - { name: branch, in: path, required: true, schema: { type: integer } }
       responses:
         "200": { description: OK }
+
+  /team:
+    get:
+      tags: [Settings]
+      summary: The clinic team
+      description: |
+        The doctor first, then every team member with the branches they work
+        at and the extra permissions they hold (ELA-17). Needs `team.manage`,
+        which only the doctor has.
+      operationId: listTeam
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          members:
+                            type: array
+                            items: { $ref: "#/components/schemas/TeamMember" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /team/{member}:
+    put:
+      tags: [Settings]
+      summary: Set a member's branches and permissions
+      description: |
+        Replaces both lists. At least one branch of this clinic
+        (`TEAM_BRANCH_REQUIRED`). The doctor's own row can't be changed
+        (`TEAM_MEMBER_IS_OWNER`, 409). Applies on the member's next request.
+      operationId: updateTeamMember
+      parameters:
+        - { name: member, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [branch_ids, permissions]
+              properties:
+                branch_ids: { type: array, minItems: 1, items: { type: integer } }
+                permissions:
+                  type: array
+                  items: { type: string, enum: [branches.manage, schedule.manage] }
+      responses:
+        "200": { description: OK }
+        "404": { description: "`TEAM_MEMBER_NOT_FOUND`" }
+        "409": { description: "`TEAM_MEMBER_IS_OWNER`" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
 
   /holidays:
     get:
@@ -2198,7 +2265,7 @@ components:
       description: |
         Drives what the app shows: `bookings.manage`, `queue.manage`,
         `patients.view`, `settings.manage`, `prices.view`, `reports.view`,
-        `schedule.manage` and `branches.manage`.
+        `schedule.manage`, `branches.manage` and `team.manage` (doctor only).
 
         Only what this account can use now. The doctor (`user.is_owner`)
         has all of them. A team member lacks `schedule.manage` and
@@ -2395,6 +2462,21 @@ components:
         phone:
           type: [string, "null"]
           description: Empty for the clinic's main booking number.
+
+    TeamMember:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        is_owner: { type: boolean }
+        branch_ids:
+          type: array
+          items: { type: integer }
+          description: For the doctor, every branch.
+        permissions:
+          type: array
+          items: { type: string }
+          description: Empty for the doctor, who holds them all.
 
     Holiday:
       type: object

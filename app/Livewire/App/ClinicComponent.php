@@ -2,7 +2,9 @@
 
 namespace App\Livewire\App;
 
+use App\Models\Branch;
 use App\Models\Clinic;
+use App\Services\V1\Branches\ActiveBranch;
 use Illuminate\Support\Carbon;
 use Livewire\Component;
 use Throwable;
@@ -33,6 +35,26 @@ abstract class ClinicComponent extends Component
         abort_if($clinic === null || ! $clinic->is_active, 403);
 
         return $clinic;
+    }
+
+    /**
+     * The branch this screen works on (ELA-17): the one picked in this
+     * browser if the account may still use it, else as ActiveBranch decides.
+     * Resolved per request for the same reason as the clinic.
+     */
+    public function branch(): Branch
+    {
+        $clinic = $this->clinic();
+        $requested = session(ActiveBranch::SESSION_KEY);
+        $branch = app(ActiveBranch::class)->resolve(
+            auth()->user(),
+            $clinic,
+            is_numeric($requested) ? (int) $requested : null,
+        );
+
+        abort_if($branch === null, 403);
+
+        return $branch;
     }
 
     /**

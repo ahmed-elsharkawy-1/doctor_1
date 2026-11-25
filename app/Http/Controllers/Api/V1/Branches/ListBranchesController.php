@@ -17,7 +17,7 @@ class ListBranchesController extends V1Controller
     {
         return ApiResponse::success(
             [
-                'branches' => BranchResult::collection($this->branches->list($this->clinic($request))),
+                'branches' => BranchResult::collection($this->branches->list($this->clinic($request), $this->user($request))),
                 'can_add' => $this->branches->canAdd()
                     && $this->user($request)->hasAbility('branches.manage'),
             ],

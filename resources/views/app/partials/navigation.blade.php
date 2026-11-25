@@ -7,6 +7,13 @@
     $user = auth()->user();
     $clinic = $user->activeClinic();
 
+    // ELA-17: the current branch is always visible once there are two to
+    // choose from; with one, nothing about branches is shown at all.
+    $myBranches = $clinic === null ? collect() : $user->accessibleBranches($clinic);
+    $currentBranch = request()->attributes->get('branch')
+        ?? $myBranches->firstWhere('id', (int) session(\App\Services\V1\Branches\ActiveBranch::SESSION_KEY))
+        ?? $myBranches->first();
+
     // The call list is only worth a place in the bar while someone is on it —
     // the count is the mobile app's home-screen banner, in a nav entry.
     $awaitingRebooking = $clinic === null
@@ -56,7 +63,31 @@
         <div class="who">
             <b>{{ $clinic?->name }}</b>
             <small>{{ $user->name }}</small>
+            {{-- One branch of several: nothing to switch, but say which. --}}
+            @if ($myBranches->count() === 1 && $clinic !== null && $clinic->branches()->count() > 1)
+                <small class="branch-here">🏥 {{ $currentBranch?->name }}</small>
+            @endif
         </div>
+
+        @if ($myBranches->count() > 1 && $currentBranch !== null)
+            <details class="branch-switch">
+                <summary aria-label="{{ __('app.branches.switch') }}">
+                    🏥 {{ $currentBranch->name }}
+                </summary>
+                <form method="POST" action="{{ route('app.branch.switch') }}" class="branch-menu">
+                    @csrf
+                    @foreach ($myBranches as $choice)
+                        <button type="submit" name="branch" value="{{ $choice->id }}"
+                                @if ($choice->id === $currentBranch->id) aria-current="true" @endif>
+                            {{ $choice->name }}
+                            @unless ($choice->is_active)
+                                <small>({{ __('app.settings.branch_inactive') }})</small>
+                            @endunless
+                        </button>
+                    @endforeach
+                </form>
+            </details>
+        @endif
 
         <div class="nav">
             @foreach ($links as $link)

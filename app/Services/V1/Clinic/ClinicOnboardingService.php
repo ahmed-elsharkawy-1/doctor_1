@@ -237,6 +237,10 @@ class ClinicOnboardingService
                 $user->save();
                 $user->clinics()->attach($clinic->id);
 
+                if (! $main) {
+                    $user->branches()->attach($clinic->branches()->pluck('id')->all());
+                }
+
                 $accounts[] = ['name' => $user->name, 'email' => $user->email, 'password' => $password, 'main' => $main];
             }
 

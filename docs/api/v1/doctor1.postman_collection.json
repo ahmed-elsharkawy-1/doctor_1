@@ -2,7 +2,7 @@
     "info": {
         "_postman_id": "9e9a23e7-6658-3544-8b8d-b22cc3133382",
         "name": "Doctor 1 — Clinic Booking & Calendar API — v1.0.0",
-        "description": "The complete v1 API, consumed by the Flutter app.\n\n**This file is the source of truth.** The Postman collection is generated\nfrom it (`php artisan api:postman`), and a test fails if a registered route\nis missing here — so it cannot drift from the code.\n\n## The envelope\n\nEvery response is one of three shapes, including 404s and 500s:\n\n```\n{ \"status\": \"success\", \"message\": \"...\", \"data\": { } }\n{ \"status\": \"error\",   \"message\": \"...\", \"error\": { code, details, fields } }\n```\n\nBranch on `error.code` — a stable UPPER_SNAKE string — never on `message`,\nwhich is localised prose meant to be shown to the user as-is.\n\n## value + display\n\nAnything rendered as text arrives pre-formatted, driven by\n`Accept-Language`, so the client never re-implements Arabic formatting.\nUse `value` for logic, show `display`.\n\n## Clinic scope\n\nThe clinic comes from the token. **No endpoint accepts `clinic_id`.**\nAnother clinic's record returns 404, never its data.",
+        "description": "The complete v1 API, consumed by the Flutter app.\n\n**This file is the source of truth.** The Postman collection is generated\nfrom it (`php artisan api:postman`), and a test fails if a registered route\nis missing here — so it cannot drift from the code.\n\n## The envelope\n\nEvery response is one of three shapes, including 404s and 500s:\n\n```\n{ \"status\": \"success\", \"message\": \"...\", \"data\": { } }\n{ \"status\": \"error\",   \"message\": \"...\", \"error\": { code, details, fields } }\n```\n\nBranch on `error.code` — a stable UPPER_SNAKE string — never on `message`,\nwhich is localised prose meant to be shown to the user as-is.\n\n## value + display\n\nAnything rendered as text arrives pre-formatted, driven by\n`Accept-Language`, so the client never re-implements Arabic formatting.\nUse `value` for logic, show `display`.\n\n## Clinic scope\n\nThe clinic comes from the token. **No endpoint accepts `clinic_id`.**\nAnother clinic's record returns 404, never its data.\n\n## Branch scope\n\nA doctor can work at several branches (ELA-17). Send the branch the user\npicked as `X-Branch-Id: <id>` on every call; `GET /auth/me` lists the\nones this account works at (`branches`) and where it opens (`branch_id`).\nThe server decides: a branch the account can't use falls back to the\nlast one it used, then its first. **Every response carries the branch it\nacted on in `X-Branch-Id`**, so follow that header. No branches left:\n403 `BRANCH_NOT_ASSIGNED`. With one branch there is nothing to pick and\nthe header can be left out.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "auth": {
@@ -602,6 +602,78 @@
                             ]
                         },
                         "description": "Take bookings at a branch again"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "The clinic team",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/team",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "team"
+                            ]
+                        },
+                        "description": "The doctor first, then every team member with the branches they work\nat and the extra permissions they hold (ELA-17). Needs `team.manage`,\nwhich only the doctor has."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Set a member's branches and permissions",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/team/{member}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "team",
+                                "{member}"
+                            ]
+                        },
+                        "description": "Replaces both lists. At least one branch of this clinic\n(`TEAM_BRANCH_REQUIRED`). The doctor's own row can't be changed\n(`TEAM_MEMBER_IS_OWNER`, 409). Applies on the member's next request.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"branch_ids\": [],\n    \"permissions\": []\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
                     },
                     "response": []
                 },

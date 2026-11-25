@@ -8,6 +8,7 @@ use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -27,12 +28,16 @@ class User extends Authenticatable implements FilamentUser
         'role',
         'is_owner',
         'permissions',
+        'last_branch_id',
         'phone',
         'doctor_id',
         'locale',
         'is_active',
         'can_access_reports',
     ];
+
+    /** Abilities nobody but the doctor holds, whatever was granted. */
+    public const OWNER_ONLY_ABILITIES = ['team.manage'];
 
     protected $hidden = [
         'password',
@@ -56,6 +61,61 @@ class User extends Authenticatable implements FilamentUser
     public function clinics(): BelongsToMany
     {
         return $this->belongsToMany(Clinic::class)->withTimestamps();
+    }
+
+    /**
+     * The branches a team member is assigned to (ELA-17). The doctor works at
+     * every branch without being listed here; use accessibleBranches().
+     *
+     * @return BelongsToMany<Branch, $this>
+     */
+    public function branches(): BelongsToMany
+    {
+        return $this->belongsToMany(Branch::class)->withTimestamps();
+    }
+
+    /**
+     * The branches this account may work at, active ones first. The doctor
+     * may use all of them; a team member only the assigned ones. Inactive
+     * branches stay in: their existing bookings still need running.
+     *
+     * @return Collection<int, Branch>
+     */
+    public function accessibleBranches(Clinic $clinic): Collection
+    {
+        $query = $clinic->branches()->reorder()
+            ->orderByDesc('is_active')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+
+        if (! $this->isOwner()) {
+            $query->whereIn('branches.id', $this->branches()->select('branches.id'));
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Drops assignments that give nothing: branches of clinics this account
+     * no longer belongs to, or every one once it is the doctor.
+     */
+    public function pruneBranches(): void
+    {
+        $stale = $this->isOwner()
+            ? $this->branches()->pluck('branches.id')
+            : $this->branches()->whereNotIn('branches.clinic_id', $this->clinics()->select('clinics.id'))->pluck('branches.id');
+
+        if ($stale->isNotEmpty()) {
+            $this->branches()->detach($stale->all());
+        }
+    }
+
+    public function canUseBranch(Branch $branch): bool
+    {
+        // Both: an assignment left over from a clinic the account has since
+        // left gives nothing.
+        return $this->belongsToClinic($branch->clinic_id)
+            && ($this->isOwner() || $this->branches()->whereKey($branch->id)->exists());
     }
 
     /** @return BelongsTo<Doctor, $this> */
@@ -118,6 +178,12 @@ class User extends Authenticatable implements FilamentUser
     {
         if (! $this->is_active || ! $this->role->can($ability)) {
             return false;
+        }
+
+        // Managing the team stays with the doctor: it is how permissions are
+        // handed out, so it can't be one of them.
+        if (in_array($ability, self::OWNER_ONLY_ABILITIES, true)) {
+            return $this->isOwner();
         }
 
         $permission = StaffPermission::tryFrom($ability);

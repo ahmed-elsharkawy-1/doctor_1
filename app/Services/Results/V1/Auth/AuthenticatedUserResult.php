@@ -2,8 +2,10 @@
 
 namespace App\Services\Results\V1\Auth;
 
+use App\Models\Branch;
 use App\Models\User;
 use App\Services\Results\ServiceResult;
+use App\Services\V1\Branches\ActiveBranch;
 use App\Support\PhoneNumber;
 use App\Support\Wire;
 
@@ -46,6 +48,23 @@ final class AuthenticatedUserResult extends ServiceResult
                 'patient_arrival_lead_minutes' => $clinic->patient_arrival_lead_minutes,
             ],
         ];
+
+        // ELA-17: the branches this account works at, for the app's switcher,
+        // and the one it opens on. One branch: the app shows no switcher.
+        $branches = $clinic === null ? collect() : $this->user->accessibleBranches($clinic);
+        $requested = request()->header(ActiveBranch::HEADER);
+        $current = $clinic === null ? null : app(ActiveBranch::class)->resolve(
+            $this->user,
+            $clinic,
+            is_numeric($requested) ? (int) $requested : null,
+        );
+
+        $body['branches'] = $branches->map(fn (Branch $branch): array => [
+            'id' => $branch->id,
+            'name' => $branch->name,
+            'is_active' => $branch->is_active,
+        ])->values()->all();
+        $body['branch_id'] = $current?->id;
 
         if ($this->token !== null) {
             $body['token'] = $this->token;

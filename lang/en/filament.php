@@ -324,6 +324,8 @@ return [
         'doctor_hint' => 'Link an owner account to its doctor record.',
         'is_owner' => 'Doctor (full access)',
         'is_owner_hint' => 'Can do everything at every branch. Leave it off for an assistant.',
+        'branches' => 'Branches',
+        'branches_hint' => 'The branches this person works at. Without one they cannot open the app.',
         'permissions' => 'Extra permissions',
         'permissions_hint' => 'Without any, an assistant handles bookings, the queue and the waiting list only.',
         'can_access_reports' => 'Can see clinic reports',
