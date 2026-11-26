@@ -74,7 +74,7 @@ class CloudApiMessageSender implements MessageSender
             'to' => $to,
             'type' => 'template',
             'template' => array_filter([
-                'name' => $template->provider_template_name ?: $template->key,
+                'name' => $template->providerName(),
                 'language' => ['code' => $template->language_code ?: 'ar'],
                 'components' => $this->components($variables, $buttonSuffix),
             ]),
