@@ -89,6 +89,80 @@
             <a class="btn btn-primary" href="{{ route('app.queue') }}">{{ __('app.delay.back_to_queue') }}</a>
             <button type="button" class="btn" wire:click="again">{{ __('app.delay.another') }}</button>
         </div>
+    @elseif ($multi)
+        {{-- More than one branch (ELA-22): which branches, which day, each
+             branch's patients with its own time. --}}
+        <div class="card section">
+            <h2>{{ __('app.delay.which_branches') }}</h2>
+            <div class="chips">
+                @foreach ($branches as $b)
+                    <label class="chip" style="display:inline-flex;align-items:center;gap:0.4rem" wire:key="scope-{{ $b->id }}">
+                        <input type="checkbox" value="{{ $b->id }}" wire:model.live="scope"> {{ $b->name }}
+                    </label>
+                @endforeach
+                <button type="button" class="chip" wire:click="allBranches">{{ __('app.delay.all_branches') }}</button>
+            </div>
+            <div class="field" style="margin:0.75rem 0 0;max-width:14rem">
+                <label for="delay-day">{{ __('app.delay.day') }}</label>
+                <input id="delay-day" type="date" dir="ltr" wire:model.live="day" min="{{ $today->toDateString() }}">
+            </div>
+        </div>
+
+        @foreach ($chosen as $b)
+            <div class="card section" wire:key="group-{{ $b->id }}">
+                <h2>🏥 {{ $b->name }} &middot; {{ trans_choice('app.delay.count', $groups[$b->id]->count(), ['count' => $groups[$b->id]->count()]) }}</h2>
+                @if ($groups[$b->id]->isEmpty())
+                    <p class="muted" style="margin:0">{{ __('app.delay.nobody') }}</p>
+                @else
+                    <div class="chips" style="margin-bottom:0.6rem">
+                        @foreach ($options as $option)
+                            <button type="button" class="chip"
+                                    aria-pressed="{{ (int) ($minutesBy[$b->id] ?? 0) === $option['minutes'] ? 'true' : 'false' }}"
+                                    wire:key="m-{{ $b->id }}-{{ $option['minutes'] }}"
+                                    wire:click="$set('minutesBy.{{ $b->id }}', {{ $option['minutes'] }})">
+                                {{ $option['label'] }}
+                            </button>
+                        @endforeach
+                    </div>
+                    <div class="times">
+                        @foreach ($groups[$b->id] as $booking)
+                            <label class="time" wire:key="pick-{{ $booking->id }}">
+                                <span style="display:flex;align-items:center;gap:0.5rem">
+                                    {{-- Ticked = moved; untick to leave this patient's time as it is. --}}
+                                    <input type="checkbox" @checked(! in_array((string) $booking->id, $excluded, true))
+                                           wire:click="toggleExcluded({{ $booking->id }})">
+                                    <b>{{ $clock($booking->start_at) }}</b>
+                                </span>
+                                <span class="meta">{{ $booking->patient?->name }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        @endforeach
+
+        @if ($confirming)
+            <div class="warn">
+                <b>{{ __('app.delay.confirm_branches') }}</b>
+                <ul style="margin:0.5rem 0 0.85rem;padding-inline-start:1.2rem">
+                    @foreach ($chosen as $b)
+                        @php $moving = $groups[$b->id]->reject(fn ($bk) => in_array((string) $bk->id, $excluded, true))->count(); @endphp
+                        @if ($moving > 0)
+                            <li>🏥 {{ $b->name }}: {{ trans_choice('app.delay.count', $moving, ['count' => $moving]) }} &middot; {{ collect($options)->firstWhere('minutes', (int) ($minutesBy[$b->id] ?? 0))['label'] ?? '' }}</li>
+                        @endif
+                    @endforeach
+                </ul>
+                <p class="muted" style="margin:0 0 0.85rem">{{ __('app.delay.gaps') }}</p>
+                <button type="button" class="btn btn-primary" wire:click="delayBranches" wire:loading.attr="disabled">
+                    {{ __('app.delay.do_it') }}
+                </button>
+                <button type="button" class="btn" wire:click="dismiss">{{ __('app.actions.dismiss') }}</button>
+            </div>
+        @else
+            <button type="button" class="btn btn-primary" style="width:100%" wire:click="confirm">
+                {{ __('app.delay.submit') }}
+            </button>
+        @endif
     @elseif ($startingPoints->isEmpty())
         <div class="card empty">{{ __('app.delay.nobody') }}</div>
     @else

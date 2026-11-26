@@ -76,6 +76,11 @@ return [
     ],
 
     'delay' => [
+        'which_branches' => 'الفروع',
+        'all_branches' => 'كل الفروع',
+        'day' => 'اليوم',
+        'count' => '{0} مفيش مرضى|{1} مريض واحد|[2,10] :count مرضى|[11,*] :count مريض',
+        'confirm_branches' => 'هيتأخر:',
         'title' => 'تأخير الحجوزات',
         'today' => 'اليوم: :date',
         'how_long' => 'مدة التأخير',
