@@ -48,6 +48,7 @@ return [
         'not_found' => 'This branch does not exist',
         'duplicate_name' => 'A branch with this name already exists',
         'last_active' => 'At least one branch must stay active',
+        'waiting_list_single' => "A branch's own waiting list can be set once there is more than one branch. Until then it is the clinic's setting.",
         'waiting_list_on' => 'The waiting list is on at this branch',
         'waiting_list_off' => 'The waiting list is off at this branch. Those on it stay until the end of their day.',
         'waiting_list_has_patients' => '{1} One patient is on the waiting list. Nobody new can join; they stay until the end of the day and can still be booked.|[2,*] :count patients are on the waiting list. Nobody new can join; they stay until the end of the day and can still be booked.',

@@ -156,8 +156,22 @@ class BranchService
      * Turning it off with people waiting needs `$confirm`; the count comes
      * back in the refusal for the screen to show.
      */
+    /**
+     * Whether a branch's own list can be switched here: only once there is
+     * more than one branch to tell apart. With one, the operator's clinic
+     * switch is the whole of it, so a doctor can't quietly undo it.
+     */
+    public function branchListsEditable(Clinic $clinic): bool
+    {
+        return $this->canAdd() && $clinic->offersWaitingList() && $clinic->branches()->count() > 1;
+    }
+
     public function setWaitingList(Branch $branch, bool $enabled, bool $confirm = false): Branch
     {
+        if (! $this->branchListsEditable($branch->clinic)) {
+            throw ApiException::make(ApiErrorCode::BRANCH_WAITING_LIST_SINGLE, __('settings.branch.waiting_list_single'), http: 403);
+        }
+
         if (! $enabled && $branch->waiting_list_enabled && ! $confirm) {
             $waiting = WaitingListEntry::query()
                 ->where('branch_id', $branch->id)

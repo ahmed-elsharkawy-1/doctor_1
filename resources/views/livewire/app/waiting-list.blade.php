@@ -121,7 +121,7 @@
                             <span dir="ltr">{{ $entry->patient?->phone }}</span>
                             @if ($entry->visitType) &middot; {{ $entry->visitType->name }} @endif
                             &middot; {{ __('waiting_list.source.'.$entry->source->value) }}
-                            &middot; {{ __('waiting_list.app.joined_at', ['time' => $entry->created_at->timezone($this->clinic()->timezone)->format('g:i A')]) }}
+                            &middot; {{ __('waiting_list.app.joined_at', ['time' => \App\Support\Wire::time($entry->created_at->timezone($this->clinic()->timezone))['display']]) }}
                         </div>
 
                         <div class="acts">

@@ -100,9 +100,9 @@
             </div>
 
             {{-- The branch's own waiting list, under the clinic's (ELA-21). --}}
-            @if ($clinicHasWaitingList)
+            @if ($branchListsEditable)
                 <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.6rem;min-height:44px">
-                    <input type="checkbox" @checked($branch->waiting_list_enabled) wire:click.prevent="toggleWaitingList({{ $branch->id }})">
+                    <input type="checkbox" @checked($branch->waiting_list_enabled) wire:click.prevent="toggleWaitingList({{ $branch->id }}, {{ $branch->waiting_list_enabled ? 'false' : 'true' }})">
                     <span>{{ __('app.settings.branch_waiting_list') }}</span>
                 </label>
 

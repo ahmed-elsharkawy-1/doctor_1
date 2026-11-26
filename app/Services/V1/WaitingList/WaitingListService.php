@@ -128,6 +128,10 @@ class WaitingListService
      * Only the times they left themselves count — a removal by the clinic is
      * not theirs to answer for.
      */
+    /**
+     * Counted per branch (ELA-21): each branch's list is its own, so leaving
+     * one is no answer about another.
+     */
     public function hasLeftTooOften(Clinic $clinic, Patient $patient, string $date, ?Branch $branch = null): bool
     {
         $left = $clinic->waitingListEntries()
@@ -609,7 +613,9 @@ class WaitingListService
         $lists = $clinic->waitingListEntries()
             ->waiting()
             ->whereDate('visit_date', '<=', $now->toDateString())
-            ->get(['visit_date', 'branch_id'])
+            ->select(['visit_date', 'branch_id'])
+            ->distinct()
+            ->get()
             ->map(fn ($entry) => [Carbon::parse($entry->visit_date)->toDateString(), $entry->branch_id])
             ->unique(fn (array $list) => $list[0].'#'.$list[1]);
         $branches = $clinic->branches()->get()->keyBy('id');
@@ -626,8 +632,10 @@ class WaitingListService
             $notify = $now->diffInMinutes($end, true)
                 <= (int) config('clinic.waiting_list.notify_within_hours') * 60;
 
+            // The stored branch as it is: an entry somehow left without one
+            // still closes, by the first branch's day.
             $entries = $clinic->waitingListEntries()
-                ->where('branch_id', $branch->id)
+                ->where(fn ($query) => $branchId === null ? $query->whereNull('branch_id') : $query->where('branch_id', $branchId))
                 ->with('patient')
                 ->waiting()
                 ->onDate($date)

@@ -155,9 +155,9 @@ class BranchWaitingListTest extends TestCase
 
         Livewire::actingAs($this->owner)
             ->test(Branches::class)
-            ->call('toggleWaitingList', $this->tura->id)
+            ->call('toggleWaitingList', $this->tura->id, true)
             ->assertSet('failed', false)
-            ->call('toggleWaitingList', $this->gedeila->id)
+            ->call('toggleWaitingList', $this->gedeila->id, false)
             ->assertSet('confirmingListOff', $this->gedeila->id)
             ->assertSet('listOffWaiting', 1)
             ->call('confirmWaitingListOff')
@@ -206,5 +206,47 @@ class BranchWaitingListTest extends TestCase
         (require database_path('migrations/2026_11_30_100000_add_branch_to_waiting_lists.php'))->backfill();
 
         $this->assertSame($this->gedeila->id, $entry->fresh()->branch_id);
+    }
+
+    public function test_a_confirmed_switch_off_never_switches_a_list_back_on(): void
+    {
+        $this->join($this->gedeila, 'أحمد');
+
+        $screen = Livewire::actingAs($this->owner)
+            ->test(Branches::class)
+            ->call('toggleWaitingList', $this->gedeila->id, false)
+            ->assertSet('confirmingListOff', $this->gedeila->id);
+
+        // Switched off meanwhile, from another tab.
+        app(BranchService::class)->setWaitingList($this->gedeila->fresh(), false, confirm: true);
+
+        $screen->call('confirmWaitingListOff');
+
+        $this->assertFalse($this->gedeila->fresh()->waiting_list_enabled);
+    }
+
+    public function test_a_one_branch_clinic_keeps_the_operators_switch_alone(): void
+    {
+        $this->tura->delete();
+        Sanctum::actingAs($this->owner);
+
+        Livewire::actingAs($this->owner)
+            ->test(Branches::class)
+            ->assertDontSee(__('app.settings.branch_waiting_list'));
+
+        $this->putJson(route('api.v1.branches.waiting-list', $this->gedeila), ['enabled' => false, 'confirm' => true])
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'BRANCH_WAITING_LIST_SINGLE');
+
+        $this->assertTrue($this->gedeila->fresh()->waiting_list_enabled);
+    }
+
+    public function test_multi_branch_switched_off_keeps_the_operators_switch_alone_too(): void
+    {
+        config(['clinic.branches.multi_enabled' => false]);
+
+        Livewire::actingAs($this->owner)
+            ->test(Branches::class)
+            ->assertDontSee(__('app.settings.branch_waiting_list'));
     }
 }
