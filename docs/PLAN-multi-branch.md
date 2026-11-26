@@ -381,7 +381,7 @@ branches.
 - Test seams: one payload test per template.
 - Blocked by: 4.2
 
-#### Step 7.2: Emergency Delay with a branch scope (Size: M)
+#### Step 7.2: Emergency Delay with a branch scope (Size: M) ✅ (7b)
 - Acceptance criteria:
   - Scope (branch chips plus "All branches" = the user's accessible branches)
     → day → patients grouped by branch, any of them can be deselected → a

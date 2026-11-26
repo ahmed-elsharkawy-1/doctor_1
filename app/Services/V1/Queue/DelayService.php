@@ -3,6 +3,7 @@
 namespace App\Services\V1\Queue;
 
 use App\Enums\ApiErrorCode;
+use App\Enums\AuthErrorCode;
 use App\Enums\BookingKind;
 use App\Enums\BookingStatus;
 use App\Events\SlotsChanged;
@@ -10,6 +11,7 @@ use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Models\Branch;
 use App\Models\Clinic;
+use App\Models\User;
 use App\Services\V1\Booking\BookingService;
 use App\Services\V1\Booking\ClinicDayLock;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
@@ -121,6 +123,96 @@ class DelayService
         return new DelayOutcome($bookings, $moved, $messaging);
     }
 
+    /**
+     * Who an emergency delay on that day could move, per branch (ELA-22): the
+     * patients still to come with a time. Anyone already with the doctor is
+     * never among them.
+     *
+     * @param  Collection<int, Branch>  $branches
+     * @return Collection<int, Collection<int, Booking>> keyed by branch id
+     */
+    public function candidatesByBranch(Clinic $clinic, Carbon $day, Collection $branches): Collection
+    {
+        return $branches->mapWithKeys(fn (Branch $branch) => [
+            $branch->id => $this->movableOn($clinic, $day->toDateString(), $branch->id)
+                ->with(['patient', 'visitType'])
+                ->get(),
+        ]);
+    }
+
+    /**
+     * An emergency delay over one or more branches (ELA-22): each branch by
+     * its own minutes, from its first patient still to come, leaving out
+     * whoever was unticked. The same rule as delay() within a branch: a gap
+     * in the day absorbs part of the delay.
+     *
+     * @param  array<int, array{minutes: int, exclude?: list<int>}>  $plan  branch id => what to do there
+     */
+    public function delayBranches(Clinic $clinic, User $actor, Carbon $day, array $plan): DelayOutcome
+    {
+        $day = Carbon::parse($day->toDateString(), $clinic->timezone)->startOfDay();
+        $branches = $actor->accessibleBranches($clinic)->keyBy('id');
+
+        if ($day->lt($clinic->currentDay())) {
+            throw ApiException::make(ApiErrorCode::BOOKING_NOT_DELAYABLE, __('booking.delay.not_today'), details: ['reason' => 'past_day']);
+        }
+
+        foreach ($plan as $branchId => $step) {
+            if (! $branches->has($branchId)) {
+                throw ApiException::make(ApiErrorCode::BRANCH_NOT_FOUND, __('settings.branch.not_found'), http: 404);
+            }
+
+            if (! in_array((int) $step['minutes'], $this->allowedMinutes(), true)) {
+                throw ApiException::make(AuthErrorCode::VALIDATION_FAILED, __('booking.delay.minutes_invalid'), http: 422);
+            }
+        }
+
+        ksort($plan);
+        $replayKey = 'booking_delay_branches_'.$clinic->id.'_'.$day->toDateString().'_'.md5(json_encode($plan));
+
+        $replay = null;
+        $moved = $this->lock->claim($clinic, $day, function () use ($clinic, $day, $plan, $replayKey, &$replay): array {
+            $replay = Cache::get($replayKey);
+
+            if ($replay !== null) {
+                return $replay['minutes'];
+            }
+
+            $moved = [];
+
+            foreach ($plan as $branchId => $step) {
+                $chosen = $this->movableOn($clinic, $day->toDateString(), (int) $branchId)
+                    ->whereNotIn('id', $step['exclude'] ?? [])
+                    ->get();
+
+                if ($chosen->isNotEmpty()) {
+                    $moved += $this->apply($clinic, $this->cascade($chosen, (int) $step['minutes'], $day));
+                }
+            }
+
+            if ($moved === []) {
+                throw ApiException::make(ApiErrorCode::BOOKING_NOT_DELAYABLE, __('booking.delay.nobody_to_move'), details: ['reason' => 'nobody']);
+            }
+
+            Cache::put($replayKey, ['minutes' => $moved, 'messaging' => null], $this->replaySeconds());
+
+            return $moved;
+        });
+
+        $bookings = $this->movedBookings($clinic, $moved);
+
+        if ($replay !== null) {
+            return new DelayOutcome($bookings, $moved, $replay['messaging'], replayed: true);
+        }
+
+        SlotsChanged::dispatch($clinic, $day->toDateString());
+        $messaging = $this->messaging->sendDelayed($clinic, $bookings, $moved);
+
+        Cache::put($replayKey, ['minutes' => $moved, 'messaging' => $messaging], $this->replaySeconds());
+
+        return new DelayOutcome($bookings, $moved, $messaging);
+    }
+
     private function ensureCanStartDelay(Booking $from, Carbon $day): void
     {
         if ($from->visit_date->toDateString() !== $day->toDateString()) {
@@ -162,13 +254,26 @@ class DelayService
             ->whereKeyNot($from->id)
             ->get();
 
-        $limit = $from->visit_date->copy()->addDay()
+        return $this->apply($clinic, $this->cascade($later->prepend($from), $minutes, $from->visit_date));
+    }
+
+    /**
+     * The moves for a run of bookings, earliest first: the first by
+     * `$minutes`, each after it to no earlier than the one before it ends —
+     * so a gap in the day absorbs part of the delay.
+     *
+     * @param  Collection<int, Booking>  $bookings
+     * @return array<int, array{0: Carbon, 1: Carbon, 2: int}> booking id => [start, end, shift]
+     */
+    private function cascade(Collection $bookings, int $minutes, Carbon $visitDate): array
+    {
+        $limit = $visitDate->copy()->addDay()
             ->setTimeFromTimeString((string) config('clinic.end_of_day.closes_at'));
 
         $plan = [];
         $previousEnd = null;
 
-        foreach ($later->prepend($from) as $booking) {
+        foreach ($bookings as $booking) {
             $length = (int) $booking->start_at->diffInMinutes($booking->end_at);
             $start = $previousEnd === null
                 ? $booking->start_at->copy()->addMinutes($minutes)
@@ -191,10 +296,20 @@ class DelayService
             }
         }
 
+        return $plan;
+    }
+
+    /**
+     * Writes the moves. visit_date stays: a patient pushed past midnight is
+     * still on this evening's list, as an overnight booking is.
+     *
+     * @param  array<int, array{0: Carbon, 1: Carbon, 2: int}>  $plan
+     * @return array<int, int> booking id => minutes moved
+     */
+    private function apply(Clinic $clinic, array $plan): array
+    {
         $now = Carbon::now($clinic->timezone);
 
-        // visit_date stays: a patient pushed past midnight is still on this
-        // evening's list, as an overnight booking is.
         foreach ($plan as $id => [$start, $end]) {
             $clinic->bookings()->whereKey($id)->update([
                 'start_at' => $start,

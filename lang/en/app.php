@@ -76,6 +76,11 @@ return [
     ],
 
     'delay' => [
+        'which_branches' => 'Branches',
+        'all_branches' => 'All branches',
+        'day' => 'Day',
+        'count' => '{0} no patients|{1} one patient|[2,*] :count patients',
+        'confirm_branches' => 'This will delay:',
         'title' => 'Delay appointments',
         'today' => 'Today: :date',
         'how_long' => 'How long',

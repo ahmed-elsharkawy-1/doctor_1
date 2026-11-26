@@ -664,6 +664,54 @@ paths:
         "409": { description: "`TEAM_MEMBER_IS_OWNER`" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
 
+  /emergency/branches:
+    get:
+      tags: [Emergency]
+      summary: Who an emergency delay could move, by branch
+      description: |
+        ELA-22. The patients still to come with a time on that day (today by
+        default), grouped by branch: the branches in `branch_ids`, or every
+        branch this account works at. Anyone already with the doctor is never
+        listed. Also returns the delay `options`.
+      operationId: listDelayCandidates
+      parameters:
+        - { name: date, in: query, schema: { type: string, format: date } }
+        - { name: "branch_ids[]", in: query, schema: { type: array, items: { type: integer } } }
+      responses:
+        "200": { description: OK }
+    post:
+      tags: [Emergency]
+      summary: Delay one or more branches, each by its own time
+      description: |
+        ELA-22. Each branch moves from its first patient still to come by its
+        own `minutes` (one of the options), leaving out `exclude_booking_ids`;
+        a gap in the day absorbs part of the delay, as with a single delay.
+        Only this account's branches. Moved patients are messaged. A repeat of
+        the same request within moments is answered with the first result
+        (`replayed: true`).
+      operationId: delayBranches
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [branches]
+              properties:
+                date: { type: string, format: date }
+                branches:
+                  type: array
+                  items:
+                    type: object
+                    required: [branch_id, minutes]
+                    properties:
+                      branch_id: { type: integer }
+                      minutes: { type: integer, example: 30 }
+                      exclude_booking_ids: { type: array, items: { type: integer } }
+      responses:
+        "200": { description: "Same shape as `POST /emergency`" }
+        "404": { description: "`BRANCH_NOT_FOUND`: not one of this account's branches" }
+
   /holidays:
     get:
       tags: [Settings]

@@ -1530,6 +1530,93 @@
             "description": "Delaying today's appointments when the doctor is held up",
             "item": [
                 {
+                    "name": "Who an emergency delay could move, by branch",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/emergency/branches?date=&branch_ids[]=",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "emergency",
+                                "branches"
+                            ],
+                            "query": [
+                                {
+                                    "key": "date",
+                                    "value": "",
+                                    "description": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "branch_ids[]",
+                                    "value": "",
+                                    "description": "",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "ELA-22. The patients still to come with a time on that day (today by\ndefault), grouped by branch: the branches in `branch_ids`, or every\nbranch this account works at. Anyone already with the doctor is never\nlisted. Also returns the delay `options`."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delay one or more branches, each by its own time",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/emergency/branches",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "emergency",
+                                "branches"
+                            ]
+                        },
+                        "description": "ELA-22. Each branch moves from its first patient still to come by its\nown `minutes` (one of the options), leaving out `exclude_booking_ids`;\na gap in the day absorbs part of the delay, as with a single delay.\nOnly this account's branches. Moved patients are messaged. A repeat of\nthe same request within moments is answered with the first result\n(`replayed: true`).",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"branches\": []\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
                     "name": "The delays offered",
                     "request": {
                         "method": "GET",

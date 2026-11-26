@@ -26,7 +26,9 @@ use App\Http\Controllers\Api\V1\Patients\UpdateOnlineBookingController;
 use App\Http\Controllers\Api\V1\Patients\UpdateWhatsAppConsentController;
 use App\Http\Controllers\Api\V1\Queue\CancelBookingController;
 use App\Http\Controllers\Api\V1\Queue\ConfirmAttendanceController;
+use App\Http\Controllers\Api\V1\Queue\DelayCandidatesController;
 use App\Http\Controllers\Api\V1\Queue\DelayOptionsController;
+use App\Http\Controllers\Api\V1\Queue\EmergencyBranchesController;
 use App\Http\Controllers\Api\V1\Queue\EmergencyController;
 use App\Http\Controllers\Api\V1\Queue\MarkContactedController;
 use App\Http\Controllers\Api\V1\Queue\PostponeCandidatesController;
@@ -245,6 +247,9 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
         Route::get('emergency/delay/options', DelayOptionsController::class)
             ->name('api.v1.emergency.delay-options');
         Route::post('emergency', EmergencyController::class)->name('api.v1.emergency');
+        // ELA-22: a delay over one or more branches, each by its own time.
+        Route::get('emergency/branches', DelayCandidatesController::class)->name('api.v1.emergency.branches.candidates');
+        Route::post('emergency/branches', EmergencyBranchesController::class)->name('api.v1.emergency.branches');
 
         Route::get('rebooking-list', RebookingListController::class)->name('api.v1.rebooking-list');
 
