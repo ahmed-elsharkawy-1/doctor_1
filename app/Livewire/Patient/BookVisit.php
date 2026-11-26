@@ -232,9 +232,11 @@ class BookVisit extends Component
             'upcoming' => $stage === 'upcoming' ? $this->upcoming() : null,
             'waitingOffer' => $waitingOffer,
             // The other way out of a full day: the next one with room.
-            'nextFreeDay' => $waitingOffer === null
-                ? null
-                : $this->service()->nextFreeDay($this->days($clinic), $this->date),
+            // Offered on a full day with or without a list: the way out of a
+            // full day is the next one with room.
+            'nextFreeDay' => $stage === 'appointment' && $availability !== null && ! $availability->hasAvailableSlot()
+                ? $this->service()->nextFreeDay($this->days($clinic), $this->date)
+                : null,
             // Whether a full day may be tapped at all. Without a list there
             // is nothing to do on one, so it stays shut.
             'waitingListOpen' => $this->bookingBranch()?->offersWaitingList() ?? false,

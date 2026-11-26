@@ -431,6 +431,16 @@
                             <div class="note note-plain">
                                 {{ $availability?->closedReason?->label($branches->count() > 1) ?? __('booking.self_booking.no_slots_day') }}
                             </div>
+                            {{-- No list to wait on here: the next day with room instead. --}}
+                            @if ($nextFreeDay !== null)
+                                <button type="button" class="btn btn-outline" style="margin-top: 8px"
+                                        wire:click="selectDay('{{ $nextFreeDay['date']->toDateString() }}')">
+                                    {{ __('waiting_list.patient.next_free_day', [
+                                        'day' => $nextFreeDay['day']->label(),
+                                        'date' => $nextFreeDay['date']->format('j/n'),
+                                    ]) }}
+                                </button>
+                            @endif
                         @else
                             @php
                                 $slotButton = function ($slot) use ($startTime, $clock, $availability) {
@@ -765,6 +775,10 @@
         <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="wl-sheet-title">
             <span class="sheet-grip" aria-hidden="true"></span>
             <h2 class="sheet-title" id="wl-sheet-title">{{ __('waiting_list.patient.sheet_title') }}</h2>
+            {{-- Which branch's list, when there is a choice (ELA-21). --}}
+            @if ($branches->count() > 1 && $branch !== null)
+                <p class="hint" style="margin: 4px 0 0">🏥 {{ $branch->name }}</p>
+            @endif
 
             <ol class="wl-steps">
                 <li>

@@ -49,8 +49,9 @@ class Branches extends SettingsComponent
         return view('livewire.app.settings.branches', [
             'branches' => $this->service()->list($clinic, auth()->user()),
             'canAdd' => $this->service()->canAdd(),
-            // The clinic has the list at all: the operator's switch.
-            'clinicHasWaitingList' => $clinic->offersWaitingList(),
+            // A branch's own list is a multi-branch setting: with one branch
+            // the operator's clinic switch is the only one (ELA-21).
+            'branchListsEditable' => $this->service()->branchListsEditable($clinic),
             'mainPhone' => $clinic->phone === null ? null : PhoneNumber::tryParse($clinic->phone, $clinic->country_code)?->national(),
         ])->title(__('app.settings.branches'));
     }
@@ -126,11 +127,12 @@ class Branches extends SettingsComponent
      * The branch's own waiting list on or off (ELA-21). Off with patients on
      * it asks first, saying how many; they stay on it either way.
      */
-    public function toggleWaitingList(int $branchId, bool $confirm = false): void
+    public function toggleWaitingList(int $branchId, bool $enabled, bool $confirm = false): void
     {
         $branch = $this->service()->find($this->clinic(), $branchId, auth()->user());
-        $enabled = ! $branch->waiting_list_enabled;
 
+        // The state she asked for, never "the other one": a second tab or a
+        // colleague may have changed it since this screen was drawn.
         $details = $this->run(
             fn () => $this->service()->setWaitingList($branch, $enabled, $confirm),
             __($enabled ? 'settings.branch.waiting_list_on' : 'settings.branch.waiting_list_off'),
@@ -151,7 +153,7 @@ class Branches extends SettingsComponent
     public function confirmWaitingListOff(): void
     {
         if ($this->confirmingListOff !== null) {
-            $this->toggleWaitingList($this->confirmingListOff, confirm: true);
+            $this->toggleWaitingList($this->confirmingListOff, enabled: false, confirm: true);
         }
     }
 
