@@ -443,7 +443,7 @@ class WhatsAppMessagingService
 
         $body = $response === PatientResponse::CONFIRMED
             ? __('messages.reminder_follow_up.confirmed', ['link' => $booking->trackingUrl()])
-            : __('messages.reminder_follow_up.cancelled', ['phone' => $this->clinicPhone($clinic)]);
+            : __('messages.reminder_follow_up.cancelled', ['phone' => $this->clinicPhone($clinic, $booking)]);
 
         return $this->queueText($clinic, $booking, $key, $body);
     }
@@ -458,7 +458,7 @@ class WhatsAppMessagingService
             'messages.reminder_follow_up.cancel_refused',
             [
                 'minutes' => __('messages.minutes', ['count' => $clinic->whatsAppCancelCutoffMinutes()]),
-                'phone' => $this->clinicPhone($clinic),
+                'phone' => $this->clinicPhone($clinic, $booking),
             ],
         ));
     }
@@ -521,8 +521,18 @@ class WhatsAppMessagingService
      * The number printed in the cancellation follow-up — normalised the same
      * way as the number in the approved templates.
      */
-    private function clinicPhone(Clinic $clinic): string
+    /**
+     * The number to call: the booking's branch's own, else the doctor's main
+     * booking number (ELA-22).
+     */
+    private function clinicPhone(Clinic $clinic, ?Booking $booking = null): string
     {
+        $branchPhone = $booking?->branch?->contactPhone()?->e164;
+
+        if ($branchPhone !== null) {
+            return $branchPhone;
+        }
+
         $phone = $clinic->phone === null
             ? null
             : PhoneNumber::tryParse($clinic->phone, $clinic->country_code)?->e164;

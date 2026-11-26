@@ -249,14 +249,17 @@ branch address.
 ## Rollout
 
 1. Submit all 8 as UTILITY, `ar`, under the new names above.
-2. The code ships before approval, with the new names and value lists behind
-   one switch, `CLINIC_WHATSAPP_BRANCH_TEMPLATES=false`. While it is off, the
-   app sends exactly what it sends today, with today's address and phone
-   rules.
+2. The code is already in place (ELA-22, Phase 7a). The new names live in
+   `config/clinic.php` → `messaging.branch_template_names`, behind one
+   switch, `CLINIC_WHATSAPP_BRANCH_TEMPLATES` (default `false`). While it
+   is off, the app sends today's templates with today's values. It already
+   uses the booked branch's address and phone (the branch's, or the clinic's
+   main number), and its "book again" links already open on the same
+   branch. Those are values, not template changes, so they need no approval.
 3. When **all 8** are approved, read each back from the Graph API (name,
-   value count, button order, button URL). Then turn the switch on and run
-   `MessageTemplateSeeder` on the server, as described in
-   `current_templates.md` → *Switching to a new version*.
+   value count, button order, button URL). Then set
+   `CLINIC_WHATSAPP_BRANCH_TEMPLATES=true` and restart the workers. No
+   seeder run is needed: the switch picks the names.
 4. Move these texts into `current_templates.md` and mark the old names
    retired.
 

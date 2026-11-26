@@ -356,11 +356,15 @@ that day.
 - Blocked by: 4.1
 
 ### Phase 7: WhatsApp, delay and cancellation per branch (ELA-22)
+
+Split into four PRs: 7a messages (branch line, address, phone, links),
+7b Emergency Delay scope, 7c Bulk Cancellation scope, 7d Clinic Announcement
+scope.
 Verified when: every message carries the booked branch's name, address and
 phone, and delay, cancellation and announcement reach only the chosen
 branches.
 
-#### Step 7.1: Branch line, address, phone and links in the templates (Size: M)
+#### Step 7.1: Branch line, address, phone and links in the templates (Size: M) ✅ (7a)
 - Acceptance criteria:
   - The texts are drafted in `docs/whatsapp/multi-branch-templates.md`
     (approved 2026-11-25): 8 new versions with `🏥 العيادة`. They are

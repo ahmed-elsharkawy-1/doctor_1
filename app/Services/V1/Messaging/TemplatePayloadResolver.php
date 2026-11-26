@@ -3,6 +3,7 @@
 namespace App\Services\V1\Messaging;
 
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\MessageTemplate;
 use App\Models\Patient;
@@ -53,13 +54,13 @@ class TemplatePayloadResolver
             | which follow this message.
             */
             WhatsAppMessagingService::CONFIRMATION_KEY => new TemplatePayload(
-                body: [
+                body: $this->withBranch($template, $booking, 4, [
                     $this->patientName($booking),
                     $this->date($booking, $clinic),
                     $this->time($booking, $clinic),
                     $this->doctorName($clinic),
                     $this->address($clinic, $booking),
-                ],
+                ]),
                 buttons: [$this->suffix('tracking', $booking)],
             ),
 
@@ -83,9 +84,9 @@ class TemplatePayloadResolver
             | see SendBookingRemindersCommand.
             */
             WhatsAppMessagingService::REMINDER_KEY => new TemplatePayload(
-                body: [
+                body: $this->withBranch($template, $booking, 1, [
                     $this->patientName($booking),
-                ],
+                ]),
                 buttons: [$this->suffix('tracking', $booking)],
             ),
 
@@ -96,12 +97,12 @@ class TemplatePayloadResolver
             | {{4}} doctor — no address.
             */
             WhatsAppMessagingService::DAILY_REMINDER_KEY => new TemplatePayload(
-                body: [
+                body: $this->withBranch($template, $booking, 4, [
                     $this->patientName($booking),
                     $this->date($booking, $clinic),
                     $this->time($booking, $clinic),
                     $this->doctorName($clinic),
-                ],
+                ]),
             ),
 
             /*
@@ -114,7 +115,8 @@ class TemplatePayloadResolver
                 ],
                 buttons: [
                     $this->suffix('review', $booking),
-                    $this->bookingPage($clinic),
+                    // Opens on the branch of the visit just finished (ELA-22).
+                    $this->bookingPage($clinic, $booking->branch),
                 ],
             ),
 
@@ -124,13 +126,14 @@ class TemplatePayloadResolver
             | point of the message.
             */
             WhatsAppMessagingService::CANCELS_THE_DAY_KEY => new TemplatePayload(
-                body: [
+                body: $this->withBranch($template, $booking, 3, [
                     $this->patientName($booking),
                     $this->date($booking, $clinic),
                     $this->time($booking, $clinic),
-                    $this->clinicPhone($clinic),
-                ],
-                buttons: [$this->bookingPage($clinic)],
+                    $this->branchPhone($clinic, $booking),
+                ]),
+                // Rebooking opens on the same branch (ELA-22).
+                buttons: [$this->bookingPage($clinic, $booking->branch)],
             ),
 
             /*
@@ -139,13 +142,13 @@ class TemplatePayloadResolver
             | headline differs.
             */
             WhatsAppMessagingService::WAITING_LIST_SLOT_BOOKED_KEY => new TemplatePayload(
-                body: [
+                body: $this->withBranch($template, $booking, 4, [
                     $this->patientName($booking),
                     $this->date($booking, $clinic),
                     $this->time($booking, $clinic),
                     $this->doctorName($clinic),
                     $this->address($clinic, $booking),
-                ],
+                ]),
                 buttons: [$this->suffix('tracking', $booking)],
             ),
 
@@ -180,16 +183,23 @@ class TemplatePayloadResolver
      */
     public function forDelay(Booking $booking, Clinic $clinic, int $minutes): TemplatePayload
     {
+        $body = [
+            $this->patientName($booking),
+            $this->time($booking, $clinic),
+            $this->clockTime(
+                $booking->start_at?->copy()->subMinutes(max(0, $minutes)),
+                $booking,
+            ),
+            $this->branchPhone($clinic, $booking),
+        ];
+
+        // {{2}} is the branch in the multi-branch version (ELA-22).
+        if (MessageTemplate::usesBranchVersions()) {
+            array_splice($body, 1, 0, [$this->branchName($clinic, $booking->branch)]);
+        }
+
         return new TemplatePayload(
-            body: [
-                $this->patientName($booking),
-                $this->time($booking, $clinic),
-                $this->clockTime(
-                    $booking->start_at?->copy()->subMinutes(max(0, $minutes)),
-                    $booking,
-                ),
-                $this->clinicPhone($clinic),
-            ],
+            body: $body,
             buttons: [$this->suffix('tracking', $booking)],
         );
     }
@@ -206,12 +216,18 @@ class TemplatePayloadResolver
             $this->clean($entry->visit_date->copy()->locale('ar')->isoFormat('dddd D MMMM'), '—'),
         ];
 
+        // {{3}} is the list's branch in the multi-branch versions (ELA-22).
+        if ($template->carriesBranch()) {
+            $body[] = $this->branchName($clinic, $entry->branch);
+        }
+
         return match ($template->key) {
             WhatsAppMessagingService::WAITING_LIST_JOINED_KEY => new TemplatePayload(body: $body),
 
             WhatsAppMessagingService::WAITING_LIST_NO_SLOT_KEY => new TemplatePayload(
                 body: $body,
-                buttons: [$this->bookingPage($clinic)],
+                // Opens on the list's branch (ELA-22).
+                buttons: [$this->bookingPage($clinic, $entry->branch)],
             ),
 
             default => throw new \RuntimeException(
@@ -353,9 +369,48 @@ class TemplatePayloadResolver
      * The clinic's own booking page, for a "book a new appointment" button:
      * `<slug>/book`.
      */
-    private function bookingPage(Clinic $clinic): string
+    private function bookingPage(Clinic $clinic, ?Branch $branch = null): string
     {
-        return $clinic->slug.'/'.trim((string) config('clinic.self_booking.path'), '/');
+        $page = $clinic->slug.'/'.trim((string) config('clinic.self_booking.path'), '/');
+
+        // With a choice of branches, the page opens on this one (ELA-22).
+        return $branch !== null && $clinic->branches()->count() > 1 ? $page.'?b='.$branch->id : $page;
+    }
+
+    /**
+     * The branch line's value: the branch's name as the doctor typed it.
+     * The clinic's name stands in for a booking without one.
+     */
+    private function branchName(Clinic $clinic, ?Branch $branch): string
+    {
+        return $this->clean($branch?->name, $clinic->name);
+    }
+
+    /**
+     * The branch's own number, else the doctor's main booking number
+     * (ELA-16, ELA-22).
+     */
+    private function branchPhone(Clinic $clinic, ?Booking $booking): string
+    {
+        $phone = $booking?->branch?->contactPhone()?->e164;
+
+        return $phone === null ? $this->clinicPhone($clinic) : $this->clean($phone, __('messages.fallback.phone'));
+    }
+
+    /**
+     * The template's values with the branch name put in at `$position` when
+     * the multi-branch version of this template is the one being sent.
+     *
+     * @param  list<string>  $body
+     * @return list<string>
+     */
+    private function withBranch(MessageTemplate $template, Booking $booking, int $position, array $body): array
+    {
+        if ($template->carriesBranch()) {
+            array_splice($body, $position, 0, [$this->branchName($booking->clinic, $booking->branch)]);
+        }
+
+        return $body;
     }
 
     /**

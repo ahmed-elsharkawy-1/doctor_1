@@ -120,6 +120,26 @@ return [
 
     'messaging' => [
         'driver' => env('CLINIC_MESSAGING_DRIVER', 'log'),
+
+        /*
+        | The multi-branch versions of eight templates (ELA-22), each with a
+        | "🏥 العيادة: <branch>" line, drafted in
+        | docs/whatsapp/multi-branch-templates.md. Off until Meta has
+        | approved all eight: one switch for all of them, so a booking never
+        | shows its branch in one message and not in the next.
+        */
+        'branch_templates' => (bool) env('CLINIC_WHATSAPP_BRANCH_TEMPLATES', false),
+
+        'branch_template_names' => [
+            'booking_confirmed' => 'appointment_booking_confirmation_v5',
+            'appointment_reminder_today' => 'appointment_reminder_today_v3',
+            'appointment_reminder' => 'appointment_reminder_v3',
+            'appointment_delayed' => 'appointment_delayed_v3',
+            'day_cancelled' => 'booking_cancellation_v3',
+            'waiting_list_joined' => 'waiting_list_joined_v2',
+            'waiting_list_no_slot_opened' => 'waiting_list_no_slot_opened_v4',
+            'waiting_list_slot_booked' => 'waiting_list_slot_booked_v2',
+        ],
     ],
 
     /*
