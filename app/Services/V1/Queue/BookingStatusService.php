@@ -19,6 +19,11 @@ use Illuminate\Support\Carbon;
  *   booked/arrived -> no_show
  *
  * Each clinical step stamps its own timestamp for later wait-time reporting.
+ *
+ * Which day a booking may move on: its own clinic day, or a past one within
+ * clinic.status.past_correction_days — a night the secretary left unfinished
+ * — but never a future one. A past-day correction records no time it does
+ * not know (it is hours or days late) and sends the patient nothing.
  */
 class BookingStatusService
 {
@@ -29,6 +34,12 @@ class BookingStatusService
 
     public function arrive(Booking $booking): Booking
     {
+        // A correction made the morning after does not know when they came:
+        // "now" would read as a 4 a.m. arrival and skew waiting times.
+        if ($this->isPastDay($booking)) {
+            return $this->advance($booking, BookingStatus::ARRIVED, []);
+        }
+
         $now = $this->now($booking);
 
         return $this->advance($booking, BookingStatus::ARRIVED, [
@@ -39,17 +50,27 @@ class BookingStatusService
 
     public function callIn(Booking $booking): Booking
     {
-        return $this->advance($booking, BookingStatus::WITH_DOCTOR, ['called_in_at' => $this->now($booking)]);
+        return $this->advance(
+            $booking,
+            BookingStatus::WITH_DOCTOR,
+            $this->isPastDay($booking) ? [] : ['called_in_at' => $this->now($booking)],
+        );
     }
 
     public function complete(Booking $booking): Booking
     {
-        $booking = $this->advance($booking, BookingStatus::DONE, ['completed_at' => $this->now($booking)]);
+        $pastDay = $this->isPastDay($booking);
+
+        $booking = $this->advance($booking, BookingStatus::DONE, [
+            'completed_at' => $pastDay ? $this->finishedAt($booking) : $this->now($booking),
+        ]);
 
         // Thanks the patient and carries the review link. Sent from here so it
         // reaches them whichever client marked the visit done, and after the
-        // transition so a messaging problem can never block it.
-        if ($booking->clinic !== null) {
+        // transition so a messaging problem can never block it. Not for a past
+        // day: "thank you for your visit today" hours or days late is wrong,
+        // and the end-of-day close sends nothing either.
+        if ($booking->clinic !== null && ! $pastDay) {
             $this->messaging->sendVisitCompleted($booking->clinic, $booking);
         }
 
@@ -129,21 +150,33 @@ class BookingStatusService
      */
     private function advance(Booking $booking, BookingStatus $target, array $attributes): Booking
     {
-        // Arriving, going in and finishing happen on the visit's own day. A
-        // patient who comes on another day is moved to today first; their
-        // booking for that day is never marked. A no-show can still be
-        // recorded after the day — but never before it.
+        // Never ahead of the visit's own day: a patient who comes early is
+        // moved to today first, and their booking for that day is never
+        // marked. Behind it, within the correction window, is a night left
+        // unfinished, and may be put right.
         $today = $booking->clinic?->currentDay()->toDateString();
         $visitDay = $booking->visit_date->toDateString();
-        $lateNoShow = $target === BookingStatus::NO_SHOW && $today !== null && $visitDay < $today;
 
-        if ($today !== null && $visitDay !== $today && ! $lateNoShow) {
+        if ($today !== null && $visitDay > $today) {
             throw ApiException::make(
                 ApiErrorCode::BOOKING_NOT_TODAY,
-                __('booking.not_today', ['date' => $booking->visit_date->toDateString()]),
+                __('booking.not_today', ['date' => $visitDay]),
                 details: [
-                    'visit_date' => $booking->visit_date->toDateString(),
+                    'visit_date' => $visitDay,
                     'today' => $today,
+                ],
+                http: 409,
+            );
+        }
+
+        if ($today !== null && $visitDay < $this->oldestCorrectableDay($today)) {
+            throw ApiException::make(
+                ApiErrorCode::BOOKING_TOO_OLD,
+                __('booking.too_old', ['date' => $visitDay, 'days' => $this->correctionDays()]),
+                details: [
+                    'visit_date' => $visitDay,
+                    'today' => $today,
+                    'days' => $this->correctionDays(),
                 ],
                 http: 409,
             );
@@ -168,6 +201,44 @@ class BookingStatusService
         $booking->update($attributes + ['status' => $target]);
 
         return $booking->refresh();
+    }
+
+    /** Whether the booking's day is behind the clinic's current day. */
+    private function isPastDay(Booking $booking): bool
+    {
+        $today = $booking->clinic?->currentDay()->toDateString();
+
+        return $today !== null && $booking->visit_date->toDateString() < $today;
+    }
+
+    /**
+     * When a past visit finished, by the end-of-day close's own rule: its
+     * call-in time plus the visit's length, else its booked end — never
+     * later than now.
+     */
+    private function finishedAt(Booking $booking): Carbon
+    {
+        $now = $this->now($booking);
+        $timezone = $booking->clinic?->timezone ?? config('app.timezone');
+
+        $finished = match (true) {
+            $booking->called_in_at !== null => Carbon::parse($booking->called_in_at->format('Y-m-d H:i:s'), $timezone)
+                ->addMinutes(max(0, (int) $booking->duration_minutes)),
+            $booking->end_at !== null => Carbon::parse($booking->end_at->format('Y-m-d H:i:s'), $timezone),
+            default => $now,
+        };
+
+        return $finished->min($now);
+    }
+
+    private function oldestCorrectableDay(string $today): string
+    {
+        return Carbon::parse($today)->subDays($this->correctionDays())->toDateString();
+    }
+
+    private function correctionDays(): int
+    {
+        return max(0, (int) config('clinic.status.past_correction_days'));
     }
 
     /**

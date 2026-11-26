@@ -691,7 +691,7 @@ booked/arrived --no_show--> no_show
 | `BOOKING_NOT_CANCELLABLE` | 400 | Cancelling a booking that is already `done`, `cancelled`, or `no_show` |
 | `BOOKING_NOT_FOUND` | 404 | |
 
-`POST /bookings/{id}/status` takes required `to`. `POST /bookings/{id}/cancel` takes `reason: patient_cancelled` only. `emergency` and `incomplete` are system-set and rejected with `VALIDATION_FAILED`. A booking can be cancelled until it is completed.
+`POST /bookings/{id}/status` takes required `to`. A status never moves before the visit's day (`BOOKING_NOT_TODAY`, 409). A past day can be corrected within the last 7 days — no message is sent and no arrival or call-in time is invented; older is `BOOKING_TOO_OLD` (409). `POST /bookings/{id}/cancel` takes `reason: patient_cancelled` only. `emergency` and `incomplete` are system-set and rejected with `VALIDATION_FAILED`. A booking can be cancelled until it is completed.
 
 Cancelling **frees the slot immediately**, whatever the reason.
 

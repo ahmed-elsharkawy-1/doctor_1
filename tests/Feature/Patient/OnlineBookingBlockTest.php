@@ -54,10 +54,28 @@ class OnlineBookingBlockTest extends TestCase
             ->create(['patient_id' => ($patient ?? $this->patient)->id]);
     }
 
-    /** Marks a booking no-show the way the secretary does. */
+    /**
+     * Marks a booking no-show the way the secretary does. One from longer
+     * ago than the correction window is marked when it happened — the
+     * evening of its day — as it would have been; today it would be refused.
+     */
     private function noShow(string $date, ?Patient $patient = null): Booking
     {
-        return app(BookingStatusService::class)->update($this->booking($date, $patient), BookingStatus::NO_SHOW);
+        $booking = $this->booking($date, $patient);
+        $now = Carbon::now();
+        $oldest = $now->copy()->subDays((int) config('clinic.status.past_correction_days'))->toDateString();
+
+        if ($date >= $oldest) {
+            return app(BookingStatusService::class)->update($booking, BookingStatus::NO_SHOW);
+        }
+
+        Carbon::setTestNow(Carbon::parse($date.' 21:00', 'Africa/Cairo'));
+
+        try {
+            return app(BookingStatusService::class)->update($booking, BookingStatus::NO_SHOW);
+        } finally {
+            Carbon::setTestNow($now);
+        }
     }
 
     private function service(): OnlineBookingService

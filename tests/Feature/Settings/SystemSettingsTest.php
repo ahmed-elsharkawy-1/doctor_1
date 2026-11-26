@@ -97,12 +97,16 @@ class SystemSettingsTest extends TestCase
 
         $this->settings()->set('self_booking.no_show_block.threshold', 3);
 
+        // Each marked on its own evening, as the secretary would have.
         foreach (['2026-11-02', '2026-11-09'] as $date) {
             $booking = Booking::factory()->forClinic($this->clinic)
                 ->at(Carbon::parse($date.' 09:00', 'Africa/Cairo'))
                 ->create(['patient_id' => $patient->id]);
+            Carbon::setTestNow(Carbon::parse($date.' 21:00', 'Africa/Cairo'));
             app(BookingStatusService::class)->update($booking, BookingStatus::NO_SHOW);
         }
+
+        Carbon::setTestNow(Carbon::parse('2026-11-10 12:00:00', 'Africa/Cairo'));
 
         $this->assertFalse(app(OnlineBookingService::class)->isBlocked($patient->fresh()));
 

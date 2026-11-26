@@ -2048,10 +2048,18 @@ components:
       description: |
         `INVALID_STATUS_TRANSITION` — skipping a step or advancing a finished
         booking. `details.expected` names the status that was required.
-        Also `BOOKING_NOT_TODAY` (409) — the booking is not on the clinic's
-        current day: arrived, with the doctor and done happen only on the
-        visit's own day, and no-show never before it. `details.visit_date`
-        and `details.today`. Move the booking to today first.
+        Also `BOOKING_NOT_TODAY` (409) — the booking is for a day after the
+        clinic's current day: no status moves before the visit's own day.
+        `details.visit_date` and `details.today`. Move the booking to today
+        first.
+
+        A past day can be corrected (a night left unfinished) within the last
+        7 days (configurable): arrived, with the doctor, done and no-show all
+        work. Such a correction records no arrival or call-in time it does not
+        know, sets the finish time to call-in + visit length (else the booked
+        end), and sends the patient no message. Older than that:
+        `BOOKING_TOO_OLD` (409) with `details.visit_date`, `details.today`
+        and `details.days`.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }

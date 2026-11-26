@@ -144,6 +144,17 @@ return [
     /*
     | End-of-day housekeeping (SPEC §5.4).
     */
+    /*
+    | How far back a booking's status may still be corrected — arrived, with
+    | the doctor, done, no-show — for a day the secretary left unfinished. A
+    | future day is never allowed (that is what set off the turn alert on
+    | 11 November 2026); a past one is, within this many days, so an old
+    | report is not changed by a slip of the finger.
+    */
+    'status' => [
+        'past_correction_days' => (int) env('CLINIC_STATUS_PAST_CORRECTION_DAYS', 7),
+    ],
+
     'end_of_day' => [
         // When a clinic's day is over: the end of the clinic day, above. Not
         // midnight — evening shifts run past 12, and the doctor is still
