@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V1\Booking\UpdateBookingController;
 use App\Http\Controllers\Api\V1\Branches\CreateBranchController;
 use App\Http\Controllers\Api\V1\Branches\ListBranchesController;
 use App\Http\Controllers\Api\V1\Branches\SetBranchActiveController;
+use App\Http\Controllers\Api\V1\Branches\SetBranchWaitingListController;
 use App\Http\Controllers\Api\V1\Branches\UpdateBranchController;
 use App\Http\Controllers\Api\V1\HomeController;
 use App\Http\Controllers\Api\V1\Messaging\CreateBroadcastController;
@@ -126,6 +127,9 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
         Route::post('{branch}/activate', SetBranchActiveController::class)
             ->whereNumber('branch')
             ->name('api.v1.branches.activate');
+        Route::put('{branch}/waiting-list', SetBranchWaitingListController::class)
+            ->whereNumber('branch')
+            ->name('api.v1.branches.waiting-list');
     });
 
     /*

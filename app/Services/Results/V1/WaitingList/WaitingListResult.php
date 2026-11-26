@@ -2,6 +2,7 @@
 
 namespace App\Services\Results\V1\WaitingList;
 
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\WaitingListEntry;
 use App\Services\Results\ServiceResult;
@@ -21,18 +22,20 @@ final class WaitingListResult extends ServiceResult
         private readonly string $date,
         private readonly Collection $entries,
         private readonly bool $clinicCanAdd,
+        private readonly ?Branch $branch = null,
     ) {}
 
     public function toArray(): array
     {
         return [
-            'enabled' => $this->clinic->offersWaitingList(),
+            // The branch's own switch, under the clinic's (ELA-21).
+            'enabled' => $this->offers(),
             'date' => Wire::date($this->date),
             'max_per_day' => $this->clinic->waitingListMaxPerDay(),
             'count' => $this->entries->count(),
             // Whether the secretary can still add to this day: open, not over,
             // today or within the week, and not at the cap.
-            'can_add' => $this->clinic->offersWaitingList()
+            'can_add' => $this->offers()
                 && $this->clinicCanAdd
                 && $this->entries->count() < $this->clinic->waitingListMaxPerDay(),
             'items' => $this->entries
@@ -40,5 +43,10 @@ final class WaitingListResult extends ServiceResult
                 ->map(fn (WaitingListEntry $entry, int $index): array => (new WaitingListEntryResult($entry, $index + 1))->toArray())
                 ->all(),
         ];
+    }
+
+    private function offers(): bool
+    {
+        return $this->branch?->offersWaitingList() ?? $this->clinic->offersWaitingList();
     }
 }

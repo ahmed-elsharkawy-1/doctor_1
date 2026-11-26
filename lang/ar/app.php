@@ -241,6 +241,8 @@ return [
         'branch_activate' => 'تفعيل',
         'branch_deactivate_confirm' => 'الفرع هيختفي من صفحة الحجز ومش هيقبل حجوزات جديدة. الحجوزات الموجودة فيه هتفضل شغالة عادي لحد ما تخلص، ومفيش حاجة هتتلغي لوحدها.',
         'branch_deactivate_yes' => 'أيوه، أوقف الفرع',
+        'branch_waiting_list' => 'قائمة الانتظار في الفرع ده',
+        'branch_waiting_list_off_yes' => 'أيوه، اقفل القائمة',
         'branch_saved' => 'تم حفظ الفرع',
         'branch_added' => 'تمت إضافة الفرع',
         'branch_deactivated' => 'تم إيقاف الفرع',

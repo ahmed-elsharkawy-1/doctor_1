@@ -50,23 +50,26 @@ class WaitingList extends ClinicComponent
         $this->requireAbility('bookings.manage');
 
         $clinic = $this->clinic();
+        // This branch's list for the day (ELA-21); the header switches.
+        $branch = $this->branch();
 
         $entries = $this->entries();
         $service = app(WaitingListService::class);
 
         return view('livewire.app.waiting-list', [
-            'enabled' => $clinic->offersWaitingList(),
+            'enabled' => $branch->offersWaitingList(),
+            'branch' => $clinic->branches()->count() > 1 ? $branch : null,
             'entries' => $entries,
             // As the API's `can_add`: switched on, the day still open, within
             // the week, and below the cap. Whether it is full is asked when
             // she submits.
-            'canAdd' => $clinic->offersWaitingList()
-                && $service->canClinicAddOn($clinic, $this->date)
+            'canAdd' => $branch->offersWaitingList()
+                && $service->canClinicAddOn($clinic, $this->date, $branch)
                 && $entries->count() < $clinic->waitingListMaxPerDay(),
             'visitTypes' => $clinic->visitTypes()->active()->orderBy('id')->get(),
             'max' => $clinic->waitingListMaxPerDay(),
             'lastAddDay' => $service->lastClinicAddDay($clinic),
-            'days' => app(BookingDaysService::class)->window($clinic),
+            'days' => app(BookingDaysService::class)->window($clinic, branch: $branch),
         ])->title(__('waiting_list.app.title'));
     }
 
@@ -116,6 +119,7 @@ class WaitingList extends ClinicComponent
                 visitTypeId: (int) $this->addVisitTypeId,
                 name: $this->addName,
                 phone: $this->addPhone,
+                branch: $this->branch(),
             );
         } catch (ApiException $e) {
             $this->notice = $e->getMessage();
@@ -154,7 +158,7 @@ class WaitingList extends ClinicComponent
      */
     private function entries(): Collection
     {
-        return app(WaitingListService::class)->forDay($this->clinic(), $this->date);
+        return app(WaitingListService::class)->forDay($this->clinic(), $this->date, $this->branch());
     }
 
     private function clearNotice(): void

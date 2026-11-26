@@ -99,6 +99,28 @@
                 </div>
             </div>
 
+            {{-- The branch's own waiting list, under the clinic's (ELA-21). --}}
+            @if ($branchListsEditable)
+                <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.6rem;min-height:44px">
+                    <input type="checkbox" @checked($branch->waiting_list_enabled) wire:click.prevent="toggleWaitingList({{ $branch->id }}, {{ $branch->waiting_list_enabled ? 'false' : 'true' }})">
+                    <span>{{ __('app.settings.branch_waiting_list') }}</span>
+                </label>
+
+                @if ($confirmingListOff === $branch->id)
+                    <div class="flash flash-warn" style="margin:0.4rem 0 0;font-weight:400">
+                        {{ trans_choice('settings.branch.waiting_list_has_patients', $listOffWaiting, ['count' => $listOffWaiting]) }}
+                        <div style="margin-top:0.6rem;display:flex;gap:0.4rem;flex-wrap:wrap">
+                            <button type="button" class="btn btn-sm btn-danger-solid" wire:click="confirmWaitingListOff">
+                                {{ __('app.settings.branch_waiting_list_off_yes') }}
+                            </button>
+                            <button type="button" class="btn btn-sm" wire:click="$set('confirmingListOff', null)">
+                                {{ __('app.settings.cancel') }}
+                            </button>
+                        </div>
+                    </div>
+                @endif
+            @endif
+
             @if ($confirmingDeactivate === $branch->id)
                 <div class="flash flash-err" style="margin:0.75rem 0 0;font-weight:400">
                     {{ __('app.settings.branch_deactivate_confirm') }}

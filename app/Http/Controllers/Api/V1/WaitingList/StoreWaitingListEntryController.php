@@ -33,6 +33,8 @@ class StoreWaitingListEntryController extends V1Controller
             patientId: $patientId === null ? null : (int) $patientId,
             name: $request->validated('patient_name'),
             phone: $request->validated('phone'),
+            // The list of the branch the app is on (ELA-21).
+            branch: $this->branch($request),
         );
 
         return ApiResponse::success(

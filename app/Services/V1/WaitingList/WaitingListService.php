@@ -9,6 +9,7 @@ use App\Enums\DayOfWeek;
 use App\Enums\WaitingListStatus;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\Patient;
 use App\Models\User;
@@ -55,9 +56,11 @@ class WaitingListService
      *
      * @return Collection<int, WaitingListEntry>
      */
-    public function forDay(Clinic $clinic, string $date): Collection
+    public function forDay(Clinic $clinic, string $date, ?Branch $branch = null): Collection
     {
+        // One branch's list for one day (ELA-21).
         return $clinic->waitingListEntries()
+            ->where('branch_id', $this->branchId($clinic, $branch))
             ->with(['patient', 'visitType'])
             ->waiting()
             ->onDate($date)
@@ -65,17 +68,22 @@ class WaitingListService
             ->get();
     }
 
-    public function countOn(Clinic $clinic, string $date): int
+    public function countOn(Clinic $clinic, string $date, ?Branch $branch = null): int
     {
-        return $clinic->waitingListEntries()->waiting()->onDate($date)->count();
+        return $clinic->waitingListEntries()
+            ->where('branch_id', $this->branchId($clinic, $branch))
+            ->waiting()
+            ->onDate($date)
+            ->count();
     }
 
     /**
      * Everyone on a list for today or later — the clinic app's badge.
      */
-    public function upcomingCount(Clinic $clinic): int
+    public function upcomingCount(Clinic $clinic, ?Branch $branch = null): int
     {
         return $clinic->waitingListEntries()
+            ->where('branch_id', $this->branchId($clinic, $branch))
             ->waiting()
             ->whereDate('visit_date', '>=', $clinic->currentDay()->toDateString())
             ->count();
@@ -89,21 +97,24 @@ class WaitingListService
     {
         return WaitingListEntry::query()
             ->where('clinic_id', $entry->clinic_id)
+            ->where('branch_id', $entry->branch_id)
             ->waiting()
             ->onDate($entry->visit_date->toDateString())
             ->where('id', '<=', $entry->id)
             ->count();
     }
 
-    public function isFull(Clinic $clinic, string $date): bool
+    /** The cap is the clinic's, counted per branch and day (ELA-21). */
+    public function isFull(Clinic $clinic, string $date, ?Branch $branch = null): bool
     {
-        return $this->countOn($clinic, $date) >= $clinic->waitingListMaxPerDay();
+        return $this->countOn($clinic, $date, $branch) >= $clinic->waitingListMaxPerDay();
     }
 
     /** This patient's place on that day's list, if they have one. */
-    public function entryFor(Clinic $clinic, Patient $patient, string $date): ?WaitingListEntry
+    public function entryFor(Clinic $clinic, Patient $patient, string $date, ?Branch $branch = null): ?WaitingListEntry
     {
         return $clinic->waitingListEntries()
+            ->where('branch_id', $this->branchId($clinic, $branch))
             ->with(['patient', 'visitType'])
             ->waiting()
             ->where('patient_id', $patient->id)
@@ -117,9 +128,14 @@ class WaitingListService
      * Only the times they left themselves count — a removal by the clinic is
      * not theirs to answer for.
      */
-    public function hasLeftTooOften(Clinic $clinic, Patient $patient, string $date): bool
+    /**
+     * Counted per branch (ELA-21): each branch's list is its own, so leaving
+     * one is no answer about another.
+     */
+    public function hasLeftTooOften(Clinic $clinic, Patient $patient, string $date, ?Branch $branch = null): bool
     {
         $left = $clinic->waitingListEntries()
+            ->where('branch_id', $this->branchId($clinic, $branch))
             ->where('patient_id', $patient->id)
             ->onDate($date)
             ->where('status', WaitingListStatus::LEFT)
@@ -136,6 +152,15 @@ class WaitingListService
             ->whereKey($entryId)
             ->first();
 
+        // A team member reaches only her branches' lists (ELA-21), as with
+        // bookings: another branch's entry is "not found".
+        $actor = request()->user();
+
+        if ($entry !== null && $actor instanceof User && $actor->isSecretary()
+            && ! $actor->accessibleBranches($clinic)->contains('id', $entry->branch_id)) {
+            $entry = null;
+        }
+
         if ($entry === null) {
             throw ApiException::make(
                 ApiErrorCode::WAITING_LIST_ENTRY_NOT_FOUND,
@@ -151,13 +176,15 @@ class WaitingListService
      * When the day's last period closes, as an instant — or null when the
      * clinic does not open that day at all.
      */
-    public function dayEndsAt(Clinic $clinic, Carbon $date): ?Carbon
+    public function dayEndsAt(Clinic $clinic, Carbon $date, ?Branch $branch = null): ?Carbon
     {
-        if ($this->slots->isHoliday($clinic, $date)) {
+        $branch ??= $clinic->firstBranch();
+
+        if ($this->slots->isHoliday($clinic, $date, $branch)) {
             return null;
         }
 
-        $schedule = $clinic->scheduleFor(DayOfWeek::fromDate($date));
+        $schedule = $branch->scheduleFor(DayOfWeek::fromDate($date));
 
         if ($schedule === null || ! $schedule->is_open) {
             return null;
@@ -178,7 +205,7 @@ class WaitingListService
      * day, it is inside the booking window, and its last period has not
      * ended yet.
      */
-    public function isJoinable(Clinic $clinic, string $date): bool
+    public function isJoinable(Clinic $clinic, string $date, ?Branch $branch = null): bool
     {
         $day = Carbon::parse($date, $clinic->timezone)->startOfDay();
 
@@ -186,7 +213,7 @@ class WaitingListService
             return false;
         }
 
-        $end = $this->dayEndsAt($clinic, $day);
+        $end = $this->dayEndsAt($clinic, $day, $branch);
 
         return $end !== null && Carbon::now($clinic->timezone)->lt($end);
     }
@@ -206,9 +233,9 @@ class WaitingListService
      * no further ahead than the week. Not whether it is full — that depends
      * on the visit type, and is asked when she adds.
      */
-    public function canClinicAddOn(Clinic $clinic, string $date): bool
+    public function canClinicAddOn(Clinic $clinic, string $date, ?Branch $branch = null): bool
     {
-        return $this->isWithinClinicAddWindow($clinic, $date) && $this->isJoinable($clinic, $date);
+        return $this->isWithinClinicAddWindow($clinic, $date) && $this->isJoinable($clinic, $date, $branch);
     }
 
     private function isWithinClinicAddWindow(Clinic $clinic, string $date): bool
@@ -242,13 +269,15 @@ class WaitingListService
         string $date,
         BookingSource $source,
         ?User $actor = null,
+        ?Branch $branch = null,
     ): WaitingListEntry {
-        $this->assertEnabled($clinic);
+        $branch ??= $clinic->firstBranch();
+        $this->assertEnabled($clinic, $branch);
 
         $day = Carbon::parse($date, $clinic->timezone)->startOfDay();
         $date = $day->toDateString();
 
-        if (! $this->isJoinable($clinic, $date)) {
+        if (! $this->isJoinable($clinic, $date, $branch)) {
             throw ApiException::make(
                 ApiErrorCode::WAITING_LIST_CLOSED,
                 __('waiting_list.closed'),
@@ -259,15 +288,15 @@ class WaitingListService
         $joined = false;
 
         $entry = $this->lock->claim($clinic, $day, function () use (
-            $clinic, $patient, $visitType, $date, $source, $actor, &$joined
+            $clinic, $patient, $visitType, $date, $source, $actor, $branch, &$joined
         ): WaitingListEntry {
-            $existing = $this->entryFor($clinic, $patient, $date);
+            $existing = $this->entryFor($clinic, $patient, $date, $branch);
 
             if ($existing !== null) {
                 return $existing;
             }
 
-            if ($this->hasLeftTooOften($clinic, $patient, $date)) {
+            if ($this->hasLeftTooOften($clinic, $patient, $date, $branch)) {
                 throw ApiException::make(
                     ApiErrorCode::WAITING_LIST_LEFT_TOO_OFTEN,
                     __('waiting_list.left_too_often'),
@@ -290,7 +319,7 @@ class WaitingListService
                 );
             }
 
-            if ($this->isFull($clinic, $date)) {
+            if ($this->isFull($clinic, $date, $branch)) {
                 throw ApiException::make(
                     ApiErrorCode::WAITING_LIST_FULL,
                     __('waiting_list.full'),
@@ -302,6 +331,7 @@ class WaitingListService
             $joined = true;
 
             return $clinic->waitingListEntries()->create([
+                'branch_id' => $branch->id,
                 'patient_id' => $patient->id,
                 'visit_type_id' => $visitType?->id,
                 'visit_date' => $date,
@@ -344,19 +374,21 @@ class WaitingListService
         ?int $patientId = null,
         ?string $name = null,
         ?string $phone = null,
+        ?Branch $branch = null,
     ): WaitingListEntry {
-        $this->assertEnabled($clinic);
+        $branch ??= $clinic->firstBranch();
+        $this->assertEnabled($clinic, $branch);
         $this->assertWithinClinicAddWindow($clinic, $date);
 
         $visitType = $this->activeVisitType($clinic, $visitTypeId);
-        $this->assertDayIsFull($clinic, $visitType, $date);
+        $this->assertDayIsFull($clinic, $visitType, $date, $branch);
 
         $patient = $patientId !== null
             ? $this->patients->findById($clinic, $patientId)
             : $this->patients->findOrCreate($clinic, trim((string) $name), $this->patients->parsePhone($clinic, (string) $phone));
 
         try {
-            return $this->join($clinic, $patient, $visitType, $date, BookingSource::CLINIC, $actor);
+            return $this->join($clinic, $patient, $visitType, $date, BookingSource::CLINIC, $actor, $branch);
         } catch (ApiException $e) {
             // join() words this one to the patient, who is the one leaving.
             if ($e->errorCode === ApiErrorCode::WAITING_LIST_LEFT_TOO_OFTEN) {
@@ -393,11 +425,11 @@ class WaitingListService
      * is closed or outside the window is left to join(), which refuses it as
      * closed.
      */
-    private function assertDayIsFull(Clinic $clinic, VisitType $visitType, string $date): void
+    private function assertDayIsFull(Clinic $clinic, VisitType $visitType, string $date, Branch $branch): void
     {
         $day = Carbon::parse($date, $clinic->timezone)->startOfDay();
 
-        if ($this->slots->for($clinic, $day, $visitType)->hasAvailableSlot()) {
+        if ($this->slots->for($clinic, $day, $visitType, branch: $branch)->hasAvailableSlot()) {
             throw ApiException::make(
                 ApiErrorCode::WAITING_LIST_DAY_NOT_FULL,
                 __('waiting_list.day_not_full_staff', ['type' => $visitType->name]),
@@ -521,6 +553,16 @@ class WaitingListService
             return null;
         }
 
+        // Booked at the branch whose list it is, never another (ELA-21).
+        if ($entry->branch_id !== $booking->branch_id) {
+            throw ApiException::make(
+                ApiErrorCode::WAITING_LIST_WRONG_BRANCH,
+                __('waiting_list.wrong_branch', ['branch' => $entry->branch?->name]),
+                details: ['branch_id' => $entry->branch_id],
+                http: 422,
+            );
+        }
+
         $date = $booking->visit_date->toDateString();
 
         if ($entry->visit_date->toDateString() !== $date) {
@@ -567,17 +609,21 @@ class WaitingListService
 
         // An overnight period can end on the next calendar day, so yesterday
         // is still a candidate; anything older is over by definition.
-        $dates = $clinic->waitingListEntries()
+        // Each branch's list ends with that branch's day (ELA-21).
+        $lists = $clinic->waitingListEntries()
             ->waiting()
             ->whereDate('visit_date', '<=', $now->toDateString())
+            ->select(['visit_date', 'branch_id'])
             ->distinct()
-            ->pluck('visit_date')
-            ->map(fn ($date) => Carbon::parse($date)->toDateString())
-            ->unique();
+            ->get()
+            ->map(fn ($entry) => [Carbon::parse($entry->visit_date)->toDateString(), $entry->branch_id])
+            ->unique(fn (array $list) => $list[0].'#'.$list[1]);
+        $branches = $clinic->branches()->get()->keyBy('id');
 
-        foreach ($dates as $date) {
+        foreach ($lists as [$date, $branchId]) {
+            $branch = $branches->get($branchId) ?? $clinic->firstBranch();
             $day = Carbon::parse($date, $clinic->timezone)->startOfDay();
-            $end = $this->dayEndsAt($clinic, $day) ?? $day;
+            $end = $this->dayEndsAt($clinic, $day, $branch) ?? $day;
 
             if ($now->lt($end)) {
                 continue;
@@ -586,7 +632,10 @@ class WaitingListService
             $notify = $now->diffInMinutes($end, true)
                 <= (int) config('clinic.waiting_list.notify_within_hours') * 60;
 
+            // The stored branch as it is: an entry somehow left without one
+            // still closes, by the first branch's day.
             $entries = $clinic->waitingListEntries()
+                ->where(fn ($query) => $branchId === null ? $query->whereNull('branch_id') : $query->where('branch_id', $branchId))
                 ->with('patient')
                 ->waiting()
                 ->onDate($date)
@@ -605,6 +654,12 @@ class WaitingListService
         }
 
         return ['closed' => $closed, 'messaged' => $messaged];
+    }
+
+    /** The branch asked about, or the clinic's first: the only one before branches. */
+    private function branchId(Clinic $clinic, ?Branch $branch): ?int
+    {
+        return $branch?->id ?? $clinic->firstBranchId();
     }
 
     private function activeVisitType(Clinic $clinic, int $visitTypeId): VisitType
@@ -629,9 +684,9 @@ class WaitingListService
         return $visitType;
     }
 
-    private function assertEnabled(Clinic $clinic): void
+    private function assertEnabled(Clinic $clinic, Branch $branch): void
     {
-        if (! $clinic->offersWaitingList()) {
+        if (! $branch->offersWaitingList()) {
             throw ApiException::make(
                 ApiErrorCode::WAITING_LIST_DISABLED,
                 __('waiting_list.disabled'),

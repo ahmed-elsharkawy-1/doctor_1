@@ -202,7 +202,7 @@ class BookVisit extends Component
         // Only for a selected day with nothing free: what the waiting list
         // offers there, if anything.
         $waitingOffer = $stage === 'appointment' && $availability !== null && ! $availability->hasAvailableSlot()
-            ? $this->service()->waitingListOffer($clinic, $this->date)
+            ? $this->service()->waitingListOffer($clinic, $this->date, $this->bookingBranch())
             : null;
 
         return view('livewire.patient.book-visit', [
@@ -232,12 +232,14 @@ class BookVisit extends Component
             'upcoming' => $stage === 'upcoming' ? $this->upcoming() : null,
             'waitingOffer' => $waitingOffer,
             // The other way out of a full day: the next one with room.
-            'nextFreeDay' => $waitingOffer === null
-                ? null
-                : $this->service()->nextFreeDay($this->days($clinic), $this->date),
+            // Offered on a full day with or without a list: the way out of a
+            // full day is the next one with room.
+            'nextFreeDay' => $stage === 'appointment' && $availability !== null && ! $availability->hasAvailableSlot()
+                ? $this->service()->nextFreeDay($this->days($clinic), $this->date)
+                : null,
             // Whether a full day may be tapped at all. Without a list there
             // is nothing to do on one, so it stays shut.
-            'waitingListOpen' => $clinic->offersWaitingList(),
+            'waitingListOpen' => $this->bookingBranch()?->offersWaitingList() ?? false,
             'waitingEntry' => $stage === 'waitlisted' ? $this->waitingEntry() : null,
             'blockedMessage' => $stage === 'blocked' ? $this->service()->blockedMessage($clinic) : null,
             'confirmed' => $stage === 'done' ? $this->confirmed() : null,
@@ -654,6 +656,7 @@ class BookVisit extends Component
                 $this->name,
                 (int) $this->visitTypeId,
                 $this->date,
+                $this->bookingBranch(),
             );
 
             $this->waitingEntryId = $entry->id;

@@ -410,7 +410,7 @@ class PatientBookingService
 
             $date = $day['date']->toDateString();
 
-            if (($day['available_count'] ?? 0) > 0 || $this->canWaitOn($clinic, $date)) {
+            if (($day['available_count'] ?? 0) > 0 || $this->canWaitOn($clinic, $date, $branch)) {
                 return $date;
             }
         }
@@ -436,11 +436,13 @@ class PatientBookingService
     }
 
     /** A full day a patient could still wait on: list on, day not over, room left. */
-    private function canWaitOn(Clinic $clinic, string $date): bool
+    private function canWaitOn(Clinic $clinic, string $date, ?Branch $branch = null): bool
     {
-        return $clinic->offersWaitingList()
-            && $this->waitingList->isJoinable($clinic, $date)
-            && ! $this->waitingList->isFull($clinic, $date);
+        $branch ??= $clinic->firstBranch();
+
+        return $branch->offersWaitingList()
+            && $this->waitingList->isJoinable($clinic, $date, $branch)
+            && ! $this->waitingList->isFull($clinic, $date, $branch);
     }
 
     /**
@@ -741,21 +743,25 @@ class PatientBookingService
      *
      * @return array{full: bool, entry: WaitingListEntry|null}|null
      */
-    public function waitingListOffer(Clinic $clinic, string $date): ?array
+    public function waitingListOffer(Clinic $clinic, string $date, ?Branch $branch = null): ?array
     {
-        if (! $clinic->offersWaitingList()
+        // The list of the branch they are booking at; none where that branch
+        // keeps none (ELA-21).
+        $branch ??= $clinic->firstBranch();
+
+        if (! $branch->offersWaitingList()
             || ! $this->isWithinPatientWindow($clinic, $date)
-            || ! $this->waitingList->isJoinable($clinic, $date)) {
+            || ! $this->waitingList->isJoinable($clinic, $date, $branch)) {
             return null;
         }
 
         $patient = $this->verifiedPatient($clinic);
 
         return [
-            'full' => $this->waitingList->isFull($clinic, $date),
-            'entry' => $patient === null ? null : $this->waitingList->entryFor($clinic, $patient, $date),
+            'full' => $this->waitingList->isFull($clinic, $date, $branch),
+            'entry' => $patient === null ? null : $this->waitingList->entryFor($clinic, $patient, $date, $branch),
             // Said on the page, before they tap — rather than a refusal after.
-            'left_too_often' => $patient !== null && $this->waitingList->hasLeftTooOften($clinic, $patient, $date),
+            'left_too_often' => $patient !== null && $this->waitingList->hasLeftTooOften($clinic, $patient, $date, $branch),
         ];
     }
 
@@ -766,9 +772,10 @@ class PatientBookingService
      * must really be full for this visit type. A list for a day with a free
      * slot would only keep somebody waiting for what they could book now.
      */
-    public function joinWaitingList(Clinic $clinic, string $name, int $visitTypeId, string $date): WaitingListEntry
+    public function joinWaitingList(Clinic $clinic, string $name, int $visitTypeId, string $date, ?Branch $branch = null): WaitingListEntry
     {
         $this->assertOpen($clinic);
+        $branch = $this->assertBookableBranch($clinic, $branch);
         $phone = $this->assertVerified($clinic);
         $this->assertNotBlocked($clinic);
         $this->assertWithinPatientWindow($clinic, $date);
@@ -785,7 +792,7 @@ class PatientBookingService
             );
         }
 
-        $availability = $this->availability($clinic, $visitType, $date);
+        $availability = $this->availability($clinic, $visitType, $date, branch: $branch);
 
         if ($availability !== null && $availability->hasAvailableSlot()) {
             throw ApiException::make(
@@ -803,7 +810,7 @@ class PatientBookingService
             $this->patients->parsePhone($clinic, $phone),
         );
 
-        return $this->waitingList->join($clinic, $patient, $visitType, $date, BookingSource::PATIENT_WEB);
+        return $this->waitingList->join($clinic, $patient, $visitType, $date, BookingSource::PATIENT_WEB, branch: $branch);
     }
 
     /**

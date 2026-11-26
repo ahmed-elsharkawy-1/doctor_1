@@ -57,6 +57,16 @@ info:
     delay moves only the delayed patient's branch. A patient's history keeps
     every branch, each visit with its `branch`. A team member reaches a booking
     by id only at her own branches; another's is 404.
+
+    **And the waiting list (ELA-21).** A list belongs to one branch on one
+    day: `waiting-list` reads and adds to the list of the branch in
+    `X-Branch-Id`, and `enabled` is that branch's own switch (under the
+    clinic's). The daily cap is counted per branch. Booking a patient from a
+    list must be at that list's branch (`WAITING_LIST_WRONG_BRANCH`).
+    `PUT /branches/{id}/waiting-list` switches a branch's list; off with
+    patients waiting answers `BRANCH_WAITING_LIST_HAS_PATIENTS` (409, count in
+    `error.details.waiting_count`) until sent again with `confirm: true`.
+    Nobody is removed.
   contact:
     name: Backend
     url: https://github.com/
@@ -560,6 +570,33 @@ paths:
       responses:
         "200": { description: OK }
         "409": { description: "`BRANCH_LAST_ACTIVE`" }
+
+  /branches/{branch}/waiting-list:
+    put:
+      tags: [Settings]
+      summary: Switch a branch's waiting list on or off
+      description: |
+        Needs `branches.manage` (ELA-21). Under the clinic's own switch. Off
+        stops new joins only: everyone waiting stays until their day ends and
+        can still be booked. Off with patients waiting answers
+        `BRANCH_WAITING_LIST_HAS_PATIENTS` (409) with `error.details.waiting_count`
+        until sent again with `confirm: true`.
+      operationId: setBranchWaitingList
+      parameters:
+        - { name: branch, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+                confirm: { type: boolean }
+      responses:
+        "200": { description: OK }
+        "409": { description: "`BRANCH_WAITING_LIST_HAS_PATIENTS`" }
 
   /branches/{branch}/activate:
     post:

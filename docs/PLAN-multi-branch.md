@@ -326,6 +326,16 @@ branch.
 - Blocked by: 5.1
 
 ### Phase 6: Waiting list per branch (ELA-21)
+
+As built: `waiting_list_entries.branch_id` (backfilled) and
+`branches.waiting_list_enabled` under the clinic's switch (the operator's):
+the clinic's first branch starts on, so nothing changes for anyone today;
+a branch added later starts off. Lists, counts, the per-day cap, the day's
+end and closing are per branch; joining, adding and booking from a list are
+at the list's branch; the Branches screen and
+`PUT /branches/{id}/waiting-list` switch it, asking first when people are on
+it and removing nobody. The waiting-list WhatsApp messages get the branch in
+Phase 7.
 Verified when: with the list on only at branch 3, the join option shows only
 at branch 3, and a cancellation at branch 3 offers only branch 3's list for
 that day.
@@ -467,6 +477,6 @@ later one is pointed at `feature/multi-branch`.
 | 3 Hours and holidays | merged (#18) |
 | 4 Booking | merged (#19) |
 | 5 Queue, record and TV | PR open |
-| 6 Waiting list | pending |
+| 6 Waiting list | PR open |
 | 7 WhatsApp, delay and cancellation | pending |
 | 8 Statistics and contract | pending |

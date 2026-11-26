@@ -142,6 +142,8 @@ class NewBooking extends ClinicComponent
         $this->age = (string) ($entry->patient?->age ?? '');
         $this->waitingListPatient = $this->patientName;
         $this->date = $entry->visit_date->toDateString();
+        // Booked at the branch whose list it is (ELA-21).
+        $this->branchId = $entry->branch_id ?? $this->branchId;
 
         if ($entry->visit_type_id !== null
             && $clinic->visitTypes()->active()->whereKey($entry->visit_type_id)->exists()) {

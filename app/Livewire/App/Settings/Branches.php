@@ -24,6 +24,12 @@ class Branches extends SettingsComponent
     /** The branch waiting for its deactivation to be confirmed. */
     public ?int $confirmingDeactivate = null;
 
+    /** The branch whose waiting list is being switched off with people on it. */
+    public ?int $confirmingListOff = null;
+
+    /** How many are on it, to say before she confirms. */
+    public int $listOffWaiting = 0;
+
     public string $name = '';
 
     public string $address = '';
@@ -43,6 +49,9 @@ class Branches extends SettingsComponent
         return view('livewire.app.settings.branches', [
             'branches' => $this->service()->list($clinic, auth()->user()),
             'canAdd' => $this->service()->canAdd(),
+            // A branch's own list is a multi-branch setting: with one branch
+            // the operator's clinic switch is the only one (ELA-21).
+            'branchListsEditable' => $this->service()->branchListsEditable($clinic),
             'mainPhone' => $clinic->phone === null ? null : PhoneNumber::tryParse($clinic->phone, $clinic->country_code)?->national(),
         ])->title(__('app.settings.branches'));
     }
@@ -112,6 +121,40 @@ class Branches extends SettingsComponent
             fn () => $this->service()->deactivate($this->service()->find($this->clinic(), $branchId, auth()->user())),
             __('app.settings.branch_deactivated'),
         );
+    }
+
+    /**
+     * The branch's own waiting list on or off (ELA-21). Off with patients on
+     * it asks first, saying how many; they stay on it either way.
+     */
+    public function toggleWaitingList(int $branchId, bool $enabled, bool $confirm = false): void
+    {
+        $branch = $this->service()->find($this->clinic(), $branchId, auth()->user());
+
+        // The state she asked for, never "the other one": a second tab or a
+        // colleague may have changed it since this screen was drawn.
+        $details = $this->run(
+            fn () => $this->service()->setWaitingList($branch, $enabled, $confirm),
+            __($enabled ? 'settings.branch.waiting_list_on' : 'settings.branch.waiting_list_off'),
+        );
+
+        if (isset($details['waiting_count'])) {
+            $this->notice = null;
+            $this->failed = false;
+            $this->confirmingListOff = $branchId;
+            $this->listOffWaiting = (int) $details['waiting_count'];
+
+            return;
+        }
+
+        $this->confirmingListOff = null;
+    }
+
+    public function confirmWaitingListOff(): void
+    {
+        if ($this->confirmingListOff !== null) {
+            $this->toggleWaitingList($this->confirmingListOff, enabled: false, confirm: true);
+        }
     }
 
     public function activate(int $branchId): void
