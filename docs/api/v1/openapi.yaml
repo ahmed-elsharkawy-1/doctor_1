@@ -712,6 +712,45 @@ paths:
         "200": { description: "Same shape as `POST /emergency`" }
         "404": { description: "`BRANCH_NOT_FOUND`: not one of this account's branches" }
 
+  /bulk-cancellations:
+    get:
+      tags: [Messaging]
+      summary: What a cancellation of those days would cover, by branch
+      description: |
+        ELA-22. The bookings still to come on `dates` (today or later, at most
+        14), grouped by branch: the branches in `branch_ids`, or every branch
+        this account works at.
+      operationId: listBulkCancellation
+      parameters:
+        - { name: "dates[]", in: query, required: true, schema: { type: array, items: { type: string, format: date } } }
+        - { name: "branch_ids[]", in: query, schema: { type: array, items: { type: integer } } }
+      responses:
+        "200": { description: OK }
+        "422": { description: "`BULK_CANCEL_DAYS_INVALID`" }
+    post:
+      tags: [Messaging]
+      summary: Cancel those days at those branches
+      description: |
+        ELA-22. Each booking is cancelled for an emergency (never a no-show)
+        and sent the cancellation apology, whose "book again" opens on its own
+        branch; `exclude_booking_ids` are left as they are. Returns the
+        broadcast's counts plus `by_branch` (branch id → cancelled).
+      operationId: bulkCancel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dates]
+              properties:
+                dates: { type: array, items: { type: string, format: date } }
+                branch_ids: { type: array, items: { type: integer } }
+                exclude_booking_ids: { type: array, items: { type: integer } }
+      responses:
+        "200": { description: OK }
+        "404": { description: "`BRANCH_NOT_FOUND`: not one of this account's branches" }
+
   /holidays:
     get:
       tags: [Settings]

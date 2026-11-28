@@ -1811,6 +1811,91 @@
             "description": "WhatsApp template previews and log-driver sends",
             "item": [
                 {
+                    "name": "What a cancellation of those days would cover, by branch",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/bulk-cancellations?dates[]=&branch_ids[]=",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "bulk-cancellations"
+                            ],
+                            "query": [
+                                {
+                                    "key": "dates[]",
+                                    "value": "",
+                                    "description": "",
+                                    "disabled": false
+                                },
+                                {
+                                    "key": "branch_ids[]",
+                                    "value": "",
+                                    "description": "",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "ELA-22. The bookings still to come on `dates` (today or later, at most\n14), grouped by branch: the branches in `branch_ids`, or every branch\nthis account works at."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Cancel those days at those branches",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept-Language",
+                                "value": "{{locale}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/bulk-cancellations",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "bulk-cancellations"
+                            ]
+                        },
+                        "description": "ELA-22. Each booking is cancelled for an emergency (never a no-show)\nand sent the cancellation apology, whose \"book again\" opens on its own\nbranch; `exclude_booking_ids` are left as they are. Returns the\nbroadcast's counts plus `by_branch` (branch id → cancelled).",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"dates\": []\n}\n",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "response": []
+                },
+                {
                     "name": "List active WhatsApp templates",
                     "request": {
                         "method": "GET",

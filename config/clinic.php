@@ -104,6 +104,13 @@ return [
         'margin_minutes' => (int) env('CLINIC_DISPLAY_MARGIN_MINUTES', 60),
     ],
 
+    /*
+    | Bulk cancellation (ELA-22): how many days one go may cover.
+    */
+    'bulk_cancel' => [
+        'max_days' => (int) env('CLINIC_BULK_CANCEL_MAX_DAYS', 14),
+    ],
+
     'branches' => [
         'multi_enabled' => (bool) env('CLINIC_MULTI_BRANCH', false),
 

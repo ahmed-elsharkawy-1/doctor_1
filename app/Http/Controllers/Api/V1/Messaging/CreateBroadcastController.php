@@ -25,6 +25,8 @@ class CreateBroadcastController extends V1Controller
             (string) $request->validated('template_key'),
             $date,
             $request->bookingIds(),
+            // The branch the app is on, and no other (ELA-22).
+            [$this->branch($request)->id],
         );
 
         return ApiResponse::success($result, __('messages.sent'));

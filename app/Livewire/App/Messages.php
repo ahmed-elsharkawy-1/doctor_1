@@ -156,6 +156,7 @@ class Messages extends ClinicComponent
                 $this->templateKey,
                 $this->safeDate($this->date),
                 $this->selected === [] ? null : $this->selected,
+                [$this->branch()->id],
             );
         } catch (ApiException $e) {
             // A per-booking template, or one that was deactivated while the
@@ -205,6 +206,7 @@ class Messages extends ClinicComponent
         $pending = app(QueueService::class)->postponeCandidates(
             $this->clinic(),
             $this->safeDate($this->date),
+            $this->branch(),
         );
 
         if ($this->selected === []) {

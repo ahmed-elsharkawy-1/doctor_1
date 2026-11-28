@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\V1\Patients\SearchPatientsController;
 use App\Http\Controllers\Api\V1\Patients\ShowPatientController;
 use App\Http\Controllers\Api\V1\Patients\UpdateOnlineBookingController;
 use App\Http\Controllers\Api\V1\Patients\UpdateWhatsAppConsentController;
+use App\Http\Controllers\Api\V1\Queue\BulkCancellationController;
 use App\Http\Controllers\Api\V1\Queue\CancelBookingController;
 use App\Http\Controllers\Api\V1\Queue\ConfirmAttendanceController;
 use App\Http\Controllers\Api\V1\Queue\DelayCandidatesController;
@@ -204,6 +205,11 @@ Route::middleware(['auth:sanctum', 'clinic'])->group(function (): void {
         Route::get('message-templates', ListMessageTemplatesController::class)
             ->name('api.v1.message-templates.index');
         Route::post('broadcasts', CreateBroadcastController::class)->name('api.v1.broadcasts.store');
+
+        // ELA-22: cancelling days at one or more branches, with bookings
+        // unticked; each gets the cancellation apology.
+        Route::get('bulk-cancellations', [BulkCancellationController::class, 'index'])->name('api.v1.bulk-cancellations.index');
+        Route::post('bulk-cancellations', [BulkCancellationController::class, 'store'])->name('api.v1.bulk-cancellations.store');
 
         // Patients asking for a full day. They join on the public page, or
         // the secretary adds one who phoned in; booking one of them is an

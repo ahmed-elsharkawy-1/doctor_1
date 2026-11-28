@@ -269,6 +269,12 @@ return [
     ],
 
     // Delaying the rest of today's patients.
+    'bulk_cancel' => [
+        'days_invalid' => 'Choose one or more days from today on, :days at most',
+        'cancelled' => '{1} One booking cancelled|[2,*] :count bookings cancelled',
+        'loaded' => 'Bookings loaded',
+    ],
+
     'delay' => [
         'hours' => '{1} an hour|[2,*] :count hours',
         'minutes' => '{1} a minute|[2,*] :count minutes',

@@ -45,6 +45,7 @@ enum ApiErrorCode: string
 
     // Queue displays (multi-branch, ELA-19)
     case DISPLAY_NOT_FOUND = 'DISPLAY_NOT_FOUND';
+    case BULK_CANCEL_DAYS_INVALID = 'BULK_CANCEL_DAYS_INVALID';
 
     // Team (multi-branch, ELA-17)
     case TEAM_MEMBER_NOT_FOUND = 'TEAM_MEMBER_NOT_FOUND';

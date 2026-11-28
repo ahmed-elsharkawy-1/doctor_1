@@ -121,10 +121,18 @@ class WhatsAppMessagingService
      * @param  list<int>|null  $bookingIds
      * @return array<string, mixed>
      */
-    public function broadcast(Clinic $clinic, string $templateKey, ?Carbon $date = null, ?array $bookingIds = null): array
+    /**
+     * @param  list<int>|null  $branchIds  the branches it may reach (ELA-22):
+     *                                     a day, or ids, at any other branch
+     *                                     are simply not among them. Null is
+     *                                     the clinic's first branch, the only
+     *                                     one before branches.
+     */
+    public function broadcast(Clinic $clinic, string $templateKey, ?Carbon $date = null, ?array $bookingIds = null, ?array $branchIds = null): array
     {
         $date ??= $clinic->currentDay();
         $query = $clinic->bookings()
+            ->whereIn('branch_id', $branchIds ?? [$clinic->firstBranchId()])
             ->with('patient')
             ->pending()
             ->orderBy('start_at');
