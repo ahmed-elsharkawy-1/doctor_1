@@ -44,30 +44,32 @@ class BulkCancellationController extends V1Controller
 
     public function store(Request $request): JsonResponse
     {
-        $validated = $this->validated($request, withExclusions: true);
+        $validated = $this->validated($request, withBookings: true);
 
         $result = $this->bulk->cancel(
             $this->clinic($request),
             $this->user($request),
             $validated['dates'],
             $validated['branch_ids'] ?? null,
-            array_map('intval', $validated['exclude_booking_ids'] ?? []),
+            array_map('intval', $validated['booking_ids']),
         );
 
         return ApiResponse::success($result, trans_choice('booking.bulk_cancel.cancelled', max(1, $result['cancelled_count']), ['count' => $result['cancelled_count']]));
     }
 
     /** @return array<string, mixed> */
-    private function validated(Request $request, bool $withExclusions = false): array
+    private function validated(Request $request, bool $withBookings = false): array
     {
         return $request->validate([
             'dates' => ['required', 'array', 'min:1'],
             'dates.*' => ['date_format:Y-m-d'],
             'branch_ids' => ['nullable', 'array'],
             'branch_ids.*' => ['integer'],
-        ] + ($withExclusions ? [
-            'exclude_booking_ids' => ['nullable', 'array'],
-            'exclude_booking_ids.*' => ['integer'],
+        ] + ($withBookings ? [
+            // The ones listed by GET and left ticked: a booking made since
+            // is not among them, and is left as it is.
+            'booking_ids' => ['required', 'array', 'min:1'],
+            'booking_ids.*' => ['integer'],
         ] : []));
     }
 }
