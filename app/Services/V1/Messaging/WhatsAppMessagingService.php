@@ -9,6 +9,7 @@ use App\Enums\PatientResponse;
 use App\Exceptions\ApiException;
 use App\Jobs\SendWhatsAppMessage;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\MessageTemplate;
 use App\Models\OutboundMessage;
@@ -391,10 +392,16 @@ class WhatsAppMessagingService
      * active — an operator pressing send should hear why nothing went, not
      * read "0 sent". Patients who never agreed to WhatsApp are skipped.
      *
+     * `$branchOf` maps a patient to the branch they are booked at that day,
+     * whose phone the message gives; `$namesBranch` puts that branch after
+     * the doctor's name, for an announcement not sent to every branch
+     * (ELA-22).
+     *
      * @param  Collection<int, Patient>  $patients
+     * @param  array<int, Branch>  $branchOf
      * @return array{sent_count: int, skipped_count: int, message_ids: list<int>}
      */
-    public function sendAnnouncement(Clinic $clinic, Collection $patients, string $text): array
+    public function sendAnnouncement(Clinic $clinic, Collection $patients, string $text, array $branchOf = [], bool $namesBranch = false): array
     {
         if (! $clinic->sendsWhatsApp()) {
             throw ApiException::make(
@@ -415,7 +422,7 @@ class WhatsAppMessagingService
                 continue;
             }
 
-            $payload = $this->payloads->forAnnouncement($clinic, $patient, $text);
+            $payload = $this->payloads->forAnnouncement($clinic, $patient, $text, $branchOf[$patient->id] ?? null, $namesBranch);
 
             $message = OutboundMessage::create([
                 'clinic_id' => $clinic->id,

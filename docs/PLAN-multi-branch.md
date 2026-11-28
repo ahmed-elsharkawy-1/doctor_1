@@ -404,14 +404,18 @@ day. This step adds the branch scope, several days, and deselecting patients.
 - Files likely touched: `app/Services/V1/Queue/BulkCancellationService.php`, `app/Livewire/App/BulkCancel.php`, an API controller, routes, nav
 - Blocked by: 5.1
 
-#### Step 7.4: Clinic Announcement with a branch scope (Size: S)
+#### Step 7.4: Clinic Announcement with a branch scope (Size: S) ✅ (7d)
 - Acceptance criteria:
-  - The scope selector on Messages. The name variable is doctor + branch, or
-    the doctor alone for "All branches".
+  - The announcement is sent only from the admin panel (a clinic never
+    sends one), so the scope selector is there: branch checkboxes, all
+    ticked to begin with, shown once the clinic has more than one branch.
+    The name variable is "د. … – <branch>" for some branches, or the doctor
+    alone for all of them. `{{4}}` is the patient's branch's phone.
   - Recipients are the patients with bookings at the chosen branches (the
-    current recipient rule, filtered by branch).
-- Verification command: `php artisan test --filter=Broadcast`
-- Files likely touched: `app/Livewire/App/Messages.php`, `CreateBroadcastController`, `WhatsAppMessagingService`
+    current recipient rule, filtered by branch), each once; a patient
+    booked at two gets the branch of their first booking that day.
+- Verification command: `php artisan test --filter=Announcement`
+- Files touched: `app/Filament/Admin/Resources/Clinics/Pages/EditClinic.php`, `TemplatePayloadResolver`, `WhatsAppMessagingService`
 - Blocked by: 7.1
 
 ### Phase 8: "All branches" statistics and the contract (Size: M)
@@ -480,7 +484,7 @@ later one is pointed at `feature/multi-branch`.
 | 2 Team access and switching | merged (#17) |
 | 3 Hours and holidays | merged (#18) |
 | 4 Booking | merged (#19) |
-| 5 Queue, record and TV | PR open |
-| 6 Waiting list | PR open |
-| 7 WhatsApp, delay and cancellation | pending |
+| 5 Queue, record and TV | PR open (#20) |
+| 6 Waiting list | PR open (#21) |
+| 7 WhatsApp, delay and cancellation | PRs open: 7a #22, 7b #23, 7c #24, 7d (announcement) |
 | 8 Statistics and contract | pending |

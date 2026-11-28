@@ -225,6 +225,8 @@ return [
         'send_announcement' => 'Send an announcement',
         'announcement_date' => 'Day',
         'announcement_date_hint' => 'Only the patients booked on this day get it.',
+        'announcement_branches' => 'Branches',
+        'announcement_branches_hint' => 'Only the patients booked at the ticked branches get it. With some branches only, the message names the branch after the doctor.',
         'announcement_recipients' => 'Who gets it',
         'announcement_will_send' => ':sent patient(s) will get it; :skipped skipped (no WhatsApp consent).',
         'announcement_text' => 'Announcement',
