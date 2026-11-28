@@ -28,10 +28,10 @@ class RevenueService
      *     from: Carbon, to: Carbon
      * }
      */
-    public function forPeriod(Clinic $clinic, ReportPeriod $period): array
+    public function forPeriod(Clinic $clinic, ReportPeriod $period, ?array $branchIds = null): array
     {
-        $current = $this->totals($clinic, $period->from, $period->to);
-        $previous = $this->totals($clinic, $period->previousFrom, $period->previousTo);
+        $current = $this->totals($clinic, $period->from, $period->to, $branchIds);
+        $previous = $this->totals($clinic, $period->previousFrom, $period->previousTo, $branchIds);
 
         $difference = round($current['total'] - $previous['total'], 2);
 
@@ -55,9 +55,9 @@ class RevenueService
     /**
      * @return array{total: float, count: int}
      */
-    public function totals(Clinic $clinic, Carbon $from, Carbon $to): array
+    public function totals(Clinic $clinic, Carbon $from, Carbon $to, ?array $branchIds = null): array
     {
-        $query = $this->completed($clinic, $from, $to);
+        $query = $this->completed($clinic, $from, $to, $branchIds);
 
         return [
             'total' => round((float) $query->clone()->sum('price'), 2),
@@ -71,9 +71,9 @@ class RevenueService
      *
      * @return array<string, float>
      */
-    public function daily(Clinic $clinic, Carbon $from, Carbon $to): array
+    public function daily(Clinic $clinic, Carbon $from, Carbon $to, ?array $branchIds = null): array
     {
-        $totals = $this->completed($clinic, $from, $to)
+        $totals = $this->completed($clinic, $from, $to, $branchIds)
             ->get(['visit_date', 'price'])
             ->groupBy(fn ($booking) => Carbon::parse($booking->visit_date)->toDateString())
             ->map(fn ($group) => round((float) $group->sum('price'), 2));
@@ -89,12 +89,15 @@ class RevenueService
     }
 
     /**
+     * @param  list<int>|null  $branchIds  the branches to count (Phase 8):
+     *                                     null for the whole clinic
      * @return Builder<Booking>
      */
-    public function completed(Clinic $clinic, Carbon $from, Carbon $to): Builder
+    public function completed(Clinic $clinic, Carbon $from, Carbon $to, ?array $branchIds = null): Builder
     {
         return $clinic->bookings()
             ->where('status', BookingStatus::DONE)
+            ->when($branchIds !== null, fn ($query) => $query->whereIn('branch_id', $branchIds))
             ->whereBetween('visit_date', [$from->toDateString(), $to->toDateString()])
             ->getQuery();
     }

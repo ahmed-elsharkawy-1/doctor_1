@@ -419,9 +419,14 @@ day. This step adds the branch scope, several days, and deselecting patients.
 - Blocked by: 7.1
 
 ### Phase 8: "All branches" statistics and the contract (Size: M)
+Split in two PRs: 8a the branch filter (✅), 8b the contract and the demo data.
 - Acceptance criteria:
   - The reports and Reviews get a branch filter for the doctor, with "All
-    branches" as the default.
+    branches" as the default. ✅ (8a) Chips on Reports and Reviews, and
+    `?branch_id=` on `/reports/revenue`, `/reports/retention` and `/reviews`.
+    A team member reads her own branches only. Retention at a branch: the
+    cohort is the patients first seen there, and a return to any branch
+    counts. The doctor's daily WhatsApp report stays doctor-wide.
   - `branch_id` becomes NOT NULL where the tickets require it. The address
     and waiting-list columns are dropped from `clinics` once a grep shows
     nothing reads them.
@@ -486,5 +491,5 @@ later one is pointed at `feature/multi-branch`.
 | 4 Booking | merged (#19) |
 | 5 Queue, record and TV | PR open (#20) |
 | 6 Waiting list | PR open (#21) |
-| 7 WhatsApp, delay and cancellation | PRs open: 7a #22, 7b #23, 7c #24, 7d (announcement) |
-| 8 Statistics and contract | pending |
+| 7 WhatsApp, delay and cancellation | PRs open: 7a #22, 7b #23, 7c #24, 7d #25 |
+| 8 Statistics and contract | 8a branch filter: PR open; 8b contract: pending |

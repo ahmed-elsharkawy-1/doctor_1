@@ -4,6 +4,7 @@ namespace App\Services\V1\Reports;
 
 use App\Models\Clinic;
 use App\Models\User;
+use App\Services\V1\Branches\BranchScope;
 
 /**
  * Who may read reports, and for which clinic. One rule for the website, the
@@ -20,6 +21,12 @@ class ReportAccess
 
         $clinic = $user->activeClinic();
 
-        return $clinic !== null && $clinic->is_active && $clinic->reports_enabled ? $clinic : null;
+        if ($clinic === null || ! $clinic->is_active || ! $clinic->reports_enabled) {
+            return null;
+        }
+
+        // The report is the whole clinic's: not for one kept to some
+        // branches (Phase 8), who reads those in the app's Reports instead.
+        return app(BranchScope::class)->readsWholeClinic($user, $clinic) ? $clinic : null;
     }
 }

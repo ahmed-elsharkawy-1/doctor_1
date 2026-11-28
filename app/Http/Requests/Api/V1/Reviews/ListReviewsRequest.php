@@ -22,6 +22,7 @@ class ListReviewsRequest extends FormRequest
     {
         return [
             'rating' => ['nullable', Rule::enum(ReviewRating::class)],
+            'branch_id' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:'.config('clinic.api.pagination.max_per_page')],
         ];
     }

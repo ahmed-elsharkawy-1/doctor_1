@@ -17,6 +17,7 @@ class RetentionReportController extends V1Controller
         $result = $this->reports->retention(
             $this->clinic($request),
             $request->query('period'),
+            $this->reportScope($request),
         );
 
         return ApiResponse::success($result->toArray(), __('reports.retention_loaded'));

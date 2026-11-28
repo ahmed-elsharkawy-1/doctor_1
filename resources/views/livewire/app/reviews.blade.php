@@ -65,6 +65,7 @@
     </style>
 
     <h1 style="font-size:1.05rem;font-weight:700;margin:0 0 12px">{{ __('app.reviews.title') }}</h1>
+    @include('livewire.app.partials.branch-filter')
 
     <div class="card rv-summary">
         <div class="rv-head">

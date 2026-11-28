@@ -24,28 +24,30 @@ class ClinicReportService
         private readonly RetentionService $retention,
     ) {}
 
-    public function revenue(Clinic $clinic): RevenueReportResult
+    /** @param  list<int>|null  $branchIds  BranchScope's answer: null for the whole clinic */
+    public function revenue(Clinic $clinic, ?array $branchIds = null): RevenueReportResult
     {
         $month = ReportPeriod::thisMonth($clinic);
 
         return new RevenueReportResult(
             periods: [
-                'today' => $this->revenue->forPeriod($clinic, ReportPeriod::today($clinic)),
-                'this_week' => $this->revenue->forPeriod($clinic, ReportPeriod::thisWeek($clinic)),
-                'this_month' => $this->revenue->forPeriod($clinic, $month),
+                'today' => $this->revenue->forPeriod($clinic, ReportPeriod::today($clinic), $branchIds),
+                'this_week' => $this->revenue->forPeriod($clinic, ReportPeriod::thisWeek($clinic), $branchIds),
+                'this_month' => $this->revenue->forPeriod($clinic, $month, $branchIds),
             ],
-            daily: $this->revenue->daily($clinic, $month->from, $month->to),
+            daily: $this->revenue->daily($clinic, $month->from, $month->to, $branchIds),
         );
     }
 
-    public function retention(Clinic $clinic, ?string $period): RetentionReportResult
+    /** @param  list<int>|null  $branchIds */
+    public function retention(Clinic $clinic, ?string $period, ?array $branchIds = null): RetentionReportResult
     {
         $period ??= config('clinic.retention.default_period');
         $resolved = $this->resolvePeriod($clinic, $period);
 
         return new RetentionReportResult(
             period: $resolved,
-            data: $this->retention->forPeriod($clinic, $resolved),
+            data: $this->retention->forPeriod($clinic, $resolved, $branchIds),
             availablePeriods: $this->availablePeriods(),
         );
     }

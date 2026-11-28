@@ -3,6 +3,7 @@
 namespace App\Livewire\App;
 
 use App\Enums\ReviewRating;
+use App\Livewire\App\Concerns\ChoosesReportBranch;
 use App\Services\Results\V1\Reviews\ReviewListItemResult;
 use App\Services\Results\V1\Reviews\ReviewSummaryResult;
 use App\Services\V1\Reviews\ClinicReviewsService;
@@ -19,6 +20,8 @@ use Livewire\Attributes\Url;
  */
 class Reviews extends ClinicComponent
 {
+    use ChoosesReportBranch;
+
     /** How many more each "load more" shows. */
     private const PAGE = 20;
 
@@ -47,11 +50,13 @@ class Reviews extends ClinicComponent
 
         $service = app(ClinicReviewsService::class);
         $clinic = $this->clinic();
-        $page = $service->list($clinic, ReviewRating::tryFrom($this->rating), $this->limit, 1);
+        $scope = $this->reportScope();
+        $page = $service->list($clinic, ReviewRating::tryFrom($this->rating), $this->limit, 1, $scope);
         $items = ReviewListItemResult::collection($page->getCollection());
 
         return view('livewire.app.reviews', [
-            'summary' => (new ReviewSummaryResult($service->summary($clinic)))->toArray(),
+            'summary' => (new ReviewSummaryResult($service->summary($clinic, $scope)))->toArray(),
+            'branchChoices' => $this->branchChoices(),
             'items' => $items,
             'shown' => $page->total(),
             'hasMore' => $page->hasMorePages(),
@@ -62,6 +67,12 @@ class Reviews extends ClinicComponent
     public function filter(string $rating): void
     {
         $this->rating = ReviewRating::tryFrom($rating)?->value ?? '';
+        $this->limit = self::PAGE;
+        $this->openId = null;
+    }
+
+    protected function afterChoosingBranch(): void
+    {
         $this->limit = self::PAGE;
         $this->openId = null;
     }

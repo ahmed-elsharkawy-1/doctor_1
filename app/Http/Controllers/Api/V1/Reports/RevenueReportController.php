@@ -14,7 +14,7 @@ class RevenueReportController extends V1Controller
 
     public function __invoke(Request $request): JsonResponse
     {
-        $result = $this->reports->revenue($this->clinic($request));
+        $result = $this->reports->revenue($this->clinic($request), $this->reportScope($request));
 
         return ApiResponse::success($result->toArray(), __('reports.revenue_loaded'));
     }

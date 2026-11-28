@@ -3,6 +3,7 @@
 namespace App\Livewire\App;
 
 use App\Exceptions\ApiException;
+use App\Livewire\App\Concerns\ChoosesReportBranch;
 use App\Services\V1\Reports\ClinicReportService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Url;
@@ -20,6 +21,8 @@ use Livewire\Attributes\Url;
  */
 class Reports extends ClinicComponent
 {
+    use ChoosesReportBranch;
+
     #[Url(as: 'period', except: '')]
     public string $period = '';
 
@@ -39,12 +42,14 @@ class Reports extends ClinicComponent
     public function render(): View
     {
         $reports = app(ClinicReportService::class);
+        $scope = $this->reportScope();
 
         return view('livewire.app.reports', [
             'revenue' => $this->showsMoney()
-                ? $reports->revenue($this->clinic())->toArray()
+                ? $reports->revenue($this->clinic(), $scope)->toArray()
                 : null,
-            'retention' => $this->retention($reports),
+            'retention' => $this->retention($reports, $scope),
+            'branchChoices' => $this->branchChoices(),
             'periods' => $reports->availablePeriods(),
         ])->title(__('app.reports.title'));
     }
@@ -64,12 +69,12 @@ class Reports extends ClinicComponent
     /**
      * @return array<string, mixed>
      */
-    private function retention(ClinicReportService $reports): array
+    private function retention(ClinicReportService $reports, ?array $scope): array
     {
         $this->requireAbility('reports.view');
 
         try {
-            return $reports->retention($this->clinic(), $this->period)->toArray();
+            return $reports->retention($this->clinic(), $this->period, $scope)->toArray();
         } catch (ApiException $e) {
             // An unknown period arrived in the query string. Fall back to the
             // default rather than showing the secretary an error page.
@@ -77,7 +82,7 @@ class Reports extends ClinicComponent
             $this->failed = true;
             $this->period = config('clinic.retention.default_period');
 
-            return $reports->retention($this->clinic(), $this->period)->toArray();
+            return $reports->retention($this->clinic(), $this->period, $scope)->toArray();
         }
     }
 }

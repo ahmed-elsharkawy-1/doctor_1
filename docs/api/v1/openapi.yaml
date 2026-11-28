@@ -2029,6 +2029,8 @@ paths:
       description: |
         The whole reviews screen in one request.
 
+        - With `branch_id` (Phase 8), everything below is that branch's: a
+          review belongs to its visit's branch.
         - `summary` is the card at the top: **every** review the clinic has,
           never narrowed by `rating` or the page, so it does not change when a
           chip is tapped. `satisfied_percent` is (very_good + good) ÷ total,
@@ -2047,6 +2049,12 @@ paths:
         sheet needs no further request.
       operationId: listReviews
       parameters:
+        - name: branch_id
+          in: query
+          schema: { type: integer }
+          description: |
+            One branch (Phase 8). Left out: "all branches", every branch this
+            account works at. `404 BRANCH_NOT_FOUND` for one it does not.
         - name: rating
           in: query
           schema: { type: string, enum: [very_good, good, bad] }
@@ -2233,6 +2241,13 @@ paths:
         booked. With fixed prices and no payment tracking in v1 this is
         *expected* revenue, not cash collected — label the screen accordingly.
       operationId: revenueReport
+      parameters:
+        - name: branch_id
+          in: query
+          schema: { type: integer }
+          description: |
+            One branch (Phase 8). Left out: "all branches", every branch this
+            account works at. `404 BRANCH_NOT_FOUND` for one it does not.
       responses:
         "200":
           description: OK
@@ -2254,11 +2269,22 @@ paths:
         Cohort-based: the cohort is patients whose **first** completed visit
         fell in the period, and the rate is how many came back.
 
+        With `branch_id`, the cohort is those whose first visit was at that
+        branch, and one came back if she came back to any branch.
+        `visits_in_period` and `total_patients` are that branch's: the patients
+        with a completed visit there, so branches do not add up to the clinic.
+
         `maturing_count` matters — a patient seen last week has not "never
         returned", she just has not returned *yet*. Show it separately from
         `first_visit_only_count` or the first month's number is meaningless.
       operationId: retentionReport
       parameters:
+        - name: branch_id
+          in: query
+          schema: { type: integer }
+          description: |
+            One branch (Phase 8). Left out: "all branches", every branch this
+            account works at. `404 BRANCH_NOT_FOUND` for one it does not.
         - name: period
           in: query
           schema:
