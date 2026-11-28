@@ -60,6 +60,14 @@ public and the file holds a doctor's contact details.
   116 px square, so crop to head and shoulders). It is embedded into the
   description when the command runs — see below.
 
+## Branches
+
+A new clinic starts with one branch, named after its area (`address`, then
+`city`), with the clinic's address and phone. `schedule` is that branch's
+week, and every account works there. Once `CLINIC_MULTI_BRANCH` is on, the
+doctor adds the other places they work in Settings → Branches, with their
+own hours, phone and map pin, and chooses which secretaries work at each.
+
 ## The routine
 
 ```bash

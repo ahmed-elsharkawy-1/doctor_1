@@ -13,6 +13,7 @@ use App\Enums\DoctorSex;
 use App\Enums\ReviewRating;
 use App\Models\Booking;
 use App\Models\BookingReview;
+use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\Doctor;
 use App\Models\Patient;
@@ -23,6 +24,7 @@ use App\Services\V1\Booking\BookingService;
 use App\Services\V1\Booking\SlotAvailabilityService;
 use App\Services\V1\Patients\PatientService;
 use App\Services\V1\Queue\BookingStatusService;
+use App\Services\V1\Settings\ScheduleService;
 use App\Support\PhoneNumber;
 use App\Support\TestClinic;
 use Illuminate\Database\Seeder;
@@ -54,6 +56,16 @@ class DemoClinicSeeder extends Seeder
     private const SEED = 20261005;
 
     private const HISTORY_DAYS = 180;
+
+    /** The doctor's second place (multi-branch): evenings, never at the first's hours. */
+    private const SECOND_BRANCH = 'فرع المهندسين';
+
+    /** @var array<int, list<array{0: string, 1: string}>> */
+    private const SECOND_BRANCH_HOURS = [
+        0 => [['17:00', '21:00']], // Sunday
+        2 => [['17:00', '21:00']], // Tuesday
+        3 => [['17:00', '21:00']], // Wednesday
+    ];
 
     /**
      * @var list<array{0: string, 1: string}>
@@ -103,12 +115,15 @@ class DemoClinicSeeder extends Seeder
 
         $this->priceVisitTypes($clinic);
         $this->openTheWeek($clinic);
+        $second = $this->secondBranch($clinic, $assistant);
         $this->addHolidays($clinic);
 
         $patients = $this->patients($clinic);
         $this->backfillHistory($clinic, $doctor, $patients, $assistant);
+        $this->backfillHistory($clinic, $doctor, $patients, $assistant, $second, self::SECOND_BRANCH_HOURS, days: 90);
         $this->todaysBookings($clinic, $patients, $assistant);
         $this->comingDays($clinic, $doctor, $patients, $assistant);
+        $this->comingDays($clinic, $doctor, $patients, $owner, $second, self::SECOND_BRANCH_HOURS);
         $this->awaitingRebooking($clinic, $doctor, $patients);
 
         $this->report($clinic, $owner, $assistant);
@@ -232,6 +247,42 @@ class DemoClinicSeeder extends Seeder
     }
 
     /**
+     * The second branch, with its own evenings; the assistant works at the
+     * first only, so both an owner's and a team member's view show.
+     */
+    private function secondBranch(Clinic $clinic, User $assistant): Branch
+    {
+        $branch = $clinic->branches()->firstWhere('name', self::SECOND_BRANCH)
+            ?? $clinic->branches()->create([
+                'name' => self::SECOND_BRANCH,
+                'address' => '٤ شارع جامعة الدول العربية، المهندسين، الجيزة',
+                'latitude' => 30.0566,
+                'longitude' => 31.2003,
+                'phone' => '+201001234568',
+                'is_active' => true,
+            ]);
+
+        if ($branch->schedules()->doesntExist()) {
+            app(ScheduleService::class)->seedClosedWeek($branch);
+        }
+
+        foreach ($branch->schedules()->get() as $schedule) {
+            $periods = self::SECOND_BRANCH_HOURS[$schedule->day_of_week->value] ?? null;
+
+            $schedule->periods()->delete();
+            $schedule->update(['is_open' => $periods !== null]);
+
+            foreach ($periods ?? [] as [$start, $end]) {
+                $schedule->periods()->create(['start_time' => $start, 'end_time' => $end]);
+            }
+        }
+
+        $assistant->branches()->sync([$clinic->firstBranchId()]);
+
+        return $branch;
+    }
+
+    /**
      * @return array<int, list<array{0: string, 1: string}>>
      */
     private function hours(): array
@@ -283,13 +334,13 @@ class DemoClinicSeeder extends Seeder
      *
      * @param  list<Patient>  $patients
      */
-    private function backfillHistory(Clinic $clinic, Doctor $doctor, array $patients, User $actor): void
+    private function backfillHistory(Clinic $clinic, Doctor $doctor, array $patients, User $actor, ?Branch $branch = null, ?array $hours = null, int $days = self::HISTORY_DAYS): void
     {
         $today = Carbon::now($clinic->timezone)->startOfDay();
         $holidays = $clinic->holidays()->pluck('date')->map(fn ($d) => Carbon::parse($d)->toDateString())->all();
-        $hours = $this->hours();
+        $hours ??= $this->hours();
 
-        for ($daysAgo = self::HISTORY_DAYS; $daysAgo >= 1; $daysAgo--) {
+        for ($daysAgo = $days; $daysAgo >= 1; $daysAgo--) {
             $day = $today->copy()->subDays($daysAgo);
             $periods = $hours[DayOfWeek::fromDate($day)->value] ?? null;
 
@@ -305,12 +356,12 @@ class DemoClinicSeeder extends Seeder
 
             for ($slot = 0; $slot < $count; $slot++) {
                 $startAt = Carbon::parse($day->toDateString().' '.$start, $clinic->timezone)->addMinutes($slot * 25);
-                $this->pastBooking($clinic, $doctor, $patients[mt_rand(0, $pool - 1)], $startAt, $actor);
+                $this->pastBooking($clinic, $doctor, $patients[mt_rand(0, $pool - 1)], $startAt, $actor, $branch);
             }
         }
     }
 
-    private function pastBooking(Clinic $clinic, Doctor $doctor, Patient $patient, Carbon $startAt, User $actor): void
+    private function pastBooking(Clinic $clinic, Doctor $doctor, Patient $patient, Carbon $startAt, User $actor, ?Branch $branch = null): void
     {
         $visitType = $this->pickVisitType($clinic);
         $roll = mt_rand(1, 100);
@@ -328,6 +379,7 @@ class DemoClinicSeeder extends Seeder
 
         $booking = Booking::create([
             'clinic_id' => $clinic->id,
+            'branch_id' => $branch?->id ?? $clinic->firstBranchId(),
             'doctor_id' => $doctor->id,
             'patient_id' => $patient->id,
             'visit_type_id' => $visitType->id,
@@ -501,10 +553,10 @@ class DemoClinicSeeder extends Seeder
      *
      * @param  list<Patient>  $patients
      */
-    private function comingDays(Clinic $clinic, Doctor $doctor, array $patients, User $assistant): void
+    private function comingDays(Clinic $clinic, Doctor $doctor, array $patients, User $assistant, ?Branch $branch = null, ?array $hours = null): void
     {
         $holidays = $clinic->holidays()->pluck('date')->map(fn ($d) => Carbon::parse($d)->toDateString())->all();
-        $hours = $this->hours();
+        $hours ??= $this->hours();
         $day = Carbon::now($clinic->timezone)->startOfDay();
 
         for ($ahead = 1; $ahead <= 6; $ahead++) {
@@ -525,6 +577,7 @@ class DemoClinicSeeder extends Seeder
 
                 Booking::create([
                     'clinic_id' => $clinic->id,
+                    'branch_id' => $branch?->id ?? $clinic->firstBranchId(),
                     'doctor_id' => $doctor->id,
                     'patient_id' => $patients[mt_rand(5, count($patients) - 1)]->id,
                     'visit_type_id' => $visitType->id,
@@ -608,6 +661,7 @@ class DemoClinicSeeder extends Seeder
             ['', 'Value'],
             [
                 ['Clinic id', $clinic->id],
+                ['Branches', $clinic->branches()->pluck('name')->join(' · ')],
                 ['Patients', $clinic->patients()->count()],
                 ['Bookings', $clinic->bookings()->count()],
                 ['Reviews', BookingReview::where('clinic_id', $clinic->id)->count()],

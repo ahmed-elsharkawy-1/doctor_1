@@ -18,7 +18,6 @@ use App\Services\V1\Queue\BulkCancellationService;
 use Database\Seeders\MessageTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 use Livewire\Livewire;
@@ -278,18 +277,6 @@ class BranchBulkCancelTest extends TestCase
             ->set('from', '2026-12-10')
             ->assertSet('to', '2026-12-10')
             ->assertSet('dateError', null);
-    }
-
-    public function test_a_booking_left_without_a_branch_is_the_first_branchs(): void
-    {
-        $g1 = $this->booking($this->gedeila, '2026-12-05 13:00');
-        DB::table('bookings')->where('id', $g1->id)->update(['branch_id' => null]);
-
-        $result = app(WhatsAppMessagingService::class)->broadcast(
-            $this->clinic, WhatsAppMessagingService::CANCELS_THE_DAY_KEY, Carbon::parse('2026-12-05'),
-        );
-
-        $this->assertSame(1, $result['cancelled_count']);
     }
 
     public function test_a_double_tap_cancels_once_and_the_unticked_stay_kept(): void

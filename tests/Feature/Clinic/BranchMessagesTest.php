@@ -146,6 +146,8 @@ class BranchMessagesTest extends TestCase
 
     public function test_a_one_branch_clinics_links_are_as_they_were(): void
     {
+        // A branch with bookings cannot be deleted: these are set-up's own.
+        Booking::query()->where('branch_id', $this->tura->id)->delete();
         $this->tura->delete();
         $single = Booking::factory()->forClinic($this->clinic)->create();
 

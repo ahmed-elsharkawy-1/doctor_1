@@ -419,7 +419,7 @@ day. This step adds the branch scope, several days, and deselecting patients.
 - Blocked by: 7.1
 
 ### Phase 8: "All branches" statistics and the contract (Size: M)
-Split in two PRs: 8a the branch filter (✅), 8b the contract and the demo data.
+Split in two PRs: 8a the branch filter (✅), 8b the contract and the demo data (✅).
 - Acceptance criteria:
   - The reports and Reviews get a branch filter for the doctor, with "All
     branches" as the default. ✅ (8a) Chips on Reports and Reviews, and
@@ -429,9 +429,15 @@ Split in two PRs: 8a the branch filter (✅), 8b the contract and the demo data.
     counts. The doctor's daily WhatsApp report stays doctor-wide.
   - `branch_id` becomes NOT NULL where the tickets require it. The address
     and waiting-list columns are dropped from `clinics` once a grep shows
-    nothing reads them.
+    nothing reads them. ✅ (8b) NOT NULL on `bookings`, `slot_holds`,
+    `waiting_list_entries` and `clinic_schedules` (holidays keep null = every
+    branch). A branch with bookings or a waiting list can no longer be
+    deleted, only deactivated; holds and hours go with it. The `clinics`
+    columns stay: the grep still finds readers (see the decision log).
   - `openapi.yaml`, the Postman collection and `docs/onboarding.md` are
-    updated, and the demo seeder gets 2 branches.
+    updated, and the demo seeder gets 2 branches. ✅ (8b) The demo clinic's
+    second branch, "فرع المهندسين", opens Sun/Tue/Wed evenings with 90 days of
+    history; the assistant works at the first only.
 - Verification command: `php artisan test` and `php artisan test -c phpunit.mysql.xml`
 - Blocked by: 5–7
 
@@ -466,6 +472,8 @@ later one is pointed at `feature/multi-branch`.
 | Holiday range | One row per date plus `group_id` | Availability keeps its per-date lookup. A range can be deleted as one. |
 | Branch on API calls | `X-Branch-Id`, optional, checked; the default is the last-used branch | The mobile app keeps working before it learns about branches. |
 | Phone fallback | `branches.phone ?? clinics.phone` | "The doctor's main booking number" is `clinics.phone`. |
+| `clinics.address`, `clinics.waiting_list_*` | Kept (Phase 8) | Still read: the first branch's address and the settings API fall back to the clinic's, editing the first branch edits the clinic, and the waiting list's operator switch and daily cap are the clinic's. Dropping them is a change of its own. |
+| Reports for a team member | Her branches only; the doctor's whole-clinic report (web and WhatsApp) only for accounts that see every branch (Phase 8) | The report shows every branch's income. |
 | Template rollout | 8 new versions (`docs/whatsapp/multi-branch-templates.md`), the branch line for every clinic, behind one all-or-nothing switch | ELA-22 wants one version. Meta approval can't block merging, and half the templates showing the branch would confuse patients. |
 
 ## Not yet specified
@@ -492,4 +500,4 @@ later one is pointed at `feature/multi-branch`.
 | 5 Queue, record and TV | PR open (#20) |
 | 6 Waiting list | PR open (#21) |
 | 7 WhatsApp, delay and cancellation | PRs open: 7a #22, 7b #23, 7c #24, 7d #25 |
-| 8 Statistics and contract | 8a branch filter: PR open; 8b contract: pending |
+| 8 Statistics and contract | 8a branch filter #26, 8b contract: PRs open |

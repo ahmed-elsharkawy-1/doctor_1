@@ -22,7 +22,6 @@ use App\Services\V1\WaitingList\WaitingListService;
 use Database\Seeders\MessageTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 use Livewire\Livewire;
@@ -196,16 +195,6 @@ class BranchWaitingListTest extends TestCase
 
         $this->assertSame(WaitingListStatus::CLOSED, $gedeila->fresh()->status);
         $this->assertSame(WaitingListStatus::WAITING, $tura->fresh()->status);
-    }
-
-    public function test_existing_entries_and_entries_written_without_a_branch_land_on_the_first(): void
-    {
-        $entry = $this->join($this->gedeila, 'أحمد');
-        DB::table('waiting_list_entries')->update(['branch_id' => null]);
-
-        (require database_path('migrations/2026_11_30_100000_add_branch_to_waiting_lists.php'))->backfill();
-
-        $this->assertSame($this->gedeila->id, $entry->fresh()->branch_id);
     }
 
     public function test_a_confirmed_switch_off_never_switches_a_list_back_on(): void
