@@ -255,7 +255,7 @@ class TemplatePayloadResolver
             $namesBranch && $branch !== null ? $doctor.' – '.$this->branchName($clinic, $branch) : $doctor,
             $this->clean($patient->name, __('messages.fallback.patient')),
             $this->clean($text, '—'),
-            $branch === null ? $this->clinicPhone($clinic) : $this->branchPhone($clinic, $branch),
+            $this->branchPhone($clinic, $branch),
         ]);
     }
 

@@ -98,8 +98,12 @@ class EditClinic extends EditRecord
                     CheckboxList::make('branches')
                         ->label(__('filament.clinic.announcement_branches'))
                         ->helperText(__('filament.clinic.announcement_branches_hint'))
-                        ->options(fn (): array => $this->clinicRecord()->branches()->orderBy('id')->pluck('name', 'id')->all())
-                        ->default(fn (): array => $this->clinicRecord()->branches()->pluck('id')->all())
+                        ->options(fn (): array => $this->clinicRecord()->branches()->get()
+                            ->mapWithKeys(fn (Branch $branch) => [$branch->id => $branch->is_active
+                                ? $branch->name
+                                : $branch->name.' ('.__('filament.clinic.announcement_branch_inactive').')'])
+                            ->all())
+                        ->default(fn (): array => $this->branchIds())
                         ->visible(fn (): bool => $this->announcesByBranch())
                         ->columns(2)
                         ->live()
@@ -245,7 +249,9 @@ class EditClinic extends EditRecord
                 $clinic,
                 $patients,
                 $text,
-                // A clinic with one branch sends exactly what it always did.
+                // A clinic with one branch sends exactly what it always did:
+                // the clinic's phone, even when its only branch has a number
+                // of its own. So does one with the multi-branch switch off.
                 $this->announcesByBranch() ? $branchOf : [],
                 namesBranch: $scope !== null,
             );
@@ -267,7 +273,16 @@ class EditClinic extends EditRecord
      */
     private function announcesByBranch(): bool
     {
-        return app(BranchService::class)->canAdd() && $this->clinicRecord()->branches()->count() > 1;
+        return app(BranchService::class)->canAdd() && count($this->branchIds()) > 1;
+    }
+
+    /** @var list<int>|null this clinic's branch ids, read once a request */
+    private ?array $branchIds = null;
+
+    /** @return list<int> */
+    private function branchIds(): array
+    {
+        return $this->branchIds ??= $this->clinicRecord()->branches()->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
     /**
@@ -282,7 +297,7 @@ class EditClinic extends EditRecord
             return null;
         }
 
-        $all = $this->clinicRecord()->branches()->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $all = $this->branchIds();
         $ids = array_values(array_intersect($all, array_map('intval', (array) $chosen)));
 
         return count($ids) === count($all) ? null : $ids;
@@ -313,7 +328,8 @@ class EditClinic extends EditRecord
 
         foreach ($bookings as $booking) {
             if ($booking->branch !== null) {
-                $branchOf[$booking->patient_id] ??= $booking->branch;
+                // Its phone falls back to the clinic's: no query per branch.
+                $branchOf[$booking->patient_id] ??= $booking->branch->setRelation('clinic', $clinic);
             }
         }
 

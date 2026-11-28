@@ -193,4 +193,46 @@ class BranchAnnouncementTest extends TestCase
 
         $this->assertSame(['د. سهام عبدالعزيز', $patient->name, 'خبر', '+201001234567'], $this->sent()[$patient->id]);
     }
+
+    public function test_another_clinics_branch_is_never_a_scope(): void
+    {
+        $this->bookedAt($this->gedeila, '+201011110001');
+        $other = Clinic::factory()->create();
+        app(ProvisionClinicAction::class)->execute($other, 'secret-password');
+
+        Livewire::test(EditClinic::class, ['record' => $this->clinic->getRouteKey()])
+            // Refused by the form as an option it never offered; and were it
+            // not, announcementScope() keeps this clinic's ids only.
+            ->callAction('sendAnnouncement', data: ['date' => self::DAY, 'branches' => [$other->firstBranch()->id], 'text' => 'خبر']);
+
+        $this->assertSame(0, OutboundMessage::query()->count());
+    }
+
+    public function test_a_one_branch_clinic_keeps_the_clinic_phone_even_with_a_branch_number(): void
+    {
+        $this->tura->delete();
+        $this->gedeila->update(['phone' => '+201005556667']);
+        $patient = $this->bookedAt($this->gedeila, '+201011110001');
+
+        Livewire::test(EditClinic::class, ['record' => $this->clinic->getRouteKey()])
+            ->callAction('sendAnnouncement', data: ['date' => self::DAY, 'text' => 'خبر'])
+            ->assertHasNoActionErrors();
+
+        $this->assertSame('+201001234567', $this->sent()[$patient->id][3]);
+    }
+
+    public function test_with_multi_branch_off_nothing_changes(): void
+    {
+        config(['clinic.branches.multi_enabled' => false]);
+        $atTura = $this->bookedAt($this->tura, '+201011110002');
+
+        Livewire::test(EditClinic::class, ['record' => $this->clinic->getRouteKey()])
+            ->mountAction('sendAnnouncement')
+            ->assertMountedActionModalDontSee(__('filament.clinic.announcement_branches'))
+            ->fillForm(['date' => self::DAY, 'text' => 'خبر'])
+            ->callMountedAction()
+            ->assertHasNoActionErrors();
+
+        $this->assertSame(['د. سهام عبدالعزيز', $atTura->name, 'خبر', '+201001234567'], $this->sent()[$atTura->id]);
+    }
 }
