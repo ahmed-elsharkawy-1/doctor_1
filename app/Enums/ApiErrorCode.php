@@ -59,6 +59,7 @@ enum ApiErrorCode: string
     case BOOKING_NOT_TODAY = 'BOOKING_NOT_TODAY';
     case BOOKING_NOT_CANCELLABLE = 'BOOKING_NOT_CANCELLABLE';
     case NOTHING_TO_POSTPONE = 'NOTHING_TO_POSTPONE';
+    case NOTHING_TO_CANCEL = 'NOTHING_TO_CANCEL';
     // Confirming attendance by hand on a booking that is no longer `booked`.
     case BOOKING_NOT_CONFIRMABLE = 'BOOKING_NOT_CONFIRMABLE';
 

@@ -3,6 +3,7 @@
 namespace App\Services\V1\Queue;
 
 use App\Enums\ApiErrorCode;
+use App\Enums\BookingStatus;
 use App\Exceptions\ApiException;
 use App\Models\Booking;
 use App\Models\Branch;
@@ -45,7 +46,14 @@ class BulkCancellationService
                 }
             })
             ->pending()
-            ->with(['patient', 'visitType'])
+            // Earlier today, only the patients still to come: a booked
+            // patient whose time has passed is a no-show, not a cancellation.
+            // One in the waiting room is still to be seen, and is listed.
+            ->where(fn ($query) => $query
+                ->where('status', '!=', BookingStatus::BOOKED)
+                ->orWhereNull('start_at')
+                ->orWhere('start_at', '>=', Carbon::now($clinic->timezone)->format('Y-m-d H:i:s')))
+            ->with('patient')
             ->orderBy('visit_date')
             ->orderBy('start_at')
             ->get();
@@ -56,30 +64,44 @@ class BulkCancellationService
     }
 
     /**
+     * Cancels the bookings listed — those the person saw and left ticked —
+     * that are still among the candidates. One booked since they looked is
+     * not listed, so it is left as it is, never cancelled unseen.
+     *
      * @param  list<string>  $dates
      * @param  list<int>|null  $branchIds
-     * @param  list<int>  $exclude  bookings unticked: left as they are
+     * @param  list<int>  $bookingIds
      * @return array<string, mixed> the broadcast's result, plus `by_branch`
+     *                              (what was cancelled at each) and
+     *                              `unlisted_count` (candidates not listed)
      */
-    public function cancel(Clinic $clinic, User $actor, array $dates, ?array $branchIds, array $exclude = []): array
+    public function cancel(Clinic $clinic, User $actor, array $dates, ?array $branchIds, array $bookingIds): array
     {
         $groups = $this->candidates($clinic, $actor, $dates, $branchIds);
-        $ids = $groups->flatten(1)->pluck('id')->diff($exclude)->values()->all();
+        $candidates = $groups->flatten(1);
+        $ids = $candidates->pluck('id')->intersect($bookingIds)->values()->all();
 
         if ($ids === []) {
-            throw ApiException::make(ApiErrorCode::NOTHING_TO_POSTPONE, __('booking.nothing_to_postpone'));
+            throw ApiException::make(ApiErrorCode::NOTHING_TO_CANCEL, __('booking.bulk_cancel.nothing_to_cancel'), http: 409);
         }
-
-        $byBranch = $groups->map(fn (Collection $bookings) => $bookings->whereIn('id', $ids)->count())->all();
 
         $result = $this->messaging->broadcast(
             $clinic,
             WhatsAppMessagingService::CANCELS_THE_DAY_KEY,
             bookingIds: $ids,
-            branchIds: array_keys($byBranch),
+            branchIds: $groups->keys()->all(),
         );
 
-        return $result + ['by_branch' => $byBranch];
+        $cancelled = $result['cancelled_ids'];
+        unset($result['cancelled_ids']);
+
+        return $result + [
+            'by_branch' => $groups
+                ->map(fn (Collection $bookings) => $bookings->whereIn('id', $cancelled)->count())
+                ->filter()
+                ->all(),
+            'unlisted_count' => $candidates->count() - count($ids),
+        ];
     }
 
     /** @return Collection<int, Branch> */
@@ -112,7 +134,11 @@ class BulkCancellationService
         $dates = array_values(array_unique(array_map(fn ($d) => Carbon::parse($d)->toDateString(), $dates)));
         $max = (int) config('clinic.bulk_cancel.max_days', 14);
 
-        if ($dates === [] || count($dates) > $max || min($dates) < $today) {
+        if ($dates !== [] && min($dates) < $today) {
+            throw ApiException::make(ApiErrorCode::BULK_CANCEL_DAYS_INVALID, __('booking.bulk_cancel.days_past'), http: 422);
+        }
+
+        if ($dates === [] || count($dates) > $max) {
             throw ApiException::make(ApiErrorCode::BULK_CANCEL_DAYS_INVALID, __('booking.bulk_cancel.days_invalid', ['days' => $max]), http: 422);
         }
 

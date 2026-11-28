@@ -1849,7 +1849,7 @@
                                 }
                             ]
                         },
-                        "description": "ELA-22. The bookings still to come on `dates` (today or later, at most\n14), grouped by branch: the branches in `branch_ids`, or every branch\nthis account works at."
+                        "description": "ELA-22. The bookings still to come on `dates` (today or later, at most\n14), grouped by branch: the branches in `branch_ids`, or every branch\nthis account works at. Earlier today, a booked patient whose time has\npassed is left out (a no-show, not a cancellation); one who has\narrived is listed."
                     },
                     "response": []
                 },
@@ -1882,10 +1882,10 @@
                                 "bulk-cancellations"
                             ]
                         },
-                        "description": "ELA-22. Each booking is cancelled for an emergency (never a no-show)\nand sent the cancellation apology, whose \"book again\" opens on its own\nbranch; `exclude_booking_ids` are left as they are. Returns the\nbroadcast's counts plus `by_branch` (branch id → cancelled).",
+                        "description": "ELA-22. Cancels the `booking_ids` listed by GET and left ticked, that\nare still to come there. A booking made since the GET is not among\nthem and is left as it is (`unlisted_count` counts those and the\nunticked). Each is cancelled for an emergency (never a no-show) and\nsent the cancellation apology, whose \"book again\" opens on its own\nbranch. A second identical request cancels and sends nothing again.",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"dates\": []\n}\n",
+                            "raw": "{\n    \"dates\": [],\n    \"booking_ids\": []\n}\n",
                             "options": {
                                 "raw": {
                                     "language": "json"
