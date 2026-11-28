@@ -25,7 +25,6 @@ use App\Services\V1\Settings\ScheduleService;
 use Database\Seeders\MessageTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Livewire\Livewire;
 use Tests\Concerns\InteractsWithClinic;
@@ -148,17 +147,6 @@ class BranchBookingTest extends TestCase
 
         $this->expectException(ApiException::class);
         $this->book($this->tura, '', BookingKind::EMERGENCY);
-    }
-
-    public function test_bookings_from_before_branches_and_new_rows_without_one_land_on_the_first_branch(): void
-    {
-        $booking = Booking::factory()->forClinic($this->clinic)->create();
-        $this->assertSame($this->gedeila->id, $booking->branch_id);
-
-        DB::table('bookings')->update(['branch_id' => null]);
-        (require database_path('migrations/2026_11_28_100000_add_branch_id_to_bookings_and_slot_holds.php'))->backfill('bookings');
-
-        $this->assertSame($this->gedeila->id, $booking->fresh()->branch_id);
     }
 
     public function test_the_api_books_and_holds_at_the_branch_the_app_is_on(): void

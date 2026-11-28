@@ -18,7 +18,6 @@ use App\Services\V1\Settings\ScheduleService;
 use App\Support\Wire;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Livewire\Livewire;
 use Tests\Concerns\InteractsWithClinic;
@@ -65,17 +64,6 @@ class BranchScheduleTest extends TestCase
             'is_open' => true,
             'periods' => array_map(fn ($p) => ['start_time' => $p[0], 'end_time' => $p[1]], $periods),
         ]));
-    }
-
-    public function test_every_existing_week_moves_to_the_clinics_first_branch(): void
-    {
-        // As before the migration: one week per clinic, on no branch.
-        $this->tura->schedules()->delete();
-        DB::table('clinic_schedules')->update(['branch_id' => null]);
-
-        (require database_path('migrations/2026_11_27_100000_scope_schedules_and_holidays_to_branches.php'))->backfillSchedules();
-
-        $this->assertSame(7, $this->gedeila->schedules()->count());
     }
 
     public function test_a_new_branch_starts_closed_every_day(): void

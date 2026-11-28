@@ -133,13 +133,8 @@ class WhatsAppMessagingService
     public function broadcast(Clinic $clinic, string $templateKey, ?Carbon $date = null, ?array $bookingIds = null, ?array $branchIds = null): array
     {
         $date ??= $clinic->currentDay();
-        $branchIds ??= [$clinic->firstBranchId()];
         $query = $clinic->bookings()
-            // A booking left without a branch is the first branch's, as the
-            // backfill would have made it.
-            ->where(fn ($query) => $query
-                ->whereIn('branch_id', $branchIds)
-                ->when(in_array($clinic->firstBranchId(), $branchIds, true), fn ($query) => $query->orWhereNull('branch_id')))
+            ->whereIn('branch_id', $branchIds ?? [$clinic->firstBranchId()])
             ->with('patient')
             ->pending()
             ->orderBy('start_at');

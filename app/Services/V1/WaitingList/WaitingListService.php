@@ -632,10 +632,8 @@ class WaitingListService
             $notify = $now->diffInMinutes($end, true)
                 <= (int) config('clinic.waiting_list.notify_within_hours') * 60;
 
-            // The stored branch as it is: an entry somehow left without one
-            // still closes, by the first branch's day.
             $entries = $clinic->waitingListEntries()
-                ->where(fn ($query) => $branchId === null ? $query->whereNull('branch_id') : $query->where('branch_id', $branchId))
+                ->where('branch_id', $branchId)
                 ->with('patient')
                 ->waiting()
                 ->onDate($date)
