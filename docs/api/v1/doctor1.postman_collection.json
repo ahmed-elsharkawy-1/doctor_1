@@ -2322,7 +2322,7 @@
                                 }
                             ]
                         },
-                        "description": "Cohort-based: the cohort is patients whose **first** completed visit\nfell in the period, and the rate is how many came back.\n\nWith `branch_id`, the cohort is those whose first visit was at that\nbranch, and one came back if she came back to any branch.\n\n`maturing_count` matters — a patient seen last week has not \"never\nreturned\", she just has not returned *yet*. Show it separately from\n`first_visit_only_count` or the first month's number is meaningless."
+                        "description": "Cohort-based: the cohort is patients whose **first** completed visit\nfell in the period, and the rate is how many came back.\n\nWith `branch_id`, the cohort is those whose first visit was at that\nbranch, and one came back if she came back to any branch.\n`visits_in_period` and `total_patients` are that branch's: the patients\nwith a completed visit there, so branches do not add up to the clinic.\n\n`maturing_count` matters — a patient seen last week has not \"never\nreturned\", she just has not returned *yet*. Show it separately from\n`first_visit_only_count` or the first month's number is meaningless."
                     },
                     "response": []
                 },

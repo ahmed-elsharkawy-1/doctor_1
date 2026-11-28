@@ -18,10 +18,12 @@ use Illuminate\Database\Eloquent\Builder;
 class ClinicReviewsService
 {
     /**
-     * Every review the clinic has, whatever the list is filtered to — the
-     * card at the top shows the whole picture and does not change with it.
+     * Every review the clinic has — at the branches in scope (Phase 8) —
+     * whatever the list is filtered to: the card at the top shows the whole
+     * picture and does not change with the rating chip.
+     *
+     * @param  list<int>|null  $branchIds  BranchScope's answer: null for the whole clinic
      */
-    /** @param  list<int>|null  $branchIds  BranchScope's answer: null for the whole clinic */
     public function summary(Clinic $clinic, ?array $branchIds = null): ReviewSummary
     {
         $counts = BookingReview::query()

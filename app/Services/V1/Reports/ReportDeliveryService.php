@@ -6,6 +6,7 @@ use App\Jobs\SendClinicReport;
 use App\Models\Clinic;
 use App\Models\ReportDelivery;
 use App\Models\User;
+use App\Services\V1\Branches\BranchScope;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 
@@ -13,7 +14,7 @@ use InvalidArgumentException;
  * Who gets a clinic's report on WhatsApp, and making sure they get it once.
  *
  * Recipients are the clinic's active accounts flagged `can_access_reports`
- * that have a phone. The patient WhatsApp switch has no say here: this goes
+ * that have a phone and may see every branch (Phase 8). The patient WhatsApp switch has no say here: this goes
  * to the doctor, not to patients.
  */
 class ReportDeliveryService
@@ -78,6 +79,9 @@ class ReportDeliveryService
             ->whereNotNull('users.phone')
             ->where('users.phone', '!=', '')
             ->orderBy('users.id')
-            ->get();
+            ->get()
+            // The whole clinic's money: not for one kept to some branches.
+            ->filter(fn (User $user) => app(BranchScope::class)->readsWholeClinic($user, $clinic))
+            ->values();
     }
 }

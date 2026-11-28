@@ -2271,6 +2271,8 @@ paths:
 
         With `branch_id`, the cohort is those whose first visit was at that
         branch, and one came back if she came back to any branch.
+        `visits_in_period` and `total_patients` are that branch's: the patients
+        with a completed visit there, so branches do not add up to the clinic.
 
         `maturing_count` matters — a patient seen last week has not "never
         returned", she just has not returned *yet*. Show it separately from

@@ -16,6 +16,8 @@ use App\Services\Reports\RetentionService;
 use App\Services\Reports\RevenueService;
 use App\Services\V1\Branches\BranchScope;
 use App\Services\V1\Branches\BranchService;
+use App\Services\V1\Reports\ReportAccess;
+use App\Services\V1\Reports\ReportDeliveryService;
 use App\Services\V1\Reviews\ClinicReviewsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -193,5 +195,74 @@ class BranchReportsTest extends TestCase
         config(['clinic.branches.multi_enabled' => false]);
 
         $this->assertTrue(app(BranchScope::class)->choices($this->owner, $this->clinic->fresh())->isEmpty());
+    }
+
+    public function test_a_secretary_in_a_one_branch_clinic_reads_the_whole_clinic(): void
+    {
+        $this->tura->delete();
+        $member = User::factory()->secretary()->inClinic($this->clinic)->atBranches($this->gedeila)->create();
+
+        $this->assertNull(app(BranchScope::class)->resolve($member, $this->clinic->fresh()));
+    }
+
+    public function test_a_member_at_two_of_three_branches_reads_those_two(): void
+    {
+        $third = app(BranchService::class)->create($this->clinic, new BranchData('عيادة المنصورة', 'المنصورة', 31.0, 31.3, null), $this->owner);
+        $member = User::factory()->secretary()->inClinic($this->clinic)->atBranches($this->gedeila, $this->tura)->create();
+
+        $scope = app(BranchScope::class)->resolve($member, $this->clinic);
+        sort($scope);
+
+        $this->assertSame([$this->gedeila->id, $this->tura->id], $scope);
+        $this->assertNotContains($third->id, $scope);
+    }
+
+    public function test_the_first_visit_that_day_is_the_timed_one(): void
+    {
+        $patient = Patient::factory()->create(['clinic_id' => $this->clinic->id]);
+        // An untimed visit at Gedeila, and a timed one at Al-Tur'a, the same day.
+        $this->visit($this->gedeila, '2026-12-02 19:00', patient: $patient)->update(['start_at' => null, 'end_at' => null]);
+        $this->visit($this->tura, '2026-12-02 10:00', patient: $patient);
+
+        $period = ReportPeriod::thisMonth($this->clinic);
+
+        $this->assertSame(1, app(RetentionService::class)->forPeriod($this->clinic, $period, [$this->tura->id])['cohort_size']);
+        $this->assertSame(0, app(RetentionService::class)->forPeriod($this->clinic, $period, [$this->gedeila->id])['cohort_size']);
+    }
+
+    public function test_the_retention_api_reads_one_branch(): void
+    {
+        $this->visit($this->gedeila, '2026-12-02 13:00');
+        $this->visit($this->tura, '2026-12-03 17:00');
+        Sanctum::actingAs($this->owner);
+
+        $this->getJson(route('api.v1.reports.retention', ['period' => 'this_month', 'branch_id' => $this->tura->id]))
+            ->assertOk()
+            ->assertJsonPath('data.cohort_size', 1)
+            ->assertJsonPath('data.visits_in_period', 1);
+
+        $this->getJson(route('api.v1.reports.retention', ['branch_id' => 0]))->assertUnprocessable();
+    }
+
+    public function test_the_doctors_whole_clinic_report_is_not_for_one_kept_to_some_branches(): void
+    {
+        $this->clinic->update(['reports_enabled' => true]);
+        $member = User::factory()->secretary()->inClinic($this->clinic)->atBranches($this->tura)->create(['can_access_reports' => true]);
+        $everywhere = User::factory()->secretary()->inClinic($this->clinic)->atBranches($this->gedeila, $this->tura)->create(['can_access_reports' => true]);
+
+        $access = app(ReportAccess::class);
+        $this->assertNull($access->clinicFor($member));
+
+        $recipients = app(ReportDeliveryService::class)->recipients($this->clinic)->pluck('id');
+        $this->assertNotContains($member->id, $recipients);
+        $this->assertContains($everywhere->id, $recipients);
+    }
+
+    public function test_a_branch_that_is_not_a_number_is_all_branches(): void
+    {
+        Livewire::withQueryParams(['branch' => 'abc'])
+            ->actingAs($this->owner)
+            ->test(Reviews::class)
+            ->assertSet('reportBranch', '');
     }
 }

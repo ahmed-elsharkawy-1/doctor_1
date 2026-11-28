@@ -6,6 +6,7 @@ use App\Enums\BookingStatus;
 use App\Models\Clinic;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Retention — SPEC §5.6.
@@ -77,9 +78,13 @@ class RetentionService
                 : round(($returned->count() / $cohort->count()) * 100, 1),
             'first_visit_only_count' => $firstVisitOnly->count(),
             'maturing_count' => $maturing->count(),
+            // At some branches: the patients seen there, so one seen at two
+            // is each's, and the branches do not add up to the clinic.
             'total_patients' => $branchIds === null
                 ? $clinic->patients()->count()
-                : $clinic->patients()->whereHas('bookings', fn ($query) => $query->whereIn('branch_id', $branchIds))->count(),
+                : $clinic->patients()->whereHas('bookings', fn ($query) => $query
+                    ->where('status', BookingStatus::DONE)
+                    ->whereIn('branch_id', $branchIds))->count(),
             'visits_in_period' => $this->visitsBetween($clinic, $period->from, $period->to, $branchIds),
             'maturity_days' => $maturityDays,
             'from' => $period->from,
@@ -97,21 +102,20 @@ class RetentionService
     private function firstVisitDates(Clinic $clinic, ?array $branchIds = null): Collection
     {
         if ($branchIds !== null) {
-            $first = [];
-
-            $clinic->bookings()
+            // Each patient's first completed visit, in the database: the
+            // earliest day, a timed visit before an untimed one that day.
+            $visits = $clinic->bookings()
+                ->toBase()
                 ->where('status', BookingStatus::DONE)
-                ->orderBy('visit_date')
-                ->orderBy('start_at')
-                ->orderBy('id')
-                ->get(['patient_id', 'branch_id', 'visit_date'])
-                ->each(function ($booking) use (&$first): void {
-                    $first[$booking->patient_id] ??= $booking;
-                });
+                ->select(['patient_id', 'branch_id', 'visit_date'])
+                ->selectRaw('ROW_NUMBER() OVER (PARTITION BY patient_id ORDER BY visit_date, CASE WHEN start_at IS NULL THEN 1 ELSE 0 END, start_at, id) AS visit_number');
 
-            return collect($first)
-                ->filter(fn ($booking) => in_array((int) $booking->branch_id, $branchIds, true))
-                ->map(fn ($booking) => Carbon::parse($booking->visit_date)->toDateString());
+            return DB::query()
+                ->fromSub($visits, 'visits')
+                ->where('visit_number', 1)
+                ->whereIn('branch_id', $branchIds)
+                ->pluck('visit_date', 'patient_id')
+                ->map(fn ($date) => Carbon::parse($date)->toDateString());
         }
 
         return $clinic->bookings()

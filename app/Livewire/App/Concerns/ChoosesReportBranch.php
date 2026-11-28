@@ -31,7 +31,11 @@ trait ChoosesReportBranch
     protected function reportScope(): ?array
     {
         $scope = app(BranchScope::class);
-        $branchId = ctype_digit($this->reportBranch) ? (int) $this->reportBranch : null;
+        if (! ctype_digit($this->reportBranch)) {
+            $this->reportBranch = '';
+        }
+
+        $branchId = $this->reportBranch === '' ? null : (int) $this->reportBranch;
 
         try {
             return $scope->resolve(auth()->user(), $this->clinic(), $branchId);

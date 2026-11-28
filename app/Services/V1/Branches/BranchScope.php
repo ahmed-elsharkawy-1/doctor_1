@@ -32,9 +32,19 @@ class BranchScope
             return [$branchId];
         }
 
-        return $mine->count() === $clinic->branches()->count()
+        return $this->readsWholeClinic($user, $clinic)
             ? null
             : $mine->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /**
+     * Whether this account reads the whole clinic: the doctor's own report
+     * (the web page and the WhatsApp one) is doctor-wide, so it is for those
+     * who may see every branch.
+     */
+    public function readsWholeClinic(User $user, Clinic $clinic): bool
+    {
+        return $user->accessibleBranches($clinic)->count() === $clinic->branches()->count();
     }
 
     /**
