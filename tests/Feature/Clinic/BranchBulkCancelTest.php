@@ -283,7 +283,7 @@ class BranchBulkCancelTest extends TestCase
     public function test_a_booking_left_without_a_branch_is_the_first_branchs(): void
     {
         $g1 = $this->booking($this->gedeila, '2026-12-05 13:00');
-        DB::table('bookings')->whereKey($g1->id)->update(['branch_id' => null]);
+        DB::table('bookings')->where('id', $g1->id)->update(['branch_id' => null]);
 
         $result = app(WhatsAppMessagingService::class)->broadcast(
             $this->clinic, WhatsAppMessagingService::CANCELS_THE_DAY_KEY, Carbon::parse('2026-12-05'),
