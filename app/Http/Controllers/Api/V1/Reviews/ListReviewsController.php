@@ -21,13 +21,14 @@ class ListReviewsController extends V1Controller
     public function __invoke(ListReviewsRequest $request): JsonResponse
     {
         $clinic = $this->clinic($request);
-        $page = $this->reviews->list($clinic, $request->rating(), $request->perPage());
+        $scope = $this->reportScope($request);
+        $page = $this->reviews->list($clinic, $request->rating(), $request->perPage(), branchIds: $scope);
 
         return ApiResponse::paginated(
             $page,
             ReviewListItemResult::collection($page->getCollection()),
             __('review.list_loaded'),
-            ['summary' => (new ReviewSummaryResult($this->reviews->summary($clinic)))->toArray()],
+            ['summary' => (new ReviewSummaryResult($this->reviews->summary($clinic, $scope)))->toArray()],
         );
     }
 }

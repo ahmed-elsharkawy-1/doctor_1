@@ -58,6 +58,7 @@
     </style>
 
     <h1 style="font-size:1.05rem;font-weight:700;margin:0 0 12px">{{ __('app.reports.title') }}</h1>
+    @include('livewire.app.partials.branch-filter')
 
     @if ($notice !== null)
         <div class="flash {{ $failed ? 'flash-err' : 'flash-ok' }}">{{ $notice }}</div>

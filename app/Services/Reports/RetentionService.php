@@ -19,6 +19,11 @@ use Illuminate\Support\Collection;
  * recent: a patient seen last week has not "never returned", she just has not
  * returned *yet*. Without that, the month-1 number is meaningless — which
  * matters because month 1 is exactly when the PRD wants a baseline.
+ *
+ * At some branches only (Phase 8), the cohort is the patients whose first
+ * visit with the doctor was at one of them, and one came back if she came
+ * back at all, to any branch: the doctor kept her. Visits in the period and
+ * the patient count are those branches' own.
  */
 class RetentionService
 {
@@ -35,9 +40,9 @@ class RetentionService
      *     from: Carbon, to: Carbon
      * }
      */
-    public function forPeriod(Clinic $clinic, ReportPeriod $period): array
+    public function forPeriod(Clinic $clinic, ReportPeriod $period, ?array $branchIds = null): array
     {
-        $firstVisits = $this->firstVisitDates($clinic);
+        $firstVisits = $this->firstVisitDates($clinic, $branchIds);
         $visitCounts = $this->completedVisitCounts($clinic);
 
         $from = $period->from->toDateString();
@@ -72,8 +77,10 @@ class RetentionService
                 : round(($returned->count() / $cohort->count()) * 100, 1),
             'first_visit_only_count' => $firstVisitOnly->count(),
             'maturing_count' => $maturing->count(),
-            'total_patients' => $clinic->patients()->count(),
-            'visits_in_period' => $this->visitsBetween($clinic, $period->from, $period->to),
+            'total_patients' => $branchIds === null
+                ? $clinic->patients()->count()
+                : $clinic->patients()->whereHas('bookings', fn ($query) => $query->whereIn('branch_id', $branchIds))->count(),
+            'visits_in_period' => $this->visitsBetween($clinic, $period->from, $period->to, $branchIds),
             'maturity_days' => $maturityDays,
             'from' => $period->from,
             'to' => $period->to,
@@ -81,12 +88,32 @@ class RetentionService
     }
 
     /**
-     * patient id => the date of her first completed visit.
+     * patient id => the date of her first completed visit — of those whose
+     * first was at one of `$branchIds`, when given.
      *
+     * @param  list<int>|null  $branchIds
      * @return Collection<int, string>
      */
-    private function firstVisitDates(Clinic $clinic): Collection
+    private function firstVisitDates(Clinic $clinic, ?array $branchIds = null): Collection
     {
+        if ($branchIds !== null) {
+            $first = [];
+
+            $clinic->bookings()
+                ->where('status', BookingStatus::DONE)
+                ->orderBy('visit_date')
+                ->orderBy('start_at')
+                ->orderBy('id')
+                ->get(['patient_id', 'branch_id', 'visit_date'])
+                ->each(function ($booking) use (&$first): void {
+                    $first[$booking->patient_id] ??= $booking;
+                });
+
+            return collect($first)
+                ->filter(fn ($booking) => in_array((int) $booking->branch_id, $branchIds, true))
+                ->map(fn ($booking) => Carbon::parse($booking->visit_date)->toDateString());
+        }
+
         return $clinic->bookings()
             ->where('status', BookingStatus::DONE)
             ->selectRaw('patient_id, MIN(visit_date) as first_visit_date')
@@ -110,10 +137,12 @@ class RetentionService
             ->map(fn ($count) => (int) $count);
     }
 
-    private function visitsBetween(Clinic $clinic, Carbon $from, Carbon $to): int
+    /** @param  list<int>|null  $branchIds */
+    private function visitsBetween(Clinic $clinic, Carbon $from, Carbon $to, ?array $branchIds = null): int
     {
         return $clinic->bookings()
             ->where('status', BookingStatus::DONE)
+            ->when($branchIds !== null, fn ($query) => $query->whereIn('branch_id', $branchIds))
             ->whereBetween('visit_date', [$from->toDateString(), $to->toDateString()])
             ->count();
     }

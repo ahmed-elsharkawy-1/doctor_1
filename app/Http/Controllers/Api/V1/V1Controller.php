@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Models\Branch;
 use App\Models\Clinic;
 use App\Models\User;
+use App\Services\V1\Branches\BranchScope;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\Request;
@@ -32,6 +33,19 @@ abstract class V1Controller extends BaseController
      * The clinic every query is scoped to. Resolved from the token, never from
      * client input (SPEC §6.6).
      */
+    /**
+     * The branches a report reads: `?branch_id=`, or every branch of this
+     * account's (Phase 8). Null is the whole clinic.
+     *
+     * @return list<int>|null
+     */
+    protected function reportScope(Request $request): ?array
+    {
+        $branchId = $request->validate(['branch_id' => ['nullable', 'integer']])['branch_id'] ?? null;
+
+        return app(BranchScope::class)->resolve($this->user($request), $this->clinic($request), $branchId === null ? null : (int) $branchId);
+    }
+
     protected function clinic(Request $request): Clinic
     {
         /** @var Clinic $clinic */

@@ -2198,7 +2198,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/reviews?rating=&page=&per_page=",
+                            "raw": "{{base_url}}/api/v1/reviews?branch_id=&rating=&page=&per_page=",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -2208,6 +2208,12 @@
                                 "reviews"
                             ],
                             "query": [
+                                {
+                                    "key": "branch_id",
+                                    "value": "",
+                                    "description": "One branch (Phase 8). Left out: \"all branches\", every branch this\naccount works at. `404 BRANCH_NOT_FOUND` for one it does not.\n",
+                                    "disabled": true
+                                },
                                 {
                                     "key": "rating",
                                     "value": "",
@@ -2228,7 +2234,7 @@
                                 }
                             ]
                         },
-                        "description": "The whole reviews screen in one request.\n\n- `summary` is the card at the top: **every** review the clinic has,\n  never narrowed by `rating` or the page, so it does not change when a\n  chip is tapped. `satisfied_percent` is (very_good + good) ÷ total,\n  rounded; null while there are no reviews yet.\n- `items` is one page of the list, newest first, narrowed by `rating`.\n  Reviews without a comment are included (`comment: null`).\n- `meta.total` is the count under the current filter (\"راضي · 28 تقييم\").\n\nRatings are filtered and returned by their fixed `value`\n(`very_good`, `good`, `bad`); show the `display` text, which is\n\"راضي جدًا\", \"راضي\" and \"بعض الملاحظات\".\n\nEach item carries everything the details sheet shows — the whole\ncomment (shorten it on screen for the list), the visit, and the\npatient's **unmasked** phone for the call and WhatsApp buttons — so the\nsheet needs no further request."
+                        "description": "The whole reviews screen in one request.\n\n- With `branch_id` (Phase 8), everything below is that branch's: a\n  review belongs to its visit's branch.\n- `summary` is the card at the top: **every** review the clinic has,\n  never narrowed by `rating` or the page, so it does not change when a\n  chip is tapped. `satisfied_percent` is (very_good + good) ÷ total,\n  rounded; null while there are no reviews yet.\n- `items` is one page of the list, newest first, narrowed by `rating`.\n  Reviews without a comment are included (`comment: null`).\n- `meta.total` is the count under the current filter (\"راضي · 28 تقييم\").\n\nRatings are filtered and returned by their fixed `value`\n(`very_good`, `good`, `bad`); show the `display` text, which is\n\"راضي جدًا\", \"راضي\" and \"بعض الملاحظات\".\n\nEach item carries everything the details sheet shows — the whole\ncomment (shorten it on screen for the list), the visit, and the\npatient's **unmasked** phone for the call and WhatsApp buttons — so the\nsheet needs no further request."
                     },
                     "response": []
                 }
@@ -2253,7 +2259,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/reports/revenue",
+                            "raw": "{{base_url}}/api/v1/reports/revenue?branch_id=",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -2262,6 +2268,14 @@
                                 "v1",
                                 "reports",
                                 "revenue"
+                            ],
+                            "query": [
+                                {
+                                    "key": "branch_id",
+                                    "value": "",
+                                    "description": "One branch (Phase 8). Left out: \"all branches\", every branch this\naccount works at. `404 BRANCH_NOT_FOUND` for one it does not.\n",
+                                    "disabled": true
+                                }
                             ]
                         },
                         "description": "Three periods, each already compared against **the same span** of the\nprevious one: on the 8th, `this_month` covers 8 days and is compared\nagainst the first 8 days of last month.\n\nCounts completed visits only, at the price recorded when each was\nbooked. With fixed prices and no payment tracking in v1 this is\n*expected* revenue, not cash collected — label the screen accordingly."
@@ -2283,7 +2297,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/reports/retention?period=this_month",
+                            "raw": "{{base_url}}/api/v1/reports/retention?branch_id=&period=this_month",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -2295,6 +2309,12 @@
                             ],
                             "query": [
                                 {
+                                    "key": "branch_id",
+                                    "value": "",
+                                    "description": "One branch (Phase 8). Left out: \"all branches\", every branch this\naccount works at. `404 BRANCH_NOT_FOUND` for one it does not.\n",
+                                    "disabled": true
+                                },
+                                {
                                     "key": "period",
                                     "value": "this_month",
                                     "description": "",
@@ -2302,7 +2322,7 @@
                                 }
                             ]
                         },
-                        "description": "Cohort-based: the cohort is patients whose **first** completed visit\nfell in the period, and the rate is how many came back.\n\n`maturing_count` matters — a patient seen last week has not \"never\nreturned\", she just has not returned *yet*. Show it separately from\n`first_visit_only_count` or the first month's number is meaningless."
+                        "description": "Cohort-based: the cohort is patients whose **first** completed visit\nfell in the period, and the rate is how many came back.\n\nWith `branch_id`, the cohort is those whose first visit was at that\nbranch, and one came back if she came back to any branch.\n\n`maturing_count` matters — a patient seen last week has not \"never\nreturned\", she just has not returned *yet*. Show it separately from\n`first_visit_only_count` or the first month's number is meaningless."
                     },
                     "response": []
                 },
