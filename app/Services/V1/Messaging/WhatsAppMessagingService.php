@@ -15,8 +15,10 @@ use App\Models\OutboundMessage;
 use App\Models\Patient;
 use App\Models\WaitingListEntry;
 use App\Support\PhoneNumber;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class WhatsAppMessagingService
 {
@@ -119,12 +121,24 @@ class WhatsAppMessagingService
 
     /**
      * @param  list<int>|null  $bookingIds
-     * @return array<string, mixed>
+     * @param  list<int>|null  $branchIds  the branches it may reach (ELA-22):
+     *                                     a day, or ids, at any other branch
+     *                                     are simply not among them. Null is
+     *                                     the clinic's first branch, the only
+     *                                     one before branches.
+     * @return array<string, mixed> `cancelled_ids` is for the caller, not
+     *                              the API: the bookings this call cancelled
      */
-    public function broadcast(Clinic $clinic, string $templateKey, ?Carbon $date = null, ?array $bookingIds = null): array
+    public function broadcast(Clinic $clinic, string $templateKey, ?Carbon $date = null, ?array $bookingIds = null, ?array $branchIds = null): array
     {
         $date ??= $clinic->currentDay();
+        $branchIds ??= [$clinic->firstBranchId()];
         $query = $clinic->bookings()
+            // A booking left without a branch is the first branch's, as the
+            // backfill would have made it.
+            ->where(fn ($query) => $query
+                ->whereIn('branch_id', $branchIds)
+                ->when(in_array($clinic->firstBranchId(), $branchIds, true), fn ($query) => $query->orWhereNull('branch_id')))
             ->with('patient')
             ->pending()
             ->orderBy('start_at');
@@ -153,7 +167,7 @@ class WhatsAppMessagingService
             );
         }
 
-        return $this->sendForBookings($clinic, $templateKey, collect([$booking]));
+        return Arr::except($this->sendForBookings($clinic, $templateKey, collect([$booking])), 'cancelled_ids');
     }
 
     /**
@@ -163,9 +177,6 @@ class WhatsAppMessagingService
     private function sendForBookings(Clinic $clinic, string $templateKey, Collection $bookings): array
     {
         $template = $this->template($templateKey, broadcastOnly: true);
-        $messages = [];
-        $skipped = [];
-        $cancelled = 0;
         $sending = $clinic->sendsWhatsApp();
 
         // Switched off by a super admin. A message on its own is refused
@@ -179,9 +190,30 @@ class WhatsAppMessagingService
             );
         }
 
-        if ($template->key === self::CANCELS_THE_DAY_KEY) {
-            $cancelled = $this->cancelBookings($bookings);
-        }
+        // The cancellation and its messages stand or fall together, so a
+        // failure half way never leaves a patient cancelled and untold; and
+        // a second request at the same moment finds the bookings already
+        // cancelled under the lock and sends nothing again.
+        return DB::transaction(function () use ($clinic, $template, $bookings, $sending): array {
+            $cancelled = 0;
+
+            if ($template->key === self::CANCELS_THE_DAY_KEY) {
+                $bookings = $this->cancelBookings($bookings);
+                $cancelled = $bookings->count();
+            }
+
+            return $this->sendEach($clinic, $template, $bookings, $sending) + ['cancelled_count' => $cancelled, 'cancelled_ids' => $template->key === self::CANCELS_THE_DAY_KEY ? $bookings->pluck('id')->all() : []];
+        });
+    }
+
+    /**
+     * @param  Collection<int, Booking>  $bookings
+     * @return array<string, mixed>
+     */
+    private function sendEach(Clinic $clinic, MessageTemplate $template, Collection $bookings, bool $sending): array
+    {
+        $messages = [];
+        $skipped = [];
 
         foreach ($bookings as $booking) {
             if (! $sending) {
@@ -208,7 +240,7 @@ class WhatsAppMessagingService
 
             $message = $this->queue($clinic, $booking, $patient, $template);
 
-            SendWhatsAppMessage::dispatch($message->id);
+            SendWhatsAppMessage::dispatch($message->id)->afterCommit();
             $messages[] = $message->id;
         }
 
@@ -216,7 +248,6 @@ class WhatsAppMessagingService
             'template_key' => $template->key,
             'sent_count' => count($messages),
             'skipped_count' => count($skipped),
-            'cancelled_count' => $cancelled,
             'message_ids' => $messages,
             'skipped' => $skipped,
             'whatsapp_enabled' => $sending,
@@ -681,25 +712,28 @@ class WhatsAppMessagingService
     }
 
     /**
+     * Cancels those of the bookings still pending, read again under a row
+     * lock, and returns the ones this call cancelled.
+     *
      * @param  Collection<int, Booking>  $bookings
+     * @return Collection<int, Booking>
      */
-    private function cancelBookings(Collection $bookings): int
+    private function cancelBookings(Collection $bookings): Collection
     {
-        $count = 0;
+        $pending = Booking::query()
+            ->whereKey($bookings->pluck('id')->all())
+            ->whereIn('status', BookingStatus::pending())
+            ->lockForUpdate()
+            ->pluck('id')
+            ->all();
 
-        foreach ($bookings as $booking) {
-            if (! in_array($booking->status, BookingStatus::pending(), true)) {
-                continue;
-            }
-
-            $booking->update([
+        return $bookings
+            ->filter(fn (Booking $booking) => in_array($booking->id, $pending, true))
+            ->each(fn (Booking $booking) => $booking->update([
                 'status' => BookingStatus::CANCELLED,
                 'cancel_reason' => CancelReason::EMERGENCY,
                 'cancelled_at' => now(),
-            ]);
-            $count++;
-        }
-
-        return $count;
+            ]))
+            ->values();
     }
 }

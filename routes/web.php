@@ -15,6 +15,7 @@ use App\Http\Controllers\Webhooks\WhatsAppWebhookController;
 use App\Http\Middleware\EnsureClinicSession;
 use App\Http\Middleware\EnsureReportAccess;
 use App\Http\Middleware\RedirectFormerClinicSlug;
+use App\Livewire\App\BulkCancel;
 use App\Livewire\App\Delay;
 use App\Livewire\App\Messages;
 use App\Livewire\App\NewBooking;
@@ -188,6 +189,9 @@ Route::prefix('app')->name('app.')->group(function (): void {
 
         // WhatsApp template broadcasts. Last, because it reaches patients.
         Route::get('messages', Messages::class)->name('messages');
+
+        // ELA-22: cancelling days at one or more branches.
+        Route::get('cancellations', BulkCancel::class)->name('bulk-cancel');
 
         Route::prefix('settings')->name('settings')->group(function (): void {
             Route::get('/', General::class);

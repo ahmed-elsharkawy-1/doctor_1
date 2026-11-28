@@ -45,6 +45,7 @@ enum ApiErrorCode: string
 
     // Queue displays (multi-branch, ELA-19)
     case DISPLAY_NOT_FOUND = 'DISPLAY_NOT_FOUND';
+    case BULK_CANCEL_DAYS_INVALID = 'BULK_CANCEL_DAYS_INVALID';
 
     // Team (multi-branch, ELA-17)
     case TEAM_MEMBER_NOT_FOUND = 'TEAM_MEMBER_NOT_FOUND';
@@ -58,6 +59,7 @@ enum ApiErrorCode: string
     case BOOKING_NOT_TODAY = 'BOOKING_NOT_TODAY';
     case BOOKING_NOT_CANCELLABLE = 'BOOKING_NOT_CANCELLABLE';
     case NOTHING_TO_POSTPONE = 'NOTHING_TO_POSTPONE';
+    case NOTHING_TO_CANCEL = 'NOTHING_TO_CANCEL';
     // Confirming attendance by hand on a booking that is no longer `booked`.
     case BOOKING_NOT_CONFIRMABLE = 'BOOKING_NOT_CONFIRMABLE';
 

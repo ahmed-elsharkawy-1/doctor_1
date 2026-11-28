@@ -392,7 +392,7 @@ branches.
 - Files likely touched: `app/Services/V1/Queue/DelayService.php`, `DelayOutcome.php`, `app/Livewire/App/Delay.php`, `DelayOptionsController`, a new Delay API request
 - Blocked by: 5.1
 
-#### Step 7.3: Bulk Cancellation with a branch scope (Size: M)
+#### Step 7.3: Bulk Cancellation with a branch scope (Size: M) ✅ (7c)
 Today the Cancellation Apology broadcast cancels every pending booking on a
 day. This step adds the branch scope, several days, and deselecting patients.
 - Acceptance criteria:

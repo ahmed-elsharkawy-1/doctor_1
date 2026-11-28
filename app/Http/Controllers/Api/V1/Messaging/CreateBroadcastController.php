@@ -7,6 +7,7 @@ use App\Http\Requests\Api\V1\Messaging\BroadcastRequest;
 use App\Services\V1\Messaging\WhatsAppMessagingService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 
 class CreateBroadcastController extends V1Controller
@@ -25,8 +26,10 @@ class CreateBroadcastController extends V1Controller
             (string) $request->validated('template_key'),
             $date,
             $request->bookingIds(),
+            // The branch the app is on, and no other (ELA-22).
+            [$this->branch($request)->id],
         );
 
-        return ApiResponse::success($result, __('messages.sent'));
+        return ApiResponse::success(Arr::except($result, 'cancelled_ids'), __('messages.sent'));
     }
 }

@@ -712,6 +712,108 @@ paths:
         "200": { description: "Same shape as `POST /emergency`" }
         "404": { description: "`BRANCH_NOT_FOUND`: not one of this account's branches" }
 
+  /bulk-cancellations:
+    get:
+      tags: [Messaging]
+      summary: What a cancellation of those days would cover, by branch
+      description: |
+        ELA-22. The bookings still to come on `dates` (today or later, at most
+        14), grouped by branch: the branches in `branch_ids`, or every branch
+        this account works at. Earlier today, a booked patient whose time has
+        passed is left out (a no-show, not a cancellation); one who has
+        arrived is listed.
+      operationId: listBulkCancellation
+      parameters:
+        - { name: "dates[]", in: query, required: true, schema: { type: array, items: { type: string, format: date } } }
+        - { name: "branch_ids[]", in: query, schema: { type: array, items: { type: integer } } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          branches:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id: { type: integer }
+                                name: { type: string, nullable: true }
+                                count: { type: integer }
+                                bookings:
+                                  type: array
+                                  items:
+                                    type: object
+                                    properties:
+                                      booking_id: { type: integer }
+                                      date: { type: string, format: date }
+                                      start_time: { type: object, nullable: true }
+                                      patient:
+                                        type: object
+                                        properties:
+                                          code: { type: string, nullable: true }
+                                          name: { type: string, nullable: true }
+        "404": { description: "`BRANCH_NOT_FOUND`: not one of this account's branches" }
+        "422": { description: "`BULK_CANCEL_DAYS_INVALID`" }
+    post:
+      tags: [Messaging]
+      summary: Cancel those days at those branches
+      description: |
+        ELA-22. Cancels the `booking_ids` listed by GET and left ticked, that
+        are still to come there. A booking made since the GET is not among
+        them and is left as it is (`unlisted_count` counts those and the
+        unticked). Each is cancelled for an emergency (never a no-show) and
+        sent the cancellation apology, whose "book again" opens on its own
+        branch. A second identical request cancels and sends nothing again.
+      operationId: bulkCancel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dates, booking_ids]
+              properties:
+                dates: { type: array, items: { type: string, format: date } }
+                branch_ids: { type: array, items: { type: integer } }
+                booking_ids: { type: array, items: { type: integer }, minItems: 1 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          template_key: { type: string }
+                          sent_count: { type: integer }
+                          skipped_count: { type: integer }
+                          cancelled_count: { type: integer }
+                          message_ids: { type: array, items: { type: integer } }
+                          skipped: { type: array, items: { type: object } }
+                          whatsapp_enabled: { type: boolean }
+                          by_branch:
+                            type: object
+                            description: branch id → bookings cancelled there
+                            additionalProperties: { type: integer }
+                          unlisted_count: { type: integer }
+        "404": { description: "`BRANCH_NOT_FOUND`: not one of this account's branches" }
+        "409": { description: "`NOTHING_TO_CANCEL`: none of `booking_ids` can still be cancelled" }
+        "422": { description: "`BULK_CANCEL_DAYS_INVALID`, or `VALIDATION_FAILED` without `booking_ids`" }
+
   /holidays:
     get:
       tags: [Settings]

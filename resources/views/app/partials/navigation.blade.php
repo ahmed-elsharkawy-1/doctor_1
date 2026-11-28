@@ -31,6 +31,9 @@
         ['route' => 'app.reports',      'label' => __('app.nav.reports'),   'ability' => 'reports.view'],
         ['route' => 'app.reviews',      'label' => __('app.nav.reviews'),   'ability' => 'patients.view'],
         ['route' => 'app.messages',     'label' => __('app.nav.messages'),  'ability' => 'bookings.manage'],
+        // ELA-22: only with branches to choose between; one branch cancels
+        // its day from Messages, as it always has.
+        ['route' => 'app.bulk-cancel',  'label' => __('app.bulk_cancel.title'), 'ability' => 'bookings.manage', 'hidden' => $myBranches->count() < 2],
         ['route' => 'app.settings',     'label' => __('app.nav.settings'),  'ability' => 'settings.manage'],
     ];
 

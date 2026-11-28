@@ -75,6 +75,23 @@ return [
         'go_to_call_list' => 'Open the call list',
     ],
 
+    'bulk_cancel' => [
+        'title' => 'Cancel appointments',
+        'lead' => 'Choose branches and days, and untick any booking to keep.',
+        'from' => 'From',
+        'to' => 'To',
+        'none' => 'No bookings on those days',
+        'submit' => '{1} Cancel one booking|[2,*] Cancel :count bookings',
+        'count' => '{0} none of :of to cancel|{1} one of :of|[2,*] :count of :of',
+        'back' => 'Back',
+        'working' => 'Cancelling…',
+        'pick_branch' => 'Choose at least one branch',
+        'arrived' => 'In the clinic',
+        'summary' => 'Cancel :count:',
+        'what_happens' => 'Each is cancelled (not a no-show) and the patient gets an apology with a link to rebook at the same branch.',
+        'do_it' => 'Yes, cancel',
+    ],
+
     'delay' => [
         'which_branches' => 'Branches',
         'all_branches' => 'All branches',
