@@ -130,7 +130,7 @@ class TemplatePayloadResolver
                     $this->patientName($booking),
                     $this->date($booking, $clinic),
                     $this->time($booking, $clinic),
-                    $this->branchPhone($clinic, $booking),
+                    $this->branchPhone($clinic, $booking->branch),
                 ]),
                 // Rebooking opens on the same branch (ELA-22).
                 buttons: [$this->bookingPage($clinic, $booking->branch)],
@@ -190,7 +190,7 @@ class TemplatePayloadResolver
                 $booking->start_at?->copy()->subMinutes(max(0, $minutes)),
                 $booking,
             ),
-            $this->branchPhone($clinic, $booking),
+            $this->branchPhone($clinic, $booking->branch),
         ];
 
         // {{2}} is the branch in the multi-branch version (ELA-22).
@@ -241,14 +241,21 @@ class TemplatePayloadResolver
      * phone. The doctor's name is the same one the "الطبيب" line of the
      * other templates prints. The text is one paragraph: Meta refuses a
      * parameter with a newline, so clean() folds any into spaces.
+     *
+     * With branches (ELA-22) `$branch` is where the patient is booked that
+     * day: {{4}} is its phone, and an announcement sent to some branches
+     * only names it after the doctor, "د. سهام – عيادة جديلة"; one sent to
+     * all of them names the doctor alone.
      */
-    public function forAnnouncement(Clinic $clinic, Patient $patient, string $text): TemplatePayload
+    public function forAnnouncement(Clinic $clinic, Patient $patient, string $text, ?Branch $branch = null, bool $namesBranch = false): TemplatePayload
     {
+        $doctor = $this->doctorName($clinic);
+
         return new TemplatePayload(body: [
-            $this->doctorName($clinic),
+            $namesBranch && $branch !== null ? $doctor.' – '.$this->branchName($clinic, $branch) : $doctor,
             $this->clean($patient->name, __('messages.fallback.patient')),
             $this->clean($text, '—'),
-            $this->clinicPhone($clinic),
+            $this->branchPhone($clinic, $branch),
         ]);
     }
 
@@ -390,9 +397,9 @@ class TemplatePayloadResolver
      * The branch's own number, else the doctor's main booking number
      * (ELA-16, ELA-22).
      */
-    private function branchPhone(Clinic $clinic, ?Booking $booking): string
+    private function branchPhone(Clinic $clinic, ?Branch $branch): string
     {
-        $phone = $booking?->branch?->contactPhone()?->e164;
+        $phone = $branch?->contactPhone()?->e164;
 
         return $phone === null ? $this->clinicPhone($clinic) : $this->clean($phone, __('messages.fallback.phone'));
     }
